@@ -90,3 +90,6 @@ tasks.withType<KotlinCompile>().all {
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }
+
+// IdleRS additions, kept in their own file so upstream changes to this one cherry-pick without conflicts.
+apply(from = "idlers.gradle.kts")
