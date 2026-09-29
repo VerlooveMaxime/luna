@@ -1,4 +1,4 @@
-package game.harness
+package game.idle.movement
 
 import io.luna.game.model.Position
 

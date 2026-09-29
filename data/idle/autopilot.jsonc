@@ -1,0 +1,6 @@
+{
+  // Ticks (600 ms each) a player must stand idle before the autopilot takes its next step: the pause between clicks.
+  "decision_delay_ticks": 2,
+  // How far, in tiles, the autopilot looks for a tree to cut.
+  "tree_search_radius": 15
+}
