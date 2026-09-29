@@ -2,38 +2,36 @@ package game.idle
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class IdleStateTest {
 
-    private val job = AutopilotJob("varrock_west", listOf("normal"))
+    private val state = IdleState(flow = listOf("chop normal @varrock_west"), stepIndex = 1, running = true, stage = 3, resets = 2)
 
     @Test
-    fun `new state starts with autopilot off at stage zero`() {
-        val state = IdleState()
+    fun `new state has no flow and is not running`() {
+        val fresh = IdleState()
 
-        assertFalse(state.autopilotEnabled)
-        assertEquals(0, state.stage)
-        assertEquals(0, state.resets)
+        assertEquals(emptyList<String>(), fresh.flow)
+        assertFalse(fresh.running)
+        assertEquals(listOf(0, 0, 0), listOf(fresh.stepIndex, fresh.stage, fresh.resets))
     }
 
     @Test
-    fun `a saved job means the autopilot is on`() {
-        assertTrue(IdleState(job = job).autopilotEnabled)
+    fun `a new flow starts at step zero and stopped`() {
+        val changed = state.withFlow(listOf("loop"))
+
+        assertEquals(IdleState(flow = listOf("loop"), stepIndex = 0, running = false, stage = 3, resets = 2), changed)
     }
 
     @Test
-    fun `starting a job keeps stage and resets`() {
-        val state = IdleState(job = null, stage = 3, resets = 2)
-
-        assertEquals(IdleState(job = job, stage = 3, resets = 2), state.withJob(job))
+    fun `moving to a step keeps everything else`() {
+        assertEquals(state.copy(stepIndex = 4), state.atStep(4))
     }
 
     @Test
-    fun `stopping keeps stage and resets`() {
-        val state = IdleState(job = job, stage = 3, resets = 2)
-
-        assertEquals(IdleState(job = null, stage = 3, resets = 2), state.stopped())
+    fun `starting and stopping only flip the switch`() {
+        assertEquals(state.copy(running = false), state.stopped())
+        assertEquals(state, state.stopped().started())
     }
 }

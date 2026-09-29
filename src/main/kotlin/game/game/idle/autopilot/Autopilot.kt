@@ -1,6 +1,5 @@
 package game.idle.autopilot
 
-import game.idle.AutopilotJob
 import game.idle.IdleState
 
 /** The parts of a player the autopilot switch needs. [LunaAutopilotPlayer] is the in-game one. */
@@ -25,25 +24,24 @@ fun interface ScheduledTick {
 }
 
 /**
- * Starts and stops each player's autopilot from the job saved in their [IdleState]; at most one runs per player.
- * [newDriver] builds the driver for a job, or gives null when the job no longer resolves (a location removed from
- * the data file). Game thread only.
+ * Starts and stops each player's autopilot from the flow saved in their [IdleState]; at most one runs per player.
+ * [newDriver] builds the driver for the saved flow, or gives null when it no longer resolves (a location removed
+ * from the data file). Game thread only.
  */
 class Autopilot<P : AutopilotPlayer>(
     private val scheduler: TickScheduler,
-    private val newDriver: (P, AutopilotJob) -> AutopilotDriver?,
+    private val newDriver: (P) -> AutopilotDriver?,
 ) {
 
     private val running = mutableMapOf<String, ScheduledTick>()
 
     /**
-     * Reads the state on every login, not only when a job is saved: Luna's save drops a persistent attribute that
+     * Reads the state on every login, not only when it says running: Luna's save drops a persistent attribute that
      * was loaded but never read during the session.
      */
     fun onLogin(player: P) {
-        val job = player.idleState.job ?: return
-        if (!start(player, job)) {
-            player.tell("Autopilot: could not resume at '${job.locationId}'. Use ::idle to start again.")
+        if (player.idleState.running && !start(player)) {
+            player.tell("Autopilot: could not resume your flow. Check it with ::flow list.")
         }
     }
 
@@ -53,14 +51,14 @@ class Autopilot<P : AutopilotPlayer>(
 
     fun isRunning(player: P): Boolean = player.username in running
 
-    /** Replaces whatever the player was doing with [job] and saves it; false when the job does not resolve. */
-    fun start(player: P, job: AutopilotJob): Boolean {
-        val driver = newDriver(player, job)
+    /** Runs the saved flow from its saved step, replacing whatever ran before; false when it does not resolve. */
+    fun start(player: P): Boolean {
+        val driver = newDriver(player)
         stop(player)
         if (driver == null) {
             return false
         }
-        player.idleState = player.idleState.withJob(job)
+        player.idleState = player.idleState.started()
         running[player.username] = scheduler.everyTick(driver::tick)
         return true
     }

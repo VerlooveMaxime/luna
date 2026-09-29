@@ -19,7 +19,7 @@ class WoodcuttingPlannerTest {
 
     @Test
     fun `an action needs at least one kind of tree`() {
-        assertThrows<IllegalArgumentException> { ChopAction(emptySet()) }
+        assertThrows<IllegalArgumentException> { ChopAction(emptySet(), dropWhenFull = true) }
     }
 
     @Test
@@ -34,6 +34,15 @@ class WoodcuttingPlannerTest {
         val decision = decide(view(listOf(nextToPlayer), inventoryFull = true, logsInInventory = 5))
 
         assertEquals(DropLogs, decision)
+    }
+
+    @Test
+    fun `a full inventory of logs is kept when the action says not to drop`() {
+        val keep = ChopAction(setOf(Tree.NORMAL), dropWhenFull = false)
+
+        val decision = decide(view(listOf(nextToPlayer), inventoryFull = true, logsInInventory = 5), keep)
+
+        assertEquals(Blocked(BlockedReason.INVENTORY_FULL), decision)
     }
 
     @Test
@@ -73,7 +82,7 @@ class WoodcuttingPlannerTest {
 
     @Test
     fun `trees the player did not ask for are ignored`() {
-        val decision = decide(view(listOf(nextToPlayer)), ChopAction(setOf(Tree.OAK)))
+        val decision = decide(view(listOf(nextToPlayer)), ChopAction(setOf(Tree.OAK), dropWhenFull = true))
 
         assertEquals(Blocked(BlockedReason.NO_TREE), decision)
     }

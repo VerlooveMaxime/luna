@@ -11,7 +11,8 @@ data class LocationUnlock(val stage: Int)
 
 /**
  * A place a flow step can run at, from `data/idle/locations.jsonc`: where to stand and what is there. Resource names
- * are raw here and resolved per skill ([game.idle.autopilot.woodcutting.WoodcuttingSpot] for [trees]).
+ * are raw here and resolved per skill ([game.idle.autopilot.woodcutting.WoodcuttingSpot] for [trees]). [bank] is the
+ * tile of a bank booth the flow's bank steps use from here, if the location has one.
  */
 data class Location(
     val id: String,
@@ -19,5 +20,6 @@ data class Location(
     val anchor: Tile,
     val radius: Int,
     val trees: List<String>,
+    val bank: Tile?,
     val unlock: LocationUnlock,
 )

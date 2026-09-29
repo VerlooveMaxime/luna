@@ -8,8 +8,8 @@ import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkToLocation
 import game.skill.woodcutting.cutTree.Tree
 import io.luna.game.model.Position
 
-/** What the player asked to chop. */
-data class ChopAction(val trees: Set<Tree>) {
+/** What the player asked to chop, and whether logs go on the ground once the inventory is full. */
+data class ChopAction(val trees: Set<Tree>, val dropWhenFull: Boolean) {
     init {
         require(trees.isNotEmpty()) { "An action needs at least one kind of tree" }
     }
@@ -58,13 +58,13 @@ sealed interface WoodcuttingDecision {
 
 enum class BlockedReason(val message: String) {
     NO_AXE("Autopilot: you need an axe that you have the Woodcutting level to use."),
-    INVENTORY_FULL("Autopilot: your inventory is full and there are no logs to drop."),
+    INVENTORY_FULL("Autopilot: your inventory is full. Bank it, or add 'drop' to the step."),
     NO_TREE("Autopilot: there is no tree you can cut here."),
 }
 
 /**
- * Power-chopping: cut the highest-level wanted tree the player can, drop every log once the inventory is full, and
- * walk back to the location when nothing is in reach from outside it.
+ * Cut the highest-level wanted tree the player can, drop every log once the inventory is full if the action says
+ * so, and walk back to the location when nothing is in reach from outside it.
  */
 object WoodcuttingPlanner {
 
@@ -81,7 +81,7 @@ object WoodcuttingPlanner {
             .minWithOrNull(preferredFirst)
         return when {
             !view.hasUsableAxe -> Blocked(BlockedReason.NO_AXE)
-            view.inventoryFull && view.logsInInventory > 0 -> DropLogs
+            view.inventoryFull && view.logsInInventory > 0 && action.dropWhenFull -> DropLogs
             view.inventoryFull -> Blocked(BlockedReason.INVENTORY_FULL)
             best == null && !view.atLocation -> WalkToLocation
             best == null -> Blocked(BlockedReason.NO_TREE)

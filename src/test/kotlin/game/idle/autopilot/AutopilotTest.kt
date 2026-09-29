@@ -1,67 +1,57 @@
 package game.idle.autopilot
 
-import game.idle.AutopilotJob
 import game.idle.IdleState
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class AutopilotTest {
 
-    private val job = AutopilotJob("varrock_west", listOf("normal"))
-    private val goneJob = AutopilotJob("atlantis", listOf("normal"))
-
     private val scheduler = FakeTickScheduler()
     private val activity = FakeActivity()
-    private val autopilot = Autopilot<FakeAutopilotPlayer>(scheduler) { _, requested ->
-        if (requested == goneJob) null else AutopilotDriver(activity, decisionDelayTicks = 1)
+    private val autopilot = Autopilot<FakeAutopilotPlayer>(scheduler) { player ->
+        if ("broken" in player.idleState.flow) null else AutopilotDriver(activity, decisionDelayTicks = 1)
     }
 
-    private val idle = FakeAutopilotPlayer("maxime")
-    private val chopping = FakeAutopilotPlayer("maxime", IdleState(job = job))
+    private val idle = FakeAutopilotPlayer("maxime", IdleState(flow = listOf("loop")))
+    private val chopping = FakeAutopilotPlayer("maxime", IdleState(flow = listOf("loop"), running = true))
+    private val broken = FakeAutopilotPlayer("maxime", IdleState(flow = listOf("broken"), running = true))
 
     @Test
-    fun `starting saves the job`() {
-        autopilot.start(idle, job)
+    fun `starting saves the switch and runs the autopilot`() {
+        assertTrue(autopilot.start(idle))
 
-        assertEquals(job, idle.idleState.job)
-    }
-
-    @Test
-    fun `starting runs the autopilot`() {
-        assertTrue(autopilot.start(idle, job))
+        assertTrue(idle.idleState.running)
         assertTrue(autopilot.isRunning(idle))
         assertEquals(1, scheduler.activeCount)
     }
 
     @Test
     fun `starting again replaces the running autopilot`() {
-        autopilot.start(idle, job)
+        autopilot.start(idle)
 
-        autopilot.start(idle, job.copy(trees = listOf("oak")))
+        autopilot.start(idle)
 
         assertEquals(1, scheduler.activeCount)
-        assertEquals(listOf("oak"), idle.idleState.job?.trees)
     }
 
     @Test
-    fun `a job that does not resolve stops the player and is not saved`() {
-        autopilot.start(chopping, job)
+    fun `a flow that does not resolve leaves the player stopped`() {
+        autopilot.start(broken)
 
-        assertFalse(autopilot.start(chopping, goneJob))
-        assertFalse(autopilot.isRunning(chopping))
-        assertNull(chopping.idleState.job)
+        assertFalse(autopilot.start(broken))
+        assertFalse(autopilot.isRunning(broken))
+        assertFalse(broken.idleState.running)
     }
 
     @Test
-    fun `stopping clears the job`() {
-        autopilot.start(idle, job)
+    fun `stopping clears the switch`() {
+        autopilot.start(idle)
 
         autopilot.stop(idle)
 
-        assertNull(idle.idleState.job)
+        assertFalse(idle.idleState.running)
         assertFalse(autopilot.isRunning(idle))
         assertEquals(0, scheduler.activeCount)
     }
@@ -74,7 +64,7 @@ class AutopilotTest {
     }
 
     @Test
-    fun `logging in with a saved job resumes it`() {
+    fun `logging in with the switch on resumes`() {
         autopilot.onLogin(chopping)
 
         assertEquals(1, scheduler.activeCount)
@@ -82,25 +72,23 @@ class AutopilotTest {
     }
 
     @Test
-    fun `logging in with a job that no longer resolves tells the player and clears it`() {
-        val stale = FakeAutopilotPlayer("maxime", IdleState(job = goneJob))
-
-        autopilot.onLogin(stale)
+    fun `logging in with a flow that no longer resolves tells the player`() {
+        autopilot.onLogin(broken)
 
         assertEquals(0, scheduler.activeCount)
-        assertNull(stale.idleState.job)
-        assertEquals(listOf("Autopilot: could not resume at 'atlantis'. Use ::idle to start again."), stale.told)
+        assertFalse(broken.idleState.running)
+        assertEquals(listOf("Autopilot: could not resume your flow. Check it with ::flow list."), broken.told)
     }
 
     @Test
-    fun `logging in without a job leaves the autopilot stopped`() {
+    fun `logging in with the switch off leaves the autopilot stopped`() {
         autopilot.onLogin(idle)
 
         assertEquals(0, scheduler.activeCount)
     }
 
     @Test
-    fun `logging in reads the state even without a job`() {
+    fun `logging in reads the state even when off`() {
         autopilot.onLogin(idle)
 
         assertTrue(idle.stateReads > 0)
@@ -116,13 +104,13 @@ class AutopilotTest {
     }
 
     @Test
-    fun `logging out stops the autopilot but keeps the job for next time`() {
+    fun `logging out stops the ticks but keeps the switch for next time`() {
         autopilot.onLogin(chopping)
 
         autopilot.onLogout(chopping)
 
         assertEquals(0, scheduler.activeCount)
-        assertEquals(job, chopping.idleState.job)
+        assertTrue(chopping.idleState.running)
     }
 
     @Test
@@ -145,7 +133,7 @@ class AutopilotTest {
     fun `each player gets an autopilot of their own`() {
         autopilot.onLogin(chopping)
 
-        autopilot.onLogin(FakeAutopilotPlayer("zezima", IdleState(job = job)))
+        autopilot.onLogin(FakeAutopilotPlayer("zezima", IdleState(flow = listOf("loop"), running = true)))
 
         assertEquals(2, scheduler.activeCount)
     }

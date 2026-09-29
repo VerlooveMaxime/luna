@@ -5,20 +5,24 @@ import api.attr.getValue
 import api.attr.setValue
 import io.luna.game.model.mob.Player
 
-/** What the autopilot was told to do, as saved: a location id and tree names, resolved again on login. */
-data class AutopilotJob(val locationId: String, val trees: List<String>)
-
-/** Per-player IdleRS progress. Persisted as one player attribute, so every field must stay Gson-friendly. */
+/**
+ * Per-player IdleRS progress. Persisted as one player attribute, so every field must stay Gson-friendly: the flow
+ * is kept as the lines the player typed and parsed again when it runs.
+ */
 data class IdleState(
-    val job: AutopilotJob? = null,
+    val flow: List<String> = emptyList(),
+    val stepIndex: Int = 0,
+    val running: Boolean = false,
     val stage: Int = 0,
     val resets: Int = 0,
 ) {
-    val autopilotEnabled: Boolean get() = job != null
+    fun withFlow(flow: List<String>): IdleState = copy(flow = flow, stepIndex = 0, running = false)
 
-    fun withJob(job: AutopilotJob): IdleState = copy(job = job)
+    fun atStep(index: Int): IdleState = copy(stepIndex = index)
 
-    fun stopped(): IdleState = copy(job = null)
+    fun started(): IdleState = copy(running = true)
+
+    fun stopped(): IdleState = copy(running = false)
 }
 
 var Player.idleState by Attr.obj { IdleState() }.persist("idle_state")

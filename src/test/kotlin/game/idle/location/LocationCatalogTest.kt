@@ -22,9 +22,27 @@ class LocationCatalogTest {
             anchor = Tile(3165, 3445),
             radius = 15,
             trees = listOf("normal"),
+            bank = null,
             unlock = LocationUnlock(stage = 0),
         )
         assertEquals(expected, location)
+    }
+
+    @Test
+    fun `a bank tile is read`() {
+        assertEquals(Tile(3186, 3440), parseOne("bank" to mapOf("x" to 3186, "y" to 3440)).bank)
+    }
+
+    @Test
+    fun `the tracked Varrock location has its west bank booth`() {
+        assertEquals(Tile(3186, 3440), LocationCatalog.load(LocationCatalog.PATH).find("varrock_west")?.bank)
+    }
+
+    @Test
+    fun `a bank tile is checked like the anchor`() {
+        assertRejected("Location 'spot' has a negative bank x", "id" to "spot", "bank" to mapOf("x" to -1, "y" to 1))
+        assertRejected("Location 'spot' has a negative bank y", "id" to "spot", "bank" to mapOf("x" to 1, "y" to -1))
+        assertRejected("Location 'spot' has bank floor 4, expected 0 to 3", "id" to "spot", "bank" to mapOf("x" to 1, "y" to 1, "z" to 4))
     }
 
     @Test
@@ -138,7 +156,7 @@ class LocationCatalogTest {
     @Test
     fun `an anchor below the ground floor is rejected`() {
         assertRejected(
-            "Location 'spot' has floor -1, expected 0 to 3",
+            "Location 'spot' has anchor floor -1, expected 0 to 3",
             "id" to "spot",
             "anchor" to mapOf("x" to 1, "y" to 1, "z" to -1),
         )
@@ -147,7 +165,7 @@ class LocationCatalogTest {
     @Test
     fun `an anchor above the top floor is rejected`() {
         assertRejected(
-            "Location 'spot' has floor 4, expected 0 to 3",
+            "Location 'spot' has anchor floor 4, expected 0 to 3",
             "id" to "spot",
             "anchor" to mapOf("x" to 1, "y" to 1, "z" to 4),
         )

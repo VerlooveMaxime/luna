@@ -6,7 +6,7 @@ import io.luna.game.model.Position
 /** Object id of the trees west of the Varrock west bank; the planner never looks at it. */
 const val TREE_OBJECT_ID = 1278
 
-val anyTree = ChopAction(Tree.entries.toSet())
+val anyTree = ChopAction(Tree.entries.toSet(), dropWhenFull = true)
 
 fun tree(
     x: Int,

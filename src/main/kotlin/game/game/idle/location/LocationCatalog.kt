@@ -51,6 +51,7 @@ internal data class LocationJson(
     val anchor: TileJson? = null,
     val radius: Int = 0,
     val trees: List<String> = emptyList(),
+    val bank: TileJson? = null,
     val unlock: UnlockJson = UnlockJson(),
 ) {
 
@@ -58,9 +59,6 @@ internal data class LocationJson(
         require(id.isNotBlank()) { "A location has no id: $this" }
         require(name.isNotBlank()) { "Location '$id' has no name" }
         requireNotNull(anchor) { "Location '$id' has no anchor" }
-        require(anchor.x >= 0) { "Location '$id' has a negative anchor x" }
-        require(anchor.y >= 0) { "Location '$id' has a negative anchor y" }
-        require(anchor.z in 0..3) { "Location '$id' has floor ${anchor.z}, expected 0 to 3" }
         require(radius in 1..LocationCatalog.MAX_RADIUS) {
             "Location '$id' has radius $radius, expected 1 to ${LocationCatalog.MAX_RADIUS}"
         }
@@ -69,10 +67,18 @@ internal data class LocationJson(
         return Location(
             id = id,
             name = name,
-            anchor = Tile(anchor.x, anchor.y, anchor.z),
+            anchor = tile("anchor", anchor),
             radius = radius,
             trees = trees,
+            bank = bank?.let { tile("bank", it) },
             unlock = LocationUnlock(unlock.stage),
         )
+    }
+
+    private fun tile(what: String, json: TileJson): Tile {
+        require(json.x >= 0) { "Location '$id' has a negative $what x" }
+        require(json.y >= 0) { "Location '$id' has a negative $what y" }
+        require(json.z in 0..3) { "Location '$id' has $what floor ${json.z}, expected 0 to 3" }
+        return Tile(json.x, json.y, json.z)
     }
 }

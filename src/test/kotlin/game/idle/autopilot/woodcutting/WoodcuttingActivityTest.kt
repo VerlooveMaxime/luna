@@ -1,6 +1,7 @@
 package game.idle.autopilot.woodcutting
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -12,6 +13,11 @@ class WoodcuttingActivityTest {
 
     private val woodcutter = FakeWoodcutter(view(listOf(nearTree, farTree)))
     private val activity = WoodcuttingActivity(woodcutter, anyTree)
+
+    @Test
+    fun `chopping is never done on its own`() {
+        assertFalse(activity.isDone())
+    }
 
     @Test
     fun `the player is busy while the woodcutter is`() {

@@ -1,12 +1,12 @@
 package game.idle.autopilot.woodcutting
 
-import game.idle.autopilot.AutopilotActivity
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Blocked
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Chop
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.DropLogs
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.OnTree
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkTo
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkToLocation
+import game.idle.flow.StepActivity
 import io.luna.game.model.Position
 
 /** What the woodcutting autopilot can see and do for one player. [LunaWoodcutter] is the in-game one. */
@@ -32,12 +32,15 @@ interface Woodcutter {
  * (walked to but still out of reach, or chopped without the tree falling or the inventory filling) is skipped for
  * as long as this activity runs, so an unreachable tree cannot trap the player.
  */
-class WoodcuttingActivity(private val woodcutter: Woodcutter, private val action: ChopAction) : AutopilotActivity {
+class WoodcuttingActivity(private val woodcutter: Woodcutter, private val action: ChopAction) : StepActivity {
 
     private val skippedTrees = mutableSetOf<Position>()
     private var lastDecision: WoodcuttingDecision? = null
 
     override fun isBusy(): Boolean = woodcutter.isBusy()
+
+    /** Chopping has no end of its own; the flow's `until` decides. */
+    override fun isDone(): Boolean = false
 
     override fun act() {
         val decision = decideSkippingRetries(woodcutter.look())
