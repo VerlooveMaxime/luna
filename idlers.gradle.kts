@@ -14,7 +14,7 @@ val idlersPackages = listOf("game/idle", "game/harness")
 
 // Ratchet: the build fails when more lines or branches are missed than this. Lower it whenever tests close a gap.
 val maxMissedLines = 304
-val maxMissedBranches = 152
+val maxMissedBranches = 151
 
 // Scripts only wire events to tested classes and cannot run without a booted server, so they are not counted.
 fun idlersClasses(): FileTree {

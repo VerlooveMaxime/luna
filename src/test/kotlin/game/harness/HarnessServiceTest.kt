@@ -1,7 +1,9 @@
 package game.harness
 
+import io.luna.net.msg.out.GameChatboxMessageWriter
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -62,6 +64,48 @@ class HarnessServiceTest {
         service.start(enabled)
 
         assertThrows<IllegalStateException> { service.start(enabled) }
+    }
+
+    @Test
+    fun `a login while the harness runs taps the client channel`() {
+        val channel = loggedInChannel()
+        service.start(enabled)
+
+        service.onLogin(channel) { 0 }
+
+        assertNotNull(MessageTap.of(channel))
+    }
+
+    @Test
+    fun `a login while the harness is off taps nothing`() {
+        val channel = loggedInChannel()
+        service.start(HarnessConfig(enabled = false))
+
+        service.onLogin(channel) { 0 }
+
+        assertNull(MessageTap.of(channel))
+    }
+
+    @Test
+    fun `a login after the harness stopped taps nothing`() {
+        val channel = loggedInChannel()
+        service.start(enabled)
+        service.stop()
+
+        service.onLogin(channel) { 0 }
+
+        assertNull(MessageTap.of(channel))
+    }
+
+    @Test
+    fun `a tapped channel keeps as many messages as the config says`() {
+        val channel = loggedInChannel()
+        service.start(enabled.copy(messageBufferSize = 1))
+        service.onLogin(channel) { 0 }
+
+        channel.writeOutbound(encode(GameChatboxMessageWriter("first")), encode(GameChatboxMessageWriter("second")))
+
+        assertEquals(listOf(2L), MessageTap.of(channel)?.log?.since(0)?.messages?.map { it.seq })
     }
 
     @Test

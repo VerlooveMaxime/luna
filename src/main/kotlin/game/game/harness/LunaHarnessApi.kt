@@ -64,9 +64,9 @@ class LunaHarnessApi(
 
     override fun messages(name: String, since: Long, type: String?): MessagesView = gameThread.run {
         val player = online(name)
-        val client = player.client as? RecordingGameClient
-            ?: throw HarnessException(501, "${player.username} is not headless; only headless players record messages")
-        client.log.since(since, type)
+        val log = messageLogOf(player.client)
+            ?: throw HarnessException(501, "${player.username} records no messages; bots never do")
+        log.since(since, type)
     }
 
     override fun act(name: String, action: PlayerAction): ActionView = gameThread.run {

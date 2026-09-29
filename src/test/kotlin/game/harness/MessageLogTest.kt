@@ -2,14 +2,18 @@ package game.harness
 
 import io.luna.game.model.mob.Player
 import io.luna.net.codec.ByteMessage
+import io.luna.net.codec.MessageType
+import io.luna.net.msg.GameMessage
 import io.luna.net.msg.GameMessageWriter
 import io.luna.net.msg.out.GameChatboxMessageWriter
 import io.luna.net.msg.out.NpcUpdateMessageWriter
 import io.luna.net.msg.out.PlayerUpdateMessageWriter
 import io.netty.buffer.ByteBuf
+import io.netty.buffer.Unpooled
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.nio.charset.StandardCharsets
 import java.time.DayOfWeek
 
 class MessageLogTest {
@@ -40,6 +44,11 @@ class MessageLogTest {
 
     private fun chat(text: String) = GameChatboxMessageWriter(text)
 
+    private fun encodedChat(text: String): GameMessage {
+        val payload = Unpooled.copiedBuffer("$text\n", StandardCharsets.ISO_8859_1)
+        return GameMessage(63, MessageType.VAR, ByteMessage.wrap(payload))
+    }
+
     @Test
     fun `records the writer type, tick and fields`() {
         log.record(chat("You get some logs."))
@@ -48,6 +57,31 @@ class MessageLogTest {
             listOf(RecordedMessage(1, 40, "GameChatboxMessageWriter", mapOf("message" to "You get some logs."))),
             log.since(0).messages,
         )
+    }
+
+    @Test
+    fun `records an encoded message with its decoded type and fields`() {
+        log.record(encodedChat("You get some logs."))
+
+        assertEquals(
+            listOf(RecordedMessage(1, 40, "GameChatboxMessageWriter", mapOf("message" to "You get some logs."))),
+            log.since(0).messages,
+        )
+    }
+
+    @Test
+    fun `encoded player updating is not recorded`() {
+        log.record(GameMessage(90, MessageType.VAR_SHORT, ByteMessage.wrap(Unpooled.buffer())))
+
+        assertEquals(emptyList<RecordedMessage>(), log.since(0).messages)
+    }
+
+    @Test
+    fun `writers and encoded messages share one numbering`() {
+        log.record(chat("a"))
+        log.record(encodedChat("b"))
+
+        assertEquals(listOf(1L, 2L), log.since(0).messages.map { it.seq })
     }
 
     @Test
