@@ -18,6 +18,10 @@ class FakeWoodcutter(var view: WoodcuttingView) : Woodcutter {
         steps += "walk to ${tree.position.x},${tree.position.y}"
     }
 
+    override fun walkToLocation() {
+        steps += "walk to location"
+    }
+
     override fun dropLogs() {
         steps += "drop logs"
     }

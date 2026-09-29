@@ -11,7 +11,7 @@ class WoodcuttingActivityTest {
     private val nearTreeInReach = nearTree.copy(distance = 1, usableFromHere = true)
 
     private val woodcutter = FakeWoodcutter(view(listOf(nearTree, farTree)))
-    private val activity = WoodcuttingActivity(woodcutter)
+    private val activity = WoodcuttingActivity(woodcutter, anyTree)
 
     @Test
     fun `the player is busy while the woodcutter is`() {
@@ -34,6 +34,15 @@ class WoodcuttingActivityTest {
         activity.act()
 
         assertEquals(listOf("walk to 3171,3444"), woodcutter.steps)
+    }
+
+    @Test
+    fun `away from the location with nothing in sight the player walks back`() {
+        woodcutter.view = view(emptyList(), atLocation = false)
+
+        activity.act()
+
+        assertEquals(listOf("walk to location"), woodcutter.steps)
     }
 
     @Test

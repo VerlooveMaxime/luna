@@ -2,7 +2,6 @@ package game.idle.autopilot.woodcutting
 
 import api.predef.woodcutting
 import engine.widget.skill.LevelUpInterface
-import game.idle.movement.navigateToReach
 import game.skill.woodcutting.cutTree.Axe
 import game.skill.woodcutting.cutTree.Tree
 import game.skill.woodcutting.cutTree.TreeStump
@@ -10,7 +9,11 @@ import io.luna.game.action.ActionType
 import io.luna.game.event.impl.ControllableEvent
 import io.luna.game.event.impl.DropItemEvent
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
+import io.luna.game.model.Direction
 import io.luna.game.model.EntityState
+import io.luna.game.model.EntityType
+import io.luna.game.model.Position
+import io.luna.game.model.collision.CollisionManager
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.interact.InteractionAction
 import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
@@ -18,12 +21,16 @@ import io.luna.game.model.mob.overlay.OverlayType
 import io.luna.game.model.`object`.GameObject
 
 /**
- * [Woodcutter] for a logged-in player. Chopping and dropping go through the same events and interaction action as the
- * client's clicks, so Luna's reach checks, animations, XP and drop rules apply unchanged.
+ * [Woodcutter] for a logged-in player at one [spot]. Trees are searched around the location's anchor, not around
+ * the player, and ranked by walking distance. Chopping and dropping go through the same events and interaction
+ * action as the client's clicks, so Luna's reach checks, animations, XP and drop rules apply unchanged.
  */
-class LunaWoodcutter(private val player: Player, private val searchRadius: Int) : Woodcutter {
+class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSpot) : Woodcutter, Terrain {
 
     private val world get() = player.world
+    private val collision: CollisionManager get() = world.collisionManager
+    private val anchor: Position = spot.location.anchor.toPosition()
+    private val scan = TreeScan(anchor, spot.location.radius)
 
     override fun isBusy(): Boolean =
         !player.walking.isEmpty || hasBlockingWindow() || FOREGROUND_ACTIONS.any { player.actions.size(it) > 0 }
@@ -34,7 +41,8 @@ class LunaWoodcutter(private val player: Player, private val searchRadius: Int) 
             hasUsableAxe = Axe.computeAxeType(player) != null,
             inventoryFull = player.inventory.isFull,
             logsInInventory = logSlots().size,
-            trees = world.locator.findObjects(player, searchRadius, ::isStandingTree).map(::candidate),
+            atLocation = scan.atLocation(player.position),
+            trees = scan.candidates(player.position, standingTrees(), terrain = this),
         )
 
     override fun chop(tree: TreeCandidate) {
@@ -48,10 +56,13 @@ class LunaWoodcutter(private val player: Player, private val searchRadius: Int) 
         }
     }
 
-    override fun walkTo(tree: TreeCandidate) {
-        val target = find(tree) ?: return
+    override fun walkTo(tree: TreeCandidate) = walkTo(tree.approach)
+
+    override fun walkToLocation() = walkTo(anchor)
+
+    private fun walkTo(tile: Position) {
         closeWindowsLikeAClick()
-        navigateToReach(player, target)
+        player.navigator.navigate(tile, true)
     }
 
     override fun dropLogs() {
@@ -77,17 +88,13 @@ class LunaWoodcutter(private val player: Player, private val searchRadius: Int) 
         player.overlays.closeWindows(false)
     }
 
-    private fun isStandingTree(obj: GameObject): Boolean =
-        obj.id in TreeStump.TREE_ID_MAP && obj.state == EntityState.ACTIVE && obj.isVisibleTo(player)
+    private fun standingTrees(): List<StandingTree> =
+        world.locator.findObjects(anchor, spot.location.radius, ::isStandingTree).map {
+            StandingTree(it.id, it.position, maxOf(it.sizeX(), it.sizeY()), TreeStump.TREE_ID_MAP.getValue(it.id).tree)
+        }
 
-    private fun candidate(obj: GameObject): TreeCandidate =
-        TreeCandidate(
-            objectId = obj.id,
-            position = obj.position,
-            tree = TreeStump.TREE_ID_MAP.getValue(obj.id).tree,
-            distance = player.position.computeLongestDistance(obj.position),
-            usableFromHere = world.collisionManager.reached(player, obj, STANDARD_SIZE),
-        )
+    private fun isStandingTree(obj: GameObject): Boolean =
+        obj.id in spot.treeObjectIds && obj.state == EntityState.ACTIVE && obj.isVisibleTo(player)
 
     private fun find(tree: TreeCandidate): GameObject? =
         world.objects.findAll(tree.position)
@@ -99,6 +106,14 @@ class LunaWoodcutter(private val player: Player, private val searchRadius: Int) 
 
     /** The checks the packet reader makes before dispatching a click. */
     private fun mayAct(event: ControllableEvent): Boolean = !player.isLocked && player.controllers.checkEvent(event)
+
+    override fun canStep(from: Position, direction: Direction): Boolean =
+        collision.traversable(from, EntityType.PLAYER, direction)
+
+    override fun isBlocked(tile: Position): Boolean = collision.isBlocked(tile, false)
+
+    override fun reachedFrom(tile: Position, tree: StandingTree): Boolean =
+        collision.reached(tile, tree.position, STANDARD_SIZE)
 
     private companion object {
         const val INVENTORY_WIDGET = 3214

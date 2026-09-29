@@ -1,5 +1,6 @@
 package game.idle.autopilot
 
+import game.idle.AutopilotJob
 import game.idle.IdleState
 
 /** The parts of a player the autopilot switch needs. [LunaAutopilotPlayer] is the in-game one. */
@@ -24,49 +25,48 @@ fun interface ScheduledTick {
 }
 
 /**
- * Starts and stops each player's autopilot from the switch saved in their [IdleState]; at most one runs per player.
- * Game thread only.
+ * Starts and stops each player's autopilot from the job saved in their [IdleState]; at most one runs per player.
+ * [newDriver] builds the driver for a job, or gives null when the job no longer resolves (a location removed from
+ * the data file). Game thread only.
  */
 class Autopilot<P : AutopilotPlayer>(
     private val scheduler: TickScheduler,
-    private val newDriver: (P) -> AutopilotDriver,
+    private val newDriver: (P, AutopilotJob) -> AutopilotDriver?,
 ) {
 
     private val running = mutableMapOf<String, ScheduledTick>()
 
     /**
-     * Reads the switch on every login, not only when it is on: Luna's save drops a persistent attribute that was
-     * loaded but never read during the session.
+     * Reads the state on every login, not only when a job is saved: Luna's save drops a persistent attribute that
+     * was loaded but never read during the session.
      */
     fun onLogin(player: P) {
-        if (player.idleState.autopilotEnabled) {
-            start(player)
+        val job = player.idleState.job ?: return
+        if (!start(player, job)) {
+            player.tell("Autopilot: could not resume at '${job.locationId}'. Use ::idle to start again.")
         }
     }
 
     fun onLogout(player: P) {
-        stop(player.username)
+        running.remove(player.username)?.cancel()
     }
 
-    fun toggle(player: P) {
-        val enabled = !player.idleState.autopilotEnabled
-        player.idleState = player.idleState.withAutopilot(enabled)
-        if (enabled) {
-            start(player)
-            player.tell("Autopilot enabled.")
-        } else {
-            stop(player.username)
-            player.tell("Autopilot disabled.")
+    fun isRunning(player: P): Boolean = player.username in running
+
+    /** Replaces whatever the player was doing with [job] and saves it; false when the job does not resolve. */
+    fun start(player: P, job: AutopilotJob): Boolean {
+        val driver = newDriver(player, job)
+        stop(player)
+        if (driver == null) {
+            return false
         }
+        player.idleState = player.idleState.withJob(job)
+        running[player.username] = scheduler.everyTick(driver::tick)
+        return true
     }
 
-    private fun start(player: P) {
-        if (player.username !in running) {
-            running[player.username] = scheduler.everyTick(newDriver(player)::tick)
-        }
-    }
-
-    private fun stop(username: String) {
-        running.remove(username)?.cancel()
+    fun stop(player: P) {
+        running.remove(player.username)?.cancel()
+        player.idleState = player.idleState.stopped()
     }
 }

@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test
 
 class IdleStateTest {
 
+    private val job = AutopilotJob("varrock_west", listOf("normal"))
+
     @Test
     fun `new state starts with autopilot off at stage zero`() {
         val state = IdleState()
@@ -17,21 +19,21 @@ class IdleStateTest {
     }
 
     @Test
-    fun `enabling autopilot keeps stage and resets`() {
-        val state = IdleState(autopilotEnabled = false, stage = 3, resets = 2)
-
-        val enabled = state.withAutopilot(enabled = true)
-
-        assertTrue(enabled.autopilotEnabled)
-        assertEquals(IdleState(autopilotEnabled = true, stage = 3, resets = 2), enabled)
+    fun `a saved job means the autopilot is on`() {
+        assertTrue(IdleState(job = job).autopilotEnabled)
     }
 
     @Test
-    fun `disabling autopilot keeps stage and resets`() {
-        val state = IdleState(autopilotEnabled = true, stage = 3, resets = 2)
+    fun `starting a job keeps stage and resets`() {
+        val state = IdleState(job = null, stage = 3, resets = 2)
 
-        val disabled = state.withAutopilot(enabled = false)
+        assertEquals(IdleState(job = job, stage = 3, resets = 2), state.withJob(job))
+    }
 
-        assertEquals(IdleState(autopilotEnabled = false, stage = 3, resets = 2), disabled)
+    @Test
+    fun `stopping keeps stage and resets`() {
+        val state = IdleState(job = job, stage = 3, resets = 2)
+
+        assertEquals(IdleState(job = null, stage = 3, resets = 2), state.stopped())
     }
 }

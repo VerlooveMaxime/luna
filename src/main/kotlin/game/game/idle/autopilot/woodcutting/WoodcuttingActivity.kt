@@ -6,6 +6,7 @@ import game.idle.autopilot.woodcutting.WoodcuttingDecision.Chop
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.DropLogs
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.OnTree
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkTo
+import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkToLocation
 import io.luna.game.model.Position
 
 /** What the woodcutting autopilot can see and do for one player. [LunaWoodcutter] is the in-game one. */
@@ -19,17 +20,19 @@ interface Woodcutter {
 
     fun walkTo(tree: TreeCandidate)
 
+    fun walkToLocation()
+
     fun dropLogs()
 
     fun tell(message: String)
 }
 
 /**
- * Carries out [WoodcuttingPlanner] decisions. A tree that gets the same decision twice in a row (walked to but still
- * out of reach, or chopped without the tree falling or the inventory filling) is skipped for as long as this
- * activity runs, so an unreachable tree cannot trap the player.
+ * Carries out [WoodcuttingPlanner] decisions for one [action]. A tree that gets the same decision twice in a row
+ * (walked to but still out of reach, or chopped without the tree falling or the inventory filling) is skipped for
+ * as long as this activity runs, so an unreachable tree cannot trap the player.
  */
-class WoodcuttingActivity(private val woodcutter: Woodcutter) : AutopilotActivity {
+class WoodcuttingActivity(private val woodcutter: Woodcutter, private val action: ChopAction) : AutopilotActivity {
 
     private val skippedTrees = mutableSetOf<Position>()
     private var lastDecision: WoodcuttingDecision? = null
@@ -41,6 +44,7 @@ class WoodcuttingActivity(private val woodcutter: Woodcutter) : AutopilotActivit
         when (decision) {
             is Chop -> woodcutter.chop(decision.tree)
             is WalkTo -> woodcutter.walkTo(decision.tree)
+            WalkToLocation -> woodcutter.walkToLocation()
             DropLogs -> woodcutter.dropLogs()
             is Blocked -> if (decision != lastDecision) woodcutter.tell(decision.reason.message)
         }
@@ -55,7 +59,7 @@ class WoodcuttingActivity(private val woodcutter: Woodcutter) : AutopilotActivit
     }
 
     private fun decide(view: WoodcuttingView): WoodcuttingDecision =
-        WoodcuttingPlanner.decide(view.copy(trees = view.trees.filterNot { it.position in skippedTrees }))
+        WoodcuttingPlanner.decide(view.copy(trees = view.trees.filterNot { it.position in skippedTrees }), action)
 
     /** The tree [decision] aims at when the previous decision was the same step on the same tree. */
     private fun retriedTree(decision: WoodcuttingDecision): TreeCandidate? {
