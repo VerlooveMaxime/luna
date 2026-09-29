@@ -1,0 +1,26 @@
+{
+  // Places a flow step can run at. A location is pure geography: where to stand and what is there. The player
+  // composes the action (which tree, how many, bank or drop) in the flow; the location keeps the character in one
+  // area instead of drifting after the nearest resource.
+  //
+  //   id       unique, what flows refer to
+  //   name     shown to the player
+  //   anchor   tile the search is centred on (z = floor, 0 by default)
+  //   radius   tiles around the anchor to search, 1 to 32
+  //   trees    tree kinds that grow here (normal, oak, willow, teak, maple, mahogany, yew, magic)
+  //   unlock   stage from which the location can be used (0 = from the start)
+  //
+  // Only spots verified in the live world belong here (see .memory/tasks/idle-flows-v1/task.md).
+  "locations": [
+    {
+      "id": "varrock_west",
+      "name": "West of Varrock",
+      // Verified 2026-09-29 with the harness: trees (object 1278) at 3171,3444; 3170,3454; 3168,3437; 3168,3434
+      // and more to the north-west around 3150-3160, 3450-3460.
+      "anchor": { "x": 3165, "y": 3445 },
+      "radius": 15,
+      "trees": ["normal"],
+      "unlock": { "stage": 0 }
+    }
+  ]
+}
