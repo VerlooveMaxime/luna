@@ -1,0 +1,16 @@
+{
+  // Starts the agent harness HTTP API. Setting the IDLERS_HARNESS environment variable to true or false overrides
+  // this, so agents can enable it without editing a tracked file.
+  "enabled": false,
+  // Must be a loopback address: the API has no authentication and can act for any online player.
+  "bind_address": "127.0.0.1",
+  "port": 43595,
+  // Headless player names must start with this prefix (and fit RuneScape's 12 character limit), so their saves in
+  // data/game/saved_players are easy to find and wipe.
+  "player_name_prefix": "agent_",
+  "player_password": "harness",
+  // Outgoing messages kept per headless player for GET /player/{name}/messages.
+  "message_buffer_size": 500,
+  // How long an HTTP request waits for the game thread or a login before answering 504.
+  "request_timeout_millis": 10000
+}

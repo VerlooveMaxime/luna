@@ -1,0 +1,176 @@
+package game.harness
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
+
+class HarnessRoutesTest {
+
+    private val api = FakeHarnessApi()
+    private val router = HarnessRouter(harnessRoutes(api))
+
+    private fun get(path: String, query: Map<String, String> = emptyMap()) =
+        router.handle(HarnessRequest("GET", path, query))
+
+    private fun post(path: String, body: String = "") = router.handle(HarnessRequest("POST", path, body = body))
+
+    private fun lastAction(): Pair<String, PlayerAction> = api.actions.last()
+
+    @Test
+    fun `index lists every endpoint with its method`() {
+        val listed = get("/").body as List<*>
+
+        assertEquals(harnessRoutes(api).drop(1).map { "${it.method} ${it.pattern}" }, listed)
+    }
+
+    @Test
+    fun `world answers the api view`() {
+        assertEquals(HarnessResponse(200, api.worldView), get("/world"))
+    }
+
+    @Test
+    fun `players include bots by default`() {
+        get("/players")
+
+        assertEquals(listOf("players bots=true"), api.calls)
+    }
+
+    @Test
+    fun `players can leave bots out`() {
+        get("/players", mapOf("bots" to "false"))
+
+        assertEquals(listOf("players bots=false"), api.calls)
+    }
+
+    @Test
+    fun `login passes the requested name`() {
+        post("/login", """{"name": "agent_a"}""")
+
+        assertEquals(listOf("login agent_a"), api.calls)
+    }
+
+    @Test
+    fun `logout passes the requested name`() {
+        post("/logout", """{"name": "agent_a"}""")
+
+        assertEquals(listOf("logout agent_a"), api.calls)
+    }
+
+    @Test
+    fun `player reads the name from the path`() {
+        get("/player/agent_a")
+
+        assertEquals(listOf("player agent_a"), api.calls)
+    }
+
+    @Test
+    fun `nearby defaults to radius 8 without inert objects`() {
+        get("/player/agent_a/nearby")
+
+        assertEquals(listOf("nearby agent_a radius=8 all=false"), api.calls)
+    }
+
+    @Test
+    fun `nearby reads radius and all from the query`() {
+        get("/player/agent_a/nearby", mapOf("radius" to "15", "all" to "true"))
+
+        assertEquals(listOf("nearby agent_a radius=15 all=true"), api.calls)
+    }
+
+    @Test
+    fun `messages default to everything since the start`() {
+        get("/player/agent_a/messages")
+
+        assertEquals(listOf("messages agent_a since=0 type=null"), api.calls)
+    }
+
+    @Test
+    fun `messages read since and type from the query`() {
+        get("/player/agent_a/messages", mapOf("since" to "40", "type" to "chatbox"))
+
+        assertEquals(listOf("messages agent_a since=40 type=chatbox"), api.calls)
+    }
+
+    @Test
+    fun `object click defaults to option 1`() {
+        post("/player/agent_a/click/object", """{"x": 3171, "y": 3444, "id": 1278}""")
+
+        assertEquals("agent_a" to PlayerAction.ClickObject(3171, 3444, 1278, option = 1), lastAction())
+    }
+
+    @Test
+    fun `npc click reads index and option`() {
+        post("/player/agent_a/click/npc", """{"index": 8840, "option": 3}""")
+
+        assertEquals("agent_a" to PlayerAction.ClickNpc(8840, option = 3), lastAction())
+    }
+
+    @Test
+    fun `item click may leave the id out`() {
+        post("/player/agent_a/click/item", """{"slot": 7, "option": 2}""")
+
+        assertEquals("agent_a" to PlayerAction.ClickItem(7, id = null, option = 2), lastAction())
+    }
+
+    @Test
+    fun `item click passes an id to check`() {
+        post("/player/agent_a/click/item", """{"slot": 9, "id": 1511, "option": 5}""")
+
+        assertEquals("agent_a" to PlayerAction.ClickItem(9, id = 1511, option = 5), lastAction())
+    }
+
+    @Test
+    fun `ground item click defaults to option 3, the client's Take`() {
+        post("/player/agent_a/click/ground", """{"x": 3172, "y": 3443, "id": 1511}""")
+
+        assertEquals("agent_a" to PlayerAction.ClickGroundItem(3172, 3443, 1511, option = 3), lastAction())
+    }
+
+    @Test
+    fun `walk reads the destination`() {
+        post("/player/agent_a/walk", """{"x": 3200, "y": 3201}""")
+
+        assertEquals("agent_a" to PlayerAction.Walk(3200, 3201), lastAction())
+    }
+
+    @Test
+    fun `command passes the text`() {
+        post("/player/agent_a/command", """{"text": "::idle"}""")
+
+        assertEquals("agent_a" to PlayerAction.Command("::idle"), lastAction())
+    }
+
+    @Test
+    fun `chat passes the text`() {
+        post("/player/agent_a/chat", """{"text": "hi"}""")
+
+        assertEquals("agent_a" to PlayerAction.Chat("hi"), lastAction())
+    }
+
+    @Test
+    fun `button passes the id`() {
+        post("/player/agent_a/button", """{"id": 2482}""")
+
+        assertEquals("agent_a" to PlayerAction.Button(2482), lastAction())
+    }
+
+    @Test
+    fun `continue needs no body`() {
+        post("/player/agent_a/continue")
+
+        assertEquals("agent_a" to PlayerAction.ContinueDialogue, lastAction())
+    }
+
+    @Test
+    fun `close needs no body`() {
+        post("/player/agent_a/close")
+
+        assertEquals("agent_a" to PlayerAction.CloseInterface, lastAction())
+    }
+
+    @Test
+    fun `an action with a missing field answers 400 without reaching the api`() {
+        val response = post("/player/agent_a/walk", """{"x": 3200}""")
+
+        assertEquals(HarnessResponse(400, ErrorView("field 'y' is required and must be an integer")), response)
+    }
+}
