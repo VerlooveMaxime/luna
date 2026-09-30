@@ -108,8 +108,15 @@ class HarnessConfigTest {
     }
 
     @Test
-    fun `validated rejects a port out of range`() {
+    fun `validated rejects a port above 65535`() {
         val config = HarnessConfig(port = 70000)
+
+        assertThrows<IllegalArgumentException> { config.validated() }
+    }
+
+    @Test
+    fun `validated rejects port 0`() {
+        val config = HarnessConfig(port = 0)
 
         assertThrows<IllegalArgumentException> { config.validated() }
     }

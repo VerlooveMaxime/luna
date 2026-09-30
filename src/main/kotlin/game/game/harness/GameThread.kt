@@ -29,7 +29,7 @@ fun <T> awaitWithin(future: CompletableFuture<T>, timeout: Duration): T =
     try {
         future.get(timeout.toMillis(), TimeUnit.MILLISECONDS)
     } catch (e: ExecutionException) {
-        throw e.cause ?: e
+        throw future.exceptionNow()
     } catch (e: TimeoutException) {
         throw HarnessException(status = 504, message = "the game did not answer within ${timeout.toMillis()} ms")
     }

@@ -38,14 +38,20 @@ class BankActivity(private val banker: Banker) : StepActivity {
     override fun act() {
         val view = banker.look()
         val decision = BankPlanner.decide(view)
-        when (decision) {
-            WalkToBooth -> banker.walkToBooth()
-            Open -> banker.open()
-            Deposit -> banker.deposit(view.depositableSlots)
-            Close -> banker.close()
-            Done -> Unit
-            is Blocked -> if (decision != lastDecision) banker.tell(decision.reason.message)
-        }
+        carryOut(decision, view)
         lastDecision = decision
+    }
+
+    private fun carryOut(decision: BankDecision, view: BankView) = when (decision) {
+        WalkToBooth -> banker.walkToBooth()
+        Open -> banker.open()
+        Deposit -> banker.deposit(view.depositableSlots)
+        Close -> banker.close()
+        Done -> Unit
+        is Blocked -> tellOnce(decision)
+    }
+
+    private fun tellOnce(decision: Blocked) {
+        if (decision != lastDecision) banker.tell(decision.reason.message)
     }
 }

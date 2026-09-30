@@ -5,7 +5,6 @@ import game.idle.autopilot.LunaClicks
 import game.idle.movement.navigateToReach
 import game.skill.woodcutting.cutTree.Axe
 import io.luna.game.event.impl.ObjectClickEvent.ObjectSecondClickEvent
-import io.luna.game.model.EntityState
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
@@ -44,10 +43,15 @@ class LunaBanker(private val player: Player, private val boothTile: Position) : 
         LunaClicks.clickObject(player, ObjectSecondClickEvent(player, booth), booth, ObjectSecondClickEvent::class.java)
     }
 
+    /**
+     * `Bank.deposit` removes its amount by item id from the first slots holding that id, so a call per slot would
+     * empty other slots and then skip the given ones as empty. One call per id, for the total the given slots hold.
+     */
     override fun deposit(slots: List<Int>) {
-        for (slot in slots.sortedDescending()) {
-            val item = player.inventory[slot] ?: continue
-            player.bank.deposit(slot, item.amount)
+        val items = slots.mapNotNull { slot -> player.inventory[slot]?.let { slot to it } }
+        for (sameId in items.groupBy { (_, item) -> item.id }.values) {
+            val (firstSlot, _) = sameId.first()
+            player.bank.deposit(firstSlot, sameId.sumOf { (_, item) -> item.amount })
         }
     }
 
@@ -59,9 +63,9 @@ class LunaBanker(private val player: Player, private val boothTile: Position) : 
         player.sendMessage(message)
     }
 
+    // Objects found through their chunk are always ACTIVE, so only the id needs checking.
     private fun booth(): GameObject? =
-        world.locator.findObjectsOnTile(boothTile) { it.id in Banking.bankingObjects && it.state == EntityState.ACTIVE }
-            .firstOrNull()
+        world.locator.findObjectsOnTile(boothTile) { it.id in Banking.bankingObjects }.firstOrNull()
 
     private fun depositableSlots(): List<Int> =
         (0 until player.inventory.capacity()).filter { slot ->

@@ -44,14 +44,20 @@ class WoodcuttingActivity(private val woodcutter: Woodcutter, private val action
 
     override fun act() {
         val decision = decideSkippingRetries(woodcutter.look())
-        when (decision) {
-            is Chop -> woodcutter.chop(decision.tree)
-            is WalkTo -> woodcutter.walkTo(decision.tree)
-            WalkToLocation -> woodcutter.walkToLocation()
-            DropLogs -> woodcutter.dropLogs()
-            is Blocked -> if (decision != lastDecision) woodcutter.tell(decision.reason.message)
-        }
+        carryOut(decision)
         lastDecision = decision
+    }
+
+    private fun carryOut(decision: WoodcuttingDecision) = when (decision) {
+        is Chop -> woodcutter.chop(decision.tree)
+        is WalkTo -> woodcutter.walkTo(decision.tree)
+        WalkToLocation -> woodcutter.walkToLocation()
+        DropLogs -> woodcutter.dropLogs()
+        is Blocked -> tellOnce(decision)
+    }
+
+    private fun tellOnce(decision: Blocked) {
+        if (decision != lastDecision) woodcutter.tell(decision.reason.message)
     }
 
     private fun decideSkippingRetries(view: WoodcuttingView): WoodcuttingDecision {

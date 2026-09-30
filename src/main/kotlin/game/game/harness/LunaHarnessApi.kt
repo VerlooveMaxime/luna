@@ -105,8 +105,9 @@ class LunaHarnessApi(
     }
 
     private fun clickNpc(player: Player, action: PlayerAction.ClickNpc): ActionView {
+        // A listed NPC is always ACTIVE: removal takes it off the list in the same step that makes it inactive.
         val npc = world.npcs.get(action.index)
-            ?.takeIf { it.state == EntityState.ACTIVE && it.isViewableFrom(player) }
+            ?.takeIf { it.isViewableFrom(player) }
             ?: throw HarnessException(404, "no NPC with index ${action.index} in view")
         val packet = HarnessPackets.npcClick(action.option, npc.index)
         sendOnArrival(player, player.navigator.navigate(npc, true, false), packet)
@@ -120,8 +121,9 @@ class LunaHarnessApi(
         }
         val item = player.inventory.get(action.slot)
             ?: throw HarnessException(404, "inventory slot ${action.slot} is empty")
-        if (action.id != null && action.id != item.id) {
-            throw HarnessException(409, "inventory slot ${action.slot} holds item ${item.id}, not ${action.id}")
+        val expectedId = action.id
+        if (expectedId != null && expectedId != item.id) {
+            throw HarnessException(409, "inventory slot ${action.slot} holds item ${item.id}, not $expectedId")
         }
         return send(player, "click item", HarnessPackets.itemClick(action.option, action.slot, item.id))
     }

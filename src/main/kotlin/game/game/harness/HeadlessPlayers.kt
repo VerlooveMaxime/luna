@@ -30,9 +30,13 @@ val Player.isHeadless: Boolean
 /**
  * Logs headless players in and out the way `Bot.login` does: load the save, register, go active.
  * Going active posts `LoginEvent`, so content (starter kit, tabs) sees an ordinary login.
- * Every method runs on the game thread.
+ * Every method runs on the game thread. [loadSave] reads a save by username, off the game thread.
  */
-class HeadlessPlayers(private val context: LunaContext, private val config: HarnessConfig) {
+class HeadlessPlayers(
+    private val context: LunaContext,
+    private val config: HarnessConfig,
+    private val loadSave: (String) -> CompletableFuture<PlayerData?> = context.world.persistenceService::load,
+) {
 
     private val world = context.world
 
@@ -43,8 +47,7 @@ class HeadlessPlayers(private val context: LunaContext, private val config: Harn
         val player = Player(context, PlayerCredentials(username, config.playerPassword))
         val log = MessageLog(config.messageBufferSize) { world.currentTick }
         player.setClient(RecordingGameClient(player, context.server.messageRepository, log))
-        return world.persistenceService.load(username)
-            .thenApplyAsync({ data -> enterWorld(player, data) }, context.game.gameExecutor)
+        return loadSave(username).thenApplyAsync({ data -> enterWorld(player, data) }, context.game.gameExecutor)
     }
 
     fun logout(player: Player) {
@@ -55,12 +58,11 @@ class HeadlessPlayers(private val context: LunaContext, private val config: Harn
     }
 
     private fun enterWorld(player: Player, data: PlayerData?): Player {
-        // Checked again: another login or a logout may have happened while the save was loading.
+        // Checked again: another login or a logout may have happened while the save was loading. A world that is not
+        // full has a free index, so the add cannot fail; LoginService relies on the same check.
         requireLoginPossible(player.username)
         player.loadData(data)
-        if (!world.players.add(player)) {
-            throw HarnessException(503, "the world refused ${player.username}")
-        }
+        world.players.add(player)
         player.state = EntityState.ACTIVE
         return player
     }

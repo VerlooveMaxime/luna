@@ -19,7 +19,7 @@ data class HarnessRequest(
 data class HarnessResponse(val status: Int, val body: Any)
 
 /** A request the harness refuses; [status] is the HTTP status sent back with [message]. */
-class HarnessException(val status: Int, message: String) : RuntimeException(message)
+class HarnessException(val status: Int, override val message: String) : RuntimeException(message)
 
 data class ErrorView(val error: String)
 
@@ -134,7 +134,7 @@ class HarnessRouter(private val routes: List<Route>) {
         return try {
             HarnessResponse(200, route.handler(RouteCall(request, params)))
         } catch (e: HarnessException) {
-            failure(e.status, e.message.orEmpty())
+            failure(e.status, e.message)
         } catch (e: JsonParseException) {
             failure(400, "the body is not valid JSON: ${e.message}")
         } catch (e: Exception) {

@@ -9,10 +9,10 @@ import game.idle.autopilot.LunaClicks
 import io.luna.game.event.impl.DropItemEvent
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
 import io.luna.game.model.Direction
-import io.luna.game.model.EntityState
 import io.luna.game.model.EntityType
 import io.luna.game.model.Position
 import io.luna.game.model.collision.CollisionManager
+import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
 import io.luna.game.model.mob.overlay.OverlayType
@@ -37,7 +37,7 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
             woodcuttingLevel = player.woodcutting.level,
             hasUsableAxe = Axe.computeAxeType(player) != null,
             inventoryFull = player.inventory.isFull,
-            logsInInventory = logSlots().size,
+            logsInInventory = logs().size,
             atLocation = scan.atLocation(player.position),
             trees = scan.candidates(player.position, standingTrees(), terrain = this),
         )
@@ -57,8 +57,7 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
     }
 
     override fun dropLogs() {
-        for (slot in logSlots()) {
-            val log = player.inventory[slot] ?: continue
+        for ((slot, log) in logs()) {
             val event = DropItemEvent(player, log.id, INVENTORY_WIDGET, slot)
             if (LunaClicks.mayAct(player, event)) {
                 player.plugins.post(event)
@@ -84,16 +83,20 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
             StandingTree(it.id, it.position, maxOf(it.sizeX(), it.sizeY()), TreeStump.TREE_ID_MAP.getValue(it.id).tree)
         }
 
-    private fun isStandingTree(obj: GameObject): Boolean =
-        obj.id in spot.treeObjectIds && obj.state == EntityState.ACTIVE && obj.isVisibleTo(player)
+    // Objects found through their chunk are always ACTIVE: an object joins its chunk when it goes active and leaves
+    // it when it goes inactive, so no state check is needed here or in find.
+    private fun isStandingTree(obj: GameObject): Boolean = obj.id in spot.treeObjectIds && obj.isVisibleTo(player)
 
     private fun find(tree: TreeCandidate): GameObject? =
         world.objects.findAll(tree.position)
-            .filter { it.id == tree.objectId && it.state == EntityState.ACTIVE && it.isVisibleTo(player) }
+            .filter { it.id == tree.objectId && it.isVisibleTo(player) }
             .findFirst().orElse(null)
 
-    private fun logSlots(): List<Int> =
-        (0 until player.inventory.capacity()).filter { player.inventory[it]?.id in LOG_IDS }
+    /** Slot and item of every log in the inventory. */
+    private fun logs(): List<Pair<Int, Item>> =
+        (0 until player.inventory.capacity()).mapNotNull { slot ->
+            player.inventory[slot]?.takeIf { it.id in LOG_IDS }?.let { slot to it }
+        }
 
     override fun canStep(from: Position, direction: Direction): Boolean =
         collision.traversable(from, EntityType.PLAYER, direction)

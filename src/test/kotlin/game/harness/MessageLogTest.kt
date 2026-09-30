@@ -168,6 +168,18 @@ class MessageLogTest {
     }
 
     @Test
+    fun `fields the compiler adds to a writer are not recorded`() {
+        val captured = 7
+        val writer = object : BaseWriter() {
+            override fun toString() = "captured $captured"
+        }
+
+        log.record(writer)
+
+        assertEquals(mapOf("inherited" to "from the base"), log.since(0).messages.single().fields)
+    }
+
+    @Test
     fun `capacity must be positive`() {
         assertThrows<IllegalArgumentException> { MessageLog(capacity = 0) { 0 } }
     }

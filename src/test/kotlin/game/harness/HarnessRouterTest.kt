@@ -36,6 +36,13 @@ class HarnessRouterTest {
     }
 
     @Test
+    fun `route reads a segment braced on one side only as a literal`() {
+        val route = Route("GET", "/player/{name") { "ok" }
+
+        assertNull(route.match("/player/agent_a"))
+    }
+
+    @Test
     fun `route rejects a path with a different segment count`() {
         val route = Route("GET", "/player/{name}") { "ok" }
 
