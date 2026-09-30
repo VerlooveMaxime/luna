@@ -7,11 +7,15 @@
   //   name     shown to the player
   //   anchor   tile the search is centred on (z = floor, 0 by default)
   //   radius   tiles around the anchor to search, 1 to 32
-  //   trees    tree kinds that grow here (normal, oak, willow, teak, maple, mahogany, yew, magic)
+  //   trees    tree kinds that grow here (normal, oak, willow, maple, yew, magic; teak and mahogany have no
+  //            cuttable object in Luna yet)
   //   bank     tile of a bank booth the flow's bank steps use from here (optional)
   //   unlock   stage from which the location can be used (0 = from the start)
   //
-  // Only spots verified in the live world belong here (see .memory/tasks/idle-flows-v1/task.md).
+  // Spots come from `./gradlew treeSurvey`, which reads the cache: anchor and bank tile as reported, radius the
+  // reported one plus 2 so the approach tiles of trees on the edge stay inside the walking search.
+  // LocationsDataTest checks every row against the cache (each kind listed has 2 trees or more within the radius,
+  // the bank tile holds a booth); walking and reach are checked live.
   "locations": [
     {
       "id": "varrock_west",
@@ -23,6 +27,87 @@
       "trees": ["normal"],
       // West bank booths stand on x 3186, y 3436 to 3446 (the bot engine's home bank list).
       "bank": { "x": 3186, "y": 3440 },
+      "unlock": { "stage": 0 }
+    },
+    {
+      "id": "varrock_west_oaks",
+      "name": "Varrock west oaks",
+      "anchor": { "x": 3177, "y": 3468 },
+      "radius": 19,
+      "trees": ["oak", "normal"],
+      "bank": { "x": 3186, "y": 3446 },
+      "unlock": { "stage": 0 }
+    },
+    {
+      "id": "lumbridge",
+      "name": "Lumbridge",
+      "anchor": { "x": 3180, "y": 3224 },
+      "radius": 18,
+      "trees": ["normal"],
+      // No bank in this revision: none in the castle on any floor; Draynor and Al Kharid are about 89 tiles away.
+      "unlock": { "stage": 0 }
+    },
+    {
+      "id": "draynor_oaks",
+      "name": "Draynor oaks",
+      "anchor": { "x": 3115, "y": 3243 },
+      "radius": 20,
+      "trees": ["oak", "normal"],
+      "bank": { "x": 3091, "y": 3242 },
+      "unlock": { "stage": 0 }
+    },
+    {
+      "id": "draynor_willows",
+      "name": "Draynor willows",
+      "anchor": { "x": 3086, "y": 3233 },
+      "radius": 8,
+      "trees": ["willow"],
+      "bank": { "x": 3091, "y": 3242 },
+      "unlock": { "stage": 0 }
+    },
+    {
+      "id": "seers_maples",
+      "name": "Seers' Village maples",
+      "anchor": { "x": 2728, "y": 3501 },
+      "radius": 9,
+      "trees": ["maple"],
+      "bank": { "x": 2721, "y": 3494 },
+      "unlock": { "stage": 0 }
+    },
+    {
+      "id": "seers_yews",
+      "name": "Seers' Village yews",
+      "anchor": { "x": 2708, "y": 3461 },
+      "radius": 8,
+      "trees": ["yew"],
+      "bank": { "x": 2721, "y": 3494 },
+      "unlock": { "stage": 0 }
+    },
+    {
+      "id": "edgeville_yews",
+      "name": "Edgeville yews",
+      "anchor": { "x": 3085, "y": 3474 },
+      "radius": 8,
+      "trees": ["yew"],
+      "bank": { "x": 3095, "y": 3489 },
+      "unlock": { "stage": 0 }
+    },
+    {
+      "id": "varrock_palace_yews",
+      "name": "Varrock Palace yews",
+      "anchor": { "x": 3211, "y": 3502 },
+      "radius": 12,
+      "trees": ["yew"],
+      "bank": { "x": 3186, "y": 3446 },
+      "unlock": { "stage": 0 }
+    },
+    {
+      "id": "catherby_yews",
+      "name": "Catherby yews",
+      "anchor": { "x": 2761, "y": 3434 },
+      "radius": 20,
+      "trees": ["yew"],
+      "bank": { "x": 2807, "y": 3442 },
       "unlock": { "stage": 0 }
     }
   ]

@@ -10,6 +10,23 @@ configure<JacocoPluginExtension> {
     toolVersion = "0.8.15"
 }
 
+// Tests that read the cache decode the whole map, about 10 M tiles; the 512 MB default runs out of heap.
+// LocationsDataTest reads data/idle, so an edit there must rerun the tests instead of leaving them up to date.
+tasks.named<Test>("test") {
+    maxHeapSize = "2g"
+    inputs.dir("data/idle")
+}
+
+tasks.register<JavaExec>("treeSurvey") {
+    group = "idlers"
+    description = "Writes where each kind of tree grows, read from the cache, to .memory/artifacts/tree-survey/."
+    classpath = project.the<SourceSetContainer>()["main"].runtimeClasspath
+    mainClass = "game.idle.location.survey.SurveyReportKt"
+    workingDir = projectDir
+    maxHeapSize = "2g"
+    args(rootDir.resolve("../.memory/artifacts/tree-survey").normalize().path)
+}
+
 val idlersPackages = listOf("game/idle", "game/harness")
 
 // Ratchet: the build fails when more lines or branches are missed than this. Lower it whenever tests close a gap.
