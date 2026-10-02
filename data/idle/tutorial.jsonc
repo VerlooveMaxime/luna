@@ -1,0 +1,90 @@
+// Tutorial Island, stage 0: what a player sees at each step, what the instructors say, and the doors between the
+// sections. The rules that move a player from step to step are in game.idle.tutorial.TutorialScript; step names
+// are those of game.idle.tutorial.TutorialStep. The text is ours: the original island's lines stay Jagex's.
+{
+  // A new character appears here, in the RuneScape Guide's house.
+  "start": { "x": 3094, "y": 3106 },
+
+  // Per step: the help box in the chatbox (a title and up to four lines), the yellow arrow (over an npc, over a
+  // tile with an edge and a height, or none), and the side tabs that appear at that step and stay.
+  "steps": {
+    "DESIGN_CHARACTER": {
+      "help": {
+        "title": "Getting started",
+        "lines": [
+          "Choose how your character looks, then click Accept.",
+          "Then talk to the RuneScape Guide: click him, he has a",
+          "flashing yellow arrow over his head.",
+          "The arrow keys turn the camera."
+        ]
+      },
+      "arrow": { "npc": 945 },
+      "tabs": ["LOGOUT", "SETTINGS"]
+    },
+    "TALK_TO_GUIDE": {
+      "help": {
+        "title": "Getting started",
+        "lines": [
+          "To start the tutorial, talk to the RuneScape Guide:",
+          "click him, he has a flashing yellow arrow over his head.",
+          "The arrow keys turn the camera."
+        ]
+      },
+      "arrow": { "npc": 945 }
+    },
+    "OPEN_HOUSE_DOOR": {
+      "help": {
+        "title": "Doors and scenery",
+        "lines": [
+          "Click things around you to use them, or right-click",
+          "them to see everything you can do with them.",
+          "Leave the house through the door with the arrow."
+        ]
+      },
+      "arrow": { "tile": { "x": 3098, "y": 3107 }, "edge": "WEST", "height": 128 }
+    },
+    "FIND_SURVIVAL_EXPERT": {
+      "help": {
+        "title": "Moving around",
+        "lines": [
+          "Follow the path to your next instructor. Click the ground",
+          "or the minimap to walk there.",
+          "Talk to the Survival Expert by the pond, under the arrow."
+        ]
+      },
+      "arrow": { "npc": 943 }
+    }
+  },
+
+  // Dialogues by name, each a list of boxes. A box is said by the npc being talked to ("npc"), by the player
+  // ("player"), or is a plain message ("text"), in one to four lines.
+  "dialogues": {
+    "guide_welcome": [
+      { "npc": ["Hello there, and welcome! I'm the RuneScape Guide.", "Every new adventurer starts on this island."] },
+      { "npc": ["You have just learnt the first thing already:", "talking to people. Most of them have something", "useful to tell you."] },
+      { "npc": ["My colleagues outside will teach you how to", "gather, cook, craft and fight."] },
+      { "npc": ["Go through the door when you are ready.", "Good luck!"] }
+    ],
+    "guide_again": [
+      { "npc": ["The door is right there. The other instructors", "are waiting for you outside."] }
+    ],
+    "house_door_locked": [
+      { "text": ["Talk to the RuneScape Guide before you go outside."] }
+    ]
+  },
+
+  // Doors and gates on the way. "side" is the edge of its tile the wall stands on; the open door is shown, to the
+  // player going through only, on the tile across that wall. Locked below "opens_at" with the "locked" dialogue;
+  // the first time through at "opens_at" moves the player on to "first_pass".
+  "doors": [
+    {
+      "id": 3014,
+      "tile": { "x": 3098, "y": 3107 },
+      "side": "WEST",
+      "open_id": 1535,
+      "opens_at": "OPEN_HOUSE_DOOR",
+      "first_pass": "FIND_SURVIVAL_EXPERT",
+      "locked": "house_door_locked"
+    }
+  ]
+}

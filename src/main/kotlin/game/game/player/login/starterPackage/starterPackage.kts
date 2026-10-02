@@ -89,6 +89,7 @@ fun firstLogin(plr: Player) {
     plr.firstLogin = false
 }
 
+// Players start on Tutorial Island instead, which handles their first login (game.idle.tutorial).
 on(LoginEvent::class)
-    .filter { plr.firstLogin }
+    .filter { plr.firstLogin && plr.isBot }
     .then { firstLogin(plr) }
