@@ -93,8 +93,6 @@
     "use_317_tree_stumps": false,
     // Whether Slayer tasks should enforce required equipment checks.
     "slayer_equipment_needed": true,
-    // The maximum number of ticks a player may spend trying to light a fire.
-    "max_firemaking_light_ticks": 10,
     // The cooldown, in seconds, between tele-other requests sent to the same player.
     "tele_other_throttle_seconds": 30
   },

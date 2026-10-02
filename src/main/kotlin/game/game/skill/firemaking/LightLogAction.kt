@@ -9,12 +9,12 @@ import io.luna.game.model.mob.Player
 import io.luna.game.model.`object`.ObjectType
 
 /**
- * A [LightAction] implementation that enables lighting logs to create fires.
+ * A [LightAction] implementation that enables lighting logs to create fires: logs from the inventory, or
+ * [groundLog], logs the player stands on.
  *
  * @author lare96
  */
-class LightLogAction(plr: Player, val log: Log, val removeLog: Boolean) :
-    LightAction(plr, Firemaking.computeLightDelay(plr, log)) {
+class LightLogAction(plr: Player, val log: Log, private val groundLog: GroundItem?) : LightAction(plr) {
 
     // TODO@0.5.0 Implement correct sounds: FLINT1, FIRE_LIT, TINDERBOX_STRIKE(2017)
 
@@ -46,15 +46,16 @@ class LightLogAction(plr: Player, val log: Log, val removeLog: Boolean) :
             }
 
             else -> {
-                if (removeLog) {
+                if (groundLog == null) {
                     if (mob.inventory.remove(log.id)) {
                         logGroundItem = world.addItem(log.id, 1, mob.position, mob)
-                        mob.sendMessage("You light the ${itemName(log.id).lowercase()}...")
+                        mob.sendMessage("You attempt to light the logs.")
                         return true
                     }
                     return false
                 }
-                mob.sendMessage("You light the ${itemName(log.id).lowercase()}...")
+                logGroundItem = groundLog
+                mob.sendMessage("You attempt to light the logs.")
                 return true
             }
         }
@@ -74,10 +75,7 @@ class LightLogAction(plr: Player, val log: Log, val removeLog: Boolean) :
     private fun light() {
         if (logGroundItem != null && world.removeItem(logGroundItem!!)) {
             val firePosition = mob.position
-            when {
-                originalDelayTicks < 2 -> {} //mob.playSound(Sound.BURN_LOG_QUICK)
-                else -> {}//mob.playSound(Sound.BURN_LOG)
-            }
+            mob.sendMessage("The fire catches and the logs begin to burn.")
             mob.firemaking.addExperience(log.exp)
 
             // Walk in a non-blocked direction prioritizing west.

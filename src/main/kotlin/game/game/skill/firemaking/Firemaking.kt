@@ -2,7 +2,6 @@ package game.skill.firemaking
 
 import api.predef.*
 import game.skill.Skills
-import io.luna.Luna
 import io.luna.game.model.mob.Player
 
 /**
@@ -34,17 +33,20 @@ object Firemaking {
     val BURN_TIME = 75..200
 
     /**
-     * Computes the amount of ticks required to light [log].
+     * Ticks from the first strike of the tinderbox to the first chance of the fire catching, then between chances.
+     * As LostCity scripts it: the 2004-2007 4-tick skilling cycle.
      */
-    fun computeLightDelay(plr: Player, log: Log): Int {
-        val max = Luna.settings().skills().maxFiremakingLightTicks()
-        var ticks = 1
-        repeat(max) { // Loop until successful. User-defined maximum light duration.
-            if (Skills.success(log.chance, plr.firemaking.level)) {
-                return ticks
-            }
-            ticks++
-        }
-        return ticks.coerceAtMost(max)
-    }
+    const val FIRST_ATTEMPT_TICKS = 3
+    const val ATTEMPT_TICKS = 4
+
+    /**
+     * The chance of a fire catching, the same for every log: 65/256 at level 1, certain from level 43 (LostCity and
+     * the OSRS wiki agree).
+     */
+    val LIGHT_CHANCE = 64 to 512
+
+    /**
+     * Whether one strike of the tinderbox lights the fire.
+     */
+    fun catches(plr: Player): Boolean = Skills.success(LIGHT_CHANCE, plr.firemaking.level)
 }

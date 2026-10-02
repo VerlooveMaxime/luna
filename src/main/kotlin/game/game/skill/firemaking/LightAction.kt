@@ -9,23 +9,19 @@ import io.luna.game.model.mob.block.Animation
 
 /**
  * An [Action] that allows a player to perform a generic firemaking based light action, where the end result
- * is determined by child classes.
+ * is determined by child classes. The tinderbox is struck every [Firemaking.ATTEMPT_TICKS] ticks, the first chance
+ * of the fire catching [Firemaking.FIRST_ATTEMPT_TICKS] ticks after the first strike, until it catches.
  *
  * @author lare96
  */
-abstract class LightAction(plr: Player, val originalDelayTicks: Int) : Action<Player>(plr, ActionType.WEAK, false, 1) {
+abstract class LightAction(plr: Player) : Action<Player>(plr, ActionType.WEAK, false, 1) {
 
     // TODO@0.5.0 Implement correct sounds: FLINT1, FIRE_LIT, TINDERBOX_STRIKE(2017).
 
     /**
-     * The animation delay.
+     * The ticks left until the next chance of the fire catching.
      */
-    private var animationDelay: Int = 0
-
-    /**
-     * The mutable delay ticks.
-     */
-    private var delayTicks = originalDelayTicks
+    private var ticksUntilAttempt = Firemaking.FIRST_ATTEMPT_TICKS
 
     override fun onSubmit() {
         if (!mob.inventory.contains(Firemaking.TINDERBOX)) {
@@ -33,15 +29,21 @@ abstract class LightAction(plr: Player, val originalDelayTicks: Int) : Action<Pl
             complete()
         } else if (!canLight()) {
             complete()
+        } else {
+            mob.animation(Animations.FIREMAKING)
         }
     }
 
     override fun run(): Boolean {
-        if (--delayTicks <= 0) {
+        if (--ticksUntilAttempt > 0) {
+            return false
+        }
+        if (catches()) {
             onLight()
             return true
         }
-        handleLightAnimation()
+        mob.animation(Animations.FIREMAKING)
+        ticksUntilAttempt = Firemaking.ATTEMPT_TICKS
         return false
     }
 
@@ -50,7 +52,7 @@ abstract class LightAction(plr: Player, val originalDelayTicks: Int) : Action<Pl
     }
 
     /**
-     * Determines what happens when you successfully light after the delay.
+     * Determines what happens when the fire catches.
      */
     abstract fun onLight()
 
@@ -60,13 +62,7 @@ abstract class LightAction(plr: Player, val originalDelayTicks: Int) : Action<Pl
     open fun canLight(): Boolean = true
 
     /**
-     * Ensure the light animation only plays once every 1.8s, otherwise it stutters.
+     * Whether this strike of the tinderbox lights the fire.
      */
-    private fun handleLightAnimation() {
-        if (--animationDelay <= 0) {
-            mob.animation(Animations.FIREMAKING)
-           // mob.playSound(Sound.LIGHT_FIRE)
-            animationDelay = 3
-        }
-    }
+    protected open fun catches(): Boolean = Firemaking.catches(mob)
 }

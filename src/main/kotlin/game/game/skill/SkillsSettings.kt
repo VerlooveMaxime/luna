@@ -9,7 +9,6 @@ class SkillsSettings(
     private val woodcuttingSpeed: Int = 4,
     private val use317TreeStumps: Boolean = false,
     private val slayerEquipmentNeeded: Boolean = false,
-    private val maxFiremakingLightTicks: Int = 10,
     private val teleOtherThrottleSeconds: Int = 30,
 ) {
 
@@ -37,14 +36,6 @@ class SkillsSettings(
      * When disabled, Slayer monsters can be fought without their normally required equipment.
      */
     fun slayerEquipmentNeeded() = slayerEquipmentNeeded
-
-    /**
-     * The maximum number of game ticks a player may wait before an ignite action succeeds.
-     *
-     * If the player does not manually light the log within this duration, the system will trigger the lighting
-     * action once this threshold (measured in server ticks) is reached.
-     */
-    fun maxFiremakingLightTicks() = maxFiremakingLightTicks
 
     /**
      * The cooldown duration, in seconds, that must elapse between successive tele-other requests sent to the same
