@@ -1,12 +1,18 @@
 package game.harness
 
+import game.idle.ui.HintArrowMessageWriter
 import game.idle.ui.StatusOverlayMessageWriter
+import game.idle.ui.StickyChatboxMessageWriter
+import game.idle.ui.TileEdge
+import io.luna.game.model.Position
+import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
 import io.luna.net.codec.ByteMessage
 import io.luna.net.codec.MessageType
 import io.luna.net.msg.GameMessage
 import io.luna.net.msg.GameMessageWriter
 import io.luna.net.msg.out.CloseWindowsMessageWriter
 import io.luna.net.msg.out.DialogueInterfaceMessageWriter
+import io.luna.net.msg.out.FlashTabMessageWriter
 import io.luna.net.msg.out.GameChatboxMessageWriter
 import io.luna.net.msg.out.InterfaceMessageWriter
 import io.luna.net.msg.out.InventoryOverlayMessageWriter
@@ -75,6 +81,36 @@ class EncodedMessageDecoderTest {
     @Test
     fun `status overlay text decodes as the writer records it`() {
         assertDecodesAsRecorded(StatusOverlayMessageWriter("@gre@Autopilot@whi@ step 1/2|@yel@chop oak @draynor_oaks"))
+    }
+
+    @Test
+    fun `a sticky chatbox interface decodes as the writer records it`() {
+        assertDecodesAsRecorded(StickyChatboxMessageWriter(6179))
+    }
+
+    @Test
+    fun `an emptied sticky chatbox keeps its negative id`() {
+        assertDecodesAsRecorded(StickyChatboxMessageWriter(StickyChatboxMessageWriter.NONE))
+    }
+
+    @Test
+    fun `an npc hint arrow decodes as the writer records it`() {
+        assertDecodesAsRecorded(HintArrowMessageWriter.overNpc(index = 300))
+    }
+
+    @Test
+    fun `a tile hint arrow decodes as the writer records it`() {
+        assertDecodesAsRecorded(HintArrowMessageWriter.overTile(Position(3089, 3092), TileEdge.EAST, height = 200))
+    }
+
+    @Test
+    fun `a hidden hint arrow decodes as the writer records it`() {
+        assertDecodesAsRecorded(HintArrowMessageWriter.hidden())
+    }
+
+    @Test
+    fun `a flashing tab decodes as the writer records it`() {
+        assertDecodesAsRecorded(FlashTabMessageWriter(TabIndex.INVENTORY))
     }
 
     @Test

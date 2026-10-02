@@ -3,13 +3,12 @@ package io.luna.net.msg.out;
 import io.luna.game.model.mob.Player;
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex;
 import io.luna.net.codec.ByteMessage;
-import io.luna.net.codec.ValueType;
 import io.luna.net.msg.GameMessageWriter;
 import io.netty.buffer.ByteBuf;
 
 /**
- * A {@link GameMessageWriter} implementation that makes a {@link TabIndex} flash. The tab must be open for this
- * packet to work (use {@link ForceTabMessageWriter}).
+ * A {@link GameMessageWriter} implementation that makes a {@link TabIndex} flash until the player clicks it. The tab
+ * must have an interface; if it is the open tab, the client switches to another one so the player has to click it.
  *
  * @author lare96
  */
@@ -31,8 +30,8 @@ public final class FlashTabMessageWriter extends GameMessageWriter {
 
     @Override
     public ByteMessage write(Player player, ByteBuf buffer) {
-        ByteMessage msg = ByteMessage.message(24, buffer);
-        msg.put(tab.getIndex(), ValueType.SUBTRACT);
+        ByteMessage msg = ByteMessage.message(238, buffer);
+        msg.put(tab.getIndex());
         return msg;
     }
 }

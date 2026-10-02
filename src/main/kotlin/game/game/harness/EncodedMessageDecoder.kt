@@ -1,6 +1,9 @@
 package game.harness
 
+import game.idle.ui.HintArrowMessageWriter
 import game.idle.ui.StatusOverlayMessageWriter
+import game.idle.ui.StickyChatboxMessageWriter
+import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
 import io.luna.net.codec.ByteMessage
 import io.luna.net.codec.ByteOrder
 import io.luna.net.codec.ValueType
@@ -29,6 +32,11 @@ object EncodedMessageDecoder {
         109 to Layout("DialogueInterfaceMessageWriter") { mapOf("id" to it.short()) },
         50 to Layout("WalkableInterfaceMessageWriter") { mapOf("id" to it.short()) },
         StatusOverlayMessageWriter.OPCODE to Layout("StatusOverlayMessageWriter") { mapOf("text" to it.string()) },
+        StickyChatboxMessageWriter.OPCODE to Layout("StickyChatboxMessageWriter") {
+            mapOf("id" to it.short(ByteOrder.LITTLE))
+        },
+        HintArrowMessageWriter.OPCODE to Layout("HintArrowMessageWriter", ::hintArrow),
+        238 to Layout("FlashTabMessageWriter") { mapOf("tab" to TabIndex.forIndex(it.byte()).name) },
         128 to Layout("InventoryOverlayMessageWriter") {
             val interfaceId = it.short(transform = ValueType.ADD)
             mapOf("interfaceId" to interfaceId, "overlayInterfaceId" to it.short(ByteOrder.LITTLE, ValueType.ADD))
@@ -54,11 +62,26 @@ object EncodedMessageDecoder {
         return DecodedMessage(layout.type, layout.read(Payload(ByteMessage.wrap(message.payload.buffer.duplicate()))))
     }
 
+    /** An npc arrow carries an index where a tile arrow carries x, y and height; the writer holds all four. */
+    private fun hintArrow(payload: Payload): Map<String, Any> {
+        val type = payload.byte()
+        val first = payload.short()
+        val second = payload.short()
+        val third = payload.byte()
+        return if (type == HintArrowMessageWriter.NPC) {
+            mapOf("type" to type, "index" to first, "x" to 0, "y" to 0, "height" to 0)
+        } else {
+            mapOf("type" to type, "index" to 0, "x" to first, "y" to second, "height" to third)
+        }
+    }
+
     private fun undecoded(message: GameMessage) =
         DecodedMessage("opcode ${message.opcode}", mapOf("opcode" to message.opcode, "size" to message.size))
 
     /** Reads values back as the writers' `int` and `String` fields held them, where `ByteMessage` alone would not. */
     private class Payload(private val message: ByteMessage) {
+
+        fun byte(): Int = message.get(false)
 
         /** `ByteMessage.getShort` never sign-extends, whatever its `signed` flag, and writers send ids like -1. */
         fun short(order: ByteOrder = ByteOrder.BIG, transform: ValueType = ValueType.NORMAL): Int =
