@@ -3,18 +3,18 @@ package game.idle.location.survey
 import game.idle.autopilot.woodcutting.WoodcuttingSpot
 import game.idle.location.Location
 
-/** Checks a [Location] against the map: every tree kind it names grows there, and its bank tile holds a booth. */
+/** Checks a [Location] against the map: every tree kind it names grows in its area, and its bank tile holds a booth. */
 class LocationAudit(private val map: SurveyMap, private val minTrees: Int = MIN_TREES) {
 
     fun problems(location: Location): List<String> {
-        val standing = map.treesWithin(location.anchor, location.radius).groupingBy { it.tree }.eachCount()
-        val treeProblems = WoodcuttingSpot.from(location).trees.mapNotNull { tree ->
-            val count = standing[tree] ?: 0
+        val treeProblems = WoodcuttingSpot.from(location).values.mapNotNull { spot ->
+            val kind = spot.tree.name.lowercase()
+            val count = map.treesWithin(spot.area.anchor, spot.area.radius).count { it.tree == spot.tree }
             if (count >= minTrees) {
                 null
             } else {
-                "Location '${location.id}' has $count ${tree.name.lowercase()} trees within ${location.radius} " +
-                    "tiles of its anchor, expected at least $minTrees"
+                "Location '${location.id}' has $count $kind trees within ${spot.area.radius} tiles of its $kind anchor, " +
+                    "expected at least $minTrees"
             }
         }
         val bankProblem = location.bank?.takeUnless(map::hasBooth)?.let {

@@ -1,5 +1,6 @@
 package game.idle.location.survey
 
+import game.idle.location.Area
 import game.idle.location.Location
 import game.idle.location.LocationUnlock
 import game.idle.location.Tile
@@ -15,4 +16,4 @@ fun location(
     radius: Int = 5,
     trees: List<String> = listOf("normal"),
     bank: Tile? = null,
-): Location = Location("spot", "Spot", anchor, radius, trees, bank, LocationUnlock(stage = 0))
+): Location = Location("spot", "Spot", trees.associateWith { Area(anchor, radius) }, bank, LocationUnlock(stage = 0))

@@ -19,13 +19,18 @@ class LocationCatalogTest {
         val expected = Location(
             id = "varrock_west",
             name = "West of Varrock",
-            anchor = Tile(3165, 3445),
-            radius = 15,
-            trees = listOf("normal"),
+            trees = mapOf("normal" to Area(Tile(3165, 3445), 15)),
             bank = null,
             unlock = LocationUnlock(stage = 0),
         )
         assertEquals(expected, location)
+    }
+
+    @Test
+    fun `every tree kind keeps its own area`() {
+        val location = parseOne("trees" to mapOf("oak" to area(1, 2, 3), "willow" to area(4, 5, 6)))
+
+        assertEquals(mapOf("oak" to Area(Tile(1, 2), 3), "willow" to Area(Tile(4, 5), 6)), location.trees)
     }
 
     @Test
@@ -39,7 +44,7 @@ class LocationCatalogTest {
     }
 
     @Test
-    fun `a bank tile is checked like the anchor`() {
+    fun `a bank tile is checked like an anchor`() {
         assertRejected("Location 'spot' has a negative bank x", "id" to "spot", "bank" to mapOf("x" to -1, "y" to 1))
         assertRejected("Location 'spot' has a negative bank y", "id" to "spot", "bank" to mapOf("x" to 1, "y" to -1))
         assertRejected("Location 'spot' has bank floor 4, expected 0 to 3", "id" to "spot", "bank" to mapOf("x" to 1, "y" to 1, "z" to 4))
@@ -106,12 +111,14 @@ class LocationCatalogTest {
 
     @Test
     fun `an anchor defaults to the ground floor`() {
-        assertEquals(0, parseOne("anchor" to mapOf("x" to 1, "y" to 2)).anchor.z)
+        val location = parseOne("trees" to mapOf("normal" to mapOf("anchor" to mapOf("x" to 1, "y" to 2), "radius" to 5)))
+
+        assertEquals(0, location.trees.getValue("normal").anchor.z)
     }
 
     @Test
     fun `an upstairs anchor keeps its floor`() {
-        assertEquals(Tile(1, 2, 1), parseOne("anchor" to mapOf("x" to 1, "y" to 2, "z" to 1)).anchor)
+        assertEquals(Tile(1, 2, 1), parseOne("trees" to trees("normal", x = 1, y = 2).withFloor(1)).trees.getValue("normal").anchor)
     }
 
     @Test
@@ -139,46 +146,46 @@ class LocationCatalogTest {
     }
 
     @Test
-    fun `a missing anchor is rejected`() {
-        assertRejected("Location 'spot' has no anchor", "id" to "spot", "anchor" to null)
+    fun `a tree kind without an anchor is rejected`() {
+        assertRejected("Location 'spot' has no anchor for its oak trees", "id" to "spot", "trees" to mapOf("oak" to mapOf("radius" to 5)))
     }
 
     @Test
     fun `a negative anchor x is rejected`() {
-        assertRejected("Location 'spot' has a negative anchor x", "id" to "spot", "anchor" to mapOf("x" to -1, "y" to 1))
+        assertRejected("Location 'spot' has a negative oak anchor x", "id" to "spot", "trees" to trees("oak", x = -1, y = 1))
     }
 
     @Test
     fun `a negative anchor y is rejected`() {
-        assertRejected("Location 'spot' has a negative anchor y", "id" to "spot", "anchor" to mapOf("x" to 1, "y" to -1))
+        assertRejected("Location 'spot' has a negative oak anchor y", "id" to "spot", "trees" to trees("oak", x = 1, y = -1))
     }
 
     @Test
     fun `an anchor below the ground floor is rejected`() {
         assertRejected(
-            "Location 'spot' has anchor floor -1, expected 0 to 3",
+            "Location 'spot' has oak anchor floor -1, expected 0 to 3",
             "id" to "spot",
-            "anchor" to mapOf("x" to 1, "y" to 1, "z" to -1),
+            "trees" to trees("oak", x = 1, y = 1).withFloor(-1),
         )
     }
 
     @Test
     fun `an anchor above the top floor is rejected`() {
         assertRejected(
-            "Location 'spot' has anchor floor 4, expected 0 to 3",
+            "Location 'spot' has oak anchor floor 4, expected 0 to 3",
             "id" to "spot",
-            "anchor" to mapOf("x" to 1, "y" to 1, "z" to 4),
+            "trees" to trees("oak", x = 1, y = 1).withFloor(4),
         )
     }
 
     @Test
     fun `a radius of zero is rejected`() {
-        assertRejected("Location 'spot' has radius 0, expected 1 to 32", "id" to "spot", "radius" to 0)
+        assertRejected("Location 'spot' has radius 0 for its oak trees, expected 1 to 32", "id" to "spot", "trees" to trees("oak", radius = 0))
     }
 
     @Test
     fun `a radius past the maximum is rejected`() {
-        assertRejected("Location 'spot' has radius 33, expected 1 to 32", "id" to "spot", "radius" to 33)
+        assertRejected("Location 'spot' has radius 33 for its oak trees, expected 1 to 32", "id" to "spot", "trees" to trees("oak", radius = 33))
     }
 
     @Test
@@ -194,6 +201,15 @@ class LocationCatalogTest {
             "unlock" to mapOf("stage" to -1),
         )
     }
+
+    private fun Map<String, Any>.withFloor(z: Int): Map<String, Any> =
+        mapValues { (_, areaJson) ->
+            @Suppress("UNCHECKED_CAST")
+            val area = areaJson as Map<String, Any>
+            @Suppress("UNCHECKED_CAST")
+            val anchor = area.getValue("anchor") as Map<String, Any>
+            area + ("anchor" to anchor + ("z" to z))
+        }
 
     private fun assertRejected(message: String, vararg overrides: Pair<String, Any?>) {
         val error = assertThrows<IllegalArgumentException> { parseOne(*overrides) }

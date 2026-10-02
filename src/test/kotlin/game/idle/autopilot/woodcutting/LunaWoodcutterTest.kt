@@ -3,12 +3,12 @@ package game.idle.autopilot.woodcutting
 import api.predef.woodcutting
 import engine.widget.skill.LevelUpData
 import engine.widget.skill.LevelUpInterface
+import game.idle.location.Area
 import game.idle.location.Location
 import game.idle.location.LocationUnlock
 import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
 import game.testworld.TestWorld
-import io.luna.game.event.impl.DropItemEvent
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
@@ -34,17 +34,11 @@ class LunaWoodcutterTest {
     private val oakTree = 1281
     private val bronzeAxe = 1351
     private val logs = 1511
+    private val area = Area(Tile(anchor.x, anchor.y), radius = 10)
     private val spot = WoodcuttingSpot(
-        Location(
-            id = "test_grove",
-            name = "Test grove",
-            anchor = Tile(anchor.x, anchor.y),
-            radius = 10,
-            trees = listOf("normal"),
-            bank = null,
-            unlock = LocationUnlock(stage = 0),
-        ),
-        setOf(Tree.NORMAL),
+        Location(id = "test_grove", name = "Test grove", trees = mapOf("normal" to area), bank = null, unlock = LocationUnlock(stage = 0)),
+        Tree.NORMAL,
+        area,
     )
     private val normalTreeHere = TreeCandidate(normalTree, treeTile, Tree.NORMAL, 0, usableFromHere = true, besideTree)
 
@@ -54,17 +48,6 @@ class LunaWoodcutterTest {
         val clicked = mutableListOf<Int>()
         TestWorld.listen(ObjectFirstClickEvent::class.java) { clicked += it.gameObject.id }
         return clicked
-    }
-
-    private fun recordDrops(): MutableList<Int> {
-        val droppedSlots = mutableListOf<Int>()
-        TestWorld.listen(DropItemEvent::class.java) { droppedSlots += it.index }
-        return droppedSlots
-    }
-
-    private fun holdAxeAndTwoLogs(player: Player) {
-        player.inventory.add(Item(bronzeAxe))
-        player.inventory.add(Item(logs, 2))
     }
 
     @AfterEach
@@ -131,7 +114,8 @@ class LunaWoodcutterTest {
     @Test
     fun `the view counts only the logs in the inventory`() {
         val player = login()
-        holdAxeAndTwoLogs(player)
+        player.inventory.add(Item(bronzeAxe))
+        player.inventory.add(Item(logs, 2))
 
         assertEquals(2, LunaWoodcutter(player, spot).look().logsInInventory)
     }
@@ -249,29 +233,6 @@ class LunaWoodcutterTest {
         LunaWoodcutter(player, spot).walkToLocation()
 
         assertEquals(anchor, player.navigator.currentTarget)
-    }
-
-    @Test
-    fun `every log is dropped through the drop event, the axe is kept`() {
-        val player = login()
-        holdAxeAndTwoLogs(player)
-        val droppedSlots = recordDrops()
-
-        LunaWoodcutter(player, spot).dropLogs()
-
-        assertEquals(listOf(1, 2), droppedSlots)
-    }
-
-    @Test
-    fun `a player who may not act drops nothing`() {
-        val player = login()
-        holdAxeAndTwoLogs(player)
-        val droppedSlots = recordDrops()
-        player.lock()
-
-        LunaWoodcutter(player, spot).dropLogs()
-
-        assertEquals(emptyList<Int>(), droppedSlots)
     }
 
     @Test

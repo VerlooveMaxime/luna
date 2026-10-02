@@ -6,29 +6,27 @@ import game.skill.woodcutting.cutTree.Axe
 import game.skill.woodcutting.cutTree.Tree
 import game.skill.woodcutting.cutTree.TreeStump
 import game.idle.autopilot.LunaClicks
-import io.luna.game.event.impl.DropItemEvent
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.EntityType
 import io.luna.game.model.Position
 import io.luna.game.model.collision.CollisionManager
-import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
 import io.luna.game.model.mob.overlay.OverlayType
 import io.luna.game.model.`object`.GameObject
 
 /**
- * [Woodcutter] for a logged-in player at one [spot]. Trees are searched around the location's anchor, not around
- * the player, and ranked by walking distance. Chopping and dropping go through the same events and interaction
+ * [Woodcutter] for a logged-in player at one [spot]. Trees are searched around the spot's anchor, not around the
+ * player, and ranked by walking distance. Chopping and dropping go through the same events and interaction
  * action as the client's clicks, so Luna's reach checks, animations, XP and drop rules apply unchanged.
  */
 class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSpot) : Woodcutter, Terrain {
 
     private val world get() = player.world
     private val collision: CollisionManager get() = world.collisionManager
-    private val anchor: Position = spot.location.anchor.toPosition()
-    private val scan = TreeScan(anchor, spot.location.radius)
+    private val anchor: Position = spot.area.anchor.toPosition()
+    private val scan = TreeScan(anchor, spot.area.radius)
 
     override fun isBusy(): Boolean = LunaClicks.isActing(player) || hasBlockingWindow()
 
@@ -37,7 +35,7 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
             woodcuttingLevel = player.woodcutting.level,
             hasUsableAxe = Axe.computeAxeType(player) != null,
             inventoryFull = player.inventory.isFull,
-            logsInInventory = logs().size,
+            logsInInventory = LOG_IDS.sumOf { player.inventory.computeAmountForId(it) },
             atLocation = scan.atLocation(player.position),
             trees = scan.candidates(player.position, standingTrees(), terrain = this),
         )
@@ -56,15 +54,6 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
         player.navigator.navigate(tile, true)
     }
 
-    override fun dropLogs() {
-        for ((slot, log) in logs()) {
-            val event = DropItemEvent(player, log.id, INVENTORY_WIDGET, slot)
-            if (LunaClicks.mayAct(player, event)) {
-                player.plugins.post(event)
-            }
-        }
-    }
-
     override fun tell(message: String) {
         player.sendMessage(message)
     }
@@ -79,7 +68,7 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
     }
 
     private fun standingTrees(): List<StandingTree> =
-        world.locator.findObjects(anchor, spot.location.radius, ::isStandingTree).map {
+        world.locator.findObjects(anchor, spot.area.radius, ::isStandingTree).map {
             StandingTree(it.id, it.position, maxOf(it.sizeX(), it.sizeY()), TreeStump.TREE_ID_MAP.getValue(it.id).tree)
         }
 
@@ -92,12 +81,6 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
             .filter { it.id == tree.objectId && it.isVisibleTo(player) }
             .findFirst().orElse(null)
 
-    /** Slot and item of every log in the inventory. */
-    private fun logs(): List<Pair<Int, Item>> =
-        (0 until player.inventory.capacity()).mapNotNull { slot ->
-            player.inventory[slot]?.takeIf { it.id in LOG_IDS }?.let { slot to it }
-        }
-
     override fun canStep(from: Position, direction: Direction): Boolean =
         collision.traversable(from, EntityType.PLAYER, direction)
 
@@ -107,7 +90,6 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
         collision.reached(tile, tree.position, STANDARD_SIZE)
 
     private companion object {
-        const val INVENTORY_WIDGET = 3214
         val LOG_IDS: Set<Int> = Tree.ALL.keys
         val WINDOW_TYPES = setOf(OverlayType.WIDGET_STANDARD, OverlayType.INPUT)
     }

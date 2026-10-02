@@ -15,8 +15,44 @@ class WoodcuttingActivityTest {
     private val activity = WoodcuttingActivity(woodcutter, anyTree)
 
     @Test
-    fun `chopping is never done on its own`() {
+    fun `chopping is not done before the inventory fills`() {
+        woodcutter.view = view(listOf(nearTreeInReach))
+        activity.act()
+
         assertFalse(activity.isDone())
+    }
+
+    @Test
+    fun `chopping is done once the inventory is full after a chop`() {
+        woodcutter.view = view(listOf(nearTreeInReach))
+        activity.act()
+        woodcutter.view = view(listOf(nearTreeInReach), inventoryFull = true, logsInInventory = 28)
+
+        activity.act()
+
+        assertTrue(activity.isDone())
+        assertEquals(listOf("chop 3171,3444"), woodcutter.steps)
+    }
+
+    @Test
+    fun `a step that starts with a full inventory blocks instead of ending`() {
+        woodcutter.view = view(listOf(nearTreeInReach), inventoryFull = true, logsInInventory = 28)
+
+        activity.act()
+
+        assertFalse(activity.isDone())
+        assertEquals(listOf("tell ${BlockedReason.INVENTORY_FULL.message}"), woodcutter.steps)
+    }
+
+    @Test
+    fun `walking to a tree does not count as chopping`() {
+        activity.act()
+        woodcutter.view = view(listOf(nearTree), inventoryFull = true, logsInInventory = 28)
+
+        activity.act()
+
+        assertFalse(activity.isDone())
+        assertEquals(listOf("walk to 3171,3444", "tell ${BlockedReason.INVENTORY_FULL.message}"), woodcutter.steps)
     }
 
     @Test
@@ -49,15 +85,6 @@ class WoodcuttingActivityTest {
         activity.act()
 
         assertEquals(listOf("walk to location"), woodcutter.steps)
-    }
-
-    @Test
-    fun `a full inventory of logs is dropped`() {
-        woodcutter.view = view(listOf(nearTreeInReach), inventoryFull = true, logsInInventory = 28)
-
-        activity.act()
-
-        assertEquals(listOf("drop logs"), woodcutter.steps)
     }
 
     @Test
@@ -138,14 +165,14 @@ class WoodcuttingActivityTest {
     fun `a skipped tree stays skipped after other steps`() {
         activity.act()
         activity.act()
-        woodcutter.view = view(listOf(nearTree, farTree), inventoryFull = true, logsInInventory = 28)
+        woodcutter.view = view(listOf(nearTree, farTree), hasUsableAxe = false)
         activity.act()
         woodcutter.view = view(listOf(nearTree, farTree))
 
         activity.act()
 
         assertEquals(
-            listOf("walk to 3171,3444", "walk to 3170,3454", "drop logs", "walk to 3170,3454"),
+            listOf("walk to 3171,3444", "walk to 3170,3454", "tell ${BlockedReason.NO_AXE.message}", "walk to 3170,3454"),
             woodcutter.steps,
         )
     }

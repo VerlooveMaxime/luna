@@ -1,5 +1,6 @@
 package game.harness
 
+import game.idle.ui.StatusOverlayMessageWriter
 import io.luna.net.codec.ByteMessage
 import io.luna.net.codec.ByteOrder
 import io.luna.net.codec.ValueType
@@ -27,6 +28,7 @@ object EncodedMessageDecoder {
         159 to Layout("InterfaceMessageWriter") { mapOf("id" to it.short(ByteOrder.LITTLE, ValueType.ADD)) },
         109 to Layout("DialogueInterfaceMessageWriter") { mapOf("id" to it.short()) },
         50 to Layout("WalkableInterfaceMessageWriter") { mapOf("id" to it.short()) },
+        StatusOverlayMessageWriter.OPCODE to Layout("StatusOverlayMessageWriter") { mapOf("text" to it.string()) },
         128 to Layout("InventoryOverlayMessageWriter") {
             val interfaceId = it.short(transform = ValueType.ADD)
             mapOf("interfaceId" to interfaceId, "overlayInterfaceId" to it.short(ByteOrder.LITTLE, ValueType.ADD))

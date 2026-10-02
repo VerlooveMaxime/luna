@@ -3,11 +3,13 @@ package game.idle.autopilot
 import api.predef.woodcutting
 import game.idle.IdleState
 import game.idle.autopilot.bank.BankActivity
+import game.idle.autopilot.drop.DropActivity
 import game.idle.autopilot.woodcutting.ChopAction
 import game.idle.autopilot.woodcutting.WoodcuttingActivity
 import game.idle.autopilot.woodcutting.WoodcuttingSpot
 import game.idle.flow.ResolvedStep
 import game.idle.idleState
+import game.idle.location.Area
 import game.idle.location.Location
 import game.idle.location.LocationUnlock
 import game.idle.location.Tile
@@ -25,12 +27,11 @@ import org.junit.jupiter.api.Test
 class LunaAutopilotPlayerTest {
 
     private val logs = 1511
+    private val area = Area(Tile(3200, 3200), radius = 10)
     private val location = Location(
         id = "test_grove",
         name = "Test grove",
-        anchor = Tile(3200, 3200),
-        radius = 10,
-        trees = listOf("normal"),
+        trees = mapOf("normal" to area),
         bank = Tile(3210, 3200),
         unlock = LocationUnlock(stage = 0),
     )
@@ -62,6 +63,39 @@ class LunaAutopilotPlayerTest {
         assertEquals(2, autopilot.idleState.stepIndex)
     }
 
+    private fun overlayTexts(autopilot: LunaAutopilotPlayer): List<String> =
+        TestWorld.messages(autopilot.player)
+            .filter { it.type == "StatusOverlayMessageWriter" }
+            .map { it.fields.getValue("text").toString() }
+
+    @Test
+    fun `starting a flow shows it on the status overlay`() {
+        val autopilot = autopilotPlayer()
+
+        autopilot.idleState = IdleState(flow = listOf("chop oak @test_grove", "loop")).started()
+
+        assertEquals(listOf("@gre@Autopilot@whi@ step 1/2|@yel@chop oak @test_grove"), overlayTexts(autopilot))
+    }
+
+    @Test
+    fun `stopping a flow clears the status overlay`() {
+        val autopilot = autopilotPlayer()
+
+        autopilot.idleState = IdleState(flow = listOf("chop oak @test_grove")).stopped()
+
+        assertEquals(listOf(""), overlayTexts(autopilot))
+    }
+
+    @Test
+    fun `saving a step refreshes the status overlay`() {
+        val autopilot = autopilotPlayer()
+        autopilot.idleState = IdleState(flow = listOf("chop oak @test_grove", "loop")).started()
+
+        autopilot.saveStep(1)
+
+        assertEquals("@gre@Autopilot@whi@ step 2/2|@yel@loop", overlayTexts(autopilot).last())
+    }
+
     @Test
     fun `telling the player sends a chat box line`() {
         val autopilot = autopilotPlayer()
@@ -69,36 +103,6 @@ class LunaAutopilotPlayerTest {
         autopilot.tell("Chopping at the test grove.")
 
         assertEquals(listOf("Chopping at the test grove."), TestWorld.chatbox(autopilot.player))
-    }
-
-    @Test
-    fun `the woodcutting level is the player's current one`() {
-        val autopilot = autopilotPlayer()
-        autopilot.player.woodcutting.level = 15
-
-        assertEquals(15, autopilot.woodcuttingLevel())
-    }
-
-    @Test
-    fun `an inventory with free slots is not full`() {
-        assertFalse(autopilotPlayer().inventoryFull())
-    }
-
-    @Test
-    fun `an inventory without free slots is full`() {
-        val autopilot = autopilotPlayer()
-        autopilot.player.inventory.add(Item(logs, 28))
-
-        assertTrue(autopilot.inventoryFull())
-    }
-
-    @Test
-    fun `owned items count both the inventory and the bank`() {
-        val autopilot = autopilotPlayer()
-        autopilot.player.inventory.add(Item(logs, 2))
-        autopilot.player.bank.add(Item(logs, 3))
-
-        assertEquals(5, autopilot.countOwned(logs))
     }
 
     @Test
@@ -113,10 +117,15 @@ class LunaAutopilotPlayerTest {
 
     @Test
     fun `a chop step runs as a woodcutting activity`() {
-        val spot = WoodcuttingSpot(location, setOf(Tree.NORMAL))
-        val step = ResolvedStep.Chop(spot, ChopAction(setOf(Tree.NORMAL), dropWhenFull = true), until = null)
+        val spot = WoodcuttingSpot(location, Tree.NORMAL, area)
+        val step = ResolvedStep.Chop(spot, ChopAction(setOf(Tree.NORMAL)))
 
         assertInstanceOf(WoodcuttingActivity::class.java, autopilotPlayer().chop(step))
+    }
+
+    @Test
+    fun `a drop step runs as a drop activity`() {
+        assertInstanceOf(DropActivity::class.java, autopilotPlayer().drop(ResolvedStep.Drop(setOf(logs))))
     }
 
     @Test

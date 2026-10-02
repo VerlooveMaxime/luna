@@ -5,7 +5,13 @@ import game.idle.flow.FlowCommand
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.FlowRunner
+import game.idle.idleState
 import game.idle.location.LocationCatalog
+import game.idle.ui.FlowBuilder
+import game.idle.ui.FlowWidgets
+import game.idle.ui.IdleUi
+import game.idle.ui.LunaFlowUi
+import io.luna.game.event.impl.ButtonClickEvent
 import io.luna.game.event.impl.LoginEvent
 import io.luna.game.event.impl.LogoutEvent
 
@@ -15,30 +21,36 @@ val config = AutopilotConfig.load(AutopilotConfig.PATH)
 val resolver = FlowResolver(LocationCatalog.load(LocationCatalog.PATH))
 logger.info("Loaded {} idle locations.", resolver.size)
 
-lateinit var autopilot: Autopilot<LunaAutopilotPlayer>
-
-autopilot = Autopilot(WorldTickScheduler(world)) { autopilotPlayer ->
+val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world)) { autopilotPlayer ->
     val state = autopilotPlayer.idleState
     val steps = try {
         resolver.resolve(state.flow)
     } catch (e: FlowError) {
         null
     }
-    steps?.let {
-        val runner = FlowRunner(it, state.stepIndex, autopilotPlayer, autopilotPlayer) { autopilot.stop(autopilotPlayer) }
-        AutopilotDriver(runner, config.decisionDelayTicks)
-    }
+    steps?.let { AutopilotDriver(FlowRunner(it, state.stepIndex, autopilotPlayer, autopilotPlayer), config.decisionDelayTicks) }
 }
 
 val flowCommand = FlowCommand(autopilot, resolver)
+val flowUi = LunaFlowUi(FlowBuilder(autopilot, resolver))
 
 on(LoginEvent::class)
     .filter { !plr.isBot }
-    .then { autopilot.onLogin(LunaAutopilotPlayer(plr)) }
+    .then {
+        IdleUi.installTab(plr, plr.idleState)
+        autopilot.onLogin(LunaAutopilotPlayer(plr))
+    }
 
 on(LogoutEvent::class)
     .filter { !plr.isBot }
-    .then { autopilot.onLogout(LunaAutopilotPlayer(plr)) }
+    .then {
+        autopilot.onLogout(LunaAutopilotPlayer(plr))
+        flowUi.forget(plr)
+    }
+
+on(ButtonClickEvent::class)
+    .filter { FlowWidgets.owns(id) }
+    .then { flowUi.click(plr, id) }
 
 cmd("idle") {
     flowCommand.idle(LunaAutopilotPlayer(plr), args.toList(), plr.position)

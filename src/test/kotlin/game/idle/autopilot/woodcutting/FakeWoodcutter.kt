@@ -22,10 +22,6 @@ class FakeWoodcutter(var view: WoodcuttingView) : Woodcutter {
         steps += "walk to location"
     }
 
-    override fun dropLogs() {
-        steps += "drop logs"
-    }
-
     override fun tell(message: String) {
         steps += "tell $message"
     }

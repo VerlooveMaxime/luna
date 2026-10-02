@@ -45,12 +45,12 @@ internal data class TileJson(val x: Int = -1, val y: Int = -1, val z: Int = 0)
 
 internal data class UnlockJson(val stage: Int = 0)
 
+internal data class AreaJson(val anchor: TileJson? = null, val radius: Int = 0)
+
 internal data class LocationJson(
     val id: String = "",
     val name: String = "",
-    val anchor: TileJson? = null,
-    val radius: Int = 0,
-    val trees: List<String> = emptyList(),
+    val trees: Map<String, AreaJson> = emptyMap(),
     val bank: TileJson? = null,
     val unlock: UnlockJson = UnlockJson(),
 ) {
@@ -58,21 +58,23 @@ internal data class LocationJson(
     fun toLocation(): Location {
         require(id.isNotBlank()) { "A location has no id: $this" }
         require(name.isNotBlank()) { "Location '$id' has no name" }
-        requireNotNull(anchor) { "Location '$id' has no anchor" }
-        require(radius in 1..LocationCatalog.MAX_RADIUS) {
-            "Location '$id' has radius $radius, expected 1 to ${LocationCatalog.MAX_RADIUS}"
-        }
         require(trees.isNotEmpty()) { "Location '$id' has nothing to do: no trees" }
         require(unlock.stage >= 0) { "Location '$id' unlocks at stage ${unlock.stage}, expected 0 or more" }
         return Location(
             id = id,
             name = name,
-            anchor = tile("anchor", anchor),
-            radius = radius,
-            trees = trees,
+            trees = trees.mapValues { (kind, area) -> area(kind, area) },
             bank = bank?.let { tile("bank", it) },
             unlock = LocationUnlock(unlock.stage),
         )
+    }
+
+    private fun area(kind: String, json: AreaJson): Area {
+        val anchor = requireNotNull(json.anchor) { "Location '$id' has no anchor for its $kind trees" }
+        require(json.radius in 1..LocationCatalog.MAX_RADIUS) {
+            "Location '$id' has radius ${json.radius} for its $kind trees, expected 1 to ${LocationCatalog.MAX_RADIUS}"
+        }
+        return Area(tile("$kind anchor", anchor), json.radius)
     }
 
     private fun tile(what: String, json: TileJson): Tile {

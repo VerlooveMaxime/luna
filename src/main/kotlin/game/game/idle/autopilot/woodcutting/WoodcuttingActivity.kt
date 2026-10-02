@@ -2,7 +2,6 @@ package game.idle.autopilot.woodcutting
 
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Blocked
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Chop
-import game.idle.autopilot.woodcutting.WoodcuttingDecision.DropLogs
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.OnTree
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkTo
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkToLocation
@@ -22,38 +21,48 @@ interface Woodcutter {
 
     fun walkToLocation()
 
-    fun dropLogs()
-
     fun tell(message: String)
 }
 
 /**
- * Carries out [WoodcuttingPlanner] decisions for one [action]. A tree that gets the same decision twice in a row
- * (walked to but still out of reach, or chopped without the tree falling or the inventory filling) is skipped for
- * as long as this activity runs, so an unreachable tree cannot trap the player.
+ * Carries out [WoodcuttingPlanner] decisions for one [action]. The step is over once the inventory fills up after
+ * at least one chop; an inventory that is already full when the step starts blocks it instead, since no later step
+ * would empty it. A tree that gets the same decision twice in a row (walked to but still out of reach, or chopped
+ * without the tree falling or the inventory filling) is skipped for as long as this activity runs, so an
+ * unreachable tree cannot trap the player.
  */
 class WoodcuttingActivity(private val woodcutter: Woodcutter, private val action: ChopAction) : StepActivity {
 
     private val skippedTrees = mutableSetOf<Position>()
     private var lastDecision: WoodcuttingDecision? = null
+    private var chopped = false
+    private var done = false
 
     override fun isBusy(): Boolean = woodcutter.isBusy()
 
-    /** Chopping has no end of its own; the flow's `until` decides. */
-    override fun isDone(): Boolean = false
+    override fun isDone(): Boolean = done
 
     override fun act() {
-        val decision = decideSkippingRetries(woodcutter.look())
+        val view = woodcutter.look()
+        if (chopped && view.inventoryFull) {
+            done = true
+            return
+        }
+        val decision = decideSkippingRetries(view)
         carryOut(decision)
         lastDecision = decision
     }
 
     private fun carryOut(decision: WoodcuttingDecision) = when (decision) {
-        is Chop -> woodcutter.chop(decision.tree)
+        is Chop -> chop(decision.tree)
         is WalkTo -> woodcutter.walkTo(decision.tree)
         WalkToLocation -> woodcutter.walkToLocation()
-        DropLogs -> woodcutter.dropLogs()
         is Blocked -> tellOnce(decision)
+    }
+
+    private fun chop(tree: TreeCandidate) {
+        chopped = true
+        woodcutter.chop(tree)
     }
 
     private fun tellOnce(decision: Blocked) {

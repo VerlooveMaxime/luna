@@ -31,10 +31,10 @@ class FlowCommandTest {
 
     @Test
     fun `add appends a valid step`() {
-        flow("add", "chop", "normal", "@varrock_west", "until", "inventory", "full")
+        flow("add", "chop", "normal", "@varrock_west")
 
-        assertEquals(listOf("chop normal @varrock_west until inventory full"), player.idleState.flow)
-        assertEquals(listOf("Autopilot: step 1: chop normal @varrock_west until inventory full"), player.told)
+        assertEquals(listOf("chop normal @varrock_west"), player.idleState.flow)
+        assertEquals(listOf("Autopilot: step 1: chop normal @varrock_west"), player.told)
     }
 
     @Test
@@ -50,7 +50,7 @@ class FlowCommandTest {
         flow("add", "chop", "normal", "@varrock_west")
         flow("run")
 
-        flow("add", "loop")
+        flow("add", "drop")
 
         assertEquals(listOf("chop normal @varrock_west"), player.idleState.flow)
         assertEquals("Autopilot: stop the flow first (::flow stop).", player.told.last())
@@ -65,11 +65,11 @@ class FlowCommandTest {
 
     @Test
     fun `list numbers the steps and shows where it is`() {
-        player.idleState = IdleState(flow = listOf("chop normal @varrock_west", "loop"), stepIndex = 1)
+        player.idleState = IdleState(flow = listOf("chop normal @varrock_west", "drop"), stepIndex = 1)
 
         flow("list")
 
-        assertEquals(listOf("Autopilot: flow (stopped, at step 2):", "1. chop normal @varrock_west", "2. loop"), player.told)
+        assertEquals(listOf("Autopilot: flow (stopped, at step 2):", "1. chop normal @varrock_west", "2. drop"), player.told)
     }
 
     @Test
@@ -96,7 +96,7 @@ class FlowCommandTest {
 
     @Test
     fun `run starts from the first step`() {
-        player.idleState = IdleState(flow = listOf("chop normal @varrock_west", "loop"), stepIndex = 1)
+        player.idleState = IdleState(flow = listOf("chop normal @varrock_west", "drop"), stepIndex = 1)
 
         flow("run")
 
@@ -107,12 +107,12 @@ class FlowCommandTest {
 
     @Test
     fun `resume continues from the saved step`() {
-        player.idleState = IdleState(flow = listOf("chop normal @varrock_west", "loop"), stepIndex = 1)
+        player.idleState = IdleState(flow = listOf("chop normal @varrock_west", "drop"), stepIndex = 1)
 
         flow("resume")
 
         assertEquals(1, player.idleState.stepIndex)
-        assertEquals(listOf("Autopilot: running step 2: loop"), player.told)
+        assertEquals(listOf("Autopilot: running step 2: drop"), player.told)
     }
 
     @Test
@@ -163,8 +163,8 @@ class FlowCommandTest {
         command.idle(player, emptyList(), here)
 
         assertTrue(autopilot.isRunning(player))
-        assertEquals(listOf("chop normal @varrock_west drop"), player.idleState.flow)
-        assertEquals(listOf("Autopilot: running step 1: chop normal @varrock_west drop"), player.told)
+        assertEquals(listOf("chop normal @varrock_west", "drop"), player.idleState.flow)
+        assertEquals(listOf("Autopilot: running step 1: chop normal @varrock_west"), player.told)
     }
 
     @Test
@@ -181,7 +181,7 @@ class FlowCommandTest {
     fun `idle with a location and tree`() {
         command.idle(player, listOf("varrock_west", "normal"), here)
 
-        assertEquals(listOf("chop normal @varrock_west drop"), player.idleState.flow)
+        assertEquals(listOf("chop normal @varrock_west", "drop"), player.idleState.flow)
     }
 
     @Test

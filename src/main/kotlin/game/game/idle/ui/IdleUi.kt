@@ -1,0 +1,73 @@
+package game.idle.ui
+
+import game.idle.IdleState
+import game.idle.autopilot.LunaAutopilotPlayer
+import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.overlay.AbstractOverlay
+import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
+import io.luna.game.model.mob.overlay.OverlayType
+import io.luna.net.msg.out.InterfaceMessageWriter
+import io.luna.net.msg.out.WidgetTextMessageWriter
+
+/**
+ * The flow builder screen as a Luna window. Not a `StandardInterface`: that looks the id up in the cache widget
+ * definitions, which know nothing of widgets the client defines in code. Luna calls [onOpen] before [open], so the
+ * texts reach the client before the screen shows.
+ */
+class FlowBuilderInterface(private val texts: () -> Map<Int, String>) : AbstractOverlay(OverlayType.WIDGET_STANDARD) {
+
+    override fun open(player: Player) {
+        player.queue(InterfaceMessageWriter(FlowWidgets.BUILDER))
+    }
+
+    override fun onOpen(player: Player) = IdleUi.sendTexts(player, texts())
+}
+
+/** Sends the IdleRS widgets to a Luna player: the tab at login, and every text that follows the idle state. */
+object IdleUi {
+
+    fun installTab(player: Player, state: IdleState) {
+        player.tabs.set(TabIndex.UNUSED, FlowWidgets.TAB)
+        sendTexts(player, BuilderView.tabTexts(state))
+    }
+
+    /** Called on every idle state change: overlay, tab lines, and the builder's rows while it is open. */
+    fun refresh(player: Player, state: IdleState) {
+        player.queue(StatusOverlayMessageWriter(AutopilotStatus.text(state)))
+        sendTexts(player, BuilderView.tabTexts(state))
+        if (player.overlays.has(FlowBuilderInterface::class.java)) sendTexts(player, BuilderView.stateTexts(state))
+    }
+
+    /**
+     * Not `player.sendText`: Luna skips a text equal to the last one it sent for that id, but the client rebuilds our
+     * widgets blank each time the window closes, so every text must go out every time (found live 2026-10-01).
+     */
+    fun sendTexts(player: Player, texts: Map<Int, String>) =
+        texts.forEach { (id, text) -> player.queue(WidgetTextMessageWriter(text, id)) }
+}
+
+/** Routes clicks on IdleRS widgets from a Luna player to the [FlowBuilder] and shows what changed. */
+class LunaFlowUi(private val builder: FlowBuilder<LunaAutopilotPlayer>) {
+
+    fun click(player: Player, widgetId: Int) = act(player, LunaAutopilotPlayer(player), widgetId)
+
+    // An expression `when`, so JaCoCo sees every branch (see coverage notes on statement `when`).
+    private fun act(player: Player, autopilotPlayer: LunaAutopilotPlayer, widgetId: Int): Unit =
+        when (builder.click(autopilotPlayer, widgetId)) {
+            ClickResult.Ignored -> Unit
+            ClickResult.Open -> player.overlays.open(FlowBuilderInterface { builder.texts(autopilotPlayer) })
+            ClickResult.Close -> player.overlays.closeWindows()
+            ClickResult.Refresh -> show(player, autopilotPlayer)
+        }
+
+    fun forget(player: Player) = builder.forget(LunaAutopilotPlayer(player))
+
+    /** The builder shows its own message line; a click from the tab while it is closed speaks in the chat box. */
+    private fun show(player: Player, autopilotPlayer: LunaAutopilotPlayer) {
+        if (player.overlays.has(FlowBuilderInterface::class.java)) {
+            IdleUi.sendTexts(player, builder.texts(autopilotPlayer))
+        } else if (builder.message(autopilotPlayer).isNotEmpty()) {
+            player.sendMessage(builder.message(autopilotPlayer))
+        }
+    }
+}

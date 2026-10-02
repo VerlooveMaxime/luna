@@ -1,5 +1,6 @@
 package game.harness
 
+import game.idle.ui.StatusOverlayMessageWriter
 import io.luna.net.codec.ByteMessage
 import io.luna.net.codec.MessageType
 import io.luna.net.msg.GameMessage
@@ -69,6 +70,11 @@ class EncodedMessageDecoderTest {
     @Test
     fun `widget text decodes as the writer records it`() {
         assertDecodesAsRecorded(WidgetTextMessageWriter("Congratulations, you just advanced a level.", 4268))
+    }
+
+    @Test
+    fun `status overlay text decodes as the writer records it`() {
+        assertDecodesAsRecorded(StatusOverlayMessageWriter("@gre@Autopilot@whi@ step 1/2|@yel@chop oak @draynor_oaks"))
     }
 
     @Test

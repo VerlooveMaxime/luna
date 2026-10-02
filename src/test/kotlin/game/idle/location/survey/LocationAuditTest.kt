@@ -19,7 +19,7 @@ class LocationAuditTest {
         val map = surveyMap(placed(100, 100), placed(106, 100))
 
         assertEquals(
-            listOf("Location 'spot' has 1 normal trees within 5 tiles of its anchor, expected at least 2"),
+            listOf("Location 'spot' has 1 normal trees within 5 tiles of its normal anchor, expected at least 2"),
             LocationAudit(map).problems(location()),
         )
     }
@@ -29,7 +29,7 @@ class LocationAuditTest {
         val map = surveyMap(placed(100, 100, Tree.OAK), placed(101, 100, Tree.OAK))
 
         assertEquals(
-            listOf("Location 'spot' has 0 willow trees within 5 tiles of its anchor, expected at least 2"),
+            listOf("Location 'spot' has 0 willow trees within 5 tiles of its willow anchor, expected at least 2"),
             LocationAudit(map).problems(location(trees = listOf("oak", "willow"))),
         )
     }

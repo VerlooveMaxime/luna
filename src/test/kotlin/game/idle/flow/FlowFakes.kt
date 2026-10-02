@@ -2,24 +2,10 @@ package game.idle.flow
 
 class FakeFlowPlayer : FlowPlayer {
 
-    var level = 1
-    var full = false
-    val owned = mutableMapOf<Int, Int>()
     val savedSteps = mutableListOf<Int>()
-    val told = mutableListOf<String>()
-
-    override fun woodcuttingLevel(): Int = level
-
-    override fun inventoryFull(): Boolean = full
-
-    override fun countOwned(itemId: Int): Int = owned[itemId] ?: 0
 
     override fun saveStep(index: Int) {
         savedSteps += index
-    }
-
-    override fun tell(message: String) {
-        told += message
     }
 }
 
@@ -46,6 +32,8 @@ class FakeStepActivities : StepActivities {
     val started = mutableListOf<FakeStepActivity>()
 
     override fun chop(step: ResolvedStep.Chop): StepActivity = start("chop ${step.spot.location.id}")
+
+    override fun drop(step: ResolvedStep.Drop): StepActivity = start("drop ${step.itemIds.size}")
 
     override fun bank(step: ResolvedStep.Bank): StepActivity = start("bank ${step.location.id}")
 

@@ -2,7 +2,6 @@ package game.idle.autopilot.woodcutting
 
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Blocked
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Chop
-import game.idle.autopilot.woodcutting.WoodcuttingDecision.DropLogs
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkTo
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkToLocation
 import game.skill.woodcutting.cutTree.Tree
@@ -19,7 +18,7 @@ class WoodcuttingPlannerTest {
 
     @Test
     fun `an action needs at least one kind of tree`() {
-        assertThrows<IllegalArgumentException> { ChopAction(emptySet(), dropWhenFull = true) }
+        assertThrows<IllegalArgumentException> { ChopAction(emptySet()) }
     }
 
     @Test
@@ -30,24 +29,8 @@ class WoodcuttingPlannerTest {
     }
 
     @Test
-    fun `a full inventory holding logs is dropped`() {
+    fun `a full inventory blocks the autopilot`() {
         val decision = decide(view(listOf(nextToPlayer), inventoryFull = true, logsInInventory = 5))
-
-        assertEquals(DropLogs, decision)
-    }
-
-    @Test
-    fun `a full inventory of logs is kept when the action says not to drop`() {
-        val keep = ChopAction(setOf(Tree.NORMAL), dropWhenFull = false)
-
-        val decision = decide(view(listOf(nextToPlayer), inventoryFull = true, logsInInventory = 5), keep)
-
-        assertEquals(Blocked(BlockedReason.INVENTORY_FULL), decision)
-    }
-
-    @Test
-    fun `a full inventory without logs blocks the autopilot`() {
-        val decision = decide(view(listOf(nextToPlayer), inventoryFull = true, logsInInventory = 0))
 
         assertEquals(Blocked(BlockedReason.INVENTORY_FULL), decision)
     }
@@ -82,7 +65,7 @@ class WoodcuttingPlannerTest {
 
     @Test
     fun `trees the player did not ask for are ignored`() {
-        val decision = decide(view(listOf(nextToPlayer)), ChopAction(setOf(Tree.OAK), dropWhenFull = true))
+        val decision = decide(view(listOf(nextToPlayer)), ChopAction(setOf(Tree.OAK)))
 
         assertEquals(Blocked(BlockedReason.NO_TREE), decision)
     }

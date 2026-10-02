@@ -2,14 +2,13 @@ package game.idle.autopilot.woodcutting
 
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Blocked
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Chop
-import game.idle.autopilot.woodcutting.WoodcuttingDecision.DropLogs
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkTo
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkToLocation
 import game.skill.woodcutting.cutTree.Tree
 import io.luna.game.model.Position
 
-/** What the player asked to chop, and whether logs go on the ground once the inventory is full. */
-data class ChopAction(val trees: Set<Tree>, val dropWhenFull: Boolean) {
+/** What the player asked to chop. */
+data class ChopAction(val trees: Set<Tree>) {
     init {
         require(trees.isNotEmpty()) { "An action needs at least one kind of tree" }
     }
@@ -51,20 +50,18 @@ sealed interface WoodcuttingDecision {
 
     data object WalkToLocation : WoodcuttingDecision
 
-    data object DropLogs : WoodcuttingDecision
-
     data class Blocked(val reason: BlockedReason) : WoodcuttingDecision
 }
 
 enum class BlockedReason(val message: String) {
     NO_AXE("Autopilot: you need an axe that you have the Woodcutting level to use."),
-    INVENTORY_FULL("Autopilot: your inventory is full. Bank it, or add 'drop' to the step."),
+    INVENTORY_FULL("Autopilot: your inventory is full. Put a 'drop logs' or 'bank deposit all' step after the chop."),
     NO_TREE("Autopilot: there is no tree you can cut here."),
 }
 
 /**
- * Cut the highest-level wanted tree the player can, drop every log once the inventory is full if the action says
- * so, and walk back to the location when nothing is in reach from outside it.
+ * Cut the highest-level wanted tree the player can, and walk back to the location when nothing is in reach from
+ * outside it. A full inventory is the chop step's end ([WoodcuttingActivity]); here it only blocks.
  */
 object WoodcuttingPlanner {
 
@@ -81,7 +78,6 @@ object WoodcuttingPlanner {
             .minWithOrNull(preferredFirst)
         return when {
             !view.hasUsableAxe -> Blocked(BlockedReason.NO_AXE)
-            view.inventoryFull && view.logsInInventory > 0 && action.dropWhenFull -> DropLogs
             view.inventoryFull -> Blocked(BlockedReason.INVENTORY_FULL)
             best == null && !view.atLocation -> WalkToLocation
             best == null -> Blocked(BlockedReason.NO_TREE)

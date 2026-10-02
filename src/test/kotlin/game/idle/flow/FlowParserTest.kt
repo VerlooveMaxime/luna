@@ -7,29 +7,18 @@ import org.junit.jupiter.api.assertThrows
 class FlowParserTest {
 
     @Test
-    fun `a chop step with everything`() {
-        val step = FlowParser.parse("chop normal,oak @varrock_west drop until 100 logs")
-
-        assertEquals(FlowStep.Chop(listOf("normal", "oak"), "varrock_west", drop = true, until = Until.Logs(100)), step)
-    }
-
-    @Test
-    fun `a bare chop step runs until stopped and keeps its logs`() {
-        val step = FlowParser.parse("chop normal @varrock_west")
-
-        assertEquals(FlowStep.Chop(listOf("normal"), "varrock_west", drop = false, until = null), step)
+    fun `a chop step names its tree and location`() {
+        assertEquals(FlowStep.Chop("oak", "varrock_west"), FlowParser.parse("chop oak @varrock_west"))
     }
 
     @Test
     fun `words are matched ignoring case and extra spaces`() {
-        val step = FlowParser.parse("  Chop  Normal @Varrock_West   Until Inventory Full ")
-
-        assertEquals(FlowStep.Chop(listOf("normal"), "varrock_west", drop = false, until = Until.InventoryFull), step)
+        assertEquals(FlowStep.Chop("normal", "varrock_west"), FlowParser.parse("  Chop  Normal @Varrock_West   "))
     }
 
     @Test
-    fun `until level`() {
-        assertEquals(Until.Level(30), (FlowParser.parse("chop normal @x until level 30") as FlowStep.Chop).until)
+    fun `drop`() {
+        assertEquals(FlowStep.Drop, FlowParser.parse("drop"))
     }
 
     @Test
@@ -38,13 +27,8 @@ class FlowParserTest {
     }
 
     @Test
-    fun `loop`() {
-        assertEquals(FlowStep.Loop, FlowParser.parse("loop"))
-    }
-
-    @Test
     fun `an unknown step lists the grammar`() {
-        assertRejected("Unknown step 'dance'. Steps: ${FlowParser.HELP}", "dance")
+        assertRejected("Unknown step 'loop'. Steps: ${FlowParser.HELP}", "loop")
     }
 
     @Test
@@ -58,8 +42,8 @@ class FlowParserTest {
     }
 
     @Test
-    fun `chop with only commas for a tree`() {
-        assertRejected("chop needs a tree: chop <tree> @<location>", "chop ,")
+    fun `chop with several trees`() {
+        assertRejected("One kind of tree per chop step: chop <tree> @<location>", "chop normal,oak @x")
     }
 
     @Test
@@ -78,37 +62,22 @@ class FlowParserTest {
     }
 
     @Test
-    fun `chop with junk after the location`() {
-        assertRejected("Unexpected 'fast' after the location. Expected 'drop' or 'until'.", "chop normal @x fast")
+    fun `the old clauses on a chop step point at what replaced them`() {
+        assertRejected(
+            "Unexpected 'until inventory full' after the location. A chop step ends when the inventory is full; " +
+                "'drop' and 'bank deposit all' are steps of their own, and the flow repeats by itself.",
+            "chop normal @x until inventory full",
+        )
     }
 
     @Test
-    fun `an unknown condition`() {
-        assertRejected("Unknown condition 'until dark'. Conditions: inventory full, <n> logs, level <n>", "chop normal @x until dark")
-        assertRejected("Unknown condition 'until 5 trees'. Conditions: inventory full, <n> logs, level <n>", "chop normal @x until 5 trees")
-    }
-
-    @Test
-    fun `a log count must be a positive number`() {
-        assertRejected("'zero' is not a number of logs", "chop normal @x until zero logs")
-        assertRejected("'0' is not a number of logs", "chop normal @x until 0 logs")
-    }
-
-    @Test
-    fun `a level must be from one to ninety nine`() {
-        assertRejected("'100' is not a level from 1 to 99", "chop normal @x until level 100")
-        assertRejected("'ten' is not a level from 1 to 99", "chop normal @x until level ten")
-        assertRejected("'0' is not a level from 1 to 99", "chop normal @x until level 0")
+    fun `drop takes nothing`() {
+        assertRejected("drop takes nothing after it: it drops what the chop steps before it gathered", "drop logs")
     }
 
     @Test
     fun `bank only deposits all`() {
         assertRejected("The only bank step is 'bank deposit all'", "bank withdraw axe")
-    }
-
-    @Test
-    fun `loop takes nothing`() {
-        assertRejected("loop takes nothing after it", "loop 3")
     }
 
     private fun assertRejected(message: String, line: String) {

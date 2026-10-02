@@ -6,7 +6,7 @@ import io.luna.game.model.Position
 
 /**
  * `::flow add <step>`, `list`, `clear`, `run`, `resume`, `stop`, and the `::idle` shorthand (optional location and tree names)
- * that replaces the flow with one power-chopping step and runs it.
+ * that replaces the flow with chop and drop and runs it.
  */
 class FlowCommand<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, private val resolver: FlowResolver) {
 
@@ -27,12 +27,12 @@ class FlowCommand<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
     fun idle(player: P, args: List<String>, from: Position) {
         if (args.isEmpty() && autopilot.isRunning(player)) return stop(player)
         val line = try {
-            if (args.isEmpty()) resolver.nearestChopLine(from) else resolver.chopLine(args[0], args.drop(1))
+            if (args.isEmpty()) resolver.nearestChopLine(from) else resolver.chopLine(args[0], args.getOrNull(1))
         } catch (e: FlowError) {
             return player.tell("Autopilot: ${e.message}")
         }
         if (line == null) return player.tell("Autopilot: no locations are defined.")
-        player.idleState = player.idleState.withFlow(listOf(line))
+        player.idleState = player.idleState.withFlow(listOf(line, "drop"))
         run(player, fromStart = true)
     }
 
