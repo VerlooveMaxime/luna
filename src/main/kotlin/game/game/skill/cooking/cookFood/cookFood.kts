@@ -7,6 +7,7 @@ import game.skill.cooking.cookFood.Cooking.RANGES
 import game.skill.cooking.cookFood.MakeWineActionItem.Companion.wineFermentTask
 import io.luna.game.event.impl.LoginEvent
 import io.luna.game.event.impl.UseItemEvent.ItemOnObjectEvent
+import io.luna.game.model.mob.interact.InteractionPolicy
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.overlay.NumberInput
 import io.luna.game.model.`object`.GameObject
@@ -43,13 +44,13 @@ on(LoginEvent::class) {
 }
 
 /**
- * Use raw food on fire and stove.
+ * Use raw food on fire and stove, from beside it (without a reach policy the window opened at any distance).
  */
-on(ItemOnObjectEvent::class)
+on(ItemOnObjectEvent::class, InteractionPolicy.STANDARD_SIZE_BIF)
     .filter { FIRES.contains(objectId) }
     .then { open(this, gameObject, Food.RAW_TO_FOOD[usedItemId], true) }
 
-on(ItemOnObjectEvent::class)
+on(ItemOnObjectEvent::class, InteractionPolicy.STANDARD_SIZE_BIF)
     .filter { RANGES.contains(objectId) }
     .then { open(this, gameObject, Food.RAW_TO_FOOD[usedItemId], false) }
 
