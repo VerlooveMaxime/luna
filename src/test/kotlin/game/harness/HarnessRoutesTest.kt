@@ -28,6 +28,11 @@ class HarnessRoutesTest {
     }
 
     @Test
+    fun `content audit answers the report files`() {
+        assertEquals(HarnessResponse(200, api.contentAuditView), get("/content/audit"))
+    }
+
+    @Test
     fun `players include bots by default`() {
         get("/players")
 

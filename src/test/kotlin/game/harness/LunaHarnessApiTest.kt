@@ -24,7 +24,10 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.time.Clock
 import java.time.Duration
+import java.time.Instant
+import java.time.ZoneOffset
 import java.util.concurrent.CompletableFuture
 
 class LunaHarnessApiTest {
@@ -46,6 +49,13 @@ class LunaHarnessApiTest {
         TestWorld.world,
         LunaGameThread(TestWorld.context.game, Duration.ofSeconds(1)),
         HeadlessPlayers(TestWorld.context, HarnessConfig()) { CompletableFuture.completedFuture(null) },
+    )
+
+    private fun apiOn(date: String) = LunaHarnessApi(
+        TestWorld.world,
+        LunaGameThread(TestWorld.context.game, Duration.ofSeconds(1)),
+        HeadlessPlayers(TestWorld.context, HarnessConfig()) { CompletableFuture.completedFuture(null) },
+        clock = Clock.fixed(Instant.parse("${date}T12:00:00Z"), ZoneOffset.UTC),
     )
 
     private fun agent(position: Position = spawn): Player = TestWorld.login("agent_a", position)
@@ -655,5 +665,14 @@ class LunaHarnessApiTest {
         TestWorld.tick()
 
         assertEquals(listOf("agent_a"), closed)
+    }
+
+    @Test
+    fun `the content audit files a spawned npc under its zone, dated by the clock`() {
+        TestWorld.spawnNpc(man, spawn)
+
+        val lumbridge = apiOn("2026-10-02").contentAudit().files.getValue("lumbridge.txt")
+
+        assertEquals("Content audit: lumbridge, 2026-10-02", lumbridge.lines().first())
     }
 }

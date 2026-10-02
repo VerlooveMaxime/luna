@@ -50,6 +50,13 @@ class FakeHarnessApi : HarnessApi {
         return ActionView(name, "act", "queued")
     }
 
+    val contentAuditView = ContentAuditView(mapOf("overview.txt" to "Content audit\n"))
+
+    override fun contentAudit(): ContentAuditView {
+        calls += "contentAudit"
+        return contentAuditView
+    }
+
     private fun playerView(name: String) =
         PlayerView(
             name = name,

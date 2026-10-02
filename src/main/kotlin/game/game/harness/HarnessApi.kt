@@ -20,6 +20,9 @@ interface HarnessApi {
     fun messages(name: String, since: Long, type: String?): MessagesView
 
     fun act(name: String, action: PlayerAction): ActionView
+
+    /** Audits the whole world's content: what its spawned npcs and placed objects lack. Holds the game for a moment. */
+    fun contentAudit(): ContentAuditView
 }
 
 /** Something an agent asks a player to do, carried out by the same client packet a real click would send. */

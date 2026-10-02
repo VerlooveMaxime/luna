@@ -45,6 +45,7 @@ fun harnessRoutes(api: HarnessApi): List<Route> {
         action("button") { body -> PlayerAction.Button(body.int("id")) },
         bodilessAction("continue", PlayerAction.ContinueDialogue),
         bodilessAction("close", PlayerAction.CloseInterface),
+        Route("GET", "/content/audit") { api.contentAudit() },
     )
     val index = Route("GET", "/") { endpoints.map { "${it.method} ${it.pattern}" } }
     return listOf(index) + endpoints

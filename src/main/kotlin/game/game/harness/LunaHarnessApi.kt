@@ -1,6 +1,13 @@
 package game.harness
 
+import api.bot.zone.Zone
 import com.google.gson.JsonElement
+import game.idle.content.audit.ContentAudit
+import game.idle.content.audit.ContentAuditReport
+import game.idle.content.audit.ContentRegistries
+import game.idle.content.audit.LunaContentFacts
+import game.idle.content.audit.LunaRegistries
+import game.idle.content.audit.zoneOfRegion
 import game.idle.movement.navigateToReach
 import io.luna.game.action.Action
 import io.luna.game.model.Entity
@@ -16,6 +23,8 @@ import io.luna.game.model.mob.movement.NavigationResult
 import io.luna.game.model.`object`.GameObject
 import io.luna.net.msg.GameMessage
 import java.lang.management.ManagementFactory
+import java.time.Clock
+import java.time.LocalDate
 import java.util.concurrent.CompletableFuture
 
 /**
@@ -26,6 +35,8 @@ class LunaHarnessApi(
     private val world: World,
     private val gameThread: GameThread,
     private val headless: HeadlessPlayers,
+    private val contentRegistries: ContentRegistries = LunaRegistries,
+    private val clock: Clock = Clock.systemDefaultZone(),
 ) : HarnessApi {
 
     override fun world(): WorldView = gameThread.run {
@@ -75,6 +86,13 @@ class LunaHarnessApi(
             throw HarnessException(409, "${player.username} is a bot and is driven by its own scripts")
         }
         perform(player, action)
+    }
+
+    /** Only reading the world needs the game thread; the rules and the text run on the HTTP thread. */
+    override fun contentAudit(): ContentAuditView {
+        val facts = gameThread.run { LunaContentFacts(world, contentRegistries).collect() }
+        val areas = ContentAudit(facts, zoneOfRegion(Zone.entries)).areas()
+        return ContentAuditView(ContentAuditReport(areas, LocalDate.now(clock)).files())
     }
 
     private fun perform(player: Player, action: PlayerAction): ActionView =
