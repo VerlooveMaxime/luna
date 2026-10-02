@@ -9,6 +9,7 @@ import io.luna.game.model.collision.CollisionManager;
 import io.luna.game.model.item.GroundItemList;
 import io.luna.game.model.item.economy.WorldEconomy;
 import io.luna.game.model.item.shop.ShopManager;
+import io.luna.game.model.mob.ExperienceModifier;
 import io.luna.game.model.mob.MobList;
 import io.luna.game.model.mob.Npc;
 import io.luna.game.model.mob.Player;
@@ -258,6 +259,11 @@ public final class World {
      * The world economy manager.
      */
     private final WorldEconomy economy;
+
+    /**
+     * Adjusts the experience players gain.
+     */
+    private ExperienceModifier experienceModifier = ExperienceModifier.NONE;
 
     /**
      * Creates a new {@link World}.
@@ -707,5 +713,21 @@ public final class World {
      */
     public WorldEconomy getEconomy() {
         return economy;
+    }
+
+    /**
+     * @return What adjusts the experience players gain.
+     */
+    public ExperienceModifier getExperienceModifier() {
+        return experienceModifier;
+    }
+
+    /**
+     * Replaces what adjusts the experience players gain.
+     *
+     * @param experienceModifier The new modifier.
+     */
+    public void setExperienceModifier(ExperienceModifier experienceModifier) {
+        this.experienceModifier = experienceModifier;
     }
 }

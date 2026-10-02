@@ -293,6 +293,18 @@ public final class DialogueQueueBuilder {
     }
 
     /**
+     * Appends a dialogue of any type, such as one a plugin defines.
+     *
+     * @param dialogue The dialogue.
+     * @return This builder.
+     */
+    public DialogueQueueBuilder add(DialogueInterface dialogue) {
+        checkLocked();
+        dialogues.add(dialogue);
+        return this;
+    }
+
+    /**
      * Shortcut to {@link GiveItemDialogue#GiveItemDialogue(Item, String)}.
      *
      * @return This builder, for chaining.

@@ -66,6 +66,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -164,6 +165,11 @@ public class Player extends Mob {
      * The last region position used for region-change detection.
      */
     private Position lastRegion;
+
+    /**
+     * Decides which game messages reach this player's chatbox.
+     */
+    private Predicate<String> messageFilter = message -> true;
 
     /**
      * Whether the region changed this tick.
@@ -516,7 +522,18 @@ public class Player extends Mob {
      * @param msg The message or {@link Messages} enum to send.
      */
     public void sendMessage(Object msg) {
-        queue(new GameChatboxMessageWriter(msg));
+        if (messageFilter.test(msg.toString())) {
+            queue(new GameChatboxMessageWriter(msg));
+        }
+    }
+
+    /**
+     * Replaces what decides which game messages reach this player's chatbox; debugging lines always do.
+     *
+     * @param messageFilter Accepts the messages to send.
+     */
+    public void setMessageFilter(Predicate<String> messageFilter) {
+        this.messageFilter = messageFilter;
     }
 
     /**

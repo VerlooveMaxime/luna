@@ -255,15 +255,23 @@ public final class Skill {
      * <p>
      * Non-positive amounts are ignored.
      * <p>
-     * For non-bot mobs, the raw amount is multiplied by the configured game experience multiplier.
-     * Bots always receive experience using a multiplier of {@code 1.0}.
+     * For non-bot mobs, the raw amount is multiplied by the configured game experience multiplier, then a player's
+     * gain goes through the world's {@link ExperienceModifier}. Bots always receive experience using a multiplier of
+     * {@code 1.0}.
      *
      * @param amount The raw amount of experience to add.
      */
     public void addExperience(double amount) {
         if (amount > 0) {
-            double multiplier = set.getMob() instanceof Bot ? 1.0 : Luna.settings().game().experienceMultiplier();
-            setExperience(experience + (amount * multiplier));
+            Mob mob = set.getMob();
+            double multiplier = mob instanceof Bot ? 1.0 : Luna.settings().game().experienceMultiplier();
+            double gained = amount * multiplier;
+            if (mob instanceof Player player && !player.isBot()) {
+                gained = player.getWorld().getExperienceModifier().modify(player, id, gained);
+            }
+            if (gained > 0) {
+                setExperience(experience + gained);
+            }
         }
     }
 
