@@ -11,10 +11,12 @@ configure<JacocoPluginExtension> {
 }
 
 // Tests that read the cache decode the whole map, about 10 M tiles; the 512 MB default runs out of heap.
-// LocationsDataTest reads data/idle, so an edit there must rerun the tests instead of leaving them up to date.
+// LocationsDataTest reads data/idle and NpcCombatFileTest npc_combat.jsonc, so an edit there must rerun the tests
+// instead of leaving them up to date.
 tasks.named<Test>("test") {
     maxHeapSize = "2g"
     inputs.dir("data/idle")
+    inputs.file("data/game/def/npcs/npc_combat.jsonc")
 }
 
 tasks.register<JavaExec>("treeSurvey") {
@@ -25,6 +27,20 @@ tasks.register<JavaExec>("treeSurvey") {
     workingDir = projectDir
     maxHeapSize = "2g"
     args(rootDir.resolve("../.memory/artifacts/tree-survey").normalize().path)
+}
+
+// The sources are whole checkouts in .memory/artifacts/sources/ (see .memory/tasks/content-tooling/importer-spike.md).
+tasks.register<JavaExec>("importNpcCombat") {
+    group = "idlers"
+    description = "Imports npc combat rows from LostCity and OSRS for the regions or zones in -Pareas, " +
+        "reporting to .memory/artifacts/combat-import/."
+    classpath = project.the<SourceSetContainer>()["main"].runtimeClasspath
+    mainClass = "game.idle.content.combat.NpcCombatImporterKt"
+    workingDir = projectDir
+    maxHeapSize = "2g"
+    val artifacts = rootDir.resolve("../.memory/artifacts").normalize()
+    val areas = (findProperty("areas") as String?).orEmpty().split(" ").filter { it.isNotBlank() }
+    args(listOf(artifacts.resolve("sources").path, "data", artifacts.resolve("combat-import/report.txt").path) + areas)
 }
 
 val idlersPackages = listOf("game/idle", "game/harness")
