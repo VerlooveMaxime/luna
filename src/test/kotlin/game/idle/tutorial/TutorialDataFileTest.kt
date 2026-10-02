@@ -28,10 +28,10 @@ class TutorialDataFileTest {
     }
 
     private companion object {
-        /** The help box is 480 pixels wide; LostCity breaks its text at 450. */
-        const val MAX_HELP_LINE = 60
+        /** The longest line Jagex broke the 2006 help box text at; the box is 480 pixels wide. */
+        const val MAX_HELP_LINE = 66
 
-        /** About what Luna's own npc dialogues use; to check against the 3D client. */
-        const val MAX_DIALOGUE_LINE = 55
+        /** The longest line in Jagex's 2006 tutorial dialogue, colour codes included. */
+        const val MAX_DIALOGUE_LINE = 60
     }
 }

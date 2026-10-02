@@ -1,21 +1,23 @@
 // Tutorial Island, stage 0: what a player sees at each step, what the instructors say, and the doors between the
 // sections. The rules that move a player from step to step are in game.idle.tutorial.TutorialScript; step names
-// are those of game.idle.tutorial.TutorialStep. The text is ours: the original island's lines stay Jagex's.
+// are those of game.idle.tutorial.TutorialStep. The text is Jagex's 2006 text as LostCity's 377 scripts have it,
+// with Jagex's own line breaks where they gave them; the recap menu and its mentions (a 2012 source) are left out.
 {
   // A new character appears here, in the RuneScape Guide's house.
   "start": { "x": 3094, "y": 3106 },
 
   // Per step: the help box in the chatbox (a title and up to four lines), the yellow arrow (over an npc, over a
-  // tile with an edge and a height, or none), and the side tabs that appear at that step and stay.
+  // tile with an edge and a height, or none), the side tabs that appear at that step and stay, and the tab that
+  // flashes until the player clicks it.
   "steps": {
     "DESIGN_CHARACTER": {
       "help": {
         "title": "Getting started",
         "lines": [
-          "Choose how your character looks, then click Accept.",
-          "Then talk to the RuneScape Guide: click him, he has a",
-          "flashing yellow arrow over his head.",
-          "The arrow keys turn the camera."
+          "To start the tutorial use your left mouse-button to click",
+          "on the 'RuneScape Guide' in this room. He is indicated",
+          "by a flashing yellow arrow above his head. If you can't",
+          "see him, use your keyboard's arrow keys to rotate the view."
         ]
       },
       "arrow": { "npc": 945 },
@@ -25,20 +27,22 @@
       "help": {
         "title": "Getting started",
         "lines": [
-          "To start the tutorial, talk to the RuneScape Guide:",
-          "click him, he has a flashing yellow arrow over his head.",
-          "The arrow keys turn the camera."
+          "To start the tutorial use your left mouse-button to click",
+          "on the 'RuneScape Guide' in this room. He is indicated",
+          "by a flashing yellow arrow above his head. If you can't",
+          "see him, use your keyboard's arrow keys to rotate the view."
         ]
       },
       "arrow": { "npc": 945 }
     },
     "OPEN_HOUSE_DOOR": {
       "help": {
-        "title": "Doors and scenery",
+        "title": "Interacting with scenery",
         "lines": [
-          "Click things around you to use them, or right-click",
-          "them to see everything you can do with them.",
-          "Leave the house through the door with the arrow."
+          "You can interact with many items of scenery by simply clicking",
+          "on them. Right clicking will also give more options. Try it with",
+          "the things in this room, then click on the door indicated with",
+          "the yellow arrow to go through to the next instructor."
         ]
       },
       "arrow": { "tile": { "x": 3098, "y": 3107 }, "edge": "WEST", "height": 128 }
@@ -47,12 +51,128 @@
       "help": {
         "title": "Moving around",
         "lines": [
-          "Follow the path to your next instructor. Click the ground",
-          "or the minimap to walk there.",
-          "Talk to the Survival Expert by the pond, under the arrow."
+          "Follow the path to find the next instructor. Clicking on the",
+          "ground will walk you to that point. Talk to the survival expert by",
+          "the pond to continue the tutorial. Remember you can rotate",
+          "the view by pressing the arrow keys."
         ]
       },
       "arrow": { "npc": 943 }
+    },
+    "OPEN_INVENTORY": {
+      "help": {
+        "title": "Viewing the items that you were given.",
+        "lines": [
+          "Click on the flashing backpack icon to the right side of the main",
+          "window to view your inventory. Your inventory is a list of",
+          "everything you have in your backpack."
+        ]
+      },
+      "tabs": ["INVENTORY"],
+      "flash": "INVENTORY"
+    },
+    "CUT_TREE": {
+      "help": {
+        "title": "Cut down a tree",
+        "lines": [
+          "You can click on the backpack icon at any time to view",
+          "the items you currently have in your inventory. You will see that",
+          "you now have an axe in your inventory. Use this to get some logs",
+          "by clicking on the indicated tree."
+        ]
+      },
+      "arrow": { "tile": { "x": 3100, "y": 3095 }, "edge": "WEST", "height": 175 }
+    },
+    "LIGHT_FIRE": {
+      "help": {
+        "title": "Building a fire",
+        "lines": [
+          "Well done - you managed to cut some logs from the tree! Next, use",
+          "the tinderbox in your inventory to light the logs.",
+          "a) First click on the tinderbox to use it.",
+          "b) Then click on the logs in your inventory to light them."
+        ]
+      }
+    },
+    "OPEN_SKILLS": {
+      "help": {
+        "title": "",
+        "lines": [
+          "You gained some experience.",
+          "Click on the flashing bar graph icon near the inventory button",
+          "to see your skill abilities."
+        ]
+      },
+      "tabs": ["SKILL"],
+      "flash": "SKILL"
+    },
+    "TALK_ABOUT_FOOD": {
+      "help": {
+        "title": "These are your stats.",
+        "lines": [
+          "Here you will see how good your skills are. As you move your",
+          "mouse over any of the icons in this panel, you can see the exact",
+          "amount of experience you have and how much is needed to get",
+          "to the next level. Speak to Brynna to continue."
+        ]
+      },
+      "arrow": { "npc": 943 }
+    },
+    "CATCH_SHRIMP": {
+      "help": {
+        "title": "Catch some Shrimp.",
+        "lines": [
+          "Click on the fishing spot, indicated by the flashing arrow.",
+          "Remember you can check your inventory by clicking the",
+          "backpack icon."
+        ]
+      },
+      "arrow": { "npc": 952 }
+    },
+    "COOK_SHRIMP": {
+      "help": {
+        "title": "Cooking your shrimp.",
+        "lines": [
+          "Now you have caught some shrimp let's cook it. First light a",
+          "fire: Chop down a tree and then use the tinderbox on the logs.",
+          "If you've lost your axe or tinderbox Brynna will give you",
+          "another."
+        ]
+      }
+    },
+    "COOK_AGAIN": {
+      "help": {
+        "title": "Burning your shrimp.",
+        "lines": [
+          "You have just burnt your first shrimp. This is normal. As you",
+          "get more experience in cooking you will burn stuff less. Let's",
+          "try cooking, without burning it this time. First catch some",
+          "shrimp, then use them on a fire."
+        ]
+      }
+    },
+    "LEAVE_SURVIVAL_AREA": {
+      "help": {
+        "title": "Well done, you've just cooked your first RuneScape meal.",
+        "lines": [
+          "You can now move onto the next instructor. Follow the path",
+          "and click on the gate shown. Remember you can move",
+          "the camera with the arrow keys."
+        ]
+      },
+      "arrow": { "tile": { "x": 3089, "y": 3092 }, "edge": "EAST", "height": 100 }
+    },
+    "FIND_MASTER_CHEF": {
+      "help": {
+        "title": "Find your next instructor.",
+        "lines": [
+          "Follow the path until you get to the door with the yellow arrow",
+          "above it. Click on the door to open it. Notice the mini-map in",
+          "the top right, this shows a top down view of the area around",
+          "you. This can also be used for navigation."
+        ]
+      },
+      "arrow": { "tile": { "x": 3078, "y": 3084 }, "edge": "EAST", "height": 150 }
     }
   },
 
@@ -60,31 +180,123 @@
   // ("player"), or is a plain message ("text"), in one to four lines.
   "dialogues": {
     "guide_welcome": [
-      { "npc": ["Hello there, and welcome! I'm the RuneScape Guide.", "Every new adventurer starts on this island."] },
-      { "npc": ["You have just learnt the first thing already:", "talking to people. Most of them have something", "useful to tell you."] },
-      { "npc": ["My colleagues outside will teach you how to", "gather, cook, craft and fight."] },
-      { "npc": ["Go through the door when you are ready.", "Good luck!"] }
+      { "npc": ["Greetings! I see you are a new arrival to this land. My", "job is to welcome all the new visitors. So welcome!"] },
+      { "npc": ["You have already learnt the first thing needed to", "succeed in this world... Talking to other people!"] },
+      { "npc": ["You will find many inhabitants of this world have useful", "things to say to you. By clicking on them with your", "mouse you can talk to them."] },
+      { "npc": ["I would also suggest reading through some of the", "supporting information on the website. There you can", "find maps, a bestiary, and much more."] },
+      { "npc": ["To continue the tutorial go through that door over", "there, and speak to your first instructor!"] }
     ],
     "guide_again": [
-      { "npc": ["The door is right there. The other instructors", "are waiting for you outside."] }
+      { "npc": ["Welcome back. You have already learnt the first thing", "needed to succeed in this world: talking to other people!"] },
+      { "npc": ["You will find many inhabitants of this world have useful", "things to say to you. By clicking on them, you can talk", "to them."] },
+      { "npc": ["To continue the tutorial go through that door over", "there, and speak to your first instructor!"] }
     ],
     "house_door_locked": [
-      { "text": ["Talk to the RuneScape Guide before you go outside."] }
+      { "text": ["You need to talk to the 'RuneScape Guide' before you are", "allowed to proceed through this door."] }
+    ],
+    "survival_welcome": [
+      { "npc": ["Hello there newcomer. My name is Brynna. My job is", "to teach you a few survival tips and tricks. First off", "we're going to start with the most basic survival skill of", "all; making a fire."] },
+      { "items": [590, 1351], "text": ["The Survival Guide gives you a", "@blu@Tinderbox@bla@", "and a", "@blu@Bronze Hatchet!"] }
+    ],
+    "survival_inventory": [
+      { "npc": ["Hello again. You should take a look at that menu", "before we continue."] }
+    ],
+    "survival_fire": [
+      { "npc": ["Next up you need to make a fire. First, you'll need to", "cut down a tree to get some logs."] }
+    ],
+    "survival_skills": [
+      { "npc": ["Hello again. You should take a look at that menu", "before we continue."] }
+    ],
+    "survival_food": [
+      { "npc": ["There's nothing like a good fire to warm the bones.", "Next thing is getting food in our bellies. We'll need", "something to cook. There are shrimp in the pond there.", "So let's catch and cook some."] },
+      { "items": [303], "text": ["The Survival Guide gives you a", "@blu@Net!"] }
+    ],
+    "survival_shrimp": [
+      { "npc": ["Hello again. Next thing is getting food in our bellies.", "We'll need something to cook. There are shrimp in the", "pond there. So let's catch and cook some."] }
+    ],
+    "survival_done": [
+      { "npc": ["Hello again."] }
+    ],
+    "survival_gives_axe_and_tinderbox": [
+      { "items": [590, 1351], "text": ["The Survival Guide gives you a", "@blu@Tinderbox@bla@", "and a", "@blu@Bronze Hatchet!"] }
+    ],
+    "survival_gives_axe": [
+      { "items": [1351], "text": ["The Survival Guide gives you a", "@blu@Bronze Hatchet!"] }
+    ],
+    "survival_gives_tinderbox": [
+      { "items": [590], "text": ["The Survival Guide gives you a", "@blu@Tinderbox!"] }
+    ],
+    "survival_gives_net": [
+      { "items": [303], "text": ["The Survival Guide gives you a", "@blu@Net!"] }
+    ],
+    "survival_gate_locked": [
+      { "text": ["You need to talk to the Survival Guide and complete her", "tasks before you are allowed to proceed through this gate."] }
     ]
   },
 
-  // Doors and gates on the way. "side" is the edge of its tile the wall stands on; the open door is shown, to the
-  // player going through only, on the tile across that wall. Locked below "opens_at" with the "locked" dialogue;
-  // the first time through at "opens_at" moves the player on to "first_pass".
+  // Help boxes shown while the player chops, lights a fire or fishes, by activity; the step's own box comes back once
+  // the activity ends. <he/she> follows the character's look.
+  "busy": {
+    "woodcutting": {
+      "title": "Please wait...",
+      "lines": ["", "Your character is now attempting to cut down the tree. Sit back", "for a moment whilst <he/she> does all the hard work."]
+    },
+    "firemaking": {
+      "title": "Please wait...",
+      "lines": ["", "Your character is now attempting to light the fire.", "This should only take a few seconds."]
+    },
+    "fishing": {
+      "title": "Please wait...",
+      "lines": [
+        "This should only take a few seconds.",
+        "As you gain fishing experience you'll find that there are many",
+        "types of fish and many ways to catch them."
+      ]
+    }
+  },
+
+  // Chat lines Luna's skills send that players on the island never get: the 2006 island showed the help boxes above
+  // instead, and each chat line would cover the help box until clicked.
+  "quiet_messages": [
+    "You swing your axe at the tree.",
+    "You get some logs.",
+    "You attempt to light the logs.",
+    "The fire catches and the logs begin to burn.",
+    "You cast out your net...",
+    "You catch some shrimps."
+  ],
+
+  // Chat lines the tutorial sends.
+  "messages": {
+    "cannot_wield": "You'll be told how to equip items later.",
+    "shrimp_burnt": "You accidentally burn the shrimps.",
+    "shrimp_cooked": "The shrimps are now nicely cooked."
+  },
+
+  // Doors and gates on the way. Each closed piece is clicked to go through and stands on the "side" edge of its
+  // tile; while a player goes through, the open pieces are drawn instead, for that player only. Locked below
+  // "opens_at" with the "locked" dialogue; the first time through at "opens_at" moves the player on to
+  // "first_pass".
   "doors": [
     {
-      "id": 3014,
-      "tile": { "x": 3098, "y": 3107 },
-      "side": "WEST",
-      "open_id": 1535,
+      "closed": [{ "id": 3014, "tile": { "x": 3098, "y": 3107 }, "side": "WEST" }],
+      "open": [{ "id": 1535, "tile": { "x": 3097, "y": 3107 }, "rotation": 1 }],
       "opens_at": "OPEN_HOUSE_DOOR",
       "first_pass": "FIND_SURVIVAL_EXPERT",
       "locked": "house_door_locked"
+    },
+    {
+      "closed": [
+        { "id": 3015, "tile": { "x": 3089, "y": 3092 }, "side": "EAST" },
+        { "id": 3016, "tile": { "x": 3089, "y": 3091 }, "side": "EAST" }
+      ],
+      "open": [
+        { "id": 49, "tile": { "x": 3090, "y": 3092 }, "rotation": 1 },
+        { "id": 50, "tile": { "x": 3091, "y": 3092 }, "rotation": 1 }
+      ],
+      "opens_at": "LEAVE_SURVIVAL_AREA",
+      "first_pass": "FIND_MASTER_CHEF",
+      "locked": "survival_gate_locked"
     }
   ]
 }

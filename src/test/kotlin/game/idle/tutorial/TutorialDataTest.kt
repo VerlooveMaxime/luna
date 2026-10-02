@@ -79,8 +79,10 @@ class TutorialDataTest {
     }
 
     @Test
-    fun `a help box without a title is refused`() {
-        refused(step("""{ "help": { "lines": ["Line."] } }"""))
+    fun `a help box may have no title`() {
+        val data = TutorialData.parse(step("""{ "help": { "lines": ["You gained some experience."] } }"""))
+
+        assertEquals("", data.steps.getValue(TALK_TO_GUIDE).help.title)
     }
 
     @Test
@@ -132,25 +134,105 @@ class TutorialDataTest {
     }
 
     @Test
-    fun `a door is read with its wall, open door and steps`() {
+    fun `a step's flashing tab is read`() {
+        val data = TutorialData.parse(step("""{ "help": $HELP, "tabs": ["INVENTORY"], "flash": "INVENTORY" }"""))
+
+        assertEquals(TabIndex.INVENTORY, data.steps.getValue(TALK_TO_GUIDE).flash)
+    }
+
+    @Test
+    fun `a step flashes no tab unless told to`() {
+        assertEquals(null, TutorialData.parse(json()).steps.getValue(TALK_TO_GUIDE).flash)
+    }
+
+    @Test
+    fun `an item box is read with its items and lines`() {
+        val data = TutorialData.parse(dialogue("""{ "items": [590, 1351], "text": ["Both."] }"""))
+
+        assertEquals(listOf(DialogueBox.Items(listOf(590, 1351), listOf("Both."))), data.dialogues.getValue("talk"))
+    }
+
+    @Test
+    fun `items said by an npc are refused`() {
+        refused(dialogue("""{ "items": [590], "npc": ["Hi."] }"""))
+    }
+
+    @Test
+    fun `an item box without items is refused`() {
+        refused(dialogue("""{ "items": [], "text": ["Nothing."] }"""))
+    }
+
+    @Test
+    fun `an item box with three items is refused`() {
+        refused(dialogue("""{ "items": [590, 1351, 303], "text": ["All."] }"""))
+    }
+
+    @Test
+    fun `help boxes to wait with are read by activity`() {
+        val data = TutorialData.parse(json(busy = """"fishing": { "title": "Please wait...", "lines": ["Fishing."] }"""))
+
+        assertEquals(mapOf("fishing" to HelpBox("Please wait...", listOf("Fishing."))), data.busy)
+    }
+
+    @Test
+    fun `quiet chat lines are read`() {
+        val data = TutorialData.parse(json(quiet = """"You get some logs.""""))
+
+        assertEquals(setOf("You get some logs."), data.quietMessages)
+    }
+
+    @Test
+    fun `chat messages are read by name`() {
+        val data = TutorialData.parse(json(messages = """"burnt": "Burnt.""""))
+
+        assertEquals(mapOf("burnt" to "Burnt."), data.messages)
+    }
+
+    @Test
+    fun `a door is read with its closed leaves, open pieces and steps`() {
         val door = TutorialData.parse(json(doors = DOOR)).doors.single()
 
         assertEquals(TutorialFixtures.door.copy(locked = "locked"), door)
     }
 
     @Test
-    fun `a door without an id is refused`() {
+    fun `a door without closed leaves is refused`() {
+        refused(json(doors = DOOR.replace(Regex(""""closed": \[[^\]]*\],"""), "")))
+    }
+
+    @Test
+    fun `a door without open pieces is refused`() {
+        refused(json(doors = DOOR.replace(Regex(""""open": \[[^\]]*\],"""), "")))
+    }
+
+    @Test
+    fun `a closed leaf without an id is refused`() {
         refused(json(doors = DOOR.replace(""""id": 3014, """, "")))
     }
 
     @Test
-    fun `a door without an open door is refused`() {
-        refused(json(doors = DOOR.replace(""""open_id": 1535, """, "")))
+    fun `a closed leaf without a tile is refused`() {
+        refused(json(doors = DOOR.replace(""""tile": { "x": 3205, "y": 3200 }, """, "")))
     }
 
     @Test
-    fun `a door without a tile is refused`() {
-        refused(json(doors = DOOR.replace(""""tile": { "x": 3205, "y": 3200 }, """, "")))
+    fun `an open piece without an id is refused`() {
+        refused(json(doors = DOOR.replace(""""id": 1535, """, "")))
+    }
+
+    @Test
+    fun `an open piece without a rotation is refused`() {
+        refused(json(doors = DOOR.replace(""", "rotation": 1""", "")))
+    }
+
+    @Test
+    fun `an open piece turned past a quarter turn short of a full turn is refused`() {
+        refused(json(doors = DOOR.replace(""""rotation": 1""", """"rotation": 4""")))
+    }
+
+    @Test
+    fun `an open piece without a tile is refused`() {
+        refused(json(doors = DOOR.replace(""""tile": { "x": 3204, "y": 3200 }, """, "")))
     }
 
     @Test

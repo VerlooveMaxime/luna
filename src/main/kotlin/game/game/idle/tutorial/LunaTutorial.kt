@@ -1,21 +1,44 @@
 package game.idle.tutorial
 
+import api.attr.Attr
+import api.attr.getValue
+import api.attr.setValue
 import api.predef.ext.scheduleOnce
 import game.idle.idleState
 import game.idle.ui.HintArrowMessageWriter
 import game.idle.ui.StickyChatboxMessageWriter
+import game.player.Animations
 import game.player.login.firstLogin
+import game.skill.cooking.cookFood.Cooking
+import game.skill.firemaking.LightAction
+import game.skill.fishing.catchFish.CatchFishAction
+import game.skill.woodcutting.cutTree.CutTreeAction
+import io.luna.game.event.impl.ControllableEvent
+import io.luna.game.event.impl.EquipItemEvent
+import io.luna.game.event.impl.SkillChangeEvent
+import io.luna.game.action.Action
+import io.luna.game.action.ActionState
+import io.luna.game.event.impl.UseItemEvent.ItemOnObjectEvent
 import io.luna.game.model.Position
 import io.luna.game.model.World
 import io.luna.game.model.chunk.ChunkUpdatableMessage
+import io.luna.game.model.chunk.ChunkUpdatableView
+import io.luna.game.model.item.GroundItem
+import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Npc
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.Skill
+import io.luna.game.model.mob.block.Animation
 import io.luna.game.model.mob.block.PlayerAppearance.DesignPlayerInterface
 import io.luna.game.model.mob.controller.PlayerController
 import io.luna.game.model.mob.dialogue.DialogueQueueBuilder
+import io.luna.game.model.mob.interact.InteractionAction
+import io.luna.game.model.mob.interact.InteractionActionListener
+import io.luna.game.model.mob.interact.InteractionPolicy
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
 import io.luna.game.model.`object`.ObjectType
 import io.luna.net.msg.out.AddObjectMessageWriter
+import io.luna.net.msg.out.FlashTabMessageWriter
 import io.luna.net.msg.out.GroupedEntityMessageWriter
 import io.luna.net.msg.out.RemoveObjectMessageWriter
 import io.luna.net.msg.out.WidgetTextMessageWriter
@@ -28,16 +51,30 @@ var Player.tutorialStep: TutorialStep
         idleState = idleState.copy(tutorialStep = step.value)
     }
 
-/** Keeps a player on the tutorial while it lasts; Luna calls [process] every tick. */
+/** The activity whose "please wait" box the help box shows, or blank for the step's own box. Not saved. */
+private var Player.tutorialBusy by Attr.string()
+
+/** Keeps a player on the tutorial while it lasts: Luna asks it before every click and calls [process] every tick. */
 class TutorialController(private val player: Player, private val tutorial: LunaTutorial) : PlayerController(player) {
-    override fun process() = tutorial.checkDesigner(player)
+    override fun process() {
+        tutorial.checkDesigner(player)
+        tutorial.checkBusy(player)
+    }
+
+    override fun event(event: ControllableEvent): Boolean = tutorial.allows(player, event)
 }
 
 /**
- * Tutorial Island on real players: starts new characters there, shows each step (side tabs, help box, arrow),
- * opens the instructors' dialogues and lets players through the doors.
+ * Tutorial Island on real players: starts new characters there, shows each step (side tabs, help box, arrow), opens
+ * the instructors' dialogues, hands out their tools, follows the player's first log, fire and shrimp, scripts the
+ * first two shrimp cooked, and lets players through the doors.
  */
 class LunaTutorial(private val script: TutorialScript, private val data: TutorialData, private val world: World) {
+
+    init {
+        val missing = MESSAGES.filter { it !in data.messages }
+        require(missing.isEmpty()) { "The tutorial needs messages that are missing: $missing" }
+    }
 
     fun onLogin(player: Player) {
         if (player.firstLogin) {
@@ -56,6 +93,7 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
             player.overlays.open(DesignPlayerInterface())
         }
         player.controllers.register(TutorialController(player, this))
+        player.setMessageFilter { !script.quiet(it) }
         // Luna's own login listeners send every side tab; ours go out after them.
         world.scheduleOnce(1) { show(player, player.tutorialStep) }
     }
@@ -66,17 +104,67 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         }
     }
 
-    fun talkToGuide(player: Player, guide: Npc) {
-        val talk = script.talkToGuide(player.tutorialStep)
-        openDialogue(player, talk.dialogue, speaker = guide.id) { advance(player, talk.advanceTo) }
+    /** While the player chops, lights or fishes, the help box says to wait, as the 2006 island did. */
+    fun checkBusy(player: Player) {
+        val activity = BUSY_ACTIONS.entries.firstOrNull { (_, type) -> running(player, type) }?.key.orEmpty()
+        if (activity != player.tutorialBusy) {
+            player.tutorialBusy = activity
+            showHelp(player, if (activity.isEmpty()) script.screen(player.tutorialStep).help else busyHelp(player, activity))
+        }
     }
 
-    fun openDoor(player: Player, door: Door) = when (val outcome = script.openDoor(door, player.tutorialStep)) {
-        is DoorOutcome.Locked -> openDialogue(player, outcome.dialogue, speaker = NO_SPEAKER) {}
+    /** An interrupted action stays queued until Luna's next pass over the queue, which comes after this check. */
+    private fun running(player: Player, type: Class<out Action<*>>): Boolean =
+        player.actions.getAll(type).any { it.state == ActionState.PROCESSING }
+
+    private fun busyHelp(player: Player, activity: String): HelpBox {
+        val help = script.busyHelp(activity)
+        val pronoun = if (player.appearance.isFemale) "she" else "he"
+        return help.copy(lines = help.lines.map { it.replace(PRONOUN, pronoun) })
+    }
+
+    fun allows(player: Player, event: ControllableEvent): Boolean = when (event) {
+        is EquipItemEvent -> mayWield(player)
+        is ItemOnObjectEvent -> !cookedByScript(player, event)
+        else -> true
+    }
+
+    fun talkToGuide(player: Player, guide: Npc) = talk(player, guide, script.talkToGuide(player.tutorialStep))
+
+    /** Lost tools are handed back as soon as she is talked to, and boxes after her lines show them. */
+    fun talkToSurvivalExpert(player: Player, expert: Npc) {
+        val step = player.tutorialStep
+        val given = script.tools(step).filterNot { owns(player, it) }
+        give(player, given)
+        talk(player, expert, script.talkToSurvivalExpert(step), boxes = script.toolBoxes(given))
+    }
+
+    fun tabOpened(player: Player, tab: TabIndex) {
+        script.tabOpened(player.tutorialStep, tab)?.let { makeProgress(player, it) }
+    }
+
+    fun experienceChanged(player: Player, event: SkillChangeEvent) {
+        if (player.skills.getSkill(event.id).experience > event.oldExp) {
+            advance(player, script.experienceGained(player.tutorialStep, event.id))
+        }
+    }
+
+    fun openDoor(player: Player, door: Door, leaf: DoorLeaf) = when (val outcome = script.openDoor(door, player.tutorialStep)) {
+        is DoorOutcome.Locked -> openDialogue(player, listOf(outcome.dialogue), speaker = NO_SPEAKER) {}
         is DoorOutcome.Pass -> {
-            goThrough(player, door)
+            goThrough(player, door, leaf)
             advance(player, outcome.advanceTo)
         }
+    }
+
+    private fun talk(player: Player, npc: Npc, talk: Talk, boxes: List<String> = emptyList()) =
+        openDialogue(player, listOf(talk.dialogue) + boxes, speaker = npc.id) {
+            talk.progress?.let { makeProgress(player, it) }
+        }
+
+    private fun makeProgress(player: Player, progress: Progress) {
+        give(player, progress.items)
+        advance(player, progress.step)
     }
 
     private fun advance(player: Player, step: TutorialStep?) {
@@ -86,9 +174,56 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         }
     }
 
+    private fun owns(player: Player, id: Int): Boolean =
+        player.inventory.computeAmountForId(id) > 0 || player.equipment.computeAmountForId(id) > 0
+
+    /** An item that does not fit drops at the player's feet, for them only. */
+    private fun give(player: Player, ids: List<Int>) = ids.forEach { id ->
+        if (!player.inventory.add(Item(id))) {
+            world.items.register(GroundItem(world.context, id, 1, player.position, ChunkUpdatableView.localView(player)))
+        }
+    }
+
+    private fun mayWield(player: Player): Boolean {
+        val allowed = script.mayWield(player.tutorialStep)
+        if (!allowed) {
+            player.sendMessage(data.messages.getValue(CANNOT_WIELD))
+        }
+        return allowed
+    }
+
+    /** The first two raw shrimp used on a fire are the Survival Expert's lesson, not a roll of Luna's cooking. */
+    private fun cookedByScript(player: Player, event: ItemOnObjectEvent): Boolean {
+        val onFire = event.usedItemId == TutorialScript.RAW_SHRIMPS && event.objectId in Cooking.FIRES
+        val cook = script.cookShrimp(player.tutorialStep)?.takeIf { onFire }
+        cook?.let { scripted ->
+            val listener = InteractionActionListener(InteractionPolicy.STANDARD_SIZE) { finishCooking(player, scripted) }
+            // The action removes each listener it runs, so the list must be mutable.
+            player.submitAction(InteractionAction(player, mutableListOf(listener), event.gameObject, event))
+        }
+        return cook != null
+    }
+
+    private fun finishCooking(player: Player, cook: ScriptedCook) {
+        if (player.inventory.remove(Item(TutorialScript.RAW_SHRIMPS))) {
+            player.animation(Animation(Animations.FIRE_COOKING.id))
+            if (cook.burnt) {
+                player.inventory.add(Item(TutorialScript.BURNT_FISH))
+                player.sendMessage(data.messages.getValue(SHRIMP_BURNT))
+            } else {
+                player.inventory.add(Item(TutorialScript.SHRIMPS))
+                player.skills.getSkill(Skill.COOKING).addExperience(TutorialScript.SHRIMP_EXPERIENCE)
+                player.sendMessage(data.messages.getValue(SHRIMP_COOKED))
+            }
+            advance(player, cook.advanceTo)
+        }
+    }
+
     private fun show(player: Player, step: TutorialStep) {
         val screen = script.screen(step)
+        player.tutorialBusy = ""
         TabIndex.values().forEach { showTab(player, it, visible = it in screen.tabs) }
+        screen.flash?.let { player.queue(FlashTabMessageWriter(it)) }
         showHelp(player, screen.help)
         player.queue(arrow(player, screen.arrow))
     }
@@ -114,8 +249,9 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
     private fun nearestNpc(player: Player, id: Int): Npc? =
         world.npcs.findAll { it.id == id }.minByOrNull { it.position.computeLongestDistance(player.position) }
 
-    private fun openDialogue(player: Player, name: String, speaker: Int, then: () -> Unit) {
-        val dialogue = data.dialogues.getValue(name).fold(player.newDialogue()) { builder, box -> add(builder, box, speaker) }
+    private fun openDialogue(player: Player, names: List<String>, speaker: Int, then: () -> Unit) {
+        val boxes = names.flatMap { data.dialogues.getValue(it) }
+        val dialogue = boxes.fold(player.newDialogue()) { builder, box -> add(builder, box, speaker) }
         dialogue.then { then() }.open()
     }
 
@@ -123,20 +259,25 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         is DialogueBox.Npc -> builder.npc(speaker, *box.lines.toTypedArray())
         is DialogueBox.Player -> builder.player(*box.lines.toTypedArray())
         is DialogueBox.Text -> builder.text(*box.lines.toTypedArray())
+        is DialogueBox.Items -> builder.add(ItemBox(box.items, box.lines))
     }
 
     /** The server's door never opens: only [player] sees it open, and is walked through it. */
-    private fun goThrough(player: Player, door: Door) {
+    private fun goThrough(player: Player, door: Door, leaf: DoorLeaf) {
         showDoor(player, door, open = true)
         player.walking.clear()
-        player.walking.replacePath(ArrayDeque(listOf(door.destination(player.position))))
+        player.walking.replacePath(ArrayDeque(listOf(leaf.destination(player.position))))
         world.scheduleOnce(DOOR_OPEN_TICKS) { showDoor(player, door, open = false) }
     }
 
     private fun showDoor(player: Player, door: Door, open: Boolean) {
         val (hidden, shown) = door.change(open)
-        player.queue(inChunk(player, hidden.position) { RemoveObjectMessageWriter(WALL, hidden.rotation, it) })
-        player.queue(inChunk(player, shown.position) { AddObjectMessageWriter(shown.id, WALL, shown.rotation, it) })
+        hidden.forEach { piece ->
+            player.queue(inChunk(player, piece.position) { RemoveObjectMessageWriter(WALL, piece.rotation, it) })
+        }
+        shown.forEach { piece ->
+            player.queue(inChunk(player, piece.position) { AddObjectMessageWriter(piece.id, WALL, piece.rotation, it) })
+        }
     }
 
     private fun inChunk(player: Player, position: Position, change: (Int) -> ChunkUpdatableMessage): GroupedEntityMessageWriter {
@@ -149,6 +290,19 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         const val HELP_TITLE = 6180
         val HELP_LINES = listOf(6181, 6182, 6183, 6184)
         const val DOOR_OPEN_TICKS = 3
+        const val CANNOT_WIELD = "cannot_wield"
+        const val SHRIMP_BURNT = "shrimp_burnt"
+        const val SHRIMP_COOKED = "shrimp_cooked"
+        private val MESSAGES = listOf(CANNOT_WIELD, SHRIMP_BURNT, SHRIMP_COOKED)
+
+        /** Stands for "he" or "she" in a help box, after the player's character. */
+        const val PRONOUN = "<he/she>"
+
+        private val BUSY_ACTIONS: Map<String, Class<out Action<*>>> = mapOf(
+            TutorialScript.WOODCUTTING to CutTreeAction::class.java,
+            TutorialScript.FIREMAKING to LightAction::class.java,
+            TutorialScript.FISHING to CatchFishAction::class.java,
+        )
         private const val NO_SPEAKER = -1
         private val WALL = ObjectType.STRAIGHT_WALL.id
     }
