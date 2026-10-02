@@ -27,7 +27,7 @@ public final class ButtonClickMessageReader extends GameMessageReader<ButtonClic
     @Override
     public void handle(Player player, ButtonClickEvent event) {
         if (Luna.settings().game().betaMode()) {
-            player.sendMessage("[ButtonClickMessageReader]: " + event.getId());
+            player.sendDebugMessage("[ButtonClickMessageReader]: " + event.getId());
         }
     }
 }

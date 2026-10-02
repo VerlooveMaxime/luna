@@ -34,7 +34,7 @@ public final class MagicOnPlayerMessageReader extends GameMessageReader<MagicOnP
     @Override
     public void handle(Player player, MagicOnPlayerEvent event) {
         if (Luna.settings().game().betaMode()) {
-            player.sendMessage("[MagicOnPlayerMessageReader]: spellId: " + event.getSpellId() +
+            player.sendDebugMessage("[MagicOnPlayerMessageReader]: spellId: " + event.getSpellId() +
                     ", player: " + event.getTargetPlr().getUsername());
         }
     }

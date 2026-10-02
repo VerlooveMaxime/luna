@@ -14,6 +14,12 @@ import io.netty.buffer.ByteBuf;
 public final class GameChatboxMessageWriter extends GameMessageWriter {
 
     /**
+     * Ends a debugging line. The IdleRS client strips it and never lets such a line cover the tutorial's help box with
+     * "Click here to continue" (client class {@code idlers.ChatMessages}).
+     */
+    public static final String DEBUG_SUFFIX = ":debug:";
+
+    /**
      * The message.
      */
     private final Object message;

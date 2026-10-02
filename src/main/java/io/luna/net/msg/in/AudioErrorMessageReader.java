@@ -17,7 +17,7 @@ public final class AudioErrorMessageReader extends GameMessageReader<VoidEvent> 
     public VoidEvent decode(Player player, GameMessage msg) {
         int soundId = msg.getPayload().getShort();
         if (Luna.settings().game().betaMode()) {
-            player.sendMessage("[AudioErrorMessageReader] soundId: " + soundId);
+            player.sendDebugMessage("[AudioErrorMessageReader] soundId: " + soundId);
         }
         return VoidEvent.INSTANCE;
     }

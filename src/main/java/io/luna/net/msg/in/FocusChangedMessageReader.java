@@ -22,7 +22,7 @@ public final class FocusChangedMessageReader extends GameMessageReader<FocusChan
     @Override
     public void handle(Player player, FocusChangedEvent event) {
         if (Luna.settings().game().betaMode()) {
-            player.sendMessage("[FocusChangedMessageReader] focus: " + event.isFocused());
+            player.sendDebugMessage("[FocusChangedMessageReader] focus: " + event.isFocused());
         }
     }
 }

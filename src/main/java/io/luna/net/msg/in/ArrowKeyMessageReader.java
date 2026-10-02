@@ -19,7 +19,7 @@ public final class ArrowKeyMessageReader extends GameMessageReader<VoidEvent> {
         int roll = msg.getPayload().getShort(false, ByteOrder.LITTLE);
         int yaw = msg.getPayload().getShort(false, ByteOrder.LITTLE);
         if (Luna.settings().game().betaMode()) {
-            player.sendMessage("[ArrowKeyMessageReader] roll: " + roll + ", yaw: " + yaw);
+            player.sendDebugMessage("[ArrowKeyMessageReader] roll: " + roll + ", yaw: " + yaw);
         }
         return VoidEvent.INSTANCE;
     }

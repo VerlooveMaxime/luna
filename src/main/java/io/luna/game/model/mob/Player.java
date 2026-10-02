@@ -520,6 +520,15 @@ public class Player extends Mob {
     }
 
     /**
+     * Sends a debugging line to the chatbox, shown like a game message but never over the tutorial's help box.
+     *
+     * @param msg The message to send.
+     */
+    public void sendDebugMessage(Object msg) {
+        queue(new GameChatboxMessageWriter(msg + GameChatboxMessageWriter.DEBUG_SUFFIX));
+    }
+
+    /**
      * Sends an arbitrary {@link Varp} update to the client and records it in the cached varp map.
      * <p>
      * If the varp is also tracked as a {@link PersistentVarp}, the persistent value is updated as well.

@@ -16,7 +16,7 @@ public final class DebugMessageReader extends GameMessageReader<VoidEvent> {
     @Override
     public VoidEvent decode(Player player, GameMessage msg) {
         if (Luna.settings().game().betaMode()) {
-            player.sendMessage("[DebugMessageReader] Opcode " + msg.getOpcode() + ", size " + msg.getSize());
+            player.sendDebugMessage("[DebugMessageReader] Opcode " + msg.getOpcode() + ", size " + msg.getSize());
         }
         return VoidEvent.INSTANCE;
     }
