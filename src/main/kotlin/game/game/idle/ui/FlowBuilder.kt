@@ -5,6 +5,7 @@ import game.idle.autopilot.AutopilotPlayer
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.StepField
+import game.idle.location.Tile
 
 /** What the game has to do after a click, besides showing the new texts. */
 sealed interface ClickResult {
@@ -12,6 +13,9 @@ sealed interface ClickResult {
     data object Open : ClickResult
     data object Close : ClickResult
     data object Refresh : ClickResult
+
+    /** Open the world map over the builder for the player to pick a tile, centred on [centre]. */
+    data class PickTile(val centre: Tile) : ClickResult
 }
 
 /**
@@ -32,6 +36,7 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
     private val drafts = mutableMapOf<String, FlowDraft>()
     private val messages = mutableMapOf<String, String>()
     private val editing = mutableMapOf<String, Int>()
+    private val picking = mutableMapOf<String, Int>()
 
     /** Tile fields the draft leaves blank show the player's own tile. */
     fun draft(player: P): FlowDraft =
@@ -49,6 +54,19 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
         drafts.remove(player.username)
         messages.remove(player.username)
         editing.remove(player.username)
+        picking.remove(player.username)
+    }
+
+    /**
+     * A tile picked on the world map: it goes into the tile field the map was opened for, as long as the draft still
+     * has that field (the map takes every click while open, so normally it does).
+     */
+    fun picked(player: P, tile: Tile): ClickResult {
+        val index = picking.remove(player.username) ?: return ClickResult.Ignored
+        val draft = draft(player)
+        if (draft.type.fields.getOrNull(index) !is StepField.MapTile) return ClickResult.Ignored
+        drafts[player.username] = draft.withValue(index, tile.text())
+        return say(player, "")
     }
 
     fun click(player: P, widgetId: Int): ClickResult =
@@ -62,7 +80,7 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
             is BuilderAction.MoveDown -> edit(player) { moved(it, action.row, action.row + 1) }
             is BuilderAction.Delete -> edit(player) { lines -> lines.filterIndexed { row, _ -> row != action.row } }
             BuilderAction.CycleKind -> redraft(player) { it.nextType(types) }
-            is BuilderAction.CycleField -> redraft(player) { field(player, it, action.index) }
+            is BuilderAction.CycleField -> field(player, action.index)
             BuilderAction.Add -> add(player)
             BuilderAction.Run -> run(player)
             BuilderAction.Stop -> stop(player)
@@ -74,12 +92,20 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
         return ClickResult.Open
     }
 
-    /** A choice moves to the next one; a tile becomes the tile the player stands on. */
-    private fun field(player: P, draft: FlowDraft, index: Int): FlowDraft =
-        when (draft.type.fields.getOrNull(index)) {
-            null, is StepField.Choice -> draft.nextValue(index)
-            is StepField.MapTile -> draft.withValue(index, player.tile.text())
+    /** A choice moves to the next one; a tile opens the world map, centred on the tile the field holds. */
+    private fun field(player: P, index: Int): ClickResult {
+        val draft = draft(player)
+        return when (draft.type.fields.getOrNull(index)) {
+            null, is StepField.Choice -> redraft(player) { it.nextValue(index) }
+            is StepField.MapTile -> pickTile(player, index, draft.values[index])
         }
+    }
+
+    private fun pickTile(player: P, index: Int, value: String): ClickResult {
+        picking[player.username] = index
+        val (x, y) = value.split(" ").map { it.toInt() }
+        return ClickResult.PickTile(Tile(x, y))
+    }
 
     private fun redraft(player: P, change: (FlowDraft) -> FlowDraft): ClickResult {
         drafts[player.username] = change(draft(player))

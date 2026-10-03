@@ -437,7 +437,8 @@
   },
   {
     "opcode": 101,
-    "size": 0
+    "size": 4,
+    "payload": "game.idle.ui.MapPickMessageReader"
   },
   {
     "opcode": 102,

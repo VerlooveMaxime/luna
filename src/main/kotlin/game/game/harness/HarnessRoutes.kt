@@ -43,6 +43,7 @@ fun harnessRoutes(api: HarnessApi): List<Route> {
         action("command") { body -> PlayerAction.Command(body.string("text")) },
         action("chat") { body -> PlayerAction.Chat(body.string("text")) },
         action("button") { body -> PlayerAction.Button(body.int("id")) },
+        action("map/pick") { body -> PlayerAction.PickTile(body.int("x"), body.int("y")) },
         bodilessAction("continue", PlayerAction.ContinueDialogue),
         bodilessAction("close", PlayerAction.CloseInterface),
         Route("GET", "/content/audit") { api.contentAudit() },

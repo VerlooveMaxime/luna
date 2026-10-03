@@ -79,14 +79,15 @@ public final class MessageRepositoryFileParser extends JsonFileParser<GameMessag
      *
      * @param opcode The opcode.
      * @param size The size.
-     * @param className The simple class name.
+     * @param className The simple class name in {@link #DIR}, or a fully qualified one (IdleRS readers).
      * @return The message listener instance.
      */
     private GameMessageReader<?> createReader(int opcode, int size, String className) {
         try {
             // Create class and instance from qualified name.
+            String qualifiedName = className != null && className.contains(".") ? className : DIR + className;
             Object readerInstance = className != null ?
-                    Class.forName(DIR + className).getDeclaredConstructor().newInstance() : new DefaultMessageReader();
+                    Class.forName(qualifiedName).getDeclaredConstructor().newInstance() : new DefaultMessageReader();
 
             // Retrieve opcode and size fields.
             Class<?> readerClass = readerInstance.getClass().getSuperclass();

@@ -108,6 +108,7 @@ class LunaHarnessApi(
             is PlayerAction.Command -> send(player, "command", HarnessPackets.command(action.text))
             is PlayerAction.Chat -> send(player, "chat", HarnessPackets.chat(action.text))
             is PlayerAction.Button -> send(player, "button", HarnessPackets.button(action.id))
+            is PlayerAction.PickTile -> send(player, "pick tile", HarnessPackets.mapPick(action.x, action.y))
             PlayerAction.ContinueDialogue -> send(player, "continue dialogue", HarnessPackets.continueDialogue())
             PlayerAction.CloseInterface -> send(player, "close interface", HarnessPackets.closeInterface())
         }

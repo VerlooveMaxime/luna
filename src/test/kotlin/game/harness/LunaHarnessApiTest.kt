@@ -6,6 +6,7 @@ import game.testworld.TestWorld
 import io.luna.game.action.Action
 import io.luna.game.action.ActionType
 import io.luna.game.event.Event
+import game.idle.ui.MapPickEvent
 import io.luna.game.event.impl.ButtonClickEvent
 import io.luna.game.event.impl.CloseInterfaceEvent
 import io.luna.game.event.impl.CommandEvent
@@ -636,6 +637,26 @@ class LunaHarnessApiTest {
         TestWorld.tick()
 
         assertEquals(listOf("5387"), buttons)
+    }
+
+    @Test
+    fun `a map pick is queued like the client's`() {
+        agent()
+
+        val view = api().act("agent_a", PlayerAction.PickTile(3086, 3233))
+
+        assertEquals(ActionView("agent_a", "pick tile", "opcode 101 queued for the next tick"), view)
+    }
+
+    @Test
+    fun `a map pick reaches the game as the picked tile on the next tick`() {
+        agent()
+        val picks = record(MapPickEvent::class.java) { "${it.tile}" }
+
+        api().act("agent_a", PlayerAction.PickTile(3086, 3233))
+        TestWorld.tick()
+
+        assertEquals(listOf("Tile(x=3086, y=3233, z=0)"), picks)
     }
 
     @Test

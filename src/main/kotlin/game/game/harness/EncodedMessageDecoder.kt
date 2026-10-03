@@ -1,6 +1,7 @@
 package game.harness
 
 import game.idle.ui.HintArrowMessageWriter
+import game.idle.ui.MapPickMessageWriter
 import game.idle.ui.StatusOverlayMessageWriter
 import game.idle.ui.StickyChatboxMessageWriter
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
@@ -32,6 +33,7 @@ object EncodedMessageDecoder {
         109 to Layout("DialogueInterfaceMessageWriter") { mapOf("id" to it.short()) },
         50 to Layout("WalkableInterfaceMessageWriter") { mapOf("id" to it.short()) },
         StatusOverlayMessageWriter.OPCODE to Layout("StatusOverlayMessageWriter") { mapOf("text" to it.string()) },
+        MapPickMessageWriter.OPCODE to Layout("MapPickMessageWriter") { mapOf("x" to it.short(), "y" to it.short()) },
         StickyChatboxMessageWriter.OPCODE to Layout("StickyChatboxMessageWriter") {
             mapOf("id" to it.short(ByteOrder.LITTLE))
         },

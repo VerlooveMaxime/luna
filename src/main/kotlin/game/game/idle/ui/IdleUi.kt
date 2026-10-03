@@ -2,6 +2,7 @@ package game.idle.ui
 
 import game.idle.IdleState
 import game.idle.autopilot.LunaAutopilotPlayer
+import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.overlay.AbstractOverlay
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
@@ -49,15 +50,25 @@ object IdleUi {
 /** Routes clicks on IdleRS widgets from a Luna player to the [FlowBuilder] and shows what changed. */
 class LunaFlowUi(private val builder: FlowBuilder<LunaAutopilotPlayer>) {
 
-    fun click(player: Player, widgetId: Int) = act(player, LunaAutopilotPlayer(player), widgetId)
+    fun click(player: Player, widgetId: Int) {
+        val autopilotPlayer = LunaAutopilotPlayer(player)
+        act(player, autopilotPlayer, builder.click(autopilotPlayer, widgetId))
+    }
+
+    /** A tile the player picked on the world map the builder opened. */
+    fun picked(player: Player, tile: Tile) {
+        val autopilotPlayer = LunaAutopilotPlayer(player)
+        act(player, autopilotPlayer, builder.picked(autopilotPlayer, tile))
+    }
 
     // An expression `when`, so JaCoCo sees every branch (see coverage notes on statement `when`).
-    private fun act(player: Player, autopilotPlayer: LunaAutopilotPlayer, widgetId: Int): Unit =
-        when (builder.click(autopilotPlayer, widgetId)) {
+    private fun act(player: Player, autopilotPlayer: LunaAutopilotPlayer, result: ClickResult): Unit =
+        when (result) {
             ClickResult.Ignored -> Unit
             ClickResult.Open -> player.overlays.open(FlowBuilderInterface { builder.texts(autopilotPlayer) })
             ClickResult.Close -> player.overlays.closeWindows()
             ClickResult.Refresh -> show(player, autopilotPlayer)
+            is ClickResult.PickTile -> player.queue(MapPickMessageWriter(result.centre.x, result.centre.y))
         }
 
     fun forget(player: Player) = builder.forget(LunaAutopilotPlayer(player))

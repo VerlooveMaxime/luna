@@ -1,6 +1,7 @@
 package game.harness
 
 import game.idle.ui.HintArrowMessageWriter
+import game.idle.ui.MapPickMessageWriter
 import game.idle.ui.StatusOverlayMessageWriter
 import game.idle.ui.StickyChatboxMessageWriter
 import game.idle.ui.TileEdge
@@ -81,6 +82,11 @@ class EncodedMessageDecoderTest {
     @Test
     fun `status overlay text decodes as the writer records it`() {
         assertDecodesAsRecorded(StatusOverlayMessageWriter("@gre@Autopilot@whi@ step 1/2|@yel@chop oak @draynor_oaks"))
+    }
+
+    @Test
+    fun `a map pick request decodes as the writer records it`() {
+        assertDecodesAsRecorded(MapPickMessageWriter(3086, 3233))
     }
 
     @Test

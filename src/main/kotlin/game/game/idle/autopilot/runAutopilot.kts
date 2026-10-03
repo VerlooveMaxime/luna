@@ -11,6 +11,7 @@ import game.idle.ui.FlowBuilder
 import game.idle.ui.FlowWidgets
 import game.idle.ui.IdleUi
 import game.idle.ui.LunaFlowUi
+import game.idle.ui.MapPickEvent
 import io.luna.game.event.impl.ButtonClickEvent
 import io.luna.game.event.impl.LoginEvent
 import io.luna.game.event.impl.LogoutEvent
@@ -52,6 +53,10 @@ on(LogoutEvent::class)
 on(ButtonClickEvent::class)
     .filter { FlowWidgets.owns(id) }
     .then { flowUi.click(plr, id) }
+
+on(MapPickEvent::class) {
+    flowUi.picked(plr, tile)
+}
 
 cmd("idle") {
     flowCommand.idle(LunaAutopilotPlayer(plr), args.toList())

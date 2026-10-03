@@ -19,7 +19,7 @@ object WalkStepType : StepType {
 
     override val usage = "walk <x> <y>"
 
-    override val fields = listOf(StepField.MapTile("to (click: your tile)"))
+    override val fields = listOf(StepField.MapTile("to (click: pick on map)"))
 
     override fun parse(words: List<String>): List<String> = listOf(tile(words).text())
 

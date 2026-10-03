@@ -10,6 +10,7 @@ import game.idle.autopilot.LunaAutopilotPlayer
 import game.idle.flow.FlowResolver
 import game.idle.idleState
 import game.idle.location.BankCatalog
+import game.idle.location.Tile
 import game.testworld.TestWorld
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
@@ -71,6 +72,40 @@ class LunaFlowUiTest {
 
         assertEquals("walk", texts(player)[FlowWidgets.DRAFT_KIND])
         assertEquals("3200 3200", texts(player)[FlowWidgets.DRAFT_FIELDS[0]])
+    }
+
+    @Test
+    fun `clicking a walk step's tile asks the client to open the map on it`() {
+        val player = login()
+        ui.click(player, FlowWidgets.TAB_OPEN_BUILDER)
+        ui.click(player, FlowWidgets.DRAFT_KIND)
+
+        ui.click(player, FlowWidgets.DRAFT_FIELDS[0])
+
+        val request = TestWorld.messages(player).last()
+        assertEquals("MapPickMessageWriter", request.type)
+        assertEquals(mapOf<String, Any>("x" to 3200, "y" to 3200), request.fields)
+    }
+
+    @Test
+    fun `a tile picked on the map shows in the builder`() {
+        val player = login()
+        ui.click(player, FlowWidgets.TAB_OPEN_BUILDER)
+        ui.click(player, FlowWidgets.DRAFT_KIND)
+        ui.click(player, FlowWidgets.DRAFT_FIELDS[0])
+
+        ui.picked(player, Tile(3086, 3233))
+
+        assertEquals("3086 3233", texts(player)[FlowWidgets.DRAFT_FIELDS[0]])
+    }
+
+    @Test
+    fun `a pick nobody asked for sends nothing`() {
+        val player = login()
+
+        ui.picked(player, Tile(3086, 3233))
+
+        assertEquals(emptyList<String>(), types(player))
     }
 
     @Test

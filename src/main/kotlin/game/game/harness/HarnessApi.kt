@@ -45,6 +45,9 @@ sealed interface PlayerAction {
 
     data class Button(val id: Int) : PlayerAction
 
+    /** A tile picked on the client's world map, as the flow builder asks for one. */
+    data class PickTile(val x: Int, val y: Int) : PlayerAction
+
     data object ContinueDialogue : PlayerAction
 
     data object CloseInterface : PlayerAction

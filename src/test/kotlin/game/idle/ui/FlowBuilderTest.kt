@@ -91,14 +91,55 @@ class FlowBuilderTest {
     }
 
     @Test
-    fun `clicking the tile sets it to where the player stands, and it stays there`() {
+    fun `clicking the tile opens the map on the tile it holds`() {
         click(FlowWidgets.DRAFT_KIND)
-        player.tile = Tile(3100, 3100, 1)
 
-        assertEquals(ClickResult.Refresh, builder.click(player, FlowWidgets.DRAFT_FIELDS[0]))
-        player.tile = Tile(3200, 3200)
+        assertEquals(ClickResult.PickTile(Tile(3200, 3200)), builder.click(player, FlowWidgets.DRAFT_FIELDS[0]))
+    }
 
-        assertEquals("walk 3100 3100 1", builder.draft(player).line())
+    @Test
+    fun `the map opens on the ground floor of an upstairs tile`() {
+        player.idleState = IdleState(flow = listOf("walk 3086 3233 1"))
+        click(FlowWidgets.rowText(0))
+
+        assertEquals(ClickResult.PickTile(Tile(3086, 3233)), builder.click(player, FlowWidgets.DRAFT_FIELDS[0]))
+    }
+
+    @Test
+    fun `a tile picked on the map goes into the walk step and stays there`() {
+        click(FlowWidgets.DRAFT_KIND)
+        click(FlowWidgets.DRAFT_FIELDS[0])
+
+        assertEquals(ClickResult.Refresh, builder.picked(player, Tile(3086, 3233)))
+        player.tile = Tile(3100, 3100)
+
+        assertEquals("walk 3086 3233", builder.draft(player).line())
+    }
+
+    @Test
+    fun `a pick nobody asked for is ignored`() {
+        click(FlowWidgets.DRAFT_KIND)
+
+        assertEquals(ClickResult.Ignored, builder.picked(player, Tile(3086, 3233)))
+        assertEquals("walk 3200 3200", builder.draft(player).line())
+    }
+
+    @Test
+    fun `a pick is taken once`() {
+        click(FlowWidgets.DRAFT_KIND)
+        click(FlowWidgets.DRAFT_FIELDS[0])
+        builder.picked(player, Tile(3086, 3233))
+
+        assertEquals(ClickResult.Ignored, builder.picked(player, Tile(3000, 3000)))
+    }
+
+    @Test
+    fun `a pick for a field the draft no longer has is ignored`() {
+        click(FlowWidgets.DRAFT_KIND)
+        click(FlowWidgets.DRAFT_FIELDS[0])
+        click(FlowWidgets.DRAFT_KIND)
+
+        assertEquals(ClickResult.Ignored, builder.picked(player, Tile(3086, 3233)))
     }
 
     @Test
@@ -362,5 +403,15 @@ class FlowBuilderTest {
         assertEquals("chop normal", builder.draft(player).line())
         assertEquals("", builder.message(player))
         assertNull(builder.editing(player))
+    }
+
+    @Test
+    fun `forgetting a player drops a pick in progress`() {
+        click(FlowWidgets.DRAFT_KIND)
+        click(FlowWidgets.DRAFT_FIELDS[0])
+
+        builder.forget(player)
+
+        assertEquals(ClickResult.Ignored, builder.picked(player, Tile(3086, 3233)))
     }
 }

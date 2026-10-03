@@ -152,6 +152,13 @@ class HarnessRoutesTest {
     }
 
     @Test
+    fun `a map pick passes the tile`() {
+        post("/player/agent_a/map/pick", """{"x": 3086, "y": 3233}""")
+
+        assertEquals("agent_a" to PlayerAction.PickTile(3086, 3233), lastAction())
+    }
+
+    @Test
     fun `button passes the id`() {
         post("/player/agent_a/button", """{"id": 2482}""")
 

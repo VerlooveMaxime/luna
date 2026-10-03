@@ -1,5 +1,6 @@
 package game.harness
 
+import game.idle.ui.MapPickMessageWriter
 import io.luna.net.codec.ByteMessage
 import io.luna.net.codec.ByteOrder
 import io.luna.net.codec.MessageType
@@ -101,6 +102,9 @@ object HarnessPackets {
     }
 
     fun button(id: Int): GameMessage = GameMessage(79, MessageType.FIXED, ByteMessage.raw().putShort(id))
+
+    fun mapPick(x: Int, y: Int): GameMessage =
+        GameMessage(MapPickMessageWriter.OPCODE, MessageType.FIXED, ByteMessage.raw().putShort(x).putShort(y))
 
     fun continueDialogue(): GameMessage = GameMessage(226, MessageType.FIXED, ByteMessage.raw().putShort(0))
 
