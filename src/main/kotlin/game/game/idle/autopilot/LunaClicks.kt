@@ -1,10 +1,12 @@
 package game.idle.autopilot
 
+import engine.widget.skill.LevelUpInterface
 import io.luna.game.action.ActionType
 import io.luna.game.event.impl.ControllableEvent
 import io.luna.game.event.impl.ObjectClickEvent
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.interact.InteractionAction
+import io.luna.game.model.mob.overlay.OverlayType
 import io.luna.game.model.`object`.GameObject
 
 /** What every autopilot adapter does with a real player: click objects like the client and tell busy from idle. */
@@ -13,9 +15,18 @@ object LunaClicks {
     /** Soft actions (status effects such as poison) run in the background and do not keep a player busy. */
     private val FOREGROUND_ACTIONS = ActionType.entries.filter { it != ActionType.SOFT }
 
+    private val WINDOW_TYPES = setOf(OverlayType.WIDGET_STANDARD, OverlayType.INPUT)
+
     /** Walking or running a non-soft action; windows are the activity's own concern. */
     fun isActing(player: Player): Boolean =
         !player.walking.isEmpty || FOREGROUND_ACTIONS.any { player.actions.size(it) > 0 }
+
+    /**
+     * A window the player has open, which a real player would close before walking off. A level-up dialogue does not
+     * hold a real player up: their next click closes it.
+     */
+    fun hasBlockingWindow(player: Player): Boolean =
+        player.overlays.overlayMap.any { (type, overlay) -> type in WINDOW_TYPES && overlay !is LevelUpInterface }
 
     /** The checks the packet reader makes before dispatching a click. */
     fun mayAct(player: Player, event: ControllableEvent): Boolean =

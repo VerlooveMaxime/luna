@@ -4,6 +4,7 @@ import game.idle.autopilot.Autopilot
 import game.idle.autopilot.AutopilotPlayer
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
+import game.idle.flow.StepField
 
 /** What the game has to do after a click, besides showing the new texts. */
 sealed interface ClickResult {
@@ -32,8 +33,9 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
     private val messages = mutableMapOf<String, String>()
     private val editing = mutableMapOf<String, Int>()
 
+    /** Tile fields the draft leaves blank show the player's own tile. */
     fun draft(player: P): FlowDraft =
-        drafts.getOrPut(player.username) { FlowDraft.first(types) }
+        drafts.getOrPut(player.username) { FlowDraft.first(types) }.withBlankTiles(player.tile.text())
 
     fun message(player: P): String = messages[player.username] ?: ""
 
@@ -60,7 +62,7 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
             is BuilderAction.MoveDown -> edit(player) { moved(it, action.row, action.row + 1) }
             is BuilderAction.Delete -> edit(player) { lines -> lines.filterIndexed { row, _ -> row != action.row } }
             BuilderAction.CycleKind -> redraft(player) { it.nextType(types) }
-            is BuilderAction.CycleField -> redraft(player) { it.nextValue(action.index) }
+            is BuilderAction.CycleField -> redraft(player) { field(player, it, action.index) }
             BuilderAction.Add -> add(player)
             BuilderAction.Run -> run(player)
             BuilderAction.Stop -> stop(player)
@@ -71,6 +73,13 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
         say(player, "")
         return ClickResult.Open
     }
+
+    /** A choice moves to the next one; a tile becomes the tile the player stands on. */
+    private fun field(player: P, draft: FlowDraft, index: Int): FlowDraft =
+        when (draft.type.fields.getOrNull(index)) {
+            null, is StepField.Choice -> draft.nextValue(index)
+            is StepField.MapTile -> draft.withValue(index, player.tile.text())
+        }
 
     private fun redraft(player: P, change: (FlowDraft) -> FlowDraft): ClickResult {
         drafts[player.username] = change(draft(player))
@@ -130,7 +139,7 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
         val flow = player.idleState.flow
         if (flow.isEmpty()) return say(player, "The flow is empty. Add a step first.")
         problem(flow)?.let { return say(player, it) }
-        player.idleState = player.idleState.atStep(0)
+        player.idleState = player.idleState.fromStart()
         autopilot.start(player)
         return say(player, "Running step 1: ${flow[0]}")
     }

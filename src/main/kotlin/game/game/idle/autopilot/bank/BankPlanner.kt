@@ -31,7 +31,7 @@ sealed interface BankDecision {
 }
 
 enum class BankBlockedReason(val message: String) {
-    NO_BOOTH("Autopilot: there is no bank booth where the location says there is one."),
+    NO_BOOTH("Autopilot: there is no bank booth this step can use on this floor."),
 }
 
 /** Walk to the booth, open it, put everything in at once, close, done. */

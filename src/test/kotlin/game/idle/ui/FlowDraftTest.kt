@@ -12,18 +12,26 @@ class FlowDraftTest {
     private val pick = FakeStepType(
         "pick",
         listOf(
-            StepField("item") { values ->
+            StepField.Choice("item") { values ->
                 when (values[1]) {
                     "fruit" -> listOf("apple", "tomato")
                     "veg" -> listOf("leek", "tomato")
                     else -> emptyList()
                 }
             },
-            StepField("kind") { listOf("fruit", "veg") },
+            StepField.Choice("kind") { listOf("fruit", "veg") },
         ),
     )
     private val rest = FakeStepType("rest")
-    private val wait = FakeStepType("wait", listOf(StepField("time") { emptyList() }))
+    private val wait = FakeStepType("wait", listOf(StepField.Choice("time") { emptyList() }))
+    private val walk = FakeStepType("walk", listOf(StepField.MapTile("to"), StepField.Choice("pace") { listOf("slow", "fast") }))
+    private val run = FakeStepType(
+        "run",
+        listOf(
+            StepField.Choice("pace", default = "fast") { listOf("slow", "fast") },
+            StepField.Choice("shoes", default = "boots") { listOf("bare", "sandals") },
+        ),
+    )
     private val types = listOf(pick, rest)
     private val draft = FlowDraft.first(types)
 
@@ -94,5 +102,39 @@ class FlowDraftTest {
         val back = draft.nextValue(0).editing(FlowStep(rest, emptyList())).nextType(types)
 
         assertEquals(listOf("tomato", "fruit"), back.values)
+    }
+
+    @Test
+    fun `a field starts at its default when it is offered, else at its first choice`() {
+        assertEquals(listOf("fast", "bare"), FlowDraft.first(listOf(run)).values)
+    }
+
+    @Test
+    fun `a tile field starts blank and is not settled away`() {
+        val walking = FlowDraft.first(listOf(walk))
+
+        assertEquals(listOf("", "slow"), walking.values)
+        assertEquals(listOf("", "fast"), walking.nextValue(1).values)
+    }
+
+    @Test
+    fun `a tile field does not cycle`() {
+        val walking = FlowDraft.first(listOf(walk))
+
+        assertEquals(walking, walking.nextValue(0))
+    }
+
+    @Test
+    fun `a value can be set directly`() {
+        assertEquals(listOf("3086 3233", "slow"), FlowDraft.first(listOf(walk)).withValue(0, "3086 3233").values)
+    }
+
+    @Test
+    fun `blank tiles are filled in, set ones and other fields are kept`() {
+        val walking = FlowDraft.first(listOf(walk))
+
+        assertEquals(listOf("1 2", "slow"), walking.withBlankTiles("1 2").values)
+        assertEquals(listOf("3 4", "slow"), walking.withValue(0, "3 4").withBlankTiles("1 2").values)
+        assertEquals(listOf(""), FlowDraft.first(listOf(wait)).withBlankTiles("1 2").values)
     }
 }

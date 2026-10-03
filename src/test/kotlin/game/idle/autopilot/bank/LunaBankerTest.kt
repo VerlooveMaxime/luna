@@ -68,6 +68,15 @@ class LunaBankerTest {
     }
 
     @Test
+    fun `without a booth tile, as when no bank is on the player's floor, the view has none to use`() {
+        placeBooth()
+
+        val view = LunaBanker(login(), boothTile = null).look()
+
+        assertEquals(BankView(boothFound = false, boothUsableFromHere = false, bankOpen = false, emptyList()), view)
+    }
+
+    @Test
     fun `a booth next to the player is usable from here`() {
         placeBooth()
 

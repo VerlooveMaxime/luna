@@ -8,7 +8,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.LocalDate
 
-/** Plain-text tables of [SpotCandidate]s, one file per tree kind, for a human to pick location rows from. */
+/** Plain-text tables of [SpotCandidate]s, one file per tree kind, for a human looking for places to chop. */
 class SurveyReport(
     private val map: SurveyMap,
     private val survey: TreeSurvey,

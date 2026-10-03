@@ -1,6 +1,7 @@
 package game.idle.autopilot
 
 import game.idle.IdleState
+import game.idle.location.Tile
 
 /** The parts of a player the autopilot switch needs. [LunaAutopilotPlayer] is the in-game one. */
 interface AutopilotPlayer {
@@ -8,6 +9,9 @@ interface AutopilotPlayer {
     val username: String
 
     var idleState: IdleState
+
+    /** Where the player stands. */
+    val tile: Tile
 
     fun tell(message: String)
 }
@@ -25,8 +29,8 @@ fun interface ScheduledTick {
 
 /**
  * Starts and stops each player's autopilot from the flow saved in their [IdleState]; at most one runs per player.
- * [newDriver] builds the driver for the saved flow, or gives null when it no longer resolves (a location removed
- * from the data file). Game thread only.
+ * [newDriver] builds the driver for the saved flow, or gives null when it no longer resolves (a bank removed from
+ * the data file). Game thread only.
  */
 class Autopilot<P : AutopilotPlayer>(
     private val scheduler: TickScheduler,
@@ -51,14 +55,17 @@ class Autopilot<P : AutopilotPlayer>(
 
     fun isRunning(player: P): Boolean = player.username in running
 
-    /** Runs the saved flow from its saved step, replacing whatever ran before; false when it does not resolve. */
+    /**
+     * Runs the saved flow from its saved step, replacing whatever ran before; false when it does not resolve. A flow
+     * started from its first step takes the player's tile as its run tile, a resumed one keeps its own.
+     */
     fun start(player: P): Boolean {
         val driver = newDriver(player)
         stop(player)
         if (driver == null) {
             return false
         }
-        player.idleState = player.idleState.started()
+        player.idleState = player.idleState.started(player.tile)
         running[player.username] = scheduler.everyTick(driver::tick)
         return true
     }

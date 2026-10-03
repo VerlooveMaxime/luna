@@ -2,159 +2,101 @@ package game.idle.autopilot.woodcutting
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
-import game.idle.location.LocationCatalog
+import game.idle.flow.WorkSpot
 import game.idle.location.Tile
-import game.idle.location.area
-import game.idle.location.catalogJson
-import game.idle.location.locationJson
 import game.skill.woodcutting.cutTree.Tree
-import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class ChopStepTypeTest {
 
-    private val varrock = locationJson("id" to "varrock_west", "name" to "West of Varrock", "bank" to mapOf("x" to 3186, "y" to 3440))
-    private val draynor = locationJson(
-        "id" to "draynor",
-        "name" to "Draynor village",
-        "trees" to mapOf("willow" to area(3087, 3235, 8), "normal" to area(3115, 3243, 20)),
-    )
-    private val chop = ChopStepType(LocationCatalog.parse(catalogJson(varrock, draynor)))
+    private val walkedTo = WorkSpot.At(Tile(3086, 3233))
 
-    private val nearVarrock = Position(3182, 3440, 0)
-    private val nearWillows = Position(3090, 3240, 0)
-
-    private fun resolve(vararg values: String) = chop.resolve(values.toList(), FlowContext()) as ChopStep
+    private fun choices(index: Int) = ChopStepType.fields[index].choices(listOf("", ""))
 
     @Test
-    fun `a chop line names its tree and location`() {
-        assertEquals(listOf("oak", "varrock_west"), chop.parse(listOf("oak", "@varrock_west")))
+    fun `a chop line names its tree, within the default radius`() {
+        assertEquals(listOf("oak", "10"), ChopStepType.parse(listOf("oak")))
     }
 
     @Test
-    fun `values read back as the line`() {
-        assertEquals("chop oak @varrock_west", chop.line(listOf("oak", "varrock_west")))
+    fun `a chop line may name its radius`() {
+        assertEquals(listOf("oak", "25"), ChopStepType.parse(listOf("oak", "within", "25")))
+    }
+
+    @Test
+    fun `the default radius is left out of the line, any other is written`() {
+        assertEquals("chop oak", ChopStepType.line(listOf("oak", "10")))
+        assertEquals("chop oak within 5", ChopStepType.line(listOf("oak", "5")))
     }
 
     @Test
     fun `chop without a tree`() {
-        assertRejected("chop needs a tree: chop <tree> @<location>") { chop.parse(emptyList()) }
+        assertRejected("chop needs a tree: chop <tree> [within <n>]") { ChopStepType.parse(emptyList()) }
     }
 
     @Test
     fun `chop with several trees`() {
-        assertRejected("One kind of tree per chop step: chop <tree> @<location>") { chop.parse(listOf("normal,oak", "@x")) }
+        assertRejected("One kind of tree per chop step: chop <tree> [within <n>]") { ChopStepType.parse(listOf("normal,oak")) }
     }
 
     @Test
-    fun `chop without a location`() {
-        assertRejected("chop needs a location: chop normal @<location>") { chop.parse(listOf("normal")) }
-    }
-
-    @Test
-    fun `chop with a location missing its at sign`() {
-        assertRejected("chop needs a location: chop normal @<location>") { chop.parse(listOf("normal", "varrock_west")) }
-    }
-
-    @Test
-    fun `chop with an empty location`() {
-        assertRejected("chop needs a location: chop normal @<location>") { chop.parse(listOf("normal", "@")) }
-    }
-
-    @Test
-    fun `the old clauses on a chop step point at what replaced them`() {
+    fun `a location from the old grammar points at the walk step`() {
         assertRejected(
-            "Unexpected 'until inventory full' after the location. A chop step ends when the inventory is full; " +
-                "'drop' and 'bank deposit all' are steps of their own, and the flow repeats by itself.",
-        ) { chop.parse(listOf("normal", "@x", "until", "inventory", "full")) }
+            "chop no longer takes a location: put a 'walk' step before it, or leave it out to chop around where you press Run",
+        ) { ChopStepType.parse(listOf("willow", "@draynor")) }
     }
 
     @Test
-    fun `a chop step resolves its spot and tree, whatever the case`() {
-        val step = resolve("Willow", "Draynor")
-
-        assertEquals("draynor", step.spot.location.id)
-        assertEquals(Tree.WILLOW, step.spot.tree)
-        assertEquals(Tile(3087, 3235), step.spot.area.anchor)
-        assertEquals(ChopAction(setOf(Tree.WILLOW)), step.action)
+    fun `anything else after the tree is rejected`() {
+        assertRejected("Unexpected 'until inventory full' after the tree: chop <tree> [within <n>]") {
+            ChopStepType.parse(listOf("normal", "until", "inventory", "full"))
+        }
+        assertRejected("Unexpected 'within' after the tree: chop <tree> [within <n>]") { ChopStepType.parse(listOf("normal", "within")) }
+        assertRejected("Unexpected 'near 5' after the tree: chop <tree> [within <n>]") { ChopStepType.parse(listOf("normal", "near", "5")) }
     }
 
     @Test
-    fun `an unknown location lists the known ones`() {
-        assertRejected("Unknown location 'atlantis'. Locations: draynor, varrock_west") { resolve("normal", "atlantis") }
+    fun `the radius is a number of tiles from 1 to 32`() {
+        assertRejected("within takes a number of tiles from 1 to 32, not 'far'") { ChopStepType.parse(listOf("oak", "within", "far")) }
+        assertRejected("within takes a number of tiles from 1 to 32, not '0'") { ChopStepType.parse(listOf("oak", "within", "0")) }
+        assertRejected("within takes a number of tiles from 1 to 32, not '33'") { ChopStepType.parse(listOf("oak", "within", "33")) }
+    }
+
+    @Test
+    fun `a chop step works around the work spot the steps before it set, whatever the case of the tree`() {
+        val step = ChopStepType.resolve(listOf("Willow", "15"), FlowContext(workSpot = walkedTo))
+
+        assertEquals(ChopStep(Tree.WILLOW, 15, walkedTo), step)
+    }
+
+    @Test
+    fun `a chop step with no walk before it works around the run tile`() {
+        assertEquals(ChopStep(Tree.OAK, 10, WorkSpot.RunTile), ChopStepType.resolve(listOf("oak", "10"), FlowContext()))
     }
 
     @Test
     fun `an unknown tree is rejected`() {
-        assertRejected("'palm' is not a kind of tree") { resolve("palm", "draynor") }
+        assertRejected("'palm' is not a kind of tree") { ChopStepType.resolve(listOf("palm", "10"), FlowContext()) }
     }
 
     @Test
-    fun `a tree that does not grow at the location is rejected`() {
-        assertRejected("No oak trees at Draynor village, only normal, willow") { resolve("oak", "draynor") }
+    fun `a tree Luna has no standing objects for is rejected`() {
+        assertRejected("There are no teak trees to cut in this world yet") { ChopStepType.resolve(listOf("teak", "10"), FlowContext()) }
     }
 
     @Test
-    fun `the tree field offers the trees of the chosen location, easiest first`() {
-        assertEquals(listOf("normal", "willow"), chop.fields[0].choices(listOf("", "DRAYNOR")))
+    fun `the builder offers the trees there are, easiest first, and a few radii`() {
+        assertEquals(listOf("normal", "oak", "willow", "maple", "yew", "magic"), choices(0))
+        assertEquals(listOf("5", "10", "15", "20", "30"), choices(1))
     }
 
     @Test
-    fun `the tree field offers nothing at an unknown location`() {
-        assertEquals(emptyList<String>(), chop.fields[0].choices(listOf("", "nowhere")))
-    }
+    fun `the steps after a chop step know it gathers its logs`() {
+        val after = ChopStep(Tree.WILLOW, 10, walkedTo).after(FlowContext(walkedTo, gathered = setOf(Tree.NORMAL.logId)))
 
-    @Test
-    fun `the location field offers every location by id`() {
-        assertEquals(listOf("draynor", "varrock_west"), chop.fields[1].choices(listOf("", "")))
-    }
-
-    @Test
-    fun `the idle shorthand picks the spot nearest to the player`() {
-        assertEquals("chop willow @draynor", chop.nearestLine(nearWillows))
-        assertEquals("chop normal @varrock_west", chop.nearestLine(nearVarrock))
-    }
-
-    @Test
-    fun `the idle shorthand with no locations gives nothing`() {
-        assertNull(ChopStepType(LocationCatalog.parse("{}")).nearestLine(nearVarrock))
-    }
-
-    @Test
-    fun `spots at the same distance are picked by location id, then by the easiest tree`() {
-        val twins = ChopStepType(
-            LocationCatalog.parse(catalogJson(locationJson("id" to "b"), locationJson("id" to "a", "trees" to mapOf("oak" to area(3165, 3445, 15), "normal" to area(3165, 3445, 15))))),
-        )
-
-        assertEquals("chop normal @a", twins.nearestLine(nearVarrock))
-    }
-
-    @Test
-    fun `the idle shorthand with a location and a tree`() {
-        assertEquals("chop willow @draynor", chop.lineAt("Draynor", "Willow"))
-    }
-
-    @Test
-    fun `the idle shorthand with a location alone takes its easiest tree`() {
-        assertEquals("chop normal @draynor", chop.lineAt("draynor", null))
-    }
-
-    @Test
-    fun `the idle shorthand rejects a bad location or tree`() {
-        assertRejected("Unknown location 'atlantis'. Locations: draynor, varrock_west") { chop.lineAt("atlantis", null) }
-        assertRejected("No oak trees at Draynor village, only normal, willow") { chop.lineAt("draynor", "oak") }
-    }
-
-    @Test
-    fun `the steps after a chop step know its location and its logs`() {
-        val step = resolve("willow", "draynor")
-
-        val after = step.after(FlowContext(gathered = setOf(Tree.NORMAL.logId)))
-
-        assertEquals(FlowContext(step.spot.location, setOf(Tree.NORMAL.logId, Tree.WILLOW.logId)), after)
+        assertEquals(FlowContext(walkedTo, setOf(Tree.NORMAL.logId, Tree.WILLOW.logId)), after)
     }
 
     private fun assertRejected(message: String, action: () -> Unit) {

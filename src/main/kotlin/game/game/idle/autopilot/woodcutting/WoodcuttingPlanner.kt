@@ -55,12 +55,12 @@ sealed interface WoodcuttingDecision {
 
 enum class BlockedReason(val message: String) {
     NO_AXE("Autopilot: you need an axe that you have the Woodcutting level to use."),
-    INVENTORY_FULL("Autopilot: your inventory is full. Put a 'drop logs' or 'bank deposit all' step after the chop."),
+    INVENTORY_FULL("Autopilot: your inventory is full. Put a 'drop' or 'bank nearest' step after the chop."),
     NO_TREE("Autopilot: there is no tree you can cut here."),
 }
 
 /**
- * Cut the highest-level wanted tree the player can, and walk back to the location when nothing is in reach from
+ * Cut the highest-level wanted tree the player can, and walk back to the work spot when nothing is in reach from
  * outside it. A full inventory is the chop step's end ([WoodcuttingActivity]); here it only blocks.
  */
 object WoodcuttingPlanner {

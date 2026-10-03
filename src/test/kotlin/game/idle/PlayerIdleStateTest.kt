@@ -1,5 +1,6 @@
 package game.idle
 
+import game.idle.location.Tile
 import game.testworld.TestWorld
 import io.luna.game.model.Position
 import org.junit.jupiter.api.AfterEach
@@ -32,7 +33,7 @@ class PlayerIdleStateTest {
     @Test
     fun `the idle state is saved with the player under idle_state`() {
         val player = TestWorld.login("idler", Position(3200, 3200))
-        player.idleState = IdleState().started()
+        player.idleState = IdleState().started(Tile(3200, 3200))
 
         val savedKeys = player.attributes.save().keys.map { it.substringBefore("@") }
 

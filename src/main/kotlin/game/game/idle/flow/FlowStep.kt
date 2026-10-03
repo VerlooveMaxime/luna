@@ -1,6 +1,6 @@
 package game.idle.flow
 
-import game.idle.location.Location
+import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
 /** A line of a flow the player could not have meant; the message is shown as is. */
@@ -35,8 +35,24 @@ interface StepType {
     fun resolve(values: List<String>, context: FlowContext): ResolvedStep
 }
 
-/** A field of a step in the builder; [choices] may depend on the values of the step's other fields. */
-class StepField(val label: String, val choices: (values: List<String>) -> List<String>)
+/** A field of a step in the builder. */
+sealed interface StepField {
+
+    val label: String
+
+    /**
+     * A field that cycles through [choices] on click; they may depend on the values of the step's other fields. A new
+     * step starts at [default] when it is offered, else at the first choice.
+     */
+    class Choice(
+        override val label: String,
+        val default: String? = null,
+        val choices: (values: List<String>) -> List<String>,
+    ) : StepField
+
+    /** A map tile, written as [Tile.text]; the builder fills it in with the player's own tile. */
+    class MapTile(override val label: String) : StepField
+}
 
 /** One line of a flow as typed, before what it names is checked against the data. */
 data class FlowStep(val type: StepType, val values: List<String>) {
@@ -44,8 +60,22 @@ data class FlowStep(val type: StepType, val values: List<String>) {
     fun line(): String = type.line(values)
 }
 
+/** Where an action step works: around the tile the player pressed Run on, or where a walk step before it went. */
+sealed interface WorkSpot {
+
+    data object RunTile : WorkSpot
+
+    data class At(val tile: Tile) : WorkSpot
+
+    fun tile(runTile: Tile): Tile =
+        when (this) {
+            RunTile -> runTile
+            is At -> tile
+        }
+}
+
 /** What a step can rely on from the steps before it in the flow. */
-data class FlowContext(val location: Location? = null, val gathered: Set<Int> = emptySet())
+data class FlowContext(val workSpot: WorkSpot = WorkSpot.RunTile, val gathered: Set<Int> = emptySet())
 
 /** A step checked against the data: every name became the thing it names, so it can run. */
 interface ResolvedStep {
@@ -53,6 +83,6 @@ interface ResolvedStep {
     /** What the steps after this one can rely on. */
     fun after(context: FlowContext): FlowContext = context
 
-    /** The activity that carries this step out for [player]. */
-    fun activity(player: Player): StepActivity
+    /** The activity that carries this step out for [player], whose flow was started on [runTile]. */
+    fun activity(player: Player, runTile: Tile): StepActivity
 }

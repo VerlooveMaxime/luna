@@ -4,8 +4,6 @@ import api.predef.woodcutting
 import engine.widget.skill.LevelUpData
 import engine.widget.skill.LevelUpInterface
 import game.idle.location.Area
-import game.idle.location.Location
-import game.idle.location.LocationUnlock
 import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
 import game.testworld.TestWorld
@@ -35,11 +33,7 @@ class LunaWoodcutterTest {
     private val bronzeAxe = 1351
     private val logs = 1511
     private val area = Area(Tile(anchor.x, anchor.y), radius = 10)
-    private val spot = WoodcuttingSpot(
-        Location(id = "test_grove", name = "Test grove", trees = mapOf("normal" to area), bank = null, unlock = LocationUnlock(stage = 0)),
-        Tree.NORMAL,
-        area,
-    )
+    private val spot = WoodcuttingSpot(Tree.NORMAL, area)
     private val normalTreeHere = TreeCandidate(normalTree, treeTile, Tree.NORMAL, 0, usableFromHere = true, besideTree)
 
     private fun login(position: Position = anchor): Player = TestWorld.login("lumberjack", position)

@@ -11,11 +11,12 @@ import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
 import io.luna.game.model.`object`.GameObject
 
 /**
- * [Banker] for a logged-in player using the booth on [boothTile]. Opening goes through the booth's "Use-quickly"
- * click like the client does; depositing calls the bank directly, slot by slot, which is what the deposit widget
- * click ends up doing. Axes stay in the inventory so the next chop step can start.
+ * [Banker] for a logged-in player using the booth on [boothTile], none when null (no bank on the player's floor).
+ * Opening goes through the booth's "Use-quickly" click like the client does; depositing calls the bank directly,
+ * slot by slot, which is what the deposit widget click ends up doing. Axes stay in the inventory so the next chop
+ * step can start.
  */
-class LunaBanker(private val player: Player, private val boothTile: Position) : Banker {
+class LunaBanker(private val player: Player, private val boothTile: Position?) : Banker {
 
     private val world get() = player.world
 
@@ -65,7 +66,7 @@ class LunaBanker(private val player: Player, private val boothTile: Position) : 
 
     // Objects found through their chunk are always ACTIVE, so only the id needs checking.
     private fun booth(): GameObject? =
-        world.locator.findObjectsOnTile(boothTile) { it.id in Banking.bankingObjects }.firstOrNull()
+        boothTile?.let { tile -> world.locator.findObjectsOnTile(tile) { it.id in Banking.bankingObjects }.firstOrNull() }
 
     private fun depositableSlots(): List<Int> =
         (0 until player.inventory.capacity()).filter { slot ->

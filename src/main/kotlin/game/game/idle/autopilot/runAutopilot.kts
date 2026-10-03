@@ -6,7 +6,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.FlowRunner
 import game.idle.idleState
-import game.idle.location.LocationCatalog
+import game.idle.location.BankCatalog
 import game.idle.ui.FlowBuilder
 import game.idle.ui.FlowWidgets
 import game.idle.ui.IdleUi
@@ -17,11 +17,10 @@ import io.luna.game.event.impl.LogoutEvent
 
 val config = AutopilotConfig.load(AutopilotConfig.PATH)
 
-// Resolved at boot so a typo in the data file stops the server instead of surfacing at the first `::idle`.
-val catalog = LocationCatalog.load(LocationCatalog.PATH)
-val steps = IdleSteps(catalog)
-val resolver = FlowResolver(steps.grammar)
-logger.info("Loaded {} idle locations.", catalog.locations.size)
+// Loaded at boot so a typo in the data file stops the server instead of surfacing at the first bank step.
+val banks = BankCatalog.load(BankCatalog.PATH)
+val resolver = FlowResolver(IdleSteps(banks).grammar)
+logger.info("Loaded {} idle banks.", banks.banks.size)
 
 val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world)) { autopilotPlayer ->
     val state = autopilotPlayer.idleState
@@ -33,7 +32,7 @@ val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world)) { auto
     resolved?.let { AutopilotDriver(FlowRunner(it, state.stepIndex, autopilotPlayer), config.decisionDelayTicks) }
 }
 
-val flowCommand = FlowCommand(autopilot, resolver, steps.chop)
+val flowCommand = FlowCommand(autopilot, resolver)
 val flowUi = LunaFlowUi(FlowBuilder(autopilot, resolver))
 
 on(LoginEvent::class)
@@ -55,7 +54,7 @@ on(ButtonClickEvent::class)
     .then { flowUi.click(plr, id) }
 
 cmd("idle") {
-    flowCommand.idle(LunaAutopilotPlayer(plr), args.toList(), plr.position)
+    flowCommand.idle(LunaAutopilotPlayer(plr), args.toList())
 }
 
 cmd("flow") {

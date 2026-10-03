@@ -1,6 +1,6 @@
 package game.idle.location.survey
 
-import game.idle.location.LocationCatalog
+import game.idle.location.BankCatalog
 import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -13,7 +13,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /** Checks the tracked data against the real cache. Skipped, never green, where the cache is absent (it is gitignored). */
-class LocationsDataTest {
+class CacheDataTest {
 
     @BeforeEach
     fun `needs the cache`() {
@@ -21,10 +21,10 @@ class LocationsDataTest {
     }
 
     @Test
-    fun `every tracked location has its trees and its booth in the cache`() {
-        val audit = LocationAudit(CacheMap.map)
+    fun `every tracked bank has its booth in the cache`() {
+        val missing = BankCatalog.load(BankCatalog.PATH).banks.filterNot { CacheMap.map.hasBooth(it.booth) }
 
-        assertEquals(emptyList<String>(), LocationCatalog.load(LocationCatalog.PATH).locations.flatMap(audit::problems))
+        assertEquals(emptyList<String>(), missing.map { it.id })
     }
 
     @Test

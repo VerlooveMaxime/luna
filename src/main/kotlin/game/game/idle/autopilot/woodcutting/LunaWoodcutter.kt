@@ -1,7 +1,6 @@
 package game.idle.autopilot.woodcutting
 
 import api.predef.woodcutting
-import engine.widget.skill.LevelUpInterface
 import game.skill.woodcutting.cutTree.Axe
 import game.skill.woodcutting.cutTree.Tree
 import game.skill.woodcutting.cutTree.TreeStump
@@ -13,7 +12,6 @@ import io.luna.game.model.Position
 import io.luna.game.model.collision.CollisionManager
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
-import io.luna.game.model.mob.overlay.OverlayType
 import io.luna.game.model.`object`.GameObject
 
 /**
@@ -28,7 +26,7 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
     private val anchor: Position = spot.area.anchor.toPosition()
     private val scan = TreeScan(anchor, spot.area.radius)
 
-    override fun isBusy(): Boolean = LunaClicks.isActing(player) || hasBlockingWindow()
+    override fun isBusy(): Boolean = LunaClicks.isActing(player) || LunaClicks.hasBlockingWindow(player)
 
     override fun look(): WoodcuttingView =
         WoodcuttingView(
@@ -57,10 +55,6 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
     override fun tell(message: String) {
         player.sendMessage(message)
     }
-
-    /** A level-up dialogue does not hold up a real player either: their next click closes it. */
-    private fun hasBlockingWindow(): Boolean =
-        player.overlays.overlayMap.any { (type, overlay) -> type in WINDOW_TYPES && overlay !is LevelUpInterface }
 
     /** What the walk packet sent before every world click does, without interrupting the current action. */
     private fun closeWindowsLikeAClick() {
@@ -91,6 +85,5 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
 
     private companion object {
         val LOG_IDS: Set<Int> = Tree.ALL.keys
-        val WINDOW_TYPES = setOf(OverlayType.WIDGET_STANDARD, OverlayType.INPUT)
     }
 }

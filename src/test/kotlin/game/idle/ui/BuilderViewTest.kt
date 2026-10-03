@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 class BuilderViewTest {
 
     private val flow = listOf("chop oak @draynor", "bank deposit all", "drop")
-    private val chop = FakeStepType("chop", listOf(StepField("tree") { listOf("oak") }, StepField("bush") { emptyList() }))
+    private val chop = FakeStepType("chop", listOf(StepField.Choice("tree") { listOf("oak") }, StepField.Choice("bush") { emptyList() }))
     private val drop = FakeStepType("drop")
     private val draft = FlowDraft.first(listOf(chop, drop))
 

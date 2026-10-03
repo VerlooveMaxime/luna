@@ -1,0 +1,34 @@
+package game.idle.autopilot.walk
+
+import game.idle.autopilot.LunaClicks
+import game.idle.location.Tile
+import game.idle.movement.approachTiles
+import io.luna.game.model.mob.Player
+
+/**
+ * [Walker] for a logged-in player. Like the woodcutter, it waits while the player has a window open. A target tile
+ * something stands on is swapped for the nearest free tile next to it, because a path to a blocked tile makes the
+ * pathfinder search its whole node budget before giving up.
+ */
+class LunaWalker(private val player: Player, private val target: Tile) : Walker {
+
+    override fun isBusy(): Boolean = LunaClicks.isActing(player) || LunaClicks.hasBlockingWindow(player)
+
+    override fun position(): Tile = Tile.of(player.position)
+
+    override fun walk() {
+        val collision = player.world.collisionManager
+        val goal = target.toPosition()
+        val tile = if (!collision.isBlocked(goal, false)) {
+            goal
+        } else {
+            approachTiles(goal, size = 1, from = player.position).firstOrNull { !collision.isBlocked(it, false) } ?: goal
+        }
+        player.overlays.closeWindows(false)
+        player.navigator.navigate(tile, true)
+    }
+
+    override fun tell(message: String) {
+        player.sendMessage(message)
+    }
+}

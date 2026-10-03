@@ -6,103 +6,85 @@ import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepField
 import game.idle.flow.StepType
-import game.idle.location.LocationCatalog
+import game.idle.flow.WorkSpot
+import game.idle.location.Area
+import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
-import io.luna.game.model.Position
+import game.skill.woodcutting.cutTree.TreeStump
 import io.luna.game.model.mob.Player
 
-/**
- * `chop <tree> @<location>`: one kind of tree at a location, until the inventory is full. Resolving every location
- * up front validates the data file at boot.
- */
-class ChopStepType(catalog: LocationCatalog) : StepType {
+/** `chop <tree> [within <n>]`: one kind of tree within n tiles of the work spot, until the inventory is full. */
+object ChopStepType : StepType {
 
-    private val spots: Map<String, Map<Tree, WoodcuttingSpot>> =
-        catalog.locations.associate { it.id to WoodcuttingSpot.from(it) }
+    const val DEFAULT_RADIUS = 10
 
-    private val locationIds: List<String> = spots.keys.sorted()
+    /** The radii the builder cycles through; a typed line may use any from 1 to [Area.MAX_RADIUS]. */
+    val RADII = listOf(5, 10, 15, 20, 30)
+
+    /** The kinds Luna has standing trees for, easiest first (teak and mahogany have none yet). */
+    val CUTTABLE: List<Tree> = Tree.entries.filter { !TreeStump.ALIVE_TREE_MAP.get(it).isEmpty() }.sortedBy { it.level }
 
     override val keyword = "chop"
 
     override val label = "chop"
 
-    override val usage = "chop <tree> @<location>"
+    override val usage = "chop <tree> [within <n>]"
 
     override val fields = listOf(
-        StepField("tree") { values -> treesAt(values[LOCATION]) },
-        StepField("location") { locationIds },
+        StepField.Choice("tree") { CUTTABLE.map { it.name.lowercase() } },
+        StepField.Choice("within (tiles)", default = DEFAULT_RADIUS.toString()) { RADII.map { it.toString() } },
     )
 
     override fun parse(words: List<String>): List<String> {
         val tree = words.firstOrNull() ?: throw FlowError("chop needs a tree: $usage")
         if (',' in tree) throw FlowError("One kind of tree per chop step: $usage")
-        val at = words.getOrNull(1)
-        if (at == null || !at.startsWith("@") || at.length == 1) throw FlowError("chop needs a location: chop $tree @<location>")
-        val rest = words.drop(2)
-        if (rest.isNotEmpty()) {
+        val rest = words.drop(1)
+        if (rest.firstOrNull()?.startsWith("@") == true) {
             throw FlowError(
-                "Unexpected '${rest.joinToString(" ")}' after the location. A chop step ends when the inventory is full; " +
-                    "'drop' and 'bank deposit all' are steps of their own, and the flow repeats by itself.",
+                "chop no longer takes a location: put a 'walk' step before it, or leave it out to chop around " +
+                    "where you press Run",
             )
         }
-        return listOf(tree, at.substring(1))
+        val radius = when {
+            rest.isEmpty() -> DEFAULT_RADIUS
+            rest.size == 2 && rest[0] == "within" -> radius(rest[1])
+            else -> throw FlowError("Unexpected '${rest.joinToString(" ")}' after the tree: $usage")
+        }
+        return listOf(tree, radius.toString())
     }
 
-    override fun line(values: List<String>): String = "chop ${values[TREE]} @${values[LOCATION]}"
+    override fun line(values: List<String>): String {
+        val radius = values[RADIUS]
+        return if (radius == DEFAULT_RADIUS.toString()) "chop ${values[TREE]}" else "chop ${values[TREE]} within $radius"
+    }
 
     override fun resolve(values: List<String>, context: FlowContext): ResolvedStep {
-        val spot = spot(values[TREE], spotsAt(values[LOCATION]))
-        return ChopStep(spot, ChopAction(setOf(spot.tree)))
-    }
-
-    /** The chop line behind `::idle`: the spot nearest to [from], null when no location has trees. */
-    fun nearestLine(from: Position): String? {
-        val spot = spots.values.flatMap { it.values }.minWithOrNull(
-            compareBy<WoodcuttingSpot> { it.area.anchor.toPosition().computeLongestDistance(from) }
-                .thenBy { it.location.id }
-                .thenBy { it.tree.level },
-        ) ?: return null
-        return line(spot)
-    }
-
-    /** The chop line behind `::idle` with a location and an optional tree name; without one, the easiest tree there. */
-    fun lineAt(locationId: String, treeName: String?): String {
-        val here = spotsAt(locationId)
-        val spot = if (treeName == null) here.values.minBy { it.tree.level } else spot(treeName, here)
-        return line(spot)
-    }
-
-    /** The kinds of tree at a location, easiest first; empty for an unknown location. */
-    private fun treesAt(locationId: String): List<String> =
-        spots[locationId.lowercase()]?.keys.orEmpty().sortedBy { it.level }.map { it.name.lowercase() }
-
-    private fun line(spot: WoodcuttingSpot): String = line(listOf(spot.tree.name.lowercase(), spot.location.id))
-
-    private fun spotsAt(locationId: String): Map<Tree, WoodcuttingSpot> =
-        spots[locationId.lowercase()]
-            ?: throw FlowError("Unknown location '$locationId'. Locations: ${locationIds.joinToString(", ")}")
-
-    private fun spot(name: String, here: Map<Tree, WoodcuttingSpot>): WoodcuttingSpot {
+        val name = values[TREE]
         val tree = Tree.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
             ?: throw FlowError("'$name' is not a kind of tree")
-        return here[tree] ?: run {
-            val location = here.values.first().location
-            val growing = here.keys.sortedBy { it.level }.joinToString(", ") { it.name.lowercase() }
-            throw FlowError("No $name trees at ${location.name}, only $growing")
-        }
+        if (tree !in CUTTABLE) throw FlowError("There are no $name trees to cut in this world yet")
+        return ChopStep(tree, radius(values[RADIUS]), context.workSpot)
     }
 
-    private companion object {
-        const val TREE = 0
-        const val LOCATION = 1
+    private fun radius(text: String): Int {
+        val radius = text.toIntOrNull()
+        if (radius == null || radius !in 1..Area.MAX_RADIUS) {
+            throw FlowError("within takes a number of tiles from 1 to ${Area.MAX_RADIUS}, not '$text'")
+        }
+        return radius
     }
+
+    private const val TREE = 0
+    private const val RADIUS = 1
 }
 
-/** A chop step resolved: the spot and what to cut there. Later steps know the location and that it gathers logs. */
-data class ChopStep(val spot: WoodcuttingSpot, val action: ChopAction) : ResolvedStep {
+/** A chop step resolved: what to cut, how far from the work spot. Later steps know it gathers logs. */
+data class ChopStep(val tree: Tree, val radius: Int, val workSpot: WorkSpot) : ResolvedStep {
 
-    override fun after(context: FlowContext): FlowContext =
-        context.copy(location = spot.location, gathered = context.gathered + spot.tree.logId)
+    override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + tree.logId)
 
-    override fun activity(player: Player): StepActivity = WoodcuttingActivity(LunaWoodcutter(player, spot), action)
+    override fun activity(player: Player, runTile: Tile): StepActivity {
+        val spot = WoodcuttingSpot(tree, Area(workSpot.tile(runTile), radius))
+        return WoodcuttingActivity(LunaWoodcutter(player, spot), ChopAction(setOf(tree)))
+    }
 }

@@ -2,18 +2,12 @@ package game.idle.flow
 
 import game.idle.autopilot.Autopilot
 import game.idle.autopilot.AutopilotPlayer
-import game.idle.autopilot.woodcutting.ChopStepType
-import io.luna.game.model.Position
 
 /**
- * `::flow add <step>`, `list`, `clear`, `run`, `resume`, `stop`, and the `::idle` shorthand (optional location and tree names)
- * that replaces the flow with chop and drop and runs it.
+ * `::flow add <step>`, `list`, `clear`, `run`, `resume`, `stop`, and the `::idle <tree>` shorthand that replaces the
+ * flow with chopping that tree around the player and dropping the logs, and runs it.
  */
-class FlowCommand<P : AutopilotPlayer>(
-    private val autopilot: Autopilot<P>,
-    private val resolver: FlowResolver,
-    private val chop: ChopStepType,
-) {
+class FlowCommand<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, private val resolver: FlowResolver) {
 
     fun flow(player: P, args: List<String>) {
         val verb = args.firstOrNull()
@@ -29,15 +23,19 @@ class FlowCommand<P : AutopilotPlayer>(
         }
     }
 
-    fun idle(player: P, args: List<String>, from: Position) {
-        if (args.isEmpty() && autopilot.isRunning(player)) return stop(player)
-        val line = try {
-            if (args.isEmpty()) chop.nearestLine(from) else chop.lineAt(args[0], args.getOrNull(1))
+    /** Without a tree, stops a running flow or says how to use it. */
+    fun idle(player: P, args: List<String>) {
+        val tree = args.firstOrNull()
+        if (tree == null) {
+            return if (autopilot.isRunning(player)) stop(player) else player.tell("Autopilot: ::idle <tree> chops it around you.")
+        }
+        val lines = listOf("chop $tree", "drop")
+        try {
+            resolver.resolve(lines)
         } catch (e: FlowError) {
             return player.tell("Autopilot: ${e.message}")
         }
-        if (line == null) return player.tell("Autopilot: no locations are defined.")
-        player.idleState = player.idleState.withFlow(listOf(line, "drop"))
+        player.idleState = player.idleState.withFlow(lines)
         run(player, fromStart = true)
     }
 
@@ -75,7 +73,7 @@ class FlowCommand<P : AutopilotPlayer>(
         } catch (e: FlowError) {
             return player.tell("Autopilot: ${e.message}")
         }
-        player.idleState = if (fromStart) state.atStep(0) else state
+        player.idleState = if (fromStart) state.fromStart() else state
         autopilot.start(player)
         player.tell("Autopilot: running step ${player.idleState.stepIndex + 1}: ${state.flow[player.idleState.stepIndex]}")
     }

@@ -1,5 +1,6 @@
 package game.idle.flow
 
+import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
 /** A resolved step that names itself; whatever it lists in [gathers] the steps after it can rely on. */
@@ -7,7 +8,7 @@ data class FakeStep(val name: String, val gathers: Set<Int> = emptySet()) : Reso
 
     override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + gathers)
 
-    override fun activity(player: Player): StepActivity = error("fake steps start through FakeFlowPlayer")
+    override fun activity(player: Player, runTile: Tile): StepActivity = error("fake steps start through FakeFlowPlayer")
 }
 
 /**

@@ -6,6 +6,7 @@ import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepField
 import game.idle.flow.StepType
+import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
 /** `drop`: drops what the steps before it gathered. */
@@ -35,5 +36,5 @@ object DropStepType : StepType {
 /** A drop step resolved: [itemIds] is what the steps before it gather. */
 data class DropStep(val itemIds: Set<Int>) : ResolvedStep {
 
-    override fun activity(player: Player): StepActivity = DropActivity(LunaItemDropper(player, itemIds))
+    override fun activity(player: Player, runTile: Tile): StepActivity = DropActivity(LunaItemDropper(player, itemIds))
 }

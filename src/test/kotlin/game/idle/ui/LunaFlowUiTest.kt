@@ -9,9 +9,7 @@ import game.idle.autopilot.IdleSteps
 import game.idle.autopilot.LunaAutopilotPlayer
 import game.idle.flow.FlowResolver
 import game.idle.idleState
-import game.idle.location.LocationCatalog
-import game.idle.location.catalogJson
-import game.idle.location.locationJson
+import game.idle.location.BankCatalog
 import game.testworld.TestWorld
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
@@ -24,7 +22,7 @@ import org.junit.jupiter.api.Test
 class LunaFlowUiTest {
 
     private val autopilot = Autopilot<LunaAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
-    private val resolver = FlowResolver(IdleSteps(LocationCatalog.parse(catalogJson(locationJson("bank" to mapOf("x" to 3186, "y" to 3440))))).grammar)
+    private val resolver = FlowResolver(IdleSteps(BankCatalog(emptyList())).grammar)
     private val ui = LunaFlowUi(FlowBuilder(autopilot, resolver))
 
     @AfterEach
@@ -71,7 +69,8 @@ class LunaFlowUiTest {
 
         ui.click(player, FlowWidgets.DRAFT_KIND)
 
-        assertEquals("drop", texts(player)[FlowWidgets.DRAFT_KIND])
+        assertEquals("walk", texts(player)[FlowWidgets.DRAFT_KIND])
+        assertEquals("3200 3200", texts(player)[FlowWidgets.DRAFT_FIELDS[0]])
     }
 
     @Test
@@ -86,13 +85,13 @@ class LunaFlowUiTest {
     @Test
     fun `a tab run starts the flow and shows it on the tab`() {
         val player = login()
-        player.idleState = IdleState(flow = listOf("chop normal @varrock_west"))
+        player.idleState = IdleState(flow = listOf("chop normal"))
 
         ui.click(player, FlowWidgets.TAB_RUN)
 
         assertTrue(autopilot.isRunning(LunaAutopilotPlayer(player)))
         assertEquals("Autopilot: running", texts(player)[FlowWidgets.TAB_STATUS_1])
-        assertEquals(listOf("Running step 1: chop normal @varrock_west"), TestWorld.chatbox(player))
+        assertEquals(listOf("Running step 1: chop normal"), TestWorld.chatbox(player))
     }
 
     @Test

@@ -22,7 +22,7 @@ interface Terrain {
 }
 
 /**
- * Turns the trees standing around a location's anchor into [TreeCandidate]s ranked by walking distance from the
+ * Turns the trees standing around the chop step's anchor into [TreeCandidate]s ranked by walking distance from the
  * player. A player farther than [maxWalk] tiles from the anchor gets no candidates and walks back first.
  */
 class TreeScan(private val anchor: Position, private val radius: Int, private val maxWalk: Int = MAX_WALK) {

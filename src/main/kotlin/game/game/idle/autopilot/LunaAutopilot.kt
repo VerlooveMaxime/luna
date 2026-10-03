@@ -5,6 +5,7 @@ import game.idle.flow.FlowPlayer
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.idleState
+import game.idle.location.Tile
 import game.idle.ui.IdleUi
 import io.luna.game.model.World
 import io.luna.game.model.mob.Player
@@ -23,6 +24,9 @@ class LunaAutopilotPlayer(val player: Player) : AutopilotPlayer, FlowPlayer {
             IdleUi.refresh(player, value)
         }
 
+    override val tile: Tile
+        get() = Tile.of(player.position)
+
     override fun tell(message: String) {
         player.sendMessage(message)
     }
@@ -31,7 +35,8 @@ class LunaAutopilotPlayer(val player: Player) : AutopilotPlayer, FlowPlayer {
         idleState = idleState.atStep(index)
     }
 
-    override fun activity(step: ResolvedStep): StepActivity = step.activity(player)
+    /** A flow is started before its first activity, so the run tile is set; the player's tile only guards a gap. */
+    override fun activity(step: ResolvedStep): StepActivity = step.activity(player, idleState.runTile ?: tile)
 }
 
 class WorldTickScheduler(private val world: World) : TickScheduler {

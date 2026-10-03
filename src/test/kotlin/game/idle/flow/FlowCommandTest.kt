@@ -7,12 +7,12 @@ import game.idle.autopilot.FakeActivity
 import game.idle.autopilot.FakeAutopilotPlayer
 import game.idle.autopilot.FakeTickScheduler
 import game.idle.autopilot.IdleSteps
-import game.idle.location.LocationCatalog
-import game.idle.location.catalogJson
-import game.idle.location.locationJson
-import io.luna.game.model.Position
+import game.idle.location.Bank
+import game.idle.location.BankCatalog
+import game.idle.location.Tile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -20,39 +20,37 @@ class FlowCommandTest {
 
     private val scheduler = FakeTickScheduler()
     private val autopilot = Autopilot<FakeAutopilotPlayer>(scheduler) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
-    private val steps = IdleSteps(LocationCatalog.parse(catalogJson(locationJson("bank" to mapOf("x" to 3186, "y" to 3440)))))
-    private val resolver = FlowResolver(steps.grammar)
-    private val command = FlowCommand(autopilot, resolver, steps.chop)
+    private val banks = BankCatalog(listOf(Bank("varrock_west", "Varrock west bank", Tile(3186, 3440))))
+    private val command = FlowCommand(autopilot, FlowResolver(IdleSteps(banks).grammar))
 
     private val player = FakeAutopilotPlayer("maxime")
-    private val here = Position(3182, 3440, 0)
 
     private fun flow(vararg args: String) = command.flow(player, args.toList())
 
     @Test
     fun `add appends a valid step`() {
-        flow("add", "chop", "normal", "@varrock_west")
+        flow("add", "chop", "normal")
 
-        assertEquals(listOf("chop normal @varrock_west"), player.idleState.flow)
-        assertEquals(listOf("Autopilot: step 1: chop normal @varrock_west"), player.told)
+        assertEquals(listOf("chop normal"), player.idleState.flow)
+        assertEquals(listOf("Autopilot: step 1: chop normal"), player.told)
     }
 
     @Test
     fun `add rejects a step that does not fit the flow`() {
-        flow("add", "bank", "deposit", "all")
+        flow("add", "drop")
 
         assertEquals(emptyList<String>(), player.idleState.flow)
-        assertEquals(listOf("Autopilot: Step 1: bank comes after a chop step, so the flow knows which bank to use"), player.told)
+        assertEquals(listOf("Autopilot: Step 1: drop comes after a chop step, so the flow knows what to drop"), player.told)
     }
 
     @Test
     fun `add while running is refused`() {
-        flow("add", "chop", "normal", "@varrock_west")
+        flow("add", "chop", "normal")
         flow("run")
 
         flow("add", "drop")
 
-        assertEquals(listOf("chop normal @varrock_west"), player.idleState.flow)
+        assertEquals(listOf("chop normal"), player.idleState.flow)
         assertEquals("Autopilot: stop the flow first (::flow stop).", player.told.last())
     }
 
@@ -65,16 +63,16 @@ class FlowCommandTest {
 
     @Test
     fun `list numbers the steps and shows where it is`() {
-        player.idleState = IdleState(flow = listOf("chop normal @varrock_west", "drop"), stepIndex = 1)
+        player.idleState = IdleState(flow = listOf("chop normal", "drop"), stepIndex = 1)
 
         flow("list")
 
-        assertEquals(listOf("Autopilot: flow (stopped, at step 2):", "1. chop normal @varrock_west", "2. drop"), player.told)
+        assertEquals(listOf("Autopilot: flow (stopped, at step 2):", "1. chop normal", "2. drop"), player.told)
     }
 
     @Test
     fun `list says when it is running`() {
-        flow("add", "chop", "normal", "@varrock_west")
+        flow("add", "chop", "normal")
         flow("run")
 
         flow("list")
@@ -84,7 +82,7 @@ class FlowCommandTest {
 
     @Test
     fun `clear stops and empties the flow`() {
-        flow("add", "chop", "normal", "@varrock_west")
+        flow("add", "chop", "normal")
         flow("run")
 
         flow("clear")
@@ -95,23 +93,25 @@ class FlowCommandTest {
     }
 
     @Test
-    fun `run starts from the first step`() {
-        player.idleState = IdleState(flow = listOf("chop normal @varrock_west", "drop"), stepIndex = 1)
+    fun `run starts from the first step, on the player's tile`() {
+        player.idleState = IdleState(flow = listOf("chop normal", "drop"), stepIndex = 1, runTile = Tile(1, 2))
 
         flow("run")
 
         assertTrue(autopilot.isRunning(player))
         assertEquals(0, player.idleState.stepIndex)
-        assertEquals(listOf("Autopilot: running step 1: chop normal @varrock_west"), player.told)
+        assertEquals(player.tile, player.idleState.runTile)
+        assertEquals(listOf("Autopilot: running step 1: chop normal"), player.told)
     }
 
     @Test
-    fun `resume continues from the saved step`() {
-        player.idleState = IdleState(flow = listOf("chop normal @varrock_west", "drop"), stepIndex = 1)
+    fun `resume continues from the saved step and its run tile`() {
+        player.idleState = IdleState(flow = listOf("chop normal", "drop"), stepIndex = 1, runTile = Tile(1, 2))
 
         flow("resume")
 
         assertEquals(1, player.idleState.stepIndex)
+        assertEquals(Tile(1, 2), player.idleState.runTile)
         assertEquals(listOf("Autopilot: running step 2: drop"), player.told)
     }
 
@@ -125,17 +125,17 @@ class FlowCommandTest {
 
     @Test
     fun `run with a flow that no longer resolves explains`() {
-        player.idleState = IdleState(flow = listOf("chop normal @atlantis"))
+        player.idleState = IdleState(flow = listOf("bank @atlantis"))
 
         flow("run")
 
         assertFalse(autopilot.isRunning(player))
-        assertEquals(listOf("Autopilot: Step 1: Unknown location 'atlantis'. Locations: varrock_west"), player.told)
+        assertEquals(listOf("Autopilot: Step 1: Unknown bank 'atlantis'. Banks: varrock_west"), player.told)
     }
 
     @Test
     fun `stop stops`() {
-        flow("add", "chop", "normal", "@varrock_west")
+        flow("add", "chop", "normal")
         flow("run")
 
         flow("stop")
@@ -148,7 +148,10 @@ class FlowCommandTest {
     fun `an unknown verb prints the usage`() {
         flow("dance")
 
-        assertEquals(listOf("::flow add <step> | list | clear | run | resume | stop. Steps: chop <tree> @<location>, drop, bank deposit all"), player.told)
+        assertEquals(
+            listOf("::flow add <step> | list | clear | run | resume | stop. Steps: chop <tree> [within <n>], walk <x> <y>, drop, bank nearest|@<bank>"),
+            player.told,
+        )
     }
 
     @Test
@@ -159,46 +162,41 @@ class FlowCommandTest {
     }
 
     @Test
-    fun `idle alone replaces the flow with power chopping at the nearest location`() {
-        command.idle(player, emptyList(), here)
+    fun `idle with a tree chops it around the player and drops the logs`() {
+        player.idleState = IdleState(runTile = Tile(1, 2))
+
+        command.idle(player, listOf("oak"))
 
         assertTrue(autopilot.isRunning(player))
-        assertEquals(listOf("chop normal @varrock_west", "drop"), player.idleState.flow)
-        assertEquals(listOf("Autopilot: running step 1: chop normal @varrock_west"), player.told)
+        assertEquals(listOf("chop oak", "drop"), player.idleState.flow)
+        assertEquals(player.tile, player.idleState.runTile)
+        assertEquals(listOf("Autopilot: running step 1: chop oak"), player.told)
     }
 
     @Test
     fun `idle alone while running stops`() {
-        command.idle(player, emptyList(), here)
+        command.idle(player, listOf("oak"))
 
-        command.idle(player, emptyList(), here)
+        command.idle(player, emptyList())
 
         assertFalse(autopilot.isRunning(player))
         assertEquals("Autopilot: stopped.", player.told.last())
     }
 
     @Test
-    fun `idle with a location and tree`() {
-        command.idle(player, listOf("varrock_west", "normal"), here)
+    fun `idle alone while stopped says how to use it`() {
+        command.idle(player, emptyList())
 
-        assertEquals(listOf("chop normal @varrock_west", "drop"), player.idleState.flow)
+        assertEquals(listOf("Autopilot: ::idle <tree> chops it around you."), player.told)
     }
 
     @Test
-    fun `idle with a bad location explains and changes nothing`() {
-        command.idle(player, listOf("atlantis"), here)
+    fun `idle with a bad tree explains and changes nothing`() {
+        command.idle(player, listOf("palm"))
 
         assertFalse(autopilot.isRunning(player))
-        assertEquals(listOf("Autopilot: Unknown location 'atlantis'. Locations: varrock_west"), player.told)
-    }
-
-    @Test
-    fun `idle with no locations explains`() {
-        val none = IdleSteps(LocationCatalog.parse("{}"))
-        val empty = FlowCommand(autopilot, FlowResolver(none.grammar), none.chop)
-
-        empty.idle(player, emptyList(), here)
-
-        assertEquals(listOf("Autopilot: no locations are defined."), player.told)
+        assertEquals(emptyList<String>(), player.idleState.flow)
+        assertNull(player.idleState.runTile)
+        assertEquals(listOf("Autopilot: Step 1: 'palm' is not a kind of tree"), player.told)
     }
 }

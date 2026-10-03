@@ -1,0 +1,29 @@
+{
+  // Banks a flow's bank step can use: `bank @<id>`, or `bank nearest`, which takes the one closest to the player in a
+  // straight line on the player's floor when the step starts.
+  //
+  //   id     unique, what flows refer to
+  //   name   shown to the player
+  //   booth  tile of a bank booth (z = floor, 0 by default); the step walks to a tile it can be used from
+  //
+  // Booths come from the cache (2026-10-03 survey of booth clusters, .memory/artifacts/2026-10-03-booth-clusters.txt);
+  // BanksDataTest checks that every tile holds one. Listed: the ground-floor banks a character can walk to from
+  // Lumbridge without a requirement. Left out: Tutorial Island, the Fishing Guild, Castle Wars, Nardah (Shantay
+  // pass), Port Phasmatys and Mos Le'Harmless, the Void Knights' outpost, banks upstairs (Gnome Stronghold, Canifis)
+  // and underground. There is no bank in Lumbridge in this revision. Walked to and used live: varrock_west and
+  // draynor (2026-09-30); the others are checked against the cache only.
+  "banks": [
+    { "id": "varrock_west", "name": "Varrock west bank", "booth": { "x": 3186, "y": 3440 } },
+    { "id": "varrock_east", "name": "Varrock east bank", "booth": { "x": 3254, "y": 3419 } },
+    { "id": "edgeville", "name": "Edgeville bank", "booth": { "x": 3095, "y": 3489 } },
+    { "id": "draynor", "name": "Draynor Village bank", "booth": { "x": 3091, "y": 3242 } },
+    { "id": "falador_west", "name": "Falador west bank", "booth": { "x": 2947, "y": 3367 } },
+    { "id": "falador_east", "name": "Falador east bank", "booth": { "x": 3012, "y": 3354 } },
+    { "id": "al_kharid", "name": "Al Kharid bank", "booth": { "x": 3268, "y": 3167 } },
+    { "id": "seers", "name": "Seers' Village bank", "booth": { "x": 2721, "y": 3494 } },
+    { "id": "catherby", "name": "Catherby bank", "booth": { "x": 2807, "y": 3442 } },
+    { "id": "ardougne_north", "name": "Ardougne north bank", "booth": { "x": 2618, "y": 3331 } },
+    { "id": "ardougne_south", "name": "Ardougne south bank", "booth": { "x": 2656, "y": 3283 } },
+    { "id": "yanille", "name": "Yanille bank", "booth": { "x": 2614, "y": 3092 } }
+  ]
+}

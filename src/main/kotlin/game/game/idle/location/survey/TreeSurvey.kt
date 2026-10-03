@@ -1,13 +1,13 @@
 package game.idle.location.survey
 
-import game.idle.location.LocationCatalog
+import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
 import kotlin.math.roundToInt
 
 /**
- * A place that could become a location row for [tree]: [trees] counts every kind standing within [radius] of
- * [anchor], [bank] is the nearest booth on the floor in straight-line tiles (walking is at least as far).
+ * A place worth chopping [tree] at: [trees] counts every kind standing within [radius] of [anchor], [bank] is the
+ * nearest booth on the floor in straight-line tiles (walking is at least as far).
  */
 data class SpotCandidate(
     val tree: Tree,
@@ -22,12 +22,12 @@ data class SpotCandidate(
 /**
  * Finds where trees of one kind stand close together. The untaken tree with the most untaken trees of its kind within
  * [window] tiles seeds a candidate and those trees are taken, so each tree belongs to one candidate at most and the
- * densest spots come first. Stops once no tree has [minTrees] around it, so every candidate passes [LocationAudit].
+ * densest spots come first. Stops once no tree has [minTrees] around it.
  */
 class TreeSurvey(
     private val map: SurveyMap,
     private val window: Int = DEFAULT_WINDOW,
-    private val minTrees: Int = LocationAudit.MIN_TREES,
+    private val minTrees: Int = MIN_TREES,
 ) {
 
     fun candidates(tree: Tree): List<SpotCandidate> {
@@ -69,7 +69,10 @@ class TreeSurvey(
     }
 
     companion object {
-        /** A candidate's trees then lie within twice this of its anchor, a radius the data file accepts. */
-        const val DEFAULT_WINDOW = LocationCatalog.MAX_RADIUS / 2
+        /** A candidate's trees then lie within twice this of its anchor, a radius a chop step accepts. */
+        const val DEFAULT_WINDOW = Area.MAX_RADIUS / 2
+
+        /** One tree is not a spot. */
+        const val MIN_TREES = 2
     }
 }

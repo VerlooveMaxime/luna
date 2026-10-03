@@ -1,6 +1,7 @@
 package game.idle.autopilot
 
 import game.idle.IdleState
+import game.idle.location.Tile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -25,6 +26,22 @@ class AutopilotTest {
         assertTrue(idle.idleState.running)
         assertTrue(autopilot.isRunning(idle))
         assertEquals(1, scheduler.activeCount)
+    }
+
+    @Test
+    fun `a flow started without a run tile takes the player's tile`() {
+        autopilot.start(idle)
+
+        assertEquals(idle.tile, idle.idleState.runTile)
+    }
+
+    @Test
+    fun `a flow resuming keeps its run tile`() {
+        val resuming = FakeAutopilotPlayer("maxime", IdleState(flow = listOf("loop"), runTile = Tile(1, 2)))
+
+        autopilot.start(resuming)
+
+        assertEquals(Tile(1, 2), resuming.idleState.runTile)
     }
 
     @Test
