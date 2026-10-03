@@ -6,6 +6,7 @@ import game.idle.autopilot.AutopilotDriver
 import game.idle.autopilot.FakeActivity
 import game.idle.autopilot.FakeAutopilotPlayer
 import game.idle.autopilot.FakeTickScheduler
+import game.idle.autopilot.IdleSteps
 import game.idle.location.LocationCatalog
 import game.idle.location.catalogJson
 import game.idle.location.locationJson
@@ -19,10 +20,9 @@ class FlowCommandTest {
 
     private val scheduler = FakeTickScheduler()
     private val autopilot = Autopilot<FakeAutopilotPlayer>(scheduler) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
-    private val resolver = FlowResolver(
-        LocationCatalog.parse(catalogJson(locationJson("bank" to mapOf("x" to 3186, "y" to 3440)))),
-    )
-    private val command = FlowCommand(autopilot, resolver)
+    private val steps = IdleSteps(LocationCatalog.parse(catalogJson(locationJson("bank" to mapOf("x" to 3186, "y" to 3440)))))
+    private val resolver = FlowResolver(steps.grammar)
+    private val command = FlowCommand(autopilot, resolver, steps.chop)
 
     private val player = FakeAutopilotPlayer("maxime")
     private val here = Position(3182, 3440, 0)
@@ -148,7 +148,7 @@ class FlowCommandTest {
     fun `an unknown verb prints the usage`() {
         flow("dance")
 
-        assertEquals(listOf("::flow add <step> | list | clear | run | resume | stop. Steps: ${FlowParser.HELP}"), player.told)
+        assertEquals(listOf("::flow add <step> | list | clear | run | resume | stop. Steps: chop <tree> @<location>, drop, bank deposit all"), player.told)
     }
 
     @Test
@@ -194,7 +194,8 @@ class FlowCommandTest {
 
     @Test
     fun `idle with no locations explains`() {
-        val empty = FlowCommand(autopilot, FlowResolver(LocationCatalog.parse("{}")))
+        val none = IdleSteps(LocationCatalog.parse("{}"))
+        val empty = FlowCommand(autopilot, FlowResolver(none.grammar), none.chop)
 
         empty.idle(player, emptyList(), here)
 

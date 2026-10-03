@@ -9,8 +9,7 @@ sealed interface BuilderAction {
     data class MoveDown(val row: Int) : BuilderAction
     data class Delete(val row: Int) : BuilderAction
     data object CycleKind : BuilderAction
-    data object CycleResource : BuilderAction
-    data object CycleLocation : BuilderAction
+    data class CycleField(val index: Int) : BuilderAction
     data object Add : BuilderAction
     data object NewStep : BuilderAction
     data object Run : BuilderAction
@@ -44,8 +43,6 @@ object FlowWidgets {
 
     const val DRAFT_LABEL = 30200
     const val DRAFT_KIND = 30201
-    const val DRAFT_RESOURCE = 30202
-    const val DRAFT_LOCATION = 30203
     const val DRAFT_ADD = 30207
     const val DRAFT_NEW = 30208
 
@@ -54,6 +51,10 @@ object FlowWidgets {
     const val STOP = 30212
     const val CLEAR = 30213
     const val MESSAGE = 30214
+
+    /** The draft step's field buttons and the labels above them, as many as a kind of step may have fields. */
+    val DRAFT_FIELDS = listOf(30202, 30203, 30204)
+    val DRAFT_FIELD_LABELS = listOf(30221, 30222, 30223)
 
     fun rowText(row: Int): Int = ROW_BASE + row * ROW_STRIDE
 
@@ -74,8 +75,7 @@ object FlowWidgets {
             TAB_STOP, STOP -> BuilderAction.Stop
             CLEAR -> BuilderAction.Clear
             DRAFT_KIND -> BuilderAction.CycleKind
-            DRAFT_RESOURCE -> BuilderAction.CycleResource
-            DRAFT_LOCATION -> BuilderAction.CycleLocation
+            in DRAFT_FIELDS -> BuilderAction.CycleField(DRAFT_FIELDS.indexOf(widgetId))
             DRAFT_ADD -> BuilderAction.Add
             DRAFT_NEW -> BuilderAction.NewStep
             in ROW_BASE until ROW_BASE + ROWS * ROW_STRIDE -> rowAction(widgetId)

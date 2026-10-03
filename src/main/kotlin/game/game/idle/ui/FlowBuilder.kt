@@ -3,7 +3,6 @@ package game.idle.ui
 import game.idle.autopilot.Autopilot
 import game.idle.autopilot.AutopilotPlayer
 import game.idle.flow.FlowError
-import game.idle.flow.FlowParser
 import game.idle.flow.FlowResolver
 
 /** What the game has to do after a click, besides showing the new texts. */
@@ -21,12 +20,20 @@ sealed interface ClickResult {
  */
 class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, private val resolver: FlowResolver) {
 
+    private val types = resolver.grammar.types
+
+    init {
+        require(types.all { it.fields.size <= FlowWidgets.DRAFT_FIELDS.size }) {
+            "The builder shows ${FlowWidgets.DRAFT_FIELDS.size} fields per step at most"
+        }
+    }
+
     private val drafts = mutableMapOf<String, FlowDraft>()
     private val messages = mutableMapOf<String, String>()
     private val editing = mutableMapOf<String, Int>()
 
     fun draft(player: P): FlowDraft =
-        drafts.getOrPut(player.username) { FlowDraft.first(resolver.locationIds, resolver::treesAt) }
+        drafts.getOrPut(player.username) { FlowDraft.first(types) }
 
     fun message(player: P): String = messages[player.username] ?: ""
 
@@ -52,9 +59,8 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
             is BuilderAction.MoveUp -> edit(player) { moved(it, action.row, action.row - 1) }
             is BuilderAction.MoveDown -> edit(player) { moved(it, action.row, action.row + 1) }
             is BuilderAction.Delete -> edit(player) { lines -> lines.filterIndexed { row, _ -> row != action.row } }
-            BuilderAction.CycleKind -> redraft(player) { it.nextKind() }
-            BuilderAction.CycleResource -> redraft(player) { it.nextResource(resolver.treesAt(it.locationId)) }
-            BuilderAction.CycleLocation -> redraft(player) { it.nextLocation(resolver.locationIds, resolver::treesAt) }
+            BuilderAction.CycleKind -> redraft(player) { it.nextType(types) }
+            is BuilderAction.CycleField -> redraft(player) { it.nextValue(action.index) }
             BuilderAction.Add -> add(player)
             BuilderAction.Run -> run(player)
             BuilderAction.Stop -> stop(player)
@@ -76,7 +82,7 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
     private fun load(player: P, row: Int): ClickResult {
         val line = player.idleState.flow.getOrNull(row) ?: return say(player, "")
         val step = try {
-            FlowParser.parse(line)
+            resolver.grammar.parse(line)
         } catch (e: FlowError) {
             return say(player, e.message)
         }

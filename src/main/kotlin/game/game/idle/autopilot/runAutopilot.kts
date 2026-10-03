@@ -18,20 +18,22 @@ import io.luna.game.event.impl.LogoutEvent
 val config = AutopilotConfig.load(AutopilotConfig.PATH)
 
 // Resolved at boot so a typo in the data file stops the server instead of surfacing at the first `::idle`.
-val resolver = FlowResolver(LocationCatalog.load(LocationCatalog.PATH))
-logger.info("Loaded {} idle locations.", resolver.size)
+val catalog = LocationCatalog.load(LocationCatalog.PATH)
+val steps = IdleSteps(catalog)
+val resolver = FlowResolver(steps.grammar)
+logger.info("Loaded {} idle locations.", catalog.locations.size)
 
 val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world)) { autopilotPlayer ->
     val state = autopilotPlayer.idleState
-    val steps = try {
+    val resolved = try {
         resolver.resolve(state.flow)
     } catch (e: FlowError) {
         null
     }
-    steps?.let { AutopilotDriver(FlowRunner(it, state.stepIndex, autopilotPlayer, autopilotPlayer), config.decisionDelayTicks) }
+    resolved?.let { AutopilotDriver(FlowRunner(it, state.stepIndex, autopilotPlayer), config.decisionDelayTicks) }
 }
 
-val flowCommand = FlowCommand(autopilot, resolver)
+val flowCommand = FlowCommand(autopilot, resolver, steps.chop)
 val flowUi = LunaFlowUi(FlowBuilder(autopilot, resolver))
 
 on(LoginEvent::class)

@@ -1,15 +1,8 @@
 package game.idle.autopilot
 
 import game.idle.IdleState
-import game.idle.autopilot.bank.BankActivity
-import game.idle.autopilot.bank.LunaBanker
-import game.idle.autopilot.drop.DropActivity
-import game.idle.autopilot.drop.LunaItemDropper
-import game.idle.autopilot.woodcutting.LunaWoodcutter
-import game.idle.autopilot.woodcutting.WoodcuttingActivity
 import game.idle.flow.FlowPlayer
 import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivities
 import game.idle.flow.StepActivity
 import game.idle.idleState
 import game.idle.ui.IdleUi
@@ -17,7 +10,7 @@ import io.luna.game.model.World
 import io.luna.game.model.mob.Player
 import io.luna.game.task.Task
 
-class LunaAutopilotPlayer(val player: Player) : AutopilotPlayer, FlowPlayer, StepActivities {
+class LunaAutopilotPlayer(val player: Player) : AutopilotPlayer, FlowPlayer {
 
     override val username: String
         get() = player.username
@@ -38,13 +31,7 @@ class LunaAutopilotPlayer(val player: Player) : AutopilotPlayer, FlowPlayer, Ste
         idleState = idleState.atStep(index)
     }
 
-    override fun chop(step: ResolvedStep.Chop): StepActivity =
-        WoodcuttingActivity(LunaWoodcutter(player, step.spot), step.action)
-
-    override fun drop(step: ResolvedStep.Drop): StepActivity = DropActivity(LunaItemDropper(player, step.itemIds))
-
-    override fun bank(step: ResolvedStep.Bank): StepActivity =
-        BankActivity(LunaBanker(player, step.booth.toPosition()))
+    override fun activity(step: ResolvedStep): StepActivity = step.activity(player)
 }
 
 class WorldTickScheduler(private val world: World) : TickScheduler {

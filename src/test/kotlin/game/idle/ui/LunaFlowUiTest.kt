@@ -5,6 +5,7 @@ import game.idle.autopilot.Autopilot
 import game.idle.autopilot.AutopilotDriver
 import game.idle.autopilot.FakeActivity
 import game.idle.autopilot.FakeTickScheduler
+import game.idle.autopilot.IdleSteps
 import game.idle.autopilot.LunaAutopilotPlayer
 import game.idle.flow.FlowResolver
 import game.idle.idleState
@@ -23,7 +24,7 @@ import org.junit.jupiter.api.Test
 class LunaFlowUiTest {
 
     private val autopilot = Autopilot<LunaAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
-    private val resolver = FlowResolver(LocationCatalog.parse(catalogJson(locationJson("bank" to mapOf("x" to 3186, "y" to 3440)))))
+    private val resolver = FlowResolver(IdleSteps(LocationCatalog.parse(catalogJson(locationJson("bank" to mapOf("x" to 3186, "y" to 3440))))).grammar)
     private val ui = LunaFlowUi(FlowBuilder(autopilot, resolver))
 
     @AfterEach

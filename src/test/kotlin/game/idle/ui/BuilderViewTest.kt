@@ -1,14 +1,17 @@
 package game.idle.ui
 
 import game.idle.IdleState
+import game.idle.flow.FakeStepType
+import game.idle.flow.StepField
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class BuilderViewTest {
 
     private val flow = listOf("chop oak @draynor", "bank deposit all", "drop")
-    private val draft = FlowDraft(resource = "oak", locationId = "draynor")
-    private val draftFields = listOf(FlowWidgets.DRAFT_KIND, FlowWidgets.DRAFT_RESOURCE, FlowWidgets.DRAFT_LOCATION)
+    private val chop = FakeStepType("chop", listOf(StepField("tree") { listOf("oak") }, StepField("bush") { emptyList() }))
+    private val drop = FakeStepType("drop")
+    private val draft = FlowDraft.first(listOf(chop, drop))
 
     @Test
     fun `rows number the steps and mark the running one`() {
@@ -42,22 +45,19 @@ class BuilderViewTest {
     }
 
     @Test
-    fun `a chop draft shows its resource and location`() {
+    fun `a draft shows its kind, its fields and their labels, blank where it has none`() {
         val texts = BuilderView.draftTexts(draft, editing = null)
 
-        assertEquals(listOf("chop", "oak", "@draynor"), draftFields.map(texts::getValue))
+        assertEquals("chop label", texts[FlowWidgets.DRAFT_KIND])
+        assertEquals(listOf("tree", "bush", ""), FlowWidgets.DRAFT_FIELD_LABELS.map(texts::getValue))
+        assertEquals(listOf("oak", "-", ""), FlowWidgets.DRAFT_FIELDS.map(texts::getValue))
     }
 
     @Test
-    fun `a chop draft without a resource says so`() {
-        assertEquals("-", BuilderView.draftTexts(draft.copy(resource = ""), editing = null)[FlowWidgets.DRAFT_RESOURCE])
-    }
+    fun `a kind of step without fields blanks every field and label`() {
+        val texts = BuilderView.draftTexts(draft.nextType(listOf(chop, drop)), editing = null)
 
-    @Test
-    fun `a drop draft blanks the chop fields`() {
-        val texts = BuilderView.draftTexts(draft.copy(kind = StepKind.DROP), editing = null)
-
-        assertEquals(listOf("drop", "-", "-"), draftFields.map(texts::getValue))
+        assertEquals(List(6) { "" }, (FlowWidgets.DRAFT_FIELD_LABELS + FlowWidgets.DRAFT_FIELDS).map(texts::getValue))
     }
 
     @Test
@@ -81,7 +81,7 @@ class BuilderViewTest {
         val texts = BuilderView.texts(IdleState(flow = flow), draft, "Step 3 added: drop", editing = null)
 
         assertEquals("1. chop oak @draynor", texts[FlowWidgets.rowText(0)])
-        assertEquals("chop", texts[FlowWidgets.DRAFT_KIND])
+        assertEquals("chop label", texts[FlowWidgets.DRAFT_KIND])
         assertEquals("Step 3 added: drop", texts[FlowWidgets.MESSAGE])
     }
 

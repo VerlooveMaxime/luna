@@ -30,8 +30,8 @@ class FlowWidgetsTest {
     @Test
     fun `draft fields map to their actions`() {
         assertEquals(BuilderAction.CycleKind, FlowWidgets.action(FlowWidgets.DRAFT_KIND))
-        assertEquals(BuilderAction.CycleResource, FlowWidgets.action(FlowWidgets.DRAFT_RESOURCE))
-        assertEquals(BuilderAction.CycleLocation, FlowWidgets.action(FlowWidgets.DRAFT_LOCATION))
+        assertEquals(BuilderAction.CycleField(0), FlowWidgets.action(FlowWidgets.DRAFT_FIELDS[0]))
+        assertEquals(BuilderAction.CycleField(2), FlowWidgets.action(FlowWidgets.DRAFT_FIELDS[2]))
         assertEquals(BuilderAction.Add, FlowWidgets.action(FlowWidgets.DRAFT_ADD))
         assertEquals(BuilderAction.NewStep, FlowWidgets.action(FlowWidgets.DRAFT_NEW))
     }
@@ -53,6 +53,7 @@ class FlowWidgetsTest {
     fun `labels and unknown ids do nothing`() {
         assertNull(FlowWidgets.action(FlowWidgets.STATUS))
         assertNull(FlowWidgets.action(FlowWidgets.DRAFT_LABEL))
+        assertNull(FlowWidgets.action(FlowWidgets.DRAFT_FIELD_LABELS[0]))
         assertNull(FlowWidgets.action(FlowWidgets.TAB_STATUS_1))
         assertNull(FlowWidgets.action(1))
     }

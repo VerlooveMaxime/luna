@@ -6,7 +6,13 @@ import game.idle.autopilot.AutopilotDriver
 import game.idle.autopilot.FakeActivity
 import game.idle.autopilot.FakeAutopilotPlayer
 import game.idle.autopilot.FakeTickScheduler
+import game.idle.autopilot.IdleSteps
+import game.idle.autopilot.bank.BankStepType
+import game.idle.autopilot.drop.DropStepType
+import game.idle.flow.FakeStepType
+import game.idle.flow.FlowGrammar
 import game.idle.flow.FlowResolver
+import game.idle.flow.StepField
 import game.idle.location.LocationCatalog
 import game.idle.location.catalogJson
 import game.idle.location.locationJson
@@ -16,11 +22,12 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class FlowBuilderTest {
 
     private val autopilot = Autopilot<FakeAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
-    private val resolver = FlowResolver(
+    private val steps = IdleSteps(
         LocationCatalog.parse(
             catalogJson(
                 locationJson("id" to "draynor", "name" to "Draynor", "trees" to trees("willow", "normal"), "bank" to null),
@@ -28,6 +35,7 @@ class FlowBuilderTest {
             ),
         ),
     )
+    private val resolver = FlowResolver(steps.grammar)
     private val builder = FlowBuilder(autopilot, resolver)
     private val player = FakeAutopilotPlayer("maxime")
 
@@ -36,7 +44,14 @@ class FlowBuilderTest {
 
     @Test
     fun `the first draft chops the easiest tree of the first location`() {
-        assertEquals(FlowDraft(resource = "normal", locationId = "draynor"), builder.draft(player))
+        assertEquals("chop normal @draynor", builder.draft(player).line())
+    }
+
+    @Test
+    fun `a grammar with more fields per step than the screen shows is refused`() {
+        val wide = FakeStepType("wide", List(4) { StepField("field $it") { emptyList() } })
+
+        assertThrows<IllegalArgumentException> { FlowBuilder(autopilot, FlowResolver(FlowGrammar(listOf(wide)))) }
     }
 
     @Test
@@ -58,26 +73,42 @@ class FlowBuilderTest {
     }
 
     @Test
-    fun `the resource cycles on click`() {
-        builder.click(player, FlowWidgets.DRAFT_RESOURCE)
+    fun `a field cycles on click`() {
+        builder.click(player, FlowWidgets.DRAFT_FIELDS[0])
 
-        assertEquals(FlowDraft(resource = "willow", locationId = "draynor"), builder.draft(player))
+        assertEquals("chop willow @draynor", builder.draft(player).line())
     }
 
     @Test
-    fun `changing the location resets the resource`() {
-        builder.click(player, FlowWidgets.DRAFT_RESOURCE)
+    fun `changing the location moves a tree that does not grow there to one that does`() {
+        builder.click(player, FlowWidgets.DRAFT_FIELDS[0])
 
-        assertEquals(ClickResult.Refresh, builder.click(player, FlowWidgets.DRAFT_LOCATION))
+        assertEquals(ClickResult.Refresh, builder.click(player, FlowWidgets.DRAFT_FIELDS[1]))
 
-        assertEquals(FlowDraft(resource = "normal", locationId = "varrock_west"), builder.draft(player))
+        assertEquals("chop normal @varrock_west", builder.draft(player).line())
     }
 
     @Test
     fun `the kind cycles and the chop fields are kept`() {
+        builder.click(player, FlowWidgets.DRAFT_FIELDS[0])
+
         builder.click(player, FlowWidgets.DRAFT_KIND)
 
-        assertEquals(FlowDraft(kind = StepKind.DROP, resource = "normal", locationId = "draynor"), builder.draft(player))
+        assertEquals(DropStepType, builder.draft(player).type)
+
+        builder.click(player, FlowWidgets.DRAFT_KIND)
+        builder.click(player, FlowWidgets.DRAFT_KIND)
+
+        assertEquals("chop willow @draynor", builder.draft(player).line())
+    }
+
+    @Test
+    fun `a field the kind of step does not have does nothing`() {
+        builder.click(player, FlowWidgets.DRAFT_KIND)
+
+        assertEquals(ClickResult.Refresh, builder.click(player, FlowWidgets.DRAFT_FIELDS[0]))
+
+        assertEquals("drop", builder.draft(player).line())
     }
 
     @Test
@@ -162,7 +193,7 @@ class FlowBuilderTest {
         builder.click(player, FlowWidgets.rowText(1))
 
         assertEquals(1, builder.editing(player))
-        assertEquals(FlowDraft(kind = StepKind.DROP, resource = "normal", locationId = "draynor"), builder.draft(player))
+        assertEquals("drop", builder.draft(player).line())
         assertEquals("Editing step 2. Change the fields, then save.", builder.message(player))
     }
 
@@ -217,7 +248,7 @@ class FlowBuilderTest {
         builder.click(player, FlowWidgets.DRAFT_NEW)
 
         assertNull(builder.editing(player))
-        assertEquals(StepKind.BANK, builder.draft(player).kind)
+        assertEquals(BankStepType, builder.draft(player).type)
         assertEquals("", builder.message(player))
     }
 
@@ -293,7 +324,7 @@ class FlowBuilderTest {
         val texts = builder.texts(player)
 
         assertEquals("1. ${chopBankDrop[0]}", texts[FlowWidgets.rowText(0)])
-        assertEquals("@varrock_west", texts[FlowWidgets.DRAFT_LOCATION])
+        assertEquals("varrock_west", texts[FlowWidgets.DRAFT_FIELDS[1]])
         assertEquals("Save step 1", texts[FlowWidgets.DRAFT_ADD])
         assertEquals("Editing step 1. Change the fields, then save.", texts[FlowWidgets.MESSAGE])
     }
@@ -302,11 +333,11 @@ class FlowBuilderTest {
     fun `forgetting a player drops the draft, the message and the edit`() {
         player.idleState = IdleState(flow = chopBankDrop)
         builder.click(player, FlowWidgets.rowText(1))
-        builder.click(player, FlowWidgets.DRAFT_RESOURCE)
+        builder.click(player, FlowWidgets.DRAFT_FIELDS[0])
 
         builder.forget(player)
 
-        assertEquals(FlowDraft(resource = "normal", locationId = "draynor"), builder.draft(player))
+        assertEquals("chop normal @draynor", builder.draft(player).line())
         assertEquals("", builder.message(player))
         assertNull(builder.editing(player))
     }

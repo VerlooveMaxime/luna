@@ -1,74 +1,98 @@
 package game.idle.ui
 
+import game.idle.flow.FakeStepType
 import game.idle.flow.FlowStep
+import game.idle.flow.StepField
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class FlowDraftTest {
 
-    private val trees = mapOf("varrock_west" to listOf("normal"), "draynor" to listOf("normal", "willow"))
-    private val locations = trees.keys.sorted()
-    private val chop = FlowDraft(resource = "willow", locationId = "draynor")
+    // The item field comes first but depends on the kind field after it, so settling takes two rounds.
+    private val pick = FakeStepType(
+        "pick",
+        listOf(
+            StepField("item") { values ->
+                when (values[1]) {
+                    "fruit" -> listOf("apple", "tomato")
+                    "veg" -> listOf("leek", "tomato")
+                    else -> emptyList()
+                }
+            },
+            StepField("kind") { listOf("fruit", "veg") },
+        ),
+    )
+    private val rest = FakeStepType("rest")
+    private val wait = FakeStepType("wait", listOf(StepField("time") { emptyList() }))
+    private val types = listOf(pick, rest)
+    private val draft = FlowDraft.first(types)
 
     @Test
-    fun `the first draft chops the first tree of the first location`() {
-        assertEquals(FlowDraft(resource = "normal", locationId = "draynor"), FlowDraft.first(locations) { trees.getValue(it) })
+    fun `the first draft is the first kind with each field at its first choice`() {
+        assertEquals(pick, draft.type)
+        assertEquals(listOf("apple", "fruit"), draft.values)
     }
 
     @Test
-    fun `the first draft without locations stays blank`() {
-        assertEquals(FlowDraft(), FlowDraft.first(emptyList()) { emptyList() })
+    fun `the line is what the kind of step writes for the values`() {
+        assertEquals("pick apple fruit", draft.line())
     }
 
     @Test
-    fun `a chop line names the tree and the location`() {
-        assertEquals("chop willow @draynor", chop.line())
+    fun `a field cycles through its choices and wraps`() {
+        assertEquals("tomato", draft.nextValue(0).values[0])
+        assertEquals("apple", draft.nextValue(0).nextValue(0).values[0])
     }
 
     @Test
-    fun `drop and bank lines ignore the other fields`() {
-        assertEquals("drop", chop.copy(kind = StepKind.DROP).line())
-        assertEquals("bank deposit all", chop.copy(kind = StepKind.BANK).line())
+    fun `a field no longer offering its value moves to its first choice`() {
+        assertEquals(listOf("leek", "veg"), draft.nextValue(1).values)
+    }
+
+    @Test
+    fun `a field still offering its value keeps it`() {
+        assertEquals(listOf("tomato", "veg"), draft.nextValue(0).nextValue(1).values)
+    }
+
+    @Test
+    fun `a field without choices stays blank`() {
+        val waiting = FlowDraft.first(listOf(wait))
+
+        assertEquals(listOf(""), waiting.nextValue(0).values)
+    }
+
+    @Test
+    fun `a field the kind of step does not have changes nothing`() {
+        val resting = draft.nextType(types)
+
+        assertEquals(resting, resting.nextValue(0))
     }
 
     @Test
     fun `kinds cycle and wrap`() {
-        assertEquals(StepKind.DROP, chop.nextKind().kind)
-        assertEquals(StepKind.CHOP, chop.copy(kind = StepKind.BANK).nextKind().kind)
+        assertEquals(rest, draft.nextType(types).type)
+        assertEquals(pick, draft.nextType(types).nextType(types).type)
     }
 
     @Test
-    fun `the next resource wraps around the location's trees`() {
-        assertEquals("normal", chop.nextResource(listOf("normal", "willow")).resource)
-        assertEquals("willow", chop.copy(resource = "normal").nextResource(listOf("normal", "willow")).resource)
+    fun `values are kept per kind while cycling`() {
+        val back = draft.nextValue(0).nextType(types).nextType(types)
+
+        assertEquals(listOf("tomato", "fruit"), back.values)
     }
 
     @Test
-    fun `a resource not in the list gives the first, no resources keep it`() {
-        assertEquals("oak", chop.nextResource(listOf("oak", "yew")).resource)
-        assertEquals("willow", chop.nextResource(emptyList()).resource)
+    fun `editing loads the step's kind and values as they are`() {
+        val editing = draft.editing(FlowStep(pick, listOf("rock", "veg")))
+
+        assertEquals(pick, editing.type)
+        assertEquals(listOf("rock", "veg"), editing.values)
     }
 
     @Test
-    fun `the next location takes its first resource`() {
-        val draft = chop.nextLocation(locations) { trees.getValue(it) }
+    fun `editing another kind keeps what this kind had`() {
+        val back = draft.nextValue(0).editing(FlowStep(rest, emptyList())).nextType(types)
 
-        assertEquals(FlowDraft(resource = "normal", locationId = "varrock_west"), draft)
-    }
-
-    @Test
-    fun `a location without resources leaves the resource blank`() {
-        assertEquals("", chop.withLocation("desert", emptyList()).resource)
-    }
-
-    @Test
-    fun `editing a chop step loads its tree and location`() {
-        assertEquals(FlowDraft(resource = "oak", locationId = "varrock_west"), chop.editing(FlowStep.Chop("oak", "varrock_west")))
-    }
-
-    @Test
-    fun `editing a drop or bank step keeps the chop fields for later`() {
-        assertEquals(chop.copy(kind = StepKind.DROP), chop.editing(FlowStep.Drop))
-        assertEquals(chop.copy(kind = StepKind.BANK), chop.editing(FlowStep.BankDepositAll))
+        assertEquals(listOf("tomato", "fruit"), back.values)
     }
 }

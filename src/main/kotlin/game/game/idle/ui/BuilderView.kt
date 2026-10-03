@@ -2,10 +2,10 @@ package game.idle.ui
 
 import game.idle.IdleState
 import game.idle.ui.FlowWidgets.DRAFT_ADD
+import game.idle.ui.FlowWidgets.DRAFT_FIELDS
+import game.idle.ui.FlowWidgets.DRAFT_FIELD_LABELS
 import game.idle.ui.FlowWidgets.DRAFT_KIND
 import game.idle.ui.FlowWidgets.DRAFT_LABEL
-import game.idle.ui.FlowWidgets.DRAFT_LOCATION
-import game.idle.ui.FlowWidgets.DRAFT_RESOURCE
 import game.idle.ui.FlowWidgets.MESSAGE
 import game.idle.ui.FlowWidgets.ROWS
 import game.idle.ui.FlowWidgets.STATUS
@@ -32,13 +32,17 @@ object BuilderView {
         put(STATUS, status(state))
     }
 
-    fun draftTexts(draft: FlowDraft, editing: Int?): Map<Int, String> = mapOf(
-        DRAFT_LABEL to (if (editing == null) "New step" else "Editing step ${editing + 1}") + " (click a field to change it)",
-        DRAFT_KIND to draft.kind.label,
-        DRAFT_RESOURCE to chopOnly(draft, draft.resource.ifEmpty { "-" }),
-        DRAFT_LOCATION to chopOnly(draft, "@${draft.locationId}"),
-        DRAFT_ADD to if (editing == null) "Add step" else "Save step ${editing + 1}",
-    )
+    /** Field slots the draft's kind of step does not use stay blank, label included. */
+    fun draftTexts(draft: FlowDraft, editing: Int?): Map<Int, String> = buildMap {
+        put(DRAFT_LABEL, (if (editing == null) "New step" else "Editing step ${editing + 1}") + " (click a field to change it)")
+        put(DRAFT_KIND, draft.type.label)
+        DRAFT_FIELDS.forEachIndexed { index, id ->
+            val field = draft.type.fields.getOrNull(index)
+            put(DRAFT_FIELD_LABELS[index], field?.label ?: "")
+            put(id, if (field == null) "" else draft.values[index].ifEmpty { "-" })
+        }
+        put(DRAFT_ADD, if (editing == null) "Add step" else "Save step ${editing + 1}")
+    }
 
     fun tabTexts(state: IdleState): Map<Int, String> {
         val lines = AutopilotStatus.tabLines(state)
@@ -58,7 +62,4 @@ object BuilderView {
             state.running -> "@gre@Running step ${state.stepIndex + 1}/${state.flow.size}"
             else -> "Stopped. ${state.flow.size} steps."
         }
-
-    /** Only a chop step has a resource and a location. */
-    private fun chopOnly(draft: FlowDraft, text: String): String = if (draft.kind == StepKind.CHOP) text else "-"
 }

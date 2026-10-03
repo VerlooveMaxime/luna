@@ -2,13 +2,18 @@ package game.idle.flow
 
 import game.idle.autopilot.Autopilot
 import game.idle.autopilot.AutopilotPlayer
+import game.idle.autopilot.woodcutting.ChopStepType
 import io.luna.game.model.Position
 
 /**
  * `::flow add <step>`, `list`, `clear`, `run`, `resume`, `stop`, and the `::idle` shorthand (optional location and tree names)
  * that replaces the flow with chop and drop and runs it.
  */
-class FlowCommand<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, private val resolver: FlowResolver) {
+class FlowCommand<P : AutopilotPlayer>(
+    private val autopilot: Autopilot<P>,
+    private val resolver: FlowResolver,
+    private val chop: ChopStepType,
+) {
 
     fun flow(player: P, args: List<String>) {
         val verb = args.firstOrNull()
@@ -20,14 +25,14 @@ class FlowCommand<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
             "run" -> run(player, fromStart = true)
             "resume" -> run(player, fromStart = false)
             "stop" -> stop(player)
-            else -> player.tell("::flow add <step> | list | clear | run | resume | stop. Steps: ${FlowParser.HELP}")
+            else -> player.tell("::flow add <step> | list | clear | run | resume | stop. Steps: ${resolver.grammar.help}")
         }
     }
 
     fun idle(player: P, args: List<String>, from: Position) {
         if (args.isEmpty() && autopilot.isRunning(player)) return stop(player)
         val line = try {
-            if (args.isEmpty()) resolver.nearestChopLine(from) else resolver.chopLine(args[0], args.getOrNull(1))
+            if (args.isEmpty()) chop.nearestLine(from) else chop.lineAt(args[0], args.getOrNull(1))
         } catch (e: FlowError) {
             return player.tell("Autopilot: ${e.message}")
         }

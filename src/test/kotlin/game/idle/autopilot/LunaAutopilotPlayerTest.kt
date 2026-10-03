@@ -3,11 +3,13 @@ package game.idle.autopilot
 import api.predef.woodcutting
 import game.idle.IdleState
 import game.idle.autopilot.bank.BankActivity
+import game.idle.autopilot.bank.BankStep
 import game.idle.autopilot.drop.DropActivity
+import game.idle.autopilot.drop.DropStep
 import game.idle.autopilot.woodcutting.ChopAction
+import game.idle.autopilot.woodcutting.ChopStep
 import game.idle.autopilot.woodcutting.WoodcuttingActivity
 import game.idle.autopilot.woodcutting.WoodcuttingSpot
-import game.idle.flow.ResolvedStep
 import game.idle.idleState
 import game.idle.location.Area
 import game.idle.location.Location
@@ -16,10 +18,8 @@ import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
 import game.testworld.TestWorld
 import io.luna.game.model.Position
-import io.luna.game.model.item.Item
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -118,20 +118,20 @@ class LunaAutopilotPlayerTest {
     @Test
     fun `a chop step runs as a woodcutting activity`() {
         val spot = WoodcuttingSpot(location, Tree.NORMAL, area)
-        val step = ResolvedStep.Chop(spot, ChopAction(setOf(Tree.NORMAL)))
+        val step = ChopStep(spot, ChopAction(setOf(Tree.NORMAL)))
 
-        assertInstanceOf(WoodcuttingActivity::class.java, autopilotPlayer().chop(step))
+        assertInstanceOf(WoodcuttingActivity::class.java, autopilotPlayer().activity(step))
     }
 
     @Test
     fun `a drop step runs as a drop activity`() {
-        assertInstanceOf(DropActivity::class.java, autopilotPlayer().drop(ResolvedStep.Drop(setOf(logs))))
+        assertInstanceOf(DropActivity::class.java, autopilotPlayer().activity(DropStep(setOf(logs))))
     }
 
     @Test
     fun `a bank step runs as a bank activity`() {
-        val step = ResolvedStep.Bank(location, booth = Tile(3210, 3200))
+        val step = BankStep(location, booth = Tile(3210, 3200))
 
-        assertInstanceOf(BankActivity::class.java, autopilotPlayer().bank(step))
+        assertInstanceOf(BankActivity::class.java, autopilotPlayer().activity(step))
     }
 }

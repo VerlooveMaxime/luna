@@ -8,18 +8,10 @@ interface StepActivity : AutopilotActivity {
     fun isDone(): Boolean
 }
 
-/** Builds the activity for each kind of step; the Luna one wires real players in. */
-interface StepActivities {
-
-    fun chop(step: ResolvedStep.Chop): StepActivity
-
-    fun drop(step: ResolvedStep.Drop): StepActivity
-
-    fun bank(step: ResolvedStep.Bank): StepActivity
-}
-
-/** What the runner writes on the player besides what the step activities do. */
+/** The player a flow runs for: where each step's activity comes from and where the step index is saved. */
 interface FlowPlayer {
+
+    fun activity(step: ResolvedStep): StepActivity
 
     fun saveStep(index: Int)
 }
@@ -33,7 +25,6 @@ class FlowRunner(
     private val steps: List<ResolvedStep>,
     startIndex: Int,
     private val player: FlowPlayer,
-    private val activities: StepActivities,
 ) : AutopilotActivity {
 
     private var index = if (steps.isEmpty()) 0 else startIndex.coerceIn(0, steps.lastIndex)
@@ -52,11 +43,7 @@ class FlowRunner(
     }
 
     private fun startStep(): StepActivity {
-        val started = when (val step = steps[index]) {
-            is ResolvedStep.Chop -> activities.chop(step)
-            is ResolvedStep.Drop -> activities.drop(step)
-            is ResolvedStep.Bank -> activities.bank(step)
-        }
+        val started = player.activity(steps[index])
         current = started
         return started
     }
