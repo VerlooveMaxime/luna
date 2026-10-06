@@ -8,8 +8,6 @@ import io.luna.game.event.impl.SkillChangeEvent
 val tutorialData = TutorialData.load(TutorialData.PATH)
 val tutorial = LunaTutorial(TutorialScript(tutorialData), tutorialData, world)
 
-world.experienceModifier = TutorialExperience()
-
 on(LoginEvent::class)
     .filter { !plr.isBot }
     .then { tutorial.onLogin(plr) }

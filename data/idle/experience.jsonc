@@ -1,0 +1,7 @@
+{
+  // How much of the real experience a player gains, as a fraction: `idle_rate` while their autopilot runs,
+  // `active_rate` otherwise. Lower than real so that high levels stay late game (Maxime, 2026-10-06: "let's try").
+  // Reset boosts will multiply on top later. The island's level 3 cap applies after the rate.
+  "idle_rate": 0.10,
+  "active_rate": 0.30
+}
