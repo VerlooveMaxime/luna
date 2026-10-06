@@ -84,4 +84,11 @@ public class MakeItemDialogue extends DialogueInterface {
     public final int getLength() {
         return items.length;
     }
+
+    /**
+     * @return The items offered, in the order of their options (IdleRS: the autopilot picks its product by index).
+     */
+    public final int[] getItems() {
+        return items.clone();
+    }
 }

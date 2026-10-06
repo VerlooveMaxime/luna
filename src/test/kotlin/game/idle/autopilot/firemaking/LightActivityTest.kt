@@ -30,6 +30,17 @@ class LightActivityTest {
     }
 
     @Test
+    fun `with no logs from the start the step waits and says so once`() {
+        lighter.view = ready.copy(logs = 0, lightable = null)
+
+        activity.act()
+        activity.act()
+
+        assertFalse(activity.isDone())
+        assertEquals(listOf("tell ${LightBlockedReason.NO_LOGS.message}"), lighter.steps)
+    }
+
+    @Test
     fun `with an amount the step ends once that many logs were used`() {
         val counting = LightActivity(lighter, amount = 2)
         counting.act()

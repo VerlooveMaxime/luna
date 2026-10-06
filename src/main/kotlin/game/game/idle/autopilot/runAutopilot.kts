@@ -6,6 +6,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.FlowRunner
 import game.idle.idleState
+import game.idle.autopilot.making.RecipeCatalog
 import game.idle.location.BankCatalog
 import game.idle.ui.FlowBuilder
 import game.idle.ui.FlowWidgets
@@ -20,8 +21,9 @@ val config = AutopilotConfig.load(AutopilotConfig.PATH)
 
 // Loaded at boot so a typo in the data file stops the server instead of surfacing at the first bank step.
 val banks = BankCatalog.load(BankCatalog.PATH)
-val resolver = FlowResolver(IdleSteps(banks).grammar)
-logger.info("Loaded {} idle banks.", banks.banks.size)
+val recipes = RecipeCatalog.load(RecipeCatalog.PATH)
+val resolver = FlowResolver(IdleSteps(banks, recipes).grammar)
+logger.info("Loaded {} idle banks and {} recipes.", banks.banks.size, recipes.recipes.size)
 
 val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world)) { autopilotPlayer ->
     val state = autopilotPlayer.idleState

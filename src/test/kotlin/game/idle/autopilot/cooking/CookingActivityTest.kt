@@ -77,11 +77,26 @@ class CookingActivityTest {
 
     @Test
     fun `without an amount the step ends once no raw food is left`() {
+        cooker.raw = 2
+        cooker.view = view(windowOpen = true)
+        activity.act()
+        cooker.raw = 0
         cooker.view = view(rawSlot = null)
 
         activity.act()
 
         assertTrue(activity.isDone())
+    }
+
+    @Test
+    fun `with nothing to cook from the start the step waits and says so once`() {
+        cooker.view = view(rawSlot = null)
+
+        activity.act()
+        activity.act()
+
+        assertFalse(activity.isDone())
+        assertEquals(listOf("tell ${CookingBlockedReason.NOTHING_TO_COOK.message}"), cooker.steps)
     }
 
     @Test

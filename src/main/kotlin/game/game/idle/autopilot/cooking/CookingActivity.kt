@@ -74,9 +74,13 @@ sealed interface CookingDecision {
 
 enum class CookingBlockedReason(val message: String) {
     NO_FIRE("Autopilot: there is no fire or range you can reach here. Put a 'light' step before the cook step."),
+    NOTHING_TO_COOK("Autopilot: you have nothing to cook. Put a fish or make step before the cook step."),
 }
 
-/** Cook on the nearest fire or range, one in reach first; done once no raw food is left. */
+/**
+ * Cook on the nearest fire or range, one in reach first; done once the raw food runs out after cooking some. With
+ * nothing to cook from the start the step waits instead, so a flow never spins through empty steps.
+ */
 object CookingPlanner {
 
     private val preferredFirst: Comparator<PlaceCandidate> =
@@ -85,10 +89,10 @@ object CookingPlanner {
             .thenBy { it.position.x }
             .thenBy { it.position.y }
 
-    fun decide(view: CookingView): CookingDecision {
+    fun decide(view: CookingView, cookedSome: Boolean): CookingDecision {
         val best = view.places.minWithOrNull(preferredFirst)
         return when {
-            view.rawSlot == null -> Done
+            view.rawSlot == null -> if (cookedSome) Done else Blocked(CookingBlockedReason.NOTHING_TO_COOK)
             view.windowOpen -> CookAll
             best == null && !view.atLocation -> WalkToLocation
             best == null -> Blocked(CookingBlockedReason.NO_FIRE)
@@ -116,13 +120,13 @@ class CookingActivity(private val cooker: Cooker, private val amount: Int? = nul
     override fun isDone(): Boolean = done
 
     override fun act() {
-        if (rawAtStart == null) rawAtStart = cooker.raw()
+        val start = rawAtStart ?: cooker.raw().also { rawAtStart = it }
         if (amountReached()) {
             cooker.stop()
             done = true
             return
         }
-        val decision = decideSkippingRetries(cooker.look())
+        val decision = decideSkippingRetries(cooker.look(), cookedSome = cooker.raw() < start)
         carryOut(decision)
         lastDecision = decision
     }
@@ -141,15 +145,15 @@ class CookingActivity(private val cooker: Cooker, private val amount: Int? = nul
         is Blocked -> if (decision != lastDecision) cooker.tell(decision.reason.message) else Unit
     }
 
-    private fun decideSkippingRetries(view: CookingView): CookingDecision {
-        val decision = decide(view)
+    private fun decideSkippingRetries(view: CookingView, cookedSome: Boolean): CookingDecision {
+        val decision = decide(view, cookedSome)
         val retried = retriedPlace(decision) ?: return decision
         skippedPlaces += retried.position
-        return decide(view)
+        return decide(view, cookedSome)
     }
 
-    private fun decide(view: CookingView): CookingDecision =
-        CookingPlanner.decide(view.copy(places = view.places.filterNot { it.position in skippedPlaces }))
+    private fun decide(view: CookingView, cookedSome: Boolean): CookingDecision =
+        CookingPlanner.decide(view.copy(places = view.places.filterNot { it.position in skippedPlaces }), cookedSome)
 
     /** The place [decision] aims at when the previous decision was the same step on the same place. */
     private fun retriedPlace(decision: CookingDecision): PlaceCandidate? {

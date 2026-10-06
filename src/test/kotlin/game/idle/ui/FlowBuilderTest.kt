@@ -8,6 +8,7 @@ import game.idle.autopilot.FakeAutopilotPlayer
 import game.idle.autopilot.FakeTickScheduler
 import game.idle.autopilot.IdleSteps
 import game.idle.autopilot.drop.DropStepType
+import game.idle.autopilot.making.RecipeCatalog
 import game.idle.autopilot.walk.WalkStepType
 import game.idle.flow.FakeStepType
 import game.idle.flow.FlowGrammar
@@ -27,7 +28,7 @@ class FlowBuilderTest {
 
     private val autopilot = Autopilot<FakeAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
     private val banks = BankCatalog(listOf(Bank("draynor", "Draynor bank", Tile(3091, 3242))))
-    private val builder = FlowBuilder(autopilot, FlowResolver(IdleSteps(banks).grammar))
+    private val builder = FlowBuilder(autopilot, FlowResolver(IdleSteps(banks, RecipeCatalog(emptyList())).grammar))
     private val player = FakeAutopilotPlayer("maxime")
 
     private val chopBankDrop = listOf("chop normal", "bank nearest", "drop")
@@ -76,7 +77,7 @@ class FlowBuilderTest {
 
     @Test
     fun `a walk draft goes to the tile the player stands on`() {
-        click(FlowWidgets.DRAFT_KIND, times = 4)
+        click(FlowWidgets.DRAFT_KIND, times = 5)
 
         assertEquals(WalkStepType, builder.draft(player).type)
         assertEquals("walk 3200 3200", builder.draft(player).line())
@@ -84,7 +85,7 @@ class FlowBuilderTest {
 
     @Test
     fun `an untouched walk draft follows the player`() {
-        click(FlowWidgets.DRAFT_KIND, times = 4)
+        click(FlowWidgets.DRAFT_KIND, times = 5)
 
         player.tile = Tile(3100, 3100)
 
@@ -93,7 +94,7 @@ class FlowBuilderTest {
 
     @Test
     fun `clicking the tile opens the map on the tile it holds`() {
-        click(FlowWidgets.DRAFT_KIND, times = 4)
+        click(FlowWidgets.DRAFT_KIND, times = 5)
 
         assertEquals(ClickResult.PickTile(Tile(3200, 3200)), builder.click(player, FlowWidgets.DRAFT_FIELDS[0]))
     }
@@ -108,7 +109,7 @@ class FlowBuilderTest {
 
     @Test
     fun `a tile picked on the map goes into the walk step and stays there`() {
-        click(FlowWidgets.DRAFT_KIND, times = 4)
+        click(FlowWidgets.DRAFT_KIND, times = 5)
         click(FlowWidgets.DRAFT_FIELDS[0])
 
         assertEquals(ClickResult.Refresh, builder.picked(player, Tile(3086, 3233)))
@@ -119,7 +120,7 @@ class FlowBuilderTest {
 
     @Test
     fun `a pick nobody asked for is ignored`() {
-        click(FlowWidgets.DRAFT_KIND, times = 4)
+        click(FlowWidgets.DRAFT_KIND, times = 5)
 
         assertEquals(ClickResult.Ignored, builder.picked(player, Tile(3086, 3233)))
         assertEquals("walk 3200 3200", builder.draft(player).line())
@@ -127,7 +128,7 @@ class FlowBuilderTest {
 
     @Test
     fun `a pick is taken once`() {
-        click(FlowWidgets.DRAFT_KIND, times = 4)
+        click(FlowWidgets.DRAFT_KIND, times = 5)
         click(FlowWidgets.DRAFT_FIELDS[0])
         builder.picked(player, Tile(3086, 3233))
 
@@ -136,7 +137,7 @@ class FlowBuilderTest {
 
     @Test
     fun `a pick for a field the draft no longer has is ignored`() {
-        click(FlowWidgets.DRAFT_KIND, times = 4)
+        click(FlowWidgets.DRAFT_KIND, times = 5)
         click(FlowWidgets.DRAFT_FIELDS[0])
         click(FlowWidgets.DRAFT_KIND)
 
@@ -147,7 +148,7 @@ class FlowBuilderTest {
     fun `the kind cycles and each kind keeps its fields`() {
         click(FlowWidgets.DRAFT_FIELDS[0])
 
-        click(FlowWidgets.DRAFT_KIND, times = 5)
+        click(FlowWidgets.DRAFT_KIND, times = 6)
 
         assertEquals(DropStepType, builder.draft(player).type)
 
@@ -158,7 +159,7 @@ class FlowBuilderTest {
 
     @Test
     fun `a field the kind of step does not have does nothing`() {
-        click(FlowWidgets.DRAFT_KIND, times = 5)
+        click(FlowWidgets.DRAFT_KIND, times = 6)
 
         assertEquals(ClickResult.Refresh, builder.click(player, FlowWidgets.DRAFT_FIELDS[0]))
 
@@ -175,7 +176,7 @@ class FlowBuilderTest {
 
     @Test
     fun `adding a step the resolver refuses changes nothing`() {
-        click(FlowWidgets.DRAFT_KIND, times = 5)
+        click(FlowWidgets.DRAFT_KIND, times = 6)
 
         click(FlowWidgets.DRAFT_ADD)
 
@@ -408,7 +409,7 @@ class FlowBuilderTest {
 
     @Test
     fun `forgetting a player drops a pick in progress`() {
-        click(FlowWidgets.DRAFT_KIND, times = 4)
+        click(FlowWidgets.DRAFT_KIND, times = 5)
         click(FlowWidgets.DRAFT_FIELDS[0])
 
         builder.forget(player)

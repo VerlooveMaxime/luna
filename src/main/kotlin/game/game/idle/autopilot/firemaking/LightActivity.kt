@@ -42,15 +42,20 @@ enum class LightBlockedReason(val message: String) {
     NO_TINDERBOX("Autopilot: you need a tinderbox to light the logs."),
     LEVEL_TOO_LOW("Autopilot: you need a higher Firemaking level to light these logs."),
     NO_ROOM("Autopilot: there is no free tile to light a fire on here."),
+    NO_LOGS("Autopilot: there are no logs to light. Put a chop step before the light step."),
 }
 
-/** Light a log where the player stands, stepping aside first when something takes the tile; done without logs. */
+/**
+ * Light a log where the player stands, stepping aside first when something takes the tile; done once the logs run
+ * out after lighting some. With no logs from the start the step waits instead, so a flow never spins through empty
+ * steps.
+ */
 object LightPlanner {
 
-    fun decide(view: LightView): LightDecision =
+    fun decide(view: LightView, litSome: Boolean): LightDecision =
         when {
             !view.hasTinderbox -> Blocked(LightBlockedReason.NO_TINDERBOX)
-            view.logs == 0 -> Done
+            view.logs == 0 -> if (litSome) Done else Blocked(LightBlockedReason.NO_LOGS)
             view.lightable == null -> Blocked(LightBlockedReason.LEVEL_TOO_LOW)
             !view.tileFree -> StepAside
             else -> Light(view.lightable)
@@ -79,7 +84,7 @@ class LightActivity(private val lighter: Lighter, private val amount: Int? = nul
             done = true
             return
         }
-        lastDecision = carryOut(LightPlanner.decide(view))
+        lastDecision = carryOut(LightPlanner.decide(view, litSome = view.logs < start))
     }
 
     /** What was done: a step aside with nowhere to go blocks instead. */

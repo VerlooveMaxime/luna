@@ -13,6 +13,9 @@ import game.idle.autopilot.firemaking.LightStep
 import game.idle.autopilot.fishing.FishStep
 import game.idle.autopilot.fishing.FishingActivity
 import game.idle.autopilot.fishing.FishingMethod
+import game.idle.autopilot.making.MakeActivity
+import game.idle.autopilot.making.MakeStep
+import game.idle.autopilot.making.Recipe
 import game.idle.autopilot.walk.WalkActivity
 import game.idle.autopilot.walk.WalkStep
 import game.idle.autopilot.woodcutting.ChopStep
@@ -195,6 +198,11 @@ class LunaAutopilotPlayerTest {
     @Test
     fun `a cook step runs as a cooking activity`() {
         assertInstanceOf(CookingActivity::class.java, autopilotPlayer().activity(CookStep(setOf(317), 10, WorkSpot.RunTile)))
+    }
+
+    @Test
+    fun `a make step runs as a make activity`() {
+        assertInstanceOf(MakeActivity::class.java, autopilotPlayer().activity(MakeStep(Recipe(2307, "bread dough", 1933, 1929))))
     }
 
     @Test
