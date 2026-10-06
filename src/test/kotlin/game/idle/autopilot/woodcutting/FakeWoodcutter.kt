@@ -4,6 +4,7 @@ package game.idle.autopilot.woodcutting
 class FakeWoodcutter(var view: WoodcuttingView) : Woodcutter {
 
     var busy = false
+    var logs = 0
     val steps = mutableListOf<String>()
 
     override fun isBusy(): Boolean = busy
@@ -20,6 +21,12 @@ class FakeWoodcutter(var view: WoodcuttingView) : Woodcutter {
 
     override fun walkToLocation() {
         steps += "walk to location"
+    }
+
+    override fun logs(): Int = logs
+
+    override fun stop() {
+        steps += "stop"
     }
 
     override fun tell(message: String) {

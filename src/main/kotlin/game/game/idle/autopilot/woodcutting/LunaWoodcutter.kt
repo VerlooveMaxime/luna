@@ -5,6 +5,7 @@ import game.skill.woodcutting.cutTree.Axe
 import game.skill.woodcutting.cutTree.Tree
 import game.skill.woodcutting.cutTree.TreeStump
 import game.idle.autopilot.LunaClicks
+import game.idle.movement.ReachTerrain
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.EntityType
@@ -19,7 +20,7 @@ import io.luna.game.model.`object`.GameObject
  * player, and ranked by walking distance. Chopping and dropping go through the same events and interaction
  * action as the client's clicks, so Luna's reach checks, animations, XP and drop rules apply unchanged.
  */
-class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSpot) : Woodcutter, Terrain {
+class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSpot) : Woodcutter, ReachTerrain<StandingTree> {
 
     private val world get() = player.world
     private val collision: CollisionManager get() = world.collisionManager
@@ -40,7 +41,7 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
 
     override fun chop(tree: TreeCandidate) {
         val target = find(tree) ?: return
-        LunaClicks.clickObject(player, ObjectFirstClickEvent(player, target), target, ObjectFirstClickEvent::class.java)
+        LunaClicks.interact(player, ObjectFirstClickEvent(player, target), target, ObjectFirstClickEvent::class.java)
     }
 
     override fun walkTo(tree: TreeCandidate) = walkTo(tree.approach)
@@ -50,6 +51,12 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
     private fun walkTo(tile: Position) {
         closeWindowsLikeAClick()
         player.navigator.navigate(tile, true)
+    }
+
+    override fun logs(): Int = player.inventory.computeAmountForId(spot.tree.logId)
+
+    override fun stop() {
+        player.actions.interruptWeak()
     }
 
     override fun tell(message: String) {
@@ -80,8 +87,8 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
 
     override fun isBlocked(tile: Position): Boolean = collision.isBlocked(tile, false)
 
-    override fun reachedFrom(tile: Position, tree: StandingTree): Boolean =
-        collision.reached(tile, tree.position, STANDARD_SIZE)
+    override fun reachedFrom(tile: Position, target: StandingTree): Boolean =
+        collision.reached(tile, target.position, STANDARD_SIZE)
 
     private companion object {
         val LOG_IDS: Set<Int> = Tree.ALL.keys

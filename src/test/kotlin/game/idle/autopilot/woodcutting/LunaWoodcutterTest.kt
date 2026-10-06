@@ -6,6 +6,8 @@ import engine.widget.skill.LevelUpInterface
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
+import game.idle.autopilot.EndlessAction
+import game.idle.autopilot.LunaClicks
 import game.testworld.TestWorld
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
 import io.luna.game.model.Direction
@@ -227,6 +229,27 @@ class LunaWoodcutterTest {
         LunaWoodcutter(player, spot).walkToLocation()
 
         assertEquals(anchor, player.navigator.currentTarget)
+    }
+
+    @Test
+    fun `the logs counted are the step's kind only`() {
+        val player = login()
+        player.inventory.add(Item(logs, 3))
+        player.inventory.add(Item(1521))
+
+        assertEquals(3, LunaWoodcutter(player, spot).logs())
+    }
+
+    @Test
+    fun `stopping ends the chop in progress`() {
+        val player = login()
+        player.submitAction(EndlessAction(player))
+        TestWorld.tick()
+
+        LunaWoodcutter(player, spot).stop()
+        TestWorld.tick()
+
+        assertFalse(LunaClicks.isActing(player))
     }
 
     @Test

@@ -111,6 +111,16 @@ class LunaBankerTest {
     }
 
     @Test
+    fun `the tinderbox and the fishing net stay in the inventory too`() {
+        val player = login()
+        player.inventory.add(Item(590))
+        player.inventory.add(Item(303))
+        player.inventory.add(Item(logs))
+
+        assertEquals(listOf(2), LunaBanker(player, boothTile).look().depositableSlots)
+    }
+
+    @Test
     fun `walking to the booth heads for the nearest tile it is used from`() {
         val player = login(awayFromBooth)
         placeBooth()

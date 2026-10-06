@@ -149,7 +149,8 @@ class FlowCommandTest {
         flow("dance")
 
         assertEquals(
-            listOf("::flow add <step> | list | clear | run | resume | stop. Steps: chop <tree> [within <n>], walk <x> <y>, drop, bank nearest|@<bank>"),
+            listOf("::flow add <step> | list | clear | run | resume | stop. Steps: chop [<n>] <tree> [within <r>], fish [<n>] <fish> [within <r>], light [<n>], cook [<n>] [within <r>], " +
+                "walk <x> <y>, drop, bank nearest|@<bank>"),
             player.told,
         )
     }

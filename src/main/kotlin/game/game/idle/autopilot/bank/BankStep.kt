@@ -12,7 +12,7 @@ import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
 /**
- * `bank nearest` or `bank @<bank>`: walks to that bank and deposits everything but the player's axes. The nearest
+ * `bank nearest` or `bank @<bank>`: walks to that bank and deposits everything but the player's tools. The nearest
  * bank is picked when the step starts, from where the player stands.
  */
 class BankStepType(private val catalog: BankCatalog) : StepType {

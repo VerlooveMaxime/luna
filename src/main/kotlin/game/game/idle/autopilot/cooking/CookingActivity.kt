@@ -1,0 +1,160 @@
+package game.idle.autopilot.cooking
+
+import game.idle.autopilot.cooking.CookingDecision.Blocked
+import game.idle.autopilot.cooking.CookingDecision.CookAll
+import game.idle.autopilot.cooking.CookingDecision.Done
+import game.idle.autopilot.cooking.CookingDecision.UseOn
+import game.idle.autopilot.cooking.CookingDecision.WalkTo
+import game.idle.autopilot.cooking.CookingDecision.WalkToLocation
+import game.idle.flow.StepActivity
+import io.luna.game.model.Position
+
+/** What the cook step can see and do for one player. [LunaCooker] is the in-game one. */
+interface Cooker {
+
+    fun isBusy(): Boolean
+
+    fun look(): CookingView
+
+    /** Uses the raw food in [slot] on [place], which opens the cooking window. */
+    fun useOn(place: PlaceCandidate, slot: Int)
+
+    /** Picks "cook all" in the open cooking window. */
+    fun cookAll()
+
+    fun walkTo(place: PlaceCandidate)
+
+    fun walkToLocation()
+
+    /** How much of the step's raw food the player carries. */
+    fun raw(): Int
+
+    /** Stops the cooking in progress. */
+    fun stop()
+
+    fun tell(message: String)
+}
+
+/** A fire or range the player can walk to: [distance] walking steps to [approach]. */
+data class PlaceCandidate(
+    val objectId: Int,
+    val position: Position,
+    val distance: Int,
+    val usableFromHere: Boolean,
+    val approach: Position,
+)
+
+/** What the cook step knows when it decides: [rawSlot] holds some of the step's raw food, if any is left. */
+data class CookingView(
+    val rawSlot: Int?,
+    val windowOpen: Boolean,
+    val atLocation: Boolean,
+    val places: List<PlaceCandidate>,
+)
+
+sealed interface CookingDecision {
+
+    /** A decision aimed at one place. */
+    sealed interface OnPlace : CookingDecision {
+        val place: PlaceCandidate
+    }
+
+    data class UseOn(override val place: PlaceCandidate, val slot: Int) : OnPlace
+
+    data class WalkTo(override val place: PlaceCandidate) : OnPlace
+
+    data object CookAll : CookingDecision
+
+    data object WalkToLocation : CookingDecision
+
+    data object Done : CookingDecision
+
+    data class Blocked(val reason: CookingBlockedReason) : CookingDecision
+}
+
+enum class CookingBlockedReason(val message: String) {
+    NO_FIRE("Autopilot: there is no fire or range you can reach here. Put a 'light' step before the cook step."),
+}
+
+/** Cook on the nearest fire or range, one in reach first; done once no raw food is left. */
+object CookingPlanner {
+
+    private val preferredFirst: Comparator<PlaceCandidate> =
+        compareByDescending<PlaceCandidate> { it.usableFromHere }
+            .thenBy { it.distance }
+            .thenBy { it.position.x }
+            .thenBy { it.position.y }
+
+    fun decide(view: CookingView): CookingDecision {
+        val best = view.places.minWithOrNull(preferredFirst)
+        return when {
+            view.rawSlot == null -> Done
+            view.windowOpen -> CookAll
+            best == null && !view.atLocation -> WalkToLocation
+            best == null -> Blocked(CookingBlockedReason.NO_FIRE)
+            best.usableFromHere -> UseOn(best, view.rawSlot)
+            else -> WalkTo(best)
+        }
+    }
+}
+
+/**
+ * The cook step: cooks the step's raw food until [amount] were used (cooked or burnt) or, without an amount, until
+ * none is left. Cooking that reaches the amount is stopped at once. A place that gets the same decision twice in a
+ * row (used without the window opening, or walked to but still out of reach; fires burn out) is skipped for as long
+ * as the step runs.
+ */
+class CookingActivity(private val cooker: Cooker, private val amount: Int? = null) : StepActivity {
+
+    private val skippedPlaces = mutableSetOf<Position>()
+    private var lastDecision: CookingDecision? = null
+    private var rawAtStart: Int? = null
+    private var done = false
+
+    override fun isBusy(): Boolean = cooker.isBusy() && !amountReached()
+
+    override fun isDone(): Boolean = done
+
+    override fun act() {
+        if (rawAtStart == null) rawAtStart = cooker.raw()
+        if (amountReached()) {
+            cooker.stop()
+            done = true
+            return
+        }
+        val decision = decideSkippingRetries(cooker.look())
+        carryOut(decision)
+        lastDecision = decision
+    }
+
+    private fun amountReached(): Boolean {
+        val start = rawAtStart ?: return false
+        return amount != null && start - cooker.raw() >= amount
+    }
+
+    private fun carryOut(decision: CookingDecision) = when (decision) {
+        is UseOn -> cooker.useOn(decision.place, decision.slot)
+        is WalkTo -> cooker.walkTo(decision.place)
+        CookAll -> cooker.cookAll()
+        WalkToLocation -> cooker.walkToLocation()
+        Done -> done = true
+        is Blocked -> if (decision != lastDecision) cooker.tell(decision.reason.message) else Unit
+    }
+
+    private fun decideSkippingRetries(view: CookingView): CookingDecision {
+        val decision = decide(view)
+        val retried = retriedPlace(decision) ?: return decision
+        skippedPlaces += retried.position
+        return decide(view)
+    }
+
+    private fun decide(view: CookingView): CookingDecision =
+        CookingPlanner.decide(view.copy(places = view.places.filterNot { it.position in skippedPlaces }))
+
+    /** The place [decision] aims at when the previous decision was the same step on the same place. */
+    private fun retriedPlace(decision: CookingDecision): PlaceCandidate? {
+        val attempt = decision as? CookingDecision.OnPlace ?: return null
+        val last = lastDecision as? CookingDecision.OnPlace ?: return null
+        return attempt.place.takeIf { attempt::class == last::class && it.position == last.place.position }
+    }
+}

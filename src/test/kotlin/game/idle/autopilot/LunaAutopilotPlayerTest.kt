@@ -5,7 +5,14 @@ import game.idle.IdleState
 import game.idle.autopilot.bank.BankActivity
 import game.idle.autopilot.bank.BankStep
 import game.idle.autopilot.drop.DropActivity
+import game.idle.autopilot.cooking.CookStep
+import game.idle.autopilot.cooking.CookingActivity
 import game.idle.autopilot.drop.DropStep
+import game.idle.autopilot.firemaking.LightActivity
+import game.idle.autopilot.firemaking.LightStep
+import game.idle.autopilot.fishing.FishStep
+import game.idle.autopilot.fishing.FishingActivity
+import game.idle.autopilot.fishing.FishingMethod
 import game.idle.autopilot.walk.WalkActivity
 import game.idle.autopilot.walk.WalkStep
 import game.idle.autopilot.woodcutting.ChopStep
@@ -163,6 +170,21 @@ class LunaAutopilotPlayerTest {
         val step = BankStep(listOf(Bank("test", "Test bank", Tile(3210, 3200))))
 
         assertInstanceOf(BankActivity::class.java, autopilotPlayer().activity(step))
+    }
+
+    @Test
+    fun `a light step runs as a light activity`() {
+        assertInstanceOf(LightActivity::class.java, autopilotPlayer().activity(LightStep(setOf(logs))))
+    }
+
+    @Test
+    fun `a fish step runs as a fishing activity`() {
+        assertInstanceOf(FishingActivity::class.java, autopilotPlayer().activity(FishStep(FishingMethod.SHRIMP, 10, WorkSpot.RunTile)))
+    }
+
+    @Test
+    fun `a cook step runs as a cooking activity`() {
+        assertInstanceOf(CookingActivity::class.java, autopilotPlayer().activity(CookStep(setOf(317), 10, WorkSpot.RunTile)))
     }
 
     @Test

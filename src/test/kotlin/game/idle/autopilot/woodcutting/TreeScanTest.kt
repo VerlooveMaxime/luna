@@ -1,5 +1,7 @@
 package game.idle.autopilot.woodcutting
 
+import game.idle.movement.Footprint
+import game.idle.movement.ReachTerrain
 import game.skill.woodcutting.cutTree.Tree
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
@@ -20,17 +22,17 @@ class TreeScanTest {
      * Trees block their own tiles. A fence along x = 3168 from y = 3440 to 3448 stops steps onto it. Chopping needs
      * an orthogonally adjacent tile.
      */
-    private class Grid(private val trees: List<StandingTree>, private val fence: Boolean = false) : Terrain {
+    private class Grid(private val trees: List<StandingTree>, private val fence: Boolean = false) : ReachTerrain<StandingTree> {
 
         override fun canStep(from: Position, direction: Direction): Boolean = !isBlocked(from.translate(1, direction))
 
         override fun isBlocked(tile: Position): Boolean =
-            trees.any { it.covers(tile) } || (fence && tile.x == 3168 && tile.y in 3440..3448)
+            trees.any { Footprint(it.position, it.size).covers(tile) } || (fence && tile.x == 3168 && tile.y in 3440..3448)
 
-        override fun reachedFrom(tile: Position, tree: StandingTree): Boolean =
-            Direction.NESW.any { tree.covers(tile.translate(1, it)) }
+        override fun reachedFrom(tile: Position, target: StandingTree): Boolean =
+            Direction.NESW.any { Footprint(target.position, target.size).covers(tile.translate(1, it)) }
 
-        private fun StandingTree.covers(tile: Position): Boolean =
+        private fun Footprint.covers(tile: Position): Boolean =
             tile.x in position.x until position.x + size && tile.y in position.y until position.y + size
     }
 
@@ -133,7 +135,7 @@ class TreeScanTest {
     }
 
     /** Nothing can be stepped onto except the origin's own tile. */
-    private fun Terrain.walledOff(): Terrain = object : Terrain by this {
+    private fun ReachTerrain<StandingTree>.walledOff(): ReachTerrain<StandingTree> = object : ReachTerrain<StandingTree> by this {
         override fun canStep(from: Position, direction: Direction): Boolean = false
     }
 }

@@ -2,14 +2,15 @@ package game.idle.autopilot
 
 import engine.widget.skill.LevelUpInterface
 import io.luna.game.action.ActionType
+import io.luna.game.event.Event
 import io.luna.game.event.impl.ControllableEvent
-import io.luna.game.event.impl.ObjectClickEvent
+import io.luna.game.event.impl.InteractableEvent
+import io.luna.game.model.Entity
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.interact.InteractionAction
 import io.luna.game.model.mob.overlay.OverlayType
-import io.luna.game.model.`object`.GameObject
 
-/** What every autopilot adapter does with a real player: click objects like the client and tell busy from idle. */
+/** What every autopilot adapter does with a real player: click things like the client and tell busy from idle. */
 object LunaClicks {
 
     /** Soft actions (status effects such as poison) run in the background and do not keep a player busy. */
@@ -33,11 +34,12 @@ object LunaClicks {
         !player.isLocked && player.controllers.checkEvent(event)
 
     /**
-     * Runs [event] on [target] through the same interaction action a client click builds, so the object's own
-     * listeners, reach checks and animations apply unchanged. Windows are closed first, without interrupting the
-     * current action, as the walk packet before every world click does.
+     * Runs [event] on [target] (an object, an npc) through the same interaction action a client click builds, so the
+     * target's own listeners, reach checks and animations apply unchanged. Windows are closed first, without
+     * interrupting the current action, as the walk packet before every world click does.
      */
-    fun <E : ObjectClickEvent> clickObject(player: Player, event: E, target: GameObject, type: Class<E>) {
+    fun <E> interact(player: Player, event: E, target: Entity, type: Class<E>)
+        where E : Event, E : ControllableEvent, E : InteractableEvent {
         if (mayAct(player, event)) {
             player.overlays.closeWindows(false)
             val listeners = player.plugins.pipelines.get(type).getInteractionListeners(player, target, event)

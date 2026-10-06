@@ -36,7 +36,7 @@ class LunaClicksTest {
 
     private fun clickBooth(player: Player) {
         val booth = TestWorld.place(boothId, boothTile)
-        LunaClicks.clickObject(player, ObjectFirstClickEvent(player, booth), booth, ObjectFirstClickEvent::class.java)
+        LunaClicks.interact(player, ObjectFirstClickEvent(player, booth), booth, ObjectFirstClickEvent::class.java)
     }
 
     private fun recordBoothClicks(): MutableList<Int> {

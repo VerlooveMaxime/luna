@@ -26,6 +26,8 @@ class LunaFlowUiTest {
     private val resolver = FlowResolver(IdleSteps(BankCatalog(emptyList())).grammar)
     private val ui = LunaFlowUi(FlowBuilder(autopilot, resolver))
 
+    private fun cycleKind(player: Player, times: Int) = repeat(times) { ui.click(player, FlowWidgets.DRAFT_KIND) }
+
     @AfterEach
     fun resetWorld() = TestWorld.reset()
 
@@ -70,15 +72,15 @@ class LunaFlowUiTest {
 
         ui.click(player, FlowWidgets.DRAFT_KIND)
 
-        assertEquals("walk", texts(player)[FlowWidgets.DRAFT_KIND])
-        assertEquals("3200 3200", texts(player)[FlowWidgets.DRAFT_FIELDS[0]])
+        assertEquals("fish", texts(player)[FlowWidgets.DRAFT_KIND])
+        assertEquals("shrimp", texts(player)[FlowWidgets.DRAFT_FIELDS[0]])
     }
 
     @Test
     fun `clicking a walk step's tile asks the client to open the map on it`() {
         val player = login()
         ui.click(player, FlowWidgets.TAB_OPEN_BUILDER)
-        ui.click(player, FlowWidgets.DRAFT_KIND)
+        cycleKind(player, times = 4)
 
         ui.click(player, FlowWidgets.DRAFT_FIELDS[0])
 
@@ -91,7 +93,7 @@ class LunaFlowUiTest {
     fun `a tile picked on the map shows in the builder`() {
         val player = login()
         ui.click(player, FlowWidgets.TAB_OPEN_BUILDER)
-        ui.click(player, FlowWidgets.DRAFT_KIND)
+        cycleKind(player, times = 4)
         ui.click(player, FlowWidgets.DRAFT_FIELDS[0])
 
         ui.picked(player, Tile(3086, 3233))

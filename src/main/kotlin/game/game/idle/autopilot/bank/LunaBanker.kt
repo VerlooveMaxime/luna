@@ -3,6 +3,8 @@ package game.idle.autopilot.bank
 import engine.bank.Banking
 import game.idle.autopilot.LunaClicks
 import game.idle.movement.navigateToReach
+import game.skill.firemaking.Firemaking
+import game.skill.fishing.catchFish.Tool
 import game.skill.woodcutting.cutTree.Axe
 import io.luna.game.event.impl.ObjectClickEvent.ObjectSecondClickEvent
 import io.luna.game.model.Position
@@ -13,8 +15,8 @@ import io.luna.game.model.`object`.GameObject
 /**
  * [Banker] for a logged-in player using the booth on [boothTile], none when null (no bank on the player's floor).
  * Opening goes through the booth's "Use-quickly" click like the client does; depositing calls the bank directly,
- * slot by slot, which is what the deposit widget click ends up doing. Axes stay in the inventory so the next chop
- * step can start.
+ * slot by slot, which is what the deposit widget click ends up doing. Tools (axes, the tinderbox, fishing tools)
+ * stay in the inventory so the next steps can start.
  */
 class LunaBanker(private val player: Player, private val boothTile: Position?) : Banker {
 
@@ -41,7 +43,7 @@ class LunaBanker(private val player: Player, private val boothTile: Position?) :
 
     override fun open() {
         val booth = booth() ?: return
-        LunaClicks.clickObject(player, ObjectSecondClickEvent(player, booth), booth, ObjectSecondClickEvent::class.java)
+        LunaClicks.interact(player, ObjectSecondClickEvent(player, booth), booth, ObjectSecondClickEvent::class.java)
     }
 
     /**
@@ -71,10 +73,10 @@ class LunaBanker(private val player: Player, private val boothTile: Position?) :
     private fun depositableSlots(): List<Int> =
         (0 until player.inventory.capacity()).filter { slot ->
             val id = player.inventory[slot]?.id
-            id != null && id !in AXE_IDS
+            id != null && id !in TOOL_IDS
         }
 
     private companion object {
-        val AXE_IDS: Set<Int> = Axe.entries.mapTo(mutableSetOf()) { it.id }
+        val TOOL_IDS: Set<Int> = Axe.entries.map { it.id }.toSet() + Firemaking.TINDERBOX + Tool.entries.map { it.id }
     }
 }

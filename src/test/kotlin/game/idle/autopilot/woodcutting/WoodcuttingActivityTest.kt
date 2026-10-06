@@ -56,6 +56,70 @@ class WoodcuttingActivityTest {
     }
 
     @Test
+    fun `a step with an amount is not done before that many logs were cut`() {
+        val counting = WoodcuttingActivity(woodcutter, anyTree, amount = 2)
+        woodcutter.logs = 3
+        woodcutter.view = view(listOf(nearTreeInReach))
+        counting.act()
+        woodcutter.logs = 4
+
+        counting.act()
+
+        assertFalse(counting.isDone())
+    }
+
+    @Test
+    fun `a step with an amount stops chopping and ends once that many logs were cut`() {
+        val counting = WoodcuttingActivity(woodcutter, anyTree, amount = 2)
+        woodcutter.logs = 3
+        woodcutter.view = view(listOf(nearTreeInReach))
+        counting.act()
+        woodcutter.logs = 5
+
+        counting.act()
+
+        assertTrue(counting.isDone())
+        assertEquals(listOf("chop 3171,3444", "stop"), woodcutter.steps)
+    }
+
+    @Test
+    fun `a chop that reaches the amount stops being busy so the step can stop it`() {
+        val counting = WoodcuttingActivity(woodcutter, anyTree, amount = 1)
+        woodcutter.view = view(listOf(nearTreeInReach))
+        counting.act()
+        woodcutter.busy = true
+
+        woodcutter.logs = 1
+
+        assertFalse(counting.isBusy())
+    }
+
+    @Test
+    fun `an idle woodcutter is not busy`() {
+        assertFalse(activity.isBusy())
+    }
+
+    @Test
+    fun `before its first act a step with an amount follows the woodcutter's busy`() {
+        val counting = WoodcuttingActivity(woodcutter, anyTree, amount = 1)
+        woodcutter.busy = true
+
+        assertTrue(counting.isBusy())
+    }
+
+    @Test
+    fun `a step with an amount still ends when the inventory fills first`() {
+        val counting = WoodcuttingActivity(woodcutter, anyTree, amount = 10)
+        woodcutter.view = view(listOf(nearTreeInReach))
+        counting.act()
+        woodcutter.view = view(listOf(nearTreeInReach), inventoryFull = true, logsInInventory = 28)
+
+        counting.act()
+
+        assertTrue(counting.isDone())
+    }
+
+    @Test
     fun `the player is busy while the woodcutter is`() {
         woodcutter.busy = true
 
