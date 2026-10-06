@@ -73,6 +73,28 @@ class FlowRunnerTest {
     }
 
     @Test
+    fun `starting over counts a lap`() {
+        val runner = runner("chop", "bank", startAt = 1)
+        runner.act()
+        player.started[0].done = true
+
+        runner.act()
+
+        assertEquals(1, player.laps)
+    }
+
+    @Test
+    fun `moving to a step that is not the first counts no lap`() {
+        val runner = runner("chop", "bank")
+        runner.act()
+        player.started[0].done = true
+
+        runner.act()
+
+        assertEquals(0, player.laps)
+    }
+
+    @Test
     fun `a one step flow repeats itself`() {
         val runner = runner("chop")
         runner.act()

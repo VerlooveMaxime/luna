@@ -6,6 +6,7 @@ import api.attr.setValue
 import api.predef.ext.scheduleOnce
 import game.idle.idleState
 import game.idle.ui.HintArrowMessageWriter
+import game.idle.ui.IdleUi
 import game.idle.ui.StickyChatboxMessageWriter
 import game.player.Animations
 import game.player.login.firstLogin
@@ -59,6 +60,7 @@ class TutorialController(private val player: Player, private val tutorial: LunaT
     override fun process() {
         tutorial.checkDesigner(player)
         tutorial.checkBusy(player)
+        tutorial.checkLesson(player)
     }
 
     override fun event(event: ControllableEvent): Boolean = tutorial.allows(player, event)
@@ -104,13 +106,27 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         }
     }
 
-    /** While the player chops, lights or fishes, the help box says to wait, as the 2006 island did. */
+    /**
+     * While the player chops, lights or fishes, the help box says to wait, as the 2006 island did; not while their
+     * autopilot does it, when the help box carries the lesson.
+     */
     fun checkBusy(player: Player) {
-        val activity = BUSY_ACTIONS.entries.firstOrNull { (_, type) -> running(player, type) }?.key.orEmpty()
+        val activity = if (player.idleState.running) {
+            ""
+        } else {
+            BUSY_ACTIONS.entries.firstOrNull { (_, type) -> running(player, type) }?.key.orEmpty()
+        }
         if (activity != player.tutorialBusy) {
             player.tutorialBusy = activity
             showHelp(player, if (activity.isEmpty()) script.screen(player.tutorialStep).help else busyHelp(player, activity))
         }
+    }
+
+    /** An idle lesson moves on once the player's autopilot does what the step asks. */
+    fun checkLesson(player: Player) {
+        val state = player.idleState
+        val steps = state.flow.map(StepSummary::of)
+        advance(player, script.lessonProgress(player.tutorialStep, FlowProgress(state.running, steps, state.laps)))
     }
 
     /** An interrupted action stays queued until Luna's next pass over the queue, which comes after this check. */
@@ -147,6 +163,20 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         if (player.skills.getSkill(event.id).experience > event.oldExp) {
             advance(player, script.experienceGained(player.tutorialStep, event.id))
         }
+    }
+
+    /**
+     * A developer's shortcut for walking through the lessons: moves a player still on the island to the step [name]
+     * names, without its items. Returns what to tell them.
+     */
+    fun jumpTo(player: Player, name: String): String {
+        val step = TutorialStep.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
+            ?: return "No tutorial step '$name'."
+        if (player.tutorialStep == TutorialStep.DONE || step == TutorialStep.DONE) {
+            return "The jump only moves a player still on the island to another step on it."
+        }
+        advance(player, step)
+        return "Tutorial step: ${step.name}"
     }
 
     fun openDoor(player: Player, door: Door, leaf: DoorLeaf) = when (val outcome = script.openDoor(door, player.tutorialStep)) {
@@ -228,8 +258,12 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         player.queue(arrow(player, screen.arrow))
     }
 
-    private fun showTab(player: Player, tab: TabIndex, visible: Boolean) =
-        if (visible) player.tabs.reset(tab) else player.tabs.clear(tab)
+    /** The Idle tab sits in the unused slot 7, which Luna's own tab reset leaves empty. */
+    private fun showTab(player: Player, tab: TabIndex, visible: Boolean) = when {
+        !visible -> player.tabs.clear(tab)
+        tab == TabIndex.UNUSED -> IdleUi.installTab(player, player.idleState)
+        else -> player.tabs.reset(tab)
+    }
 
     /** Texts go first: the client only redraws the chatbox when the box itself arrives. */
     private fun showHelp(player: Player, help: HelpBox) {

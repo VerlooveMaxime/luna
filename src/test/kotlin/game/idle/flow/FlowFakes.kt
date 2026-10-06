@@ -41,6 +41,7 @@ class FakeStepType(override val keyword: String, override val fields: List<StepF
 class FakeFlowPlayer : FlowPlayer {
 
     val savedSteps = mutableListOf<Int>()
+    var laps = 0
     val log = mutableListOf<String>()
     val started = mutableListOf<FakeStepActivity>()
 
@@ -49,6 +50,10 @@ class FakeFlowPlayer : FlowPlayer {
 
     override fun saveStep(index: Int) {
         savedSteps += index
+    }
+
+    override fun lapCompleted() {
+        laps++
     }
 }
 

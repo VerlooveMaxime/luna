@@ -24,8 +24,47 @@ sealed interface HintTarget {
     data object None : HintTarget
 }
 
-/** What a step shows, the side tabs that appear at that step, and the one that flashes until it is clicked. */
-data class StepScreen(val help: HelpBox, val arrow: HintTarget, val tabs: List<TabIndex>, val flash: TabIndex? = null)
+/**
+ * What a step shows, the side tabs that appear at that step, the one that flashes until it is clicked, and for an
+ * idle lesson the [goal] the player's autopilot must reach to move on.
+ */
+data class StepScreen(
+    val help: HelpBox,
+    val arrow: HintTarget,
+    val tabs: List<TabIndex>,
+    val flash: TabIndex? = null,
+    val goal: LessonGoal? = null,
+)
+
+/** A step of a flow as a lesson sees it: its keyword and its count, null when it has none (`chop 1 oak` is chop, 1). */
+data class StepSummary(val keyword: String, val count: Int?) {
+
+    /** Whether this step is what [spec] asks for: the same keyword and, when the spec has a count, that count. */
+    fun matches(spec: StepSummary): Boolean = keyword == spec.keyword && (spec.count == null || count == spec.count)
+
+    companion object {
+        /** A flow line or a goal's step, `<keyword> [<count>] ...`. */
+        fun of(line: String): StepSummary {
+            val words = line.trim().lowercase().split(Regex("\\s+"))
+            return StepSummary(words[0], words.getOrNull(1)?.toIntOrNull())
+        }
+    }
+}
+
+/** What a player's autopilot is doing, as a lesson sees it: running or not, its steps, laps done. */
+data class FlowProgress(val running: Boolean, val steps: List<StepSummary>, val laps: Int)
+
+/**
+ * An idle lesson's goal: the autopilot [running] a flow that has a step matching each of [steps] and went round
+ * [laps] times, or, when not [running], the autopilot stopped.
+ */
+data class LessonGoal(val running: Boolean, val steps: List<StepSummary> = emptyList(), val laps: Int = 0) {
+
+    fun met(progress: FlowProgress): Boolean =
+        if (running) progress.running && hasEverySpec(progress.steps) && progress.laps >= laps else !progress.running
+
+    private fun hasEverySpec(flow: List<StepSummary>): Boolean = steps.all { spec -> flow.any { it.matches(spec) } }
+}
 
 /** One box of a dialogue, one to [MAX_LINES] lines. */
 sealed interface DialogueBox {
@@ -159,13 +198,24 @@ internal data class StepJson(
     val arrow: ArrowJson? = null,
     val tabs: List<String> = emptyList(),
     val flash: String? = null,
+    val goal: GoalJson? = null,
 ) {
     fun toScreen(step: String) = StepScreen(
         help = requireNotNull(help) { "Tutorial step $step has no help box" }.toHelp(step),
         arrow = arrow?.toTarget(step) ?: HintTarget.None,
         tabs = tabs.map { TabIndex.valueOf(it) },
         flash = flash?.let { TabIndex.valueOf(it) },
+        goal = goal?.toGoal(step),
     )
+}
+
+internal data class GoalJson(val running: Boolean? = null, val steps: List<String> = emptyList(), val laps: Int = 0) {
+    fun toGoal(step: String): LessonGoal {
+        val running = requireNotNull(running) { "The goal of tutorial step $step says neither running nor stopped" }
+        require(laps >= 0) { "The goal of tutorial step $step counts $laps laps" }
+        require(running || steps.isEmpty() && laps == 0) { "The goal of tutorial step $step wants a stopped autopilot with steps or laps" }
+        return LessonGoal(running, steps.map(StepSummary::of), laps)
+    }
 }
 
 internal data class HelpJson(val title: String = "", val lines: List<String> = emptyList()) {

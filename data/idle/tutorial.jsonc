@@ -106,7 +106,11 @@
       "tabs": ["SKILL"],
       "flash": "SKILL"
     },
-    "TALK_ABOUT_FOOD": {
+    // The idle lessons (steps 51-55 and 100-104) are ours: Jagex's island had no autopilot. They build one flow, chop
+    // and light, then fish and cook added to it. A step with a goal moves on once the player's autopilot runs a flow
+    // with those steps ("chop 1": a chop step with a count of 1) and went round that many times ("laps"), or, with
+    // "running": false, once it stopped.
+    "TALK_ABOUT_AUTOPILOT": {
       "help": {
         "title": "These are your stats.",
         "lines": [
@@ -114,6 +118,62 @@
           "mouse over any of the icons in this panel, you can see the exact",
           "amount of experience you have and how much is needed to get",
           "to the next level. Speak to Brynna to continue."
+        ]
+      },
+      "arrow": { "npc": 943 }
+    },
+    "OPEN_IDLE_TAB": {
+      "help": {
+        "title": "The autopilot",
+        "lines": [
+          "Click on the flashing hourglass icon at the bottom left of your",
+          "side panel to open the Idle tab. Your autopilot lives here: it",
+          "can chop, fish, light and cook for you while you watch."
+        ]
+      },
+      "tabs": ["UNUSED"],
+      "flash": "UNUSED"
+    },
+    "BUILD_FIRST_FLOW": {
+      "help": {
+        "title": "Your first flow",
+        "lines": [
+          "Click 'Flow builder'. Click a field to change it. Make a 'chop'",
+          "step for 1 'normal' log and click 'Add step', then a 'light' step",
+          "for 1 log, and add it too. Click 'Run' near the trees: steps work",
+          "around the spot where you click 'Run'."
+        ]
+      },
+      "goal": { "running": true, "steps": ["chop 1", "light 1"] }
+    },
+    "WATCH_THE_AUTOPILOT": {
+      "help": {
+        "title": "Watch it work",
+        "lines": [
+          "The autopilot cuts one log, lights it, and starts the flow over",
+          "until you stop it. Watch it go round once. Your skills grow",
+          "slower while the autopilot works than when you do it yourself,",
+          "but they never stop growing."
+        ]
+      },
+      "goal": { "running": true, "steps": ["chop 1", "light 1"], "laps": 1 }
+    },
+    "STOP_THE_AUTOPILOT": {
+      "help": {
+        "title": "Stopping the autopilot",
+        "lines": [
+          "Well done. Click 'Stop' in the Idle tab or in the flow builder.",
+          "Your flow is kept: you can run it again whenever you like.",
+          "Then speak to Brynna to continue."
+        ]
+      },
+      "goal": { "running": false }
+    },
+    "TALK_ABOUT_FOOD": {
+      "help": {
+        "title": "",
+        "lines": [
+          "Speak to Brynna to continue."
         ]
       },
       "arrow": { "npc": 943 }
@@ -150,6 +210,49 @@
           "shrimp, then use them on a fire."
         ]
       }
+    },
+    "TALK_ABOUT_LOOP": {
+      "help": {
+        "title": "One more trick",
+        "lines": [
+          "Before you move on, Brynna has one more thing to show you.",
+          "Speak to her."
+        ]
+      },
+      "arrow": { "npc": 943 }
+    },
+    "EXTEND_THE_FLOW": {
+      "help": {
+        "title": "Growing your flow",
+        "lines": [
+          "Open the flow builder. Add a 'fish' step for 1 'shrimp' and click",
+          "its 'up' button so it comes before 'light'. Then add a 'cook'",
+          "step for 1 at the end, and click 'Run' near the trees and pond."
+        ]
+      },
+      "goal": { "running": true, "steps": ["chop 1", "fish 1", "light 1", "cook 1"] }
+    },
+    "WATCH_FULL_LOOP": {
+      "help": {
+        "title": "Round and round",
+        "lines": [
+          "Each step stops after its one log, shrimp or fire and hands",
+          "over to the next. Watch the flow go round once. Shrimp can",
+          "still burn: you burn less as your cooking gets better."
+        ]
+      },
+      "goal": { "running": true, "steps": ["chop 1", "fish 1", "light 1", "cook 1"], "laps": 1 }
+    },
+    "STOP_FULL_LOOP": {
+      "help": {
+        "title": "Survival on autopilot",
+        "lines": [
+          "That is all there is to it: any skill, anywhere, one flow.",
+          "Click 'Stop' when you have seen enough, then follow the path",
+          "to the gate."
+        ]
+      },
+      "goal": { "running": false }
     },
     "LEAVE_SURVIVAL_AREA": {
       "help": {
@@ -207,9 +310,23 @@
     "survival_skills": [
       { "npc": ["Hello again. You should take a look at that menu", "before we continue."] }
     ],
+    "survival_autopilot": [
+      { "npc": ["Good. Now, a survivor works smart as well as hard. You", "don't have to click every tree yourself: tell your hands", "what to do and they keep at it while your mind wanders."] },
+      { "npc": ["We call it the autopilot. You'll find it behind the", "hourglass on your side panel. Open it and I'll show you."] }
+    ],
+    "survival_autopilot_again": [
+      { "npc": ["Your autopilot is behind the hourglass on your side", "panel. Build a flow there and click Run."] }
+    ],
     "survival_food": [
       { "npc": ["There's nothing like a good fire to warm the bones.", "Next thing is getting food in our bellies. We'll need", "something to cook. There are shrimp in the pond there.", "So let's catch and cook some."] },
       { "items": [303], "text": ["The Survival Guide gives you a", "@blu@Net!"] }
+    ],
+    "survival_loop": [
+      { "npc": ["A good meal! Now, your flow can do all of that. Each", "step does one thing and hands over to the next, and the", "flow starts over by itself."] },
+      { "npc": ["Add a step to catch one shrimp after the chop, and one", "to cook it after the light, so the fire is still burning", "when your shrimp is ready."] }
+    ],
+    "survival_loop_again": [
+      { "npc": ["Chop one log, catch one shrimp, light the log and cook", "the shrimp: four steps, one flow. Click Run when it's", "ready."] }
     ],
     "survival_shrimp": [
       { "npc": ["Hello again. Next thing is getting food in our bellies.", "We'll need something to cook. There are shrimp in the", "pond there. So let's catch and cook some."] }

@@ -1,13 +1,16 @@
 package game.idle.tutorial
 
+import game.idle.tutorial.TutorialStep.BUILD_FIRST_FLOW
 import game.idle.tutorial.TutorialStep.CUT_TREE
 import game.idle.tutorial.TutorialStep.DESIGN_CHARACTER
 import game.idle.tutorial.TutorialStep.FIND_MASTER_CHEF
 import game.idle.tutorial.TutorialStep.FIND_SURVIVAL_EXPERT
 import game.idle.tutorial.TutorialStep.LEAVE_SURVIVAL_AREA
 import game.idle.tutorial.TutorialStep.OPEN_HOUSE_DOOR
+import game.idle.tutorial.TutorialStep.OPEN_IDLE_TAB
 import game.idle.tutorial.TutorialStep.OPEN_INVENTORY
 import game.idle.tutorial.TutorialStep.OPEN_SKILLS
+import game.idle.tutorial.TutorialStep.STOP_THE_AUTOPILOT
 import game.idle.tutorial.TutorialStep.TALK_TO_GUIDE
 import game.idle.ui.TileEdge
 import io.luna.game.model.Position
@@ -60,6 +63,19 @@ object TutorialFixtures {
             OPEN_INVENTORY to StepScreen(HelpBox("Backpack", listOf("Open it.")), HintTarget.None, listOf(TabIndex.INVENTORY), TabIndex.INVENTORY),
             CUT_TREE to StepScreen(HelpBox("Tree", listOf("Chop it.")), HintTarget.None, emptyList()),
             OPEN_SKILLS to StepScreen(HelpBox("Skills", listOf("Open them.")), HintTarget.None, listOf(TabIndex.SKILL), TabIndex.SKILL),
+            OPEN_IDLE_TAB to StepScreen(HelpBox("Idle", listOf("Open it.")), HintTarget.None, listOf(TabIndex.UNUSED), TabIndex.UNUSED),
+            BUILD_FIRST_FLOW to StepScreen(
+                HelpBox("Flow", listOf("Chop and light.")),
+                HintTarget.None,
+                emptyList(),
+                goal = LessonGoal(running = true, steps = listOf(StepSummary("chop", 1), StepSummary("light", 1))),
+            ),
+            STOP_THE_AUTOPILOT to StepScreen(
+                HelpBox("Stop", listOf("Stop it.")),
+                HintTarget.None,
+                emptyList(),
+                goal = LessonGoal(running = false),
+            ),
         ),
         dialogues = mapOf(
             TutorialScript.GUIDE_WELCOME to listOf(DialogueBox.Npc(listOf("Welcome.")), DialogueBox.Player(listOf("Thanks."))),
@@ -68,6 +84,10 @@ object TutorialFixtures {
             TutorialScript.SURVIVAL_INVENTORY to listOf(DialogueBox.Npc(listOf("Open your backpack."))),
             TutorialScript.SURVIVAL_FIRE to listOf(DialogueBox.Npc(listOf("Make a fire."))),
             TutorialScript.SURVIVAL_SKILLS to listOf(DialogueBox.Npc(listOf("Look at your skills."))),
+            TutorialScript.SURVIVAL_AUTOPILOT to listOf(DialogueBox.Npc(listOf("Meet the autopilot."))),
+            TutorialScript.SURVIVAL_AUTOPILOT_AGAIN to listOf(DialogueBox.Npc(listOf("Use the autopilot."))),
+            TutorialScript.SURVIVAL_LOOP to listOf(DialogueBox.Npc(listOf("One flow for all."))),
+            TutorialScript.SURVIVAL_LOOP_AGAIN to listOf(DialogueBox.Npc(listOf("Build the loop."))),
             TutorialScript.SURVIVAL_FOOD to listOf(DialogueBox.Npc(listOf("Take this net.")), DialogueBox.Text(listOf("You get a net."))),
             TutorialScript.SURVIVAL_SHRIMP to listOf(DialogueBox.Npc(listOf("Cook a shrimp."))),
             TutorialScript.SURVIVAL_DONE to listOf(DialogueBox.Npc(listOf("Off you go."))),

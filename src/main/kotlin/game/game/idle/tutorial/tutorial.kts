@@ -18,6 +18,8 @@ npc1(TutorialScript.SURVIVAL_EXPERT) { tutorial.talkToSurvivalExpert(plr, target
 
 on(FlashingTabClickEvent::class) { tutorial.tabOpened(plr, tab) }
 
+cmd("tutorial", RIGHTS_DEV) { plr.sendMessage(tutorial.jumpTo(plr, args.firstOrNull().orEmpty())) }
+
 on(SkillChangeEvent::class)
     .filter { !plr.isBot }
     .then { tutorial.experienceChanged(plr, this) }

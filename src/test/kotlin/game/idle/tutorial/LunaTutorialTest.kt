@@ -7,6 +7,8 @@ import game.idle.tutorial.TutorialScript.Companion.RAW_SHRIMPS
 import game.idle.tutorial.TutorialScript.Companion.SHRIMPS
 import game.idle.tutorial.TutorialScript.Companion.SMALL_FISHING_NET
 import game.idle.tutorial.TutorialScript.Companion.TINDERBOX
+import game.idle.idleState
+import game.idle.tutorial.TutorialStep.BUILD_FIRST_FLOW
 import game.idle.tutorial.TutorialStep.COOK_AGAIN
 import game.idle.tutorial.TutorialStep.COOK_SHRIMP
 import game.idle.tutorial.TutorialStep.CUT_TREE
@@ -17,8 +19,13 @@ import game.idle.tutorial.TutorialStep.FIND_SURVIVAL_EXPERT
 import game.idle.tutorial.TutorialStep.LEAVE_SURVIVAL_AREA
 import game.idle.tutorial.TutorialStep.LIGHT_FIRE
 import game.idle.tutorial.TutorialStep.OPEN_HOUSE_DOOR
+import game.idle.tutorial.TutorialStep.OPEN_IDLE_TAB
 import game.idle.tutorial.TutorialStep.OPEN_INVENTORY
+import game.idle.tutorial.TutorialStep.OPEN_SKILLS
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_FOOD
+import game.idle.tutorial.TutorialStep.TALK_ABOUT_LOOP
+import game.idle.tutorial.TutorialStep.WATCH_THE_AUTOPILOT
+import game.idle.ui.FlowWidgets
 import game.idle.tutorial.TutorialStep.TALK_TO_GUIDE
 import game.player.login.firstLogin
 import game.skill.firemaking.LightAction
@@ -234,6 +241,74 @@ class LunaTutorialTest {
         val player = loggedIn(returning(OPEN_INVENTORY))
 
         assertEquals("INVENTORY", sent(player, "FlashTabMessageWriter").single().fields["tab"])
+    }
+
+    @Test
+    fun `the Idle tab stays hidden before its step`() {
+        val player = loggedIn(returning(OPEN_SKILLS))
+
+        assertFalse(player.tabs.get(TabIndex.UNUSED).isPresent)
+    }
+
+    @Test
+    fun `the Idle tab appears with its own widgets at its step, and flashes`() {
+        val player = loggedIn(returning(OPEN_IDLE_TAB))
+
+        assertEquals(FlowWidgets.TAB, player.tabs.get(TabIndex.UNUSED).asInt)
+        assertEquals("UNUSED", sent(player, "FlashTabMessageWriter").single().fields["tab"])
+    }
+
+    @Test
+    fun `a lesson moves on once the player's autopilot reaches its goal`() {
+        val player = loggedIn(returning(BUILD_FIRST_FLOW))
+
+        player.idleState = player.idleState.copy(flow = listOf("chop 1 normal", " Light 1"), running = true)
+        TestWorld.tick()
+
+        assertEquals(WATCH_THE_AUTOPILOT, player.tutorialStep)
+    }
+
+    @Test
+    fun `a lesson waits while the autopilot is short of its goal`() {
+        val player = loggedIn(returning(BUILD_FIRST_FLOW))
+
+        player.idleState = player.idleState.copy(flow = listOf("chop normal", "light 1"), running = true)
+        TestWorld.tick()
+
+        assertEquals(BUILD_FIRST_FLOW, player.tutorialStep)
+    }
+
+    @Test
+    fun `a developer jump moves a player on the island to the step named, whatever the case`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(CUT_TREE), tutorial)
+
+        val reply = tutorial.jumpTo(player, "build_first_flow")
+
+        assertEquals(listOf("Tutorial step: BUILD_FIRST_FLOW", "BUILD_FIRST_FLOW"), listOf(reply, player.tutorialStep.name))
+    }
+
+    @Test
+    fun `a jump to a step that does not exist says so`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(CUT_TREE), tutorial)
+
+        assertEquals("No tutorial step 'moon'.", tutorial.jumpTo(player, "moon"))
+        assertEquals(CUT_TREE, player.tutorialStep)
+    }
+
+    @Test
+    fun `a jump neither leaves the island nor brings a player back to it`() {
+        val tutorial = tutorial()
+        val onIsland = loggedIn(returning(CUT_TREE), tutorial)
+        val done = TestWorld.login("done", besideElsewhere).also { it.firstLogin = false }
+
+        val leaving = tutorial.jumpTo(onIsland, "done")
+        val coming = tutorial.jumpTo(done, "cut_tree")
+
+        assertEquals("The jump only moves a player still on the island to another step on it.", leaving)
+        assertEquals(leaving, coming)
+        assertEquals(listOf(CUT_TREE, DONE), listOf(onIsland.tutorialStep, done.tutorialStep))
     }
 
     @Test
@@ -576,6 +651,17 @@ class LunaTutorialTest {
     }
 
     @Test
+    fun `no wait box shows while the autopilot does the work`() {
+        val player = loggedIn(returning(LIGHT_FIRE))
+        player.idleState = player.idleState.copy(running = true)
+
+        startLighting(player)
+        TestWorld.tick()
+
+        assertFalse("Please wait..." in helpTitles(player))
+    }
+
+    @Test
     fun `the wait box is sent once while the player keeps at it`() {
         val player = loggedIn(returning(LIGHT_FIRE))
         startLighting(player)
@@ -701,14 +787,14 @@ class LunaTutorialTest {
     }
 
     @Test
-    fun `cooking the second shrimp sends the player to the gate`() {
+    fun `cooking the second shrimp sends the player to Brynna's last lesson`() {
         val tutorial = tutorial()
         val player = loggedIn(cookingPlayer(COOK_AGAIN), tutorial)
 
         useOn(tutorial, player, RAW_SHRIMPS)
         TestWorld.tick()
 
-        assertEquals(LEAVE_SURVIVAL_AREA, player.tutorialStep)
+        assertEquals(TALK_ABOUT_LOOP, player.tutorialStep)
     }
 
     @Test

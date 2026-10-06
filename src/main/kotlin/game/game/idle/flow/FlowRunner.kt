@@ -8,18 +8,21 @@ interface StepActivity : AutopilotActivity {
     fun isDone(): Boolean
 }
 
-/** The player a flow runs for: where each step's activity comes from and where the step index is saved. */
+/** The player a flow runs for: where each step's activity comes from and where its progress is saved. */
 interface FlowPlayer {
 
     fun activity(step: ResolvedStep): StepActivity
 
     fun saveStep(index: Int)
+
+    /** The flow finished its last step and starts over. */
+    fun lapCompleted()
 }
 
 /**
  * Runs a flow step by step: each tick the current step's activity acts until it says it is done, then the next one
- * starts, and after the last step the first one again. The step index is saved whenever it changes so a relog
- * resumes where it was.
+ * starts, and after the last step the first one again, which counts as a lap. The step index is saved whenever it
+ * changes so a relog resumes where it was.
  */
 class FlowRunner(
     private val steps: List<ResolvedStep>,
@@ -51,6 +54,7 @@ class FlowRunner(
     private fun advance() {
         current = null
         index = (index + 1) % steps.size
+        if (index == 0) player.lapCompleted()
         player.saveStep(index)
     }
 }

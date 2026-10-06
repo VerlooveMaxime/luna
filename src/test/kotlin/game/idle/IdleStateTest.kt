@@ -45,6 +45,13 @@ class IdleStateTest {
     }
 
     @Test
+    fun `a lap is counted, and a new run or a new flow counts from zero again`() {
+        val lapped = state.lapped().lapped()
+
+        assertEquals(listOf(2, 0, 0), listOf(lapped.laps, lapped.fromStart().laps, lapped.withFlow(emptyList()).laps))
+    }
+
+    @Test
     fun `resuming keeps the run tile it was started on`() {
         assertEquals(state, state.stopped().started(Tile(1, 2)))
     }

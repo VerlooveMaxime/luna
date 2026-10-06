@@ -141,6 +141,51 @@ class TutorialDataTest {
     }
 
     @Test
+    fun `a lesson goal is read with its steps, in lower case with their counts, and laps`() {
+        val data = TutorialData.parse(step("""{ "help": $HELP, "goal": { "running": true, "steps": ["Chop 1", "drop"], "laps": 2 } }"""))
+
+        assertEquals(
+            LessonGoal(running = true, steps = listOf(StepSummary("chop", 1), StepSummary("drop", null)), laps = 2),
+            data.steps.getValue(TALK_TO_GUIDE).goal,
+        )
+    }
+
+    @Test
+    fun `a goal of a stopped autopilot needs nothing else`() {
+        val data = TutorialData.parse(step("""{ "help": $HELP, "goal": { "running": false } }"""))
+
+        assertEquals(LessonGoal(running = false), data.steps.getValue(TALK_TO_GUIDE).goal)
+    }
+
+    @Test
+    fun `a step has no goal unless told to`() {
+        assertEquals(null, TutorialData.parse(json()).steps.getValue(TALK_TO_GUIDE).goal)
+    }
+
+    @Test
+    fun `a goal must say running or stopped`() {
+        val error = refused(step("""{ "help": $HELP, "goal": { "steps": ["chop"] } }"""))
+
+        assertEquals("The goal of tutorial step TALK_TO_GUIDE says neither running nor stopped", error.message)
+    }
+
+    @Test
+    fun `a goal cannot count negative laps`() {
+        val error = refused(step("""{ "help": $HELP, "goal": { "running": true, "laps": -1 } }"""))
+
+        assertEquals("The goal of tutorial step TALK_TO_GUIDE counts -1 laps", error.message)
+    }
+
+    @Test
+    fun `a stopped autopilot cannot also need steps or laps`() {
+        val withSteps = refused(step("""{ "help": $HELP, "goal": { "running": false, "steps": ["chop"] } }"""))
+        val withLaps = refused(step("""{ "help": $HELP, "goal": { "running": false, "laps": 1 } }"""))
+
+        assertEquals("The goal of tutorial step TALK_TO_GUIDE wants a stopped autopilot with steps or laps", withSteps.message)
+        assertEquals(withSteps.message, withLaps.message)
+    }
+
+    @Test
     fun `a step flashes no tab unless told to`() {
         assertEquals(null, TutorialData.parse(json()).steps.getValue(TALK_TO_GUIDE).flash)
     }

@@ -4,19 +4,26 @@ import game.idle.tutorial.TutorialScript.Companion.BRONZE_AXE
 import game.idle.tutorial.TutorialScript.Companion.SMALL_FISHING_NET
 import game.idle.tutorial.TutorialScript.Companion.TINDERBOX
 import game.idle.tutorial.TutorialStep.CATCH_SHRIMP
+import game.idle.tutorial.TutorialStep.BUILD_FIRST_FLOW
 import game.idle.tutorial.TutorialStep.COOK_AGAIN
 import game.idle.tutorial.TutorialStep.COOK_SHRIMP
 import game.idle.tutorial.TutorialStep.CUT_TREE
 import game.idle.tutorial.TutorialStep.DESIGN_CHARACTER
 import game.idle.tutorial.TutorialStep.DONE
+import game.idle.tutorial.TutorialStep.EXTEND_THE_FLOW
 import game.idle.tutorial.TutorialStep.FIND_MASTER_CHEF
 import game.idle.tutorial.TutorialStep.FIND_SURVIVAL_EXPERT
 import game.idle.tutorial.TutorialStep.LEAVE_SURVIVAL_AREA
 import game.idle.tutorial.TutorialStep.LIGHT_FIRE
 import game.idle.tutorial.TutorialStep.OPEN_HOUSE_DOOR
+import game.idle.tutorial.TutorialStep.OPEN_IDLE_TAB
 import game.idle.tutorial.TutorialStep.OPEN_INVENTORY
 import game.idle.tutorial.TutorialStep.OPEN_SKILLS
+import game.idle.tutorial.TutorialStep.STOP_FULL_LOOP
+import game.idle.tutorial.TutorialStep.STOP_THE_AUTOPILOT
+import game.idle.tutorial.TutorialStep.TALK_ABOUT_AUTOPILOT
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_FOOD
+import game.idle.tutorial.TutorialStep.TALK_ABOUT_LOOP
 import game.idle.tutorial.TutorialStep.TALK_TO_GUIDE
 import io.luna.game.model.mob.Skill
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
@@ -98,6 +105,28 @@ class TutorialScriptTest {
     @Test
     fun `the Survival Expert points at the skills until they are open`() {
         assertEquals(Talk(TutorialScript.SURVIVAL_SKILLS, progress = null), script.talkToSurvivalExpert(OPEN_SKILLS))
+    }
+
+    @Test
+    fun `the Survival Expert introduces the autopilot and sends the player to the Idle tab`() {
+        assertEquals(Talk(TutorialScript.SURVIVAL_AUTOPILOT, Progress(OPEN_IDLE_TAB)), script.talkToSurvivalExpert(TALK_ABOUT_AUTOPILOT))
+    }
+
+    @Test
+    fun `the Survival Expert points at the autopilot until its lesson is done`() {
+        assertEquals(Talk(TutorialScript.SURVIVAL_AUTOPILOT_AGAIN, progress = null), script.talkToSurvivalExpert(OPEN_IDLE_TAB))
+        assertEquals(Talk(TutorialScript.SURVIVAL_AUTOPILOT_AGAIN, progress = null), script.talkToSurvivalExpert(STOP_THE_AUTOPILOT))
+    }
+
+    @Test
+    fun `the Survival Expert shows one flow for everything after the meal`() {
+        assertEquals(Talk(TutorialScript.SURVIVAL_LOOP, Progress(EXTEND_THE_FLOW)), script.talkToSurvivalExpert(TALK_ABOUT_LOOP))
+    }
+
+    @Test
+    fun `the Survival Expert repeats the four-step flow until it was stopped`() {
+        assertEquals(Talk(TutorialScript.SURVIVAL_LOOP_AGAIN, progress = null), script.talkToSurvivalExpert(EXTEND_THE_FLOW))
+        assertEquals(Talk(TutorialScript.SURVIVAL_LOOP_AGAIN, progress = null), script.talkToSurvivalExpert(STOP_FULL_LOOP))
     }
 
     @Test
@@ -193,7 +222,35 @@ class TutorialScriptTest {
 
     @Test
     fun `opening the flashing skills tab moves on to the next step`() {
-        assertEquals(Progress(TALK_ABOUT_FOOD), script.tabOpened(OPEN_SKILLS, TabIndex.SKILL))
+        assertEquals(Progress(TALK_ABOUT_AUTOPILOT), script.tabOpened(OPEN_SKILLS, TabIndex.SKILL))
+    }
+
+    @Test
+    fun `opening the flashing Idle tab moves on to the first flow`() {
+        assertEquals(Progress(BUILD_FIRST_FLOW), script.tabOpened(OPEN_IDLE_TAB, TabIndex.UNUSED))
+    }
+
+    @Test
+    fun `a lesson moves on once the autopilot reaches its goal`() {
+        val progress = FlowProgress(running = true, steps = listOf(StepSummary("chop", 1), StepSummary("light", 1)), laps = 0)
+
+        assertEquals(TutorialStep.WATCH_THE_AUTOPILOT, script.lessonProgress(BUILD_FIRST_FLOW, progress))
+    }
+
+    @Test
+    fun `a lesson waits while the autopilot is short of its goal`() {
+        assertNull(script.lessonProgress(BUILD_FIRST_FLOW, FlowProgress(running = true, steps = listOf(StepSummary("chop", 1)), laps = 3)))
+    }
+
+    @Test
+    fun `stopping the autopilot ends the lesson that asks for it`() {
+        assertEquals(TALK_ABOUT_FOOD, script.lessonProgress(STOP_THE_AUTOPILOT, FlowProgress(running = false, steps = emptyList(), laps = 0)))
+    }
+
+    @Test
+    fun `a step without a goal is no lesson`() {
+        assertNull(script.lessonProgress(TutorialStep.WATCH_THE_AUTOPILOT, FlowProgress(running = true, steps = emptyList(), laps = 9)))
+        assertNull(script.lessonProgress(DONE, FlowProgress(running = false, steps = emptyList(), laps = 0)))
     }
 
     @Test
@@ -238,7 +295,7 @@ class TutorialScriptTest {
 
     @Test
     fun `the second shrimp cooked always cooks`() {
-        assertEquals(ScriptedCook(burnt = false, advanceTo = LEAVE_SURVIVAL_AREA), script.cookShrimp(COOK_AGAIN))
+        assertEquals(ScriptedCook(burnt = false, advanceTo = TALK_ABOUT_LOOP), script.cookShrimp(COOK_AGAIN))
     }
 
     @Test

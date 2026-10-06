@@ -135,6 +135,16 @@ class LunaAutopilotPlayerTest {
     }
 
     @Test
+    fun `a lap is counted on the player's state`() {
+        val autopilot = autopilotPlayer()
+        autopilot.player.idleState = IdleState(flow = listOf("chop oak"), running = true)
+
+        autopilot.lapCompleted()
+
+        assertEquals(1, autopilot.player.idleState.laps)
+    }
+
+    @Test
     fun `telling the player sends a chat box line`() {
         val autopilot = autopilotPlayer()
 

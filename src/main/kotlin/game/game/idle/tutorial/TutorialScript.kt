@@ -6,13 +6,17 @@ import game.idle.tutorial.TutorialStep.COOK_SHRIMP
 import game.idle.tutorial.TutorialStep.CUT_TREE
 import game.idle.tutorial.TutorialStep.DESIGN_CHARACTER
 import game.idle.tutorial.TutorialStep.DONE
+import game.idle.tutorial.TutorialStep.EXTEND_THE_FLOW
 import game.idle.tutorial.TutorialStep.FIND_SURVIVAL_EXPERT
 import game.idle.tutorial.TutorialStep.LEAVE_SURVIVAL_AREA
 import game.idle.tutorial.TutorialStep.LIGHT_FIRE
 import game.idle.tutorial.TutorialStep.OPEN_HOUSE_DOOR
+import game.idle.tutorial.TutorialStep.OPEN_IDLE_TAB
 import game.idle.tutorial.TutorialStep.OPEN_INVENTORY
 import game.idle.tutorial.TutorialStep.OPEN_SKILLS
+import game.idle.tutorial.TutorialStep.TALK_ABOUT_AUTOPILOT
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_FOOD
+import game.idle.tutorial.TutorialStep.TALK_ABOUT_LOOP
 import game.idle.tutorial.TutorialStep.TALK_TO_GUIDE
 import io.luna.game.model.mob.Skill
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
@@ -66,8 +70,12 @@ class TutorialScript(private val data: TutorialData) {
         step == OPEN_INVENTORY -> Talk(SURVIVAL_INVENTORY, progress = null)
         step < OPEN_SKILLS -> Talk(SURVIVAL_FIRE, progress = null)
         step == OPEN_SKILLS -> Talk(SURVIVAL_SKILLS, progress = null)
+        step == TALK_ABOUT_AUTOPILOT -> Talk(SURVIVAL_AUTOPILOT, Progress(OPEN_IDLE_TAB))
+        step < TALK_ABOUT_FOOD -> Talk(SURVIVAL_AUTOPILOT_AGAIN, progress = null)
         step == TALK_ABOUT_FOOD -> Talk(SURVIVAL_FOOD, Progress(CATCH_SHRIMP, listOf(SMALL_FISHING_NET)))
-        step < LEAVE_SURVIVAL_AREA -> Talk(SURVIVAL_SHRIMP, progress = null)
+        step < TALK_ABOUT_LOOP -> Talk(SURVIVAL_SHRIMP, progress = null)
+        step == TALK_ABOUT_LOOP -> Talk(SURVIVAL_LOOP, Progress(EXTEND_THE_FLOW))
+        step < LEAVE_SURVIVAL_AREA -> Talk(SURVIVAL_LOOP_AGAIN, progress = null)
         else -> Talk(SURVIVAL_DONE, progress = null)
     }
 
@@ -99,8 +107,14 @@ class TutorialScript(private val data: TutorialData) {
     fun tabOpened(step: TutorialStep, tab: TabIndex): Progress? = when {
         data.steps[step]?.flash != tab -> null
         step == OPEN_INVENTORY -> Progress(CUT_TREE, listOf(BRONZE_AXE, TINDERBOX))
-        else -> Progress(TutorialStep.entries[step.ordinal + 1])
+        else -> Progress(next(step))
     }
+
+    /** An idle lesson moves the player on once their autopilot reaches the step's goal. */
+    fun lessonProgress(step: TutorialStep, progress: FlowProgress): TutorialStep? =
+        data.steps[step]?.goal?.takeIf { it.met(progress) }?.let { next(step) }
+
+    private fun next(step: TutorialStep): TutorialStep = TutorialStep.entries[step.ordinal + 1]
 
     /** The first log, fire and shrimp each move the player on. */
     fun experienceGained(step: TutorialStep, skill: Int): TutorialStep? =
@@ -108,7 +122,7 @@ class TutorialScript(private val data: TutorialData) {
 
     fun cookShrimp(step: TutorialStep): ScriptedCook? = when (step) {
         COOK_SHRIMP -> ScriptedCook(burnt = true, advanceTo = COOK_AGAIN)
-        COOK_AGAIN -> ScriptedCook(burnt = false, advanceTo = LEAVE_SURVIVAL_AREA)
+        COOK_AGAIN -> ScriptedCook(burnt = false, advanceTo = TALK_ABOUT_LOOP)
         else -> null
     }
 
@@ -139,8 +153,12 @@ class TutorialScript(private val data: TutorialData) {
         const val SURVIVAL_INVENTORY = "survival_inventory"
         const val SURVIVAL_FIRE = "survival_fire"
         const val SURVIVAL_SKILLS = "survival_skills"
+        const val SURVIVAL_AUTOPILOT = "survival_autopilot"
+        const val SURVIVAL_AUTOPILOT_AGAIN = "survival_autopilot_again"
         const val SURVIVAL_FOOD = "survival_food"
         const val SURVIVAL_SHRIMP = "survival_shrimp"
+        const val SURVIVAL_LOOP = "survival_loop"
+        const val SURVIVAL_LOOP_AGAIN = "survival_loop_again"
         const val SURVIVAL_DONE = "survival_done"
         const val GIVES_AXE_AND_TINDERBOX = "survival_gives_axe_and_tinderbox"
         const val GIVES_AXE = "survival_gives_axe"
@@ -153,7 +171,8 @@ class TutorialScript(private val data: TutorialData) {
 
         private val DIALOGUES = listOf(
             GUIDE_WELCOME, GUIDE_AGAIN, SURVIVAL_WELCOME, SURVIVAL_INVENTORY, SURVIVAL_FIRE, SURVIVAL_SKILLS,
-            SURVIVAL_FOOD, SURVIVAL_SHRIMP, SURVIVAL_DONE, GIVES_AXE_AND_TINDERBOX, GIVES_AXE, GIVES_TINDERBOX, GIVES_NET,
+            SURVIVAL_AUTOPILOT, SURVIVAL_AUTOPILOT_AGAIN, SURVIVAL_FOOD, SURVIVAL_SHRIMP, SURVIVAL_LOOP, SURVIVAL_LOOP_AGAIN,
+            SURVIVAL_DONE, GIVES_AXE_AND_TINDERBOX, GIVES_AXE, GIVES_TINDERBOX, GIVES_NET,
         )
 
         private val ACTIVITIES = listOf(WOODCUTTING, FIREMAKING, FISHING)

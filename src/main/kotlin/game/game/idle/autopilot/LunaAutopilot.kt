@@ -35,6 +35,10 @@ class LunaAutopilotPlayer(val player: Player) : AutopilotPlayer, FlowPlayer {
         idleState = idleState.atStep(index)
     }
 
+    override fun lapCompleted() {
+        idleState = idleState.lapped()
+    }
+
     /** A flow is started before its first activity, so the run tile is set; the player's tile only guards a gap. */
     override fun activity(step: ResolvedStep): StepActivity = step.activity(player, idleState.runTile ?: tile)
 }
