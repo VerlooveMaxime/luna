@@ -173,14 +173,15 @@ public final class CollisionManager {
     /**
      * Applies or removes collision for a runtime entity.
      * <p>
-     * This is used for dynamic world changes such as spawned or removed objects and NPCs. Players are ignored because
-     * their blocking behavior is handled through movement and pathing rather than static tile collision.
+     * This is used for dynamic world changes such as spawned or removed objects. Players and NPCs are ignored: the client
+     * walks through both, and an NPC's tile was never updated as it moved, which left its spawn tile blocked for good
+     * and cleared whatever collision lay under the tile it was removed from.
      *
      * @param entity The entity whose collision should be updated.
      * @param removal {@code true} to remove collision, {@code false} to add it.
      */
     public void updateEntity(Entity entity, boolean removal) {
-        if (entity.getType() == EntityType.PLAYER) {
+        if (entity.getType() != EntityType.OBJECT) {
             return;
         }
 
@@ -190,11 +191,7 @@ public final class CollisionManager {
         } else {
             builder.type(CollisionUpdateType.REMOVING);
         }
-        if (entity.getType() == EntityType.OBJECT) {
-            builder.object((GameObject) entity);
-        } else if (entity.getType() == EntityType.NPC) {
-            builder.tile(entity.getPosition(), false, Direction.NESW);
-        }
+        builder.object((GameObject) entity);
         apply(builder.build(), false);
     }
 

@@ -5,6 +5,8 @@ import game.testworld.TestWorld
 import io.luna.game.event.impl.UseItemEvent.ItemOnItemEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
+import io.luna.game.model.`object`.ObjectDirection
+import io.luna.game.model.`object`.ObjectType
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.overlay.StandardInterface
@@ -146,17 +148,6 @@ class LunaLighterTest {
     }
 
     @Test
-    fun `stepping aside passes over a tile someone stands on`() {
-        val player = login()
-        TestWorld.spawnNpc(1, Position(3199, 3200))
-
-        lighter(player).stepAside()
-        TestWorld.tick()
-
-        assertEquals(Position(3201, 3200), player.position)
-    }
-
-    @Test
     fun `stepping aside passes over a tile a wall shuts off`() {
         val player = login()
         TestWorld.place(deadTree, Position(3199, 3200))
@@ -166,6 +157,17 @@ class LunaLighterTest {
         TestWorld.tick()
 
         assertEquals(Position(3200, 3199), player.position)
+    }
+
+    @Test
+    fun `stepping aside passes over a free tile behind a wall on the player's own tile`() {
+        val player = login()
+        TestWorld.place(1902, Position(3200, 3200), ObjectType.STRAIGHT_WALL, ObjectDirection.WEST)
+
+        lighter(player).stepAside()
+        TestWorld.tick()
+
+        assertEquals(Position(3201, 3200), player.position)
     }
 
     @Test
