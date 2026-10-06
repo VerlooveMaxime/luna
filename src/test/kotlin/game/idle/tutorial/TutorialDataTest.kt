@@ -145,7 +145,7 @@ class TutorialDataTest {
         val data = TutorialData.parse(step("""{ "help": $HELP, "goal": { "running": true, "steps": ["Chop 1", "drop"], "laps": 2 } }"""))
 
         assertEquals(
-            LessonGoal(running = true, steps = listOf(StepSummary("chop", 1), StepSummary("drop", null)), laps = 2),
+            LessonGoal(running = true, steps = listOf(StepSpec("chop", 1), StepSpec("drop", anyCount = true)), laps = 2),
             data.steps.getValue(TALK_TO_GUIDE).goal,
         )
     }
@@ -163,10 +163,26 @@ class TutorialDataTest {
     }
 
     @Test
-    fun `a goal must say running or stopped`() {
-        val error = refused(step("""{ "help": $HELP, "goal": { "steps": ["chop"] } }"""))
+    fun `a goal of carrying an item is read`() {
+        val data = TutorialData.parse(step("""{ "help": $HELP, "goal": { "carries": 2307 } }"""))
 
-        assertEquals("The goal of tutorial step TALK_TO_GUIDE says neither running nor stopped", error.message)
+        assertEquals(StepGoal.Carries(2307), data.steps.getValue(TALK_TO_GUIDE).goal)
+    }
+
+    @Test
+    fun `a goal of turning run on is read`() {
+        val data = TutorialData.parse(step("""{ "help": $HELP, "goal": { "run": true } }"""))
+
+        assertEquals(StepGoal.RunOn, data.steps.getValue(TALK_TO_GUIDE).goal)
+    }
+
+    @Test
+    fun `a goal must be exactly one of carrying, running or the autopilot`() {
+        val none = refused(step("""{ "help": $HELP, "goal": { "steps": ["chop"] } }"""))
+        val two = refused(step("""{ "help": $HELP, "goal": { "carries": 1, "running": true } }"""))
+
+        assertEquals("The goal of tutorial step TALK_TO_GUIDE needs exactly one of carries, run or running", none.message)
+        assertEquals(none.message, two.message)
     }
 
     @Test

@@ -141,6 +141,7 @@ class LunaTutorialTest {
     private companion object {
         const val FIRE = 2732
         const val RANGE = 114
+        const val ISLAND_RANGE = 3039
         const val LOGS = 1511
         const val INVENTORY = 3214
         const val INVENTORY_SIZE = 28
@@ -309,6 +310,76 @@ class LunaTutorialTest {
         assertEquals("The jump only moves a player still on the island to another step on it.", leaving)
         assertEquals(leaving, coming)
         assertEquals(listOf(CUT_TREE, DONE), listOf(onIsland.tutorialStep, done.tutorialStep))
+    }
+
+    private fun talkToChef(tutorial: LunaTutorial, player: Player) {
+        tutorial.talkToChef(player, TestWorld.spawnNpc(TutorialScript.MASTER_CHEF, besideElsewhere))
+        readToTheEnd(player)
+    }
+
+    @Test
+    fun `the chef's welcome hands over flour and water and sends the player to make dough`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.TALK_TO_CHEF), tutorial)
+
+        talkToChef(tutorial, player)
+
+        assertEquals(TutorialStep.MAKE_DOUGH, player.tutorialStep)
+        assertEquals(listOf(1, 1), listOf(carried(player, TutorialScript.BUCKET_OF_WATER), carried(player, TutorialScript.POT_OF_FLOUR)))
+    }
+
+    @Test
+    fun `the chef hands back lost ingredients and shows them after his lines`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.BAKE_BREAD), tutorial)
+        player.inventory.add(Item(TutorialScript.BUCKET_OF_WATER))
+
+        tutorial.talkToChef(player, TestWorld.spawnNpc(TutorialScript.MASTER_CHEF, besideElsewhere))
+        readToTheEnd(player)
+
+        assertEquals(1, carried(player, TutorialScript.POT_OF_FLOUR))
+        assertTrue("Flour." in texts(player))
+    }
+
+    @Test
+    fun `carrying the dough moves the player on to baking it`() {
+        val player = loggedIn(returning(TutorialStep.MAKE_DOUGH))
+
+        player.inventory.add(Item(TutorialScript.BREAD_DOUGH))
+        TestWorld.tick()
+
+        assertEquals(TutorialStep.BAKE_BREAD, player.tutorialStep)
+    }
+
+    @Test
+    fun `turning run on moves the player on to the next guide`() {
+        val player = loggedIn(returning(TutorialStep.TURN_RUN_ON))
+
+        player.isRunning = true
+        TestWorld.tick()
+
+        assertEquals(TutorialStep.FIND_QUEST_GUIDE, player.tutorialStep)
+    }
+
+    @Test
+    fun `the first bread on a range always bakes and moves the player on`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.BAKE_BREAD), tutorial)
+        player.inventory.add(Item(TutorialScript.BREAD_DOUGH))
+
+        assertFalse(useOn(tutorial, player, TutorialScript.BREAD_DOUGH, ISLAND_RANGE))
+        TestWorld.tick()
+
+        assertEquals(listOf(0, 1), listOf(carried(player, TutorialScript.BREAD_DOUGH), carried(player, TutorialScript.BREAD)))
+        assertEquals(TutorialStep.TALK_ABOUT_SUPPLIES, player.tutorialStep)
+    }
+
+    @Test
+    fun `dough on a fire is left to Luna`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.BAKE_BREAD), tutorial)
+
+        assertTrue(useOn(tutorial, player, TutorialScript.BREAD_DOUGH, FIRE))
     }
 
     @Test

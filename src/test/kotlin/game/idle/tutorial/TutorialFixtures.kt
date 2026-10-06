@@ -6,6 +6,8 @@ import game.idle.tutorial.TutorialStep.DESIGN_CHARACTER
 import game.idle.tutorial.TutorialStep.FIND_MASTER_CHEF
 import game.idle.tutorial.TutorialStep.FIND_SURVIVAL_EXPERT
 import game.idle.tutorial.TutorialStep.LEAVE_SURVIVAL_AREA
+import game.idle.tutorial.TutorialStep.MAKE_DOUGH
+import game.idle.tutorial.TutorialStep.TURN_RUN_ON
 import game.idle.tutorial.TutorialStep.OPEN_HOUSE_DOOR
 import game.idle.tutorial.TutorialStep.OPEN_IDLE_TAB
 import game.idle.tutorial.TutorialStep.OPEN_INVENTORY
@@ -68,8 +70,10 @@ object TutorialFixtures {
                 HelpBox("Flow", listOf("Chop and light.")),
                 HintTarget.None,
                 emptyList(),
-                goal = LessonGoal(running = true, steps = listOf(StepSummary("chop", 1), StepSummary("light", 1))),
+                goal = LessonGoal(running = true, steps = listOf(StepSpec("chop", 1), StepSpec("light", 1))),
             ),
+            MAKE_DOUGH to StepScreen(HelpBox("Dough", listOf("Make it.")), HintTarget.None, emptyList(), goal = StepGoal.Carries(2307)),
+            TURN_RUN_ON to StepScreen(HelpBox("Run", listOf("Run.")), HintTarget.None, emptyList(), goal = StepGoal.RunOn),
             STOP_THE_AUTOPILOT to StepScreen(
                 HelpBox("Stop", listOf("Stop it.")),
                 HintTarget.None,
@@ -88,6 +92,15 @@ object TutorialFixtures {
             TutorialScript.SURVIVAL_AUTOPILOT_AGAIN to listOf(DialogueBox.Npc(listOf("Use the autopilot."))),
             TutorialScript.SURVIVAL_LOOP to listOf(DialogueBox.Npc(listOf("One flow for all."))),
             TutorialScript.SURVIVAL_LOOP_AGAIN to listOf(DialogueBox.Npc(listOf("Build the loop."))),
+            TutorialScript.CHEF_WELCOME to listOf(DialogueBox.Npc(listOf("I am Lev."))),
+            TutorialScript.CHEF_BREAD to listOf(DialogueBox.Npc(listOf("Bake bread."))),
+            TutorialScript.CHEF_SUPPLIES to listOf(DialogueBox.Npc(listOf("Take these."))),
+            TutorialScript.CHEF_SUPPLIES_AGAIN to listOf(DialogueBox.Npc(listOf("Bake it all."))),
+            TutorialScript.CHEF_HELLO to listOf(DialogueBox.Npc(listOf("Hello again."))),
+            TutorialScript.CHEF_GIVES_FLOUR_AND_WATER to listOf(DialogueBox.Items(listOf(1929, 1933), listOf("Flour and water."))),
+            TutorialScript.CHEF_GIVES_FLOUR to listOf(DialogueBox.Items(listOf(1933), listOf("Flour."))),
+            TutorialScript.CHEF_GIVES_WATER to listOf(DialogueBox.Items(listOf(1929), listOf("Water."))),
+            TutorialScript.CHEF_GIVES_SUPPLIES to listOf(DialogueBox.Items(listOf(1933, 1929), listOf("Supplies."))),
             TutorialScript.SURVIVAL_FOOD to listOf(DialogueBox.Npc(listOf("Take this net.")), DialogueBox.Text(listOf("You get a net."))),
             TutorialScript.SURVIVAL_SHRIMP to listOf(DialogueBox.Npc(listOf("Cook a shrimp."))),
             TutorialScript.SURVIVAL_DONE to listOf(DialogueBox.Npc(listOf("Off you go."))),
@@ -101,8 +114,8 @@ object TutorialFixtures {
         doors = listOf(door, gate),
         messages = mapOf(
             LunaTutorial.CANNOT_WIELD to "Not yet.",
-            LunaTutorial.SHRIMP_BURNT to "Burnt.",
-            LunaTutorial.SHRIMP_COOKED to "Cooked.",
+            TutorialScript.SHRIMP_BURNT to "Burnt.",
+            TutorialScript.SHRIMP_COOKED to "Cooked.",
         ),
         busy = mapOf(
             TutorialScript.WOODCUTTING to HelpBox("Please wait...", listOf("Chopping.")),

@@ -25,6 +25,8 @@ import game.idle.tutorial.TutorialStep.TALK_ABOUT_AUTOPILOT
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_FOOD
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_LOOP
 import game.idle.tutorial.TutorialStep.TALK_TO_GUIDE
+import game.player.Animations
+import game.skill.cooking.cookFood.Cooking
 import io.luna.game.model.mob.Skill
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -230,27 +232,42 @@ class TutorialScriptTest {
         assertEquals(Progress(BUILD_FIRST_FLOW), script.tabOpened(OPEN_IDLE_TAB, TabIndex.UNUSED))
     }
 
+    private fun flow(running: Boolean, vararg steps: StepSummary, laps: Int = 0) =
+        PlayerProgress(FlowProgress(running, steps.toList(), laps))
+
     @Test
     fun `a lesson moves on once the autopilot reaches its goal`() {
-        val progress = FlowProgress(running = true, steps = listOf(StepSummary("chop", 1), StepSummary("light", 1)), laps = 0)
+        val progress = flow(running = true, StepSummary("chop", 1), StepSummary("light", 1))
 
-        assertEquals(TutorialStep.WATCH_THE_AUTOPILOT, script.lessonProgress(BUILD_FIRST_FLOW, progress))
+        assertEquals(TutorialStep.WATCH_THE_AUTOPILOT, script.goalProgress(BUILD_FIRST_FLOW, progress))
     }
 
     @Test
     fun `a lesson waits while the autopilot is short of its goal`() {
-        assertNull(script.lessonProgress(BUILD_FIRST_FLOW, FlowProgress(running = true, steps = listOf(StepSummary("chop", 1)), laps = 3)))
+        assertNull(script.goalProgress(BUILD_FIRST_FLOW, flow(running = true, StepSummary("chop", 1), laps = 3)))
     }
 
     @Test
     fun `stopping the autopilot ends the lesson that asks for it`() {
-        assertEquals(TALK_ABOUT_FOOD, script.lessonProgress(STOP_THE_AUTOPILOT, FlowProgress(running = false, steps = emptyList(), laps = 0)))
+        assertEquals(TALK_ABOUT_FOOD, script.goalProgress(STOP_THE_AUTOPILOT, flow(running = false)))
+    }
+
+    @Test
+    fun `carrying the dough moves the player on to baking it`() {
+        val progress = flow(running = false).copy(carried = setOf(TutorialScript.BREAD_DOUGH))
+
+        assertEquals(TutorialStep.BAKE_BREAD, script.goalProgress(TutorialStep.MAKE_DOUGH, progress))
+    }
+
+    @Test
+    fun `turning run on moves the player on to the next guide`() {
+        assertEquals(TutorialStep.FIND_QUEST_GUIDE, script.goalProgress(TutorialStep.TURN_RUN_ON, flow(running = false).copy(runOn = true)))
     }
 
     @Test
     fun `a step without a goal is no lesson`() {
-        assertNull(script.lessonProgress(TutorialStep.WATCH_THE_AUTOPILOT, FlowProgress(running = true, steps = emptyList(), laps = 9)))
-        assertNull(script.lessonProgress(DONE, FlowProgress(running = false, steps = emptyList(), laps = 0)))
+        assertNull(script.goalProgress(TutorialStep.WATCH_THE_AUTOPILOT, flow(running = true, laps = 9)))
+        assertNull(script.goalProgress(DONE, flow(running = false)))
     }
 
     @Test
@@ -289,18 +306,92 @@ class TutorialScriptTest {
     }
 
     @Test
-    fun `the first shrimp cooked always burns`() {
-        assertEquals(ScriptedCook(burnt = true, advanceTo = COOK_AGAIN), script.cookShrimp(COOK_SHRIMP))
+    fun `the first shrimp cooked on a fire always burns`() {
+        val cook = ScriptedCook(317, Cooking.FIRES, 323, 0.0, TutorialScript.SHRIMP_BURNT, Animations.FIRE_COOKING.id, COOK_AGAIN)
+
+        assertEquals(cook, script.scriptedCook(COOK_SHRIMP))
     }
 
     @Test
-    fun `the second shrimp cooked always cooks`() {
-        assertEquals(ScriptedCook(burnt = false, advanceTo = TALK_ABOUT_LOOP), script.cookShrimp(COOK_AGAIN))
+    fun `the second shrimp cooked on a fire always cooks`() {
+        val cook = ScriptedCook(317, Cooking.FIRES, 315, 30.0, TutorialScript.SHRIMP_COOKED, Animations.FIRE_COOKING.id, TALK_ABOUT_LOOP)
+
+        assertEquals(cook, script.scriptedCook(COOK_AGAIN))
     }
 
     @Test
-    fun `shrimp cooked later are left to Luna's cooking`() {
-        assertNull(script.cookShrimp(LEAVE_SURVIVAL_AREA))
+    fun `the first bread baked on a range always bakes, quietly`() {
+        val cook = ScriptedCook(2307, Cooking.RANGES, 2309, 40.0, null, Animations.RANGE_COOKING.id, TutorialStep.TALK_ABOUT_SUPPLIES)
+
+        assertEquals(cook, script.scriptedCook(TutorialStep.BAKE_BREAD))
+    }
+
+    @Test
+    fun `food cooked at other steps is left to Luna's cooking`() {
+        assertNull(script.scriptedCook(LEAVE_SURVIVAL_AREA))
+    }
+
+    @Test
+    fun `the chef welcomes a player who found him and hands over flour and water`() {
+        assertEquals(Talk(TutorialScript.CHEF_WELCOME, Progress(TutorialStep.MAKE_DOUGH, listOf(1929, 1933))), script.talkToChef(TutorialStep.TALK_TO_CHEF))
+    }
+
+    @Test
+    fun `the chef's welcome moves nobody on before his part of the island`() {
+        assertEquals(Talk(TutorialScript.CHEF_WELCOME, progress = null), script.talkToChef(TutorialStep.FIND_MASTER_CHEF))
+    }
+
+    @Test
+    fun `the chef talks bread while the player learns to bake`() {
+        assertEquals(Talk(TutorialScript.CHEF_BREAD, progress = null), script.talkToChef(TutorialStep.BAKE_BREAD))
+    }
+
+    @Test
+    fun `the chef hands over supplies for baking on autopilot`() {
+        val supplies = listOf(1933, 1933, 1933, 1933, 1929, 1929, 1929, 1929)
+
+        assertEquals(Talk(TutorialScript.CHEF_SUPPLIES, Progress(TutorialStep.BAKE_ON_AUTOPILOT, supplies)), script.talkToChef(TutorialStep.TALK_ABOUT_SUPPLIES))
+    }
+
+    @Test
+    fun `the chef repeats the baking flow until it is stopped, then greets`() {
+        assertEquals(Talk(TutorialScript.CHEF_SUPPLIES_AGAIN, progress = null), script.talkToChef(TutorialStep.STOP_THE_BAKING))
+        assertEquals(Talk(TutorialScript.CHEF_HELLO, progress = null), script.talkToChef(TutorialStep.OPEN_MUSIC))
+    }
+
+    @Test
+    fun `the chef hands back what is missing of the flour and water while the player learns to bake`() {
+        assertEquals(listOf(1929, 1933), script.ingredients(TutorialStep.MAKE_DOUGH, carried = emptySet()))
+        assertEquals(listOf(1933), script.ingredients(TutorialStep.BAKE_BREAD, carried = setOf(1929)))
+    }
+
+    @Test
+    fun `no ingredients are handed back once there is dough, or outside the bread lesson`() {
+        assertEquals(emptyList<Int>(), script.ingredients(TutorialStep.BAKE_BREAD, carried = setOf(2307)))
+        assertEquals(emptyList<Int>(), script.ingredients(TutorialStep.TALK_TO_CHEF, carried = emptySet()))
+        assertEquals(emptyList<Int>(), script.ingredients(TutorialStep.TALK_ABOUT_SUPPLIES, carried = emptySet()))
+        assertEquals(emptyList<Int>(), script.ingredients(TutorialStep.STOP_THE_BAKING, carried = emptySet()))
+    }
+
+    @Test
+    fun `a player out of flour and dough while baking on autopilot gets a new batch of supplies`() {
+        assertEquals(TutorialScript.SUPPLIES, script.ingredients(TutorialStep.BAKE_ON_AUTOPILOT, carried = setOf(1929)))
+        assertEquals(TutorialScript.SUPPLIES, script.ingredients(TutorialStep.WATCH_THE_BAKING, carried = setOf(2309)))
+    }
+
+    @Test
+    fun `a player with flour or dough left to bake gets no new batch`() {
+        assertEquals(emptyList<Int>(), script.ingredients(TutorialStep.WATCH_THE_BAKING, carried = setOf(1933)))
+        assertEquals(emptyList<Int>(), script.ingredients(TutorialStep.WATCH_THE_BAKING, carried = setOf(2307)))
+    }
+
+    @Test
+    fun `ingredients handed back show in one box`() {
+        assertEquals(listOf(TutorialScript.CHEF_GIVES_SUPPLIES), script.ingredientBoxes(TutorialScript.SUPPLIES))
+        assertEquals(listOf(TutorialScript.CHEF_GIVES_FLOUR_AND_WATER), script.ingredientBoxes(listOf(1929, 1933)))
+        assertEquals(listOf(TutorialScript.CHEF_GIVES_FLOUR), script.ingredientBoxes(listOf(1933)))
+        assertEquals(listOf(TutorialScript.CHEF_GIVES_WATER), script.ingredientBoxes(listOf(1929)))
+        assertEquals(emptyList<String>(), script.ingredientBoxes(emptyList()))
     }
 
     @Test

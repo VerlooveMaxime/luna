@@ -8,9 +8,7 @@ import game.idle.idleState
 import game.idle.ui.HintArrowMessageWriter
 import game.idle.ui.IdleUi
 import game.idle.ui.StickyChatboxMessageWriter
-import game.player.Animations
 import game.player.login.firstLogin
-import game.skill.cooking.cookFood.Cooking
 import game.skill.firemaking.LightAction
 import game.skill.fishing.catchFish.CatchFishAction
 import game.skill.woodcutting.cutTree.CutTreeAction
@@ -60,7 +58,7 @@ class TutorialController(private val player: Player, private val tutorial: LunaT
     override fun process() {
         tutorial.checkDesigner(player)
         tutorial.checkBusy(player)
-        tutorial.checkLesson(player)
+        tutorial.checkGoal(player)
     }
 
     override fun event(event: ControllableEvent): Boolean = tutorial.allows(player, event)
@@ -122,11 +120,12 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         }
     }
 
-    /** An idle lesson moves on once the player's autopilot does what the step asks. */
-    fun checkLesson(player: Player) {
+    /** A step with a goal moves on once the player does what it asks: their autopilot, what they carry, running. */
+    fun checkGoal(player: Player) {
         val state = player.idleState
-        val steps = state.flow.map(StepSummary::of)
-        advance(player, script.lessonProgress(player.tutorialStep, FlowProgress(state.running, steps, state.laps)))
+        val flow = FlowProgress(state.running, state.flow.map(StepSummary::of), state.laps)
+        val carried = (0 until player.inventory.capacity()).mapNotNull { player.inventory[it]?.id }.toSet()
+        advance(player, script.goalProgress(player.tutorialStep, PlayerProgress(flow, carried, player.isRunning)))
     }
 
     /** An interrupted action stays queued until Luna's next pass over the queue, which comes after this check. */
@@ -146,6 +145,15 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
     }
 
     fun talkToGuide(player: Player, guide: Npc) = talk(player, guide, script.talkToGuide(player.tutorialStep))
+
+    /** Lost ingredients are handed back as soon as he is talked to, and a box after his lines shows them. */
+    fun talkToChef(player: Player, chef: Npc) {
+        val step = player.tutorialStep
+        val carried = (0 until player.inventory.capacity()).mapNotNull { player.inventory[it]?.id }.toSet()
+        val given = script.ingredients(step, carried)
+        give(player, given)
+        talk(player, chef, script.talkToChef(step), boxes = script.ingredientBoxes(given))
+    }
 
     /** Lost tools are handed back as soon as she is talked to, and boxes after her lines show them. */
     fun talkToSurvivalExpert(player: Player, expert: Npc) {
@@ -222,10 +230,9 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         return allowed
     }
 
-    /** The first two raw shrimp used on a fire are the Survival Expert's lesson, not a roll of Luna's cooking. */
+    /** The first shrimp and the first bread are the instructors' lessons, not a roll of Luna's cooking. */
     private fun cookedByScript(player: Player, event: ItemOnObjectEvent): Boolean {
-        val onFire = event.usedItemId == TutorialScript.RAW_SHRIMPS && event.objectId in Cooking.FIRES
-        val cook = script.cookShrimp(player.tutorialStep)?.takeIf { onFire }
+        val cook = script.scriptedCook(player.tutorialStep)?.takeIf { event.usedItemId == it.raw && event.objectId in it.places }
         cook?.let { scripted ->
             val listener = InteractionActionListener(InteractionPolicy.STANDARD_SIZE) { finishCooking(player, scripted) }
             // The action removes each listener it runs, so the list must be mutable.
@@ -234,17 +241,13 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         return cook != null
     }
 
+    /** A burn grants no experience: Luna ignores a gain of zero. */
     private fun finishCooking(player: Player, cook: ScriptedCook) {
-        if (player.inventory.remove(Item(TutorialScript.RAW_SHRIMPS))) {
-            player.animation(Animation(Animations.FIRE_COOKING.id))
-            if (cook.burnt) {
-                player.inventory.add(Item(TutorialScript.BURNT_FISH))
-                player.sendMessage(data.messages.getValue(SHRIMP_BURNT))
-            } else {
-                player.inventory.add(Item(TutorialScript.SHRIMPS))
-                player.skills.getSkill(Skill.COOKING).addExperience(TutorialScript.SHRIMP_EXPERIENCE)
-                player.sendMessage(data.messages.getValue(SHRIMP_COOKED))
-            }
+        if (player.inventory.remove(Item(cook.raw))) {
+            player.animation(Animation(cook.animation))
+            player.inventory.add(Item(cook.result))
+            player.skills.getSkill(Skill.COOKING).addExperience(cook.experience)
+            cook.message?.let { player.sendMessage(data.messages.getValue(it)) }
             advance(player, cook.advanceTo)
         }
     }
@@ -325,9 +328,7 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         val HELP_LINES = listOf(6181, 6182, 6183, 6184)
         const val DOOR_OPEN_TICKS = 3
         const val CANNOT_WIELD = "cannot_wield"
-        const val SHRIMP_BURNT = "shrimp_burnt"
-        const val SHRIMP_COOKED = "shrimp_cooked"
-        private val MESSAGES = listOf(CANNOT_WIELD, SHRIMP_BURNT, SHRIMP_COOKED)
+        private val MESSAGES = listOf(CANNOT_WIELD, TutorialScript.SHRIMP_BURNT, TutorialScript.SHRIMP_COOKED)
 
         /** Stands for "he" or "she" in a help box, after the player's character. */
         const val PRONOUN = "<he/she>"

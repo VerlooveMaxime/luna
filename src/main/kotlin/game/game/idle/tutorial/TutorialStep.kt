@@ -4,7 +4,7 @@ import game.idle.IdleState
 
 /**
  * Where a player is on Tutorial Island, numbered like the 377 island's progress value (varp 281). The idle lessons
- * are ours and use values between LostCity's (51-55, 100-104).
+ * are ours and use values between LostCity's (51-55, 100-104, 162-165).
  */
 enum class TutorialStep(val value: Int) {
     DESIGN_CHARACTER(0),
@@ -30,6 +30,18 @@ enum class TutorialStep(val value: Int) {
     STOP_FULL_LOOP(104),
     LEAVE_SURVIVAL_AREA(120),
     FIND_MASTER_CHEF(130),
+    TALK_TO_CHEF(140),
+    MAKE_DOUGH(150),
+    BAKE_BREAD(160),
+    TALK_ABOUT_SUPPLIES(162),
+    BAKE_ON_AUTOPILOT(163),
+    WATCH_THE_BAKING(164),
+    STOP_THE_BAKING(165),
+    OPEN_MUSIC(170),
+    LEAVE_CHEF(180),
+    OPEN_PLAYER_CONTROLS(190),
+    TURN_RUN_ON(195),
+    FIND_QUEST_GUIDE(200),
     DONE(IdleState.TUTORIAL_DONE),
     ;
 

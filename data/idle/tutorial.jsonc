@@ -276,6 +276,147 @@
         ]
       },
       "arrow": { "tile": { "x": 3078, "y": 3084 }, "edge": "EAST", "height": 150 }
+    },
+    "TALK_TO_CHEF": {
+      "help": {
+        "title": "Find your next instructor.",
+        "lines": [
+          "Talk to the chef indicated. He will teach you the more advanced",
+          "aspects of cooking such as combining ingredients. He will also",
+          "teach you about your music player menu as well."
+        ]
+      },
+      "arrow": { "npc": 942 }
+    },
+    // Jagex's lines; the fourth is ours: Luna's dough window offers several doughs, the 2006 island made bread dough
+    // straight away.
+    "MAKE_DOUGH": {
+      "help": {
+        "title": "Making dough.",
+        "lines": [
+          "This is the base for many of the meals. To make dough we must",
+          "mix flour and water. So first right click the bucket of water and",
+          "select use then left click on the pot of flour. Then choose",
+          "'Bread dough' in the window that opens."
+        ]
+      },
+      "goal": { "carries": 2307 }
+    },
+    "BAKE_BREAD": {
+      "help": {
+        "title": "",
+        "lines": [
+          "Cooking dough. Now you have dough made you can cook it. To",
+          "cook the dough use it with the range shown by the arrow. If you",
+          "lose your dough talk to Lev, he will give you more ingredients."
+        ]
+      },
+      "arrow": { "tile": { "x": 3075, "y": 3081 }, "height": 100 }
+    },
+    // The chef's idle lesson (162-165) is ours: a flow whose steps have no amount uses up what the player carries.
+    "TALK_ABOUT_SUPPLIES": {
+      "help": {
+        "title": "Baking for later",
+        "lines": [
+          "Well done, your first loaf of bread! Lev has more flour and",
+          "water for you. Speak to him."
+        ]
+      },
+      "arrow": { "npc": 942 }
+    },
+    "BAKE_ON_AUTOPILOT": {
+      "help": {
+        "title": "Using it all up",
+        "lines": [
+          "Open the flow builder and click 'Clear'. Add a 'make' step for",
+          "'bread dough' and a 'cook' step, both with the amount 'all', and",
+          "click 'Run' near the range."
+        ]
+      },
+      "goal": { "running": true, "steps": ["make all", "cook all"] }
+    },
+    "WATCH_THE_BAKING": {
+      "help": {
+        "title": "Watch it bake",
+        "lines": [
+          "The make step mixes all your flour into dough, then the cook",
+          "step bakes every loaf. A step with no amount keeps going until",
+          "there is nothing left to use. Watch the flow go round once."
+        ]
+      },
+      "goal": { "running": true, "steps": ["make all", "cook all"], "laps": 1 }
+    },
+    "STOP_THE_BAKING": {
+      "help": {
+        "title": "Out of flour",
+        "lines": [
+          "The flour has run out, so the make step waits for more.",
+          "Click 'Stop' to end the flow."
+        ]
+      },
+      "goal": { "running": false }
+    },
+    "OPEN_MUSIC": {
+      "help": {
+        "title": "Well done, your first loaf of bread. As you gain experience in",
+        "lines": [
+          "cooking you will be able to make other things like pies, cakes",
+          "and even kebabs. Now you've got the hang of cooking let's",
+          "move on. Click on the flashing icon in the bottom right to see",
+          "the jukebox."
+        ]
+      },
+      "tabs": ["MUSIC"],
+      "flash": "MUSIC"
+    },
+    "LEAVE_CHEF": {
+      "help": {
+        "title": "The Music Player.",
+        "lines": [
+          "From this interface you can control the music that is played.",
+          "As you explore the world more of the tunes will become unlocked.",
+          "Once you've examined this menu use the next door to continue.",
+          "If you need a recap on anything covered here talk to Lev."
+        ]
+      },
+      "arrow": { "tile": { "x": 3072, "y": 3090 }, "edge": "EAST", "height": 150 }
+    },
+    // The player controls are tab 12, Luna's EMOTE.
+    "OPEN_PLAYER_CONTROLS": {
+      "help": {
+        "title": "It's only a short distance to the next guide.",
+        "lines": [
+          "",
+          "Why not try running there. Start by opening the player",
+          "controls, that's the flashing icon of a running man."
+        ]
+      },
+      "tabs": ["EMOTE"],
+      "flash": "EMOTE"
+    },
+    "TURN_RUN_ON": {
+      "help": {
+        "title": "Running.",
+        "lines": [
+          "In this menu you will see many options from waving to walking.",
+          "At the top of the panel there are two buttons. One is walk the",
+          "other one is run. Click on the run button."
+        ]
+      },
+      "goal": { "run": true }
+    },
+    // The Quest Guide's door (3019) is the next section; it does not open yet.
+    "FIND_QUEST_GUIDE": {
+      "help": {
+        "title": "Run to the next guide.",
+        "lines": [
+          "Now that you have run turned on follow the path, until you",
+          "come to the end. You may notice that your energy left goes",
+          "down. If this reaches zero you'll stop running. Click on the door",
+          "to pass through it."
+        ]
+      },
+      "arrow": { "tile": { "x": 3086, "y": 3126 }, "edge": "SOUTH", "height": 150 }
     }
   },
 
@@ -327,6 +468,42 @@
     ],
     "survival_loop_again": [
       { "npc": ["Chop one log, catch one shrimp, light the log and cook", "the shrimp: four steps, one flow. Click Run when it's", "ready."] }
+    ],
+    "chef_welcome": [
+      { "npc": ["Ah... welcome newcomer. I am Lev, the chef.", "It is here I will teach you how to", "cook food truly fit for a king."] },
+      { "player": ["I already know how to cook.", "Brynna taught me just now."] },
+      { "npc": ["HA HA HA HA HA HA! You call THAT cooking?", "Some shrimp on an open log fire? Oh no no no... I am", "going to teach you the fine art of cooking bread."] },
+      { "npc": ["And no fine meal is complete without good music so", "we'll cover that while you're here too."] },
+      { "items": [1929, 1933], "text": ["The Cooking Guide gives you a", "@blu@Bucket of Water@bla@", "and a", "@blu@Pot of Flour!"] }
+    ],
+    "chef_bread": [
+      { "npc": ["Time for you to learn the fine art of cooking bread."] }
+    ],
+    "chef_gives_flour_and_water": [
+      { "items": [1929, 1933], "text": ["The Cooking Guide gives you a", "@blu@Bucket of Water@bla@", "and a", "@blu@Pot of Flour!"] }
+    ],
+    "chef_gives_flour": [
+      { "items": [1933], "text": ["The Cooking Guide gives you a", "@blu@Pot of Flour."] }
+    ],
+    "chef_gives_water": [
+      { "items": [1929], "text": ["The Cooking Guide gives you a", "@blu@Bucket of Water."] }
+    ],
+    "chef_supplies": [
+      { "npc": ["Ha! Not bad for a first loaf. But a real kitchen bakes", "by the dozen, and your autopilot can do the mixing and", "the baking while you watch."] },
+      { "npc": ["Take this flour and water. Make bread dough and cook it,", "with no amount on either step: each one keeps going", "until there is nothing left to use."] },
+      { "items": [1933, 1929], "text": ["Lev gives you four", "@blu@Pots of Flour@bla@", "and four", "@blu@Buckets of Water!"] }
+    ],
+    "chef_gives_supplies": [
+      { "items": [1933, 1929], "text": ["Lev gives you four more", "@blu@Pots of Flour@bla@", "and four more", "@blu@Buckets of Water!"] }
+    ],
+    "chef_supplies_again": [
+      { "npc": ["Make bread dough, then cook it, with no amount on", "either step. Click Run near the range."] }
+    ],
+    "chef_hello": [
+      { "npc": ["Hello again."] }
+    ],
+    "chef_exit_locked": [
+      { "text": ["You need to finish the Cooking Guide's tasks first."] }
     ],
     "survival_shrimp": [
       { "npc": ["Hello again. Next thing is getting food in our bellies.", "We'll need something to cook. There are shrimp in the", "pond there. So let's catch and cook some."] }
@@ -414,6 +591,22 @@
       "opens_at": "LEAVE_SURVIVAL_AREA",
       "first_pass": "FIND_MASTER_CHEF",
       "locked": "survival_gate_locked"
+    },
+    // The Master Chef's doors: in at 130, out once the music tab was opened. Opened pieces as LostCity places them:
+    // turned a quarter, on the tile across the wall.
+    {
+      "closed": [{ "id": 3017, "tile": { "x": 3079, "y": 3084 }, "side": "WEST" }],
+      "open": [{ "id": 1535, "tile": { "x": 3078, "y": 3084 }, "rotation": 1 }],
+      "opens_at": "FIND_MASTER_CHEF",
+      "first_pass": "TALK_TO_CHEF",
+      "locked": "survival_gate_locked"
+    },
+    {
+      "closed": [{ "id": 3018, "tile": { "x": 3072, "y": 3090 }, "side": "EAST" }],
+      "open": [{ "id": 1535, "tile": { "x": 3073, "y": 3090 }, "rotation": 3 }],
+      "opens_at": "LEAVE_CHEF",
+      "first_pass": "OPEN_PLAYER_CONTROLS",
+      "locked": "chef_exit_locked"
     }
   ]
 }

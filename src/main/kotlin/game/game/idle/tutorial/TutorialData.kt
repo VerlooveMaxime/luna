@@ -33,23 +33,58 @@ data class StepScreen(
     val arrow: HintTarget,
     val tabs: List<TabIndex>,
     val flash: TabIndex? = null,
-    val goal: LessonGoal? = null,
+    val goal: StepGoal? = null,
 )
+
+/** What a player is doing, as a step's goal sees it: their autopilot, what they carry, whether they run. */
+data class PlayerProgress(val flow: FlowProgress, val carried: Set<Int> = emptySet(), val runOn: Boolean = false)
+
+/** What moves a player on from a step once they do it, checked every tick. */
+sealed interface StepGoal {
+
+    fun met(progress: PlayerProgress): Boolean
+
+    /** The player carries [item]. */
+    data class Carries(val item: Int) : StepGoal {
+        override fun met(progress: PlayerProgress): Boolean = item in progress.carried
+    }
+
+    /** The player turned run on. */
+    data object RunOn : StepGoal {
+        override fun met(progress: PlayerProgress): Boolean = progress.runOn
+    }
+}
 
 /** A step of a flow as a lesson sees it: its keyword and its count, null when it has none (`chop 1 oak` is chop, 1). */
 data class StepSummary(val keyword: String, val count: Int?) {
 
-    /** Whether this step is what [spec] asks for: the same keyword and, when the spec has a count, that count. */
-    fun matches(spec: StepSummary): Boolean = keyword == spec.keyword && (spec.count == null || count == spec.count)
-
     companion object {
-        /** A flow line or a goal's step, `<keyword> [<count>] ...`. */
+        /** A flow line, `<keyword> [<count>] ...`. */
         fun of(line: String): StepSummary {
-            val words = line.trim().lowercase().split(Regex("\\s+"))
+            val words = words(line)
             return StepSummary(words[0], words.getOrNull(1)?.toIntOrNull())
         }
     }
 }
+
+/**
+ * What a lesson's goal asks of one step: its keyword and, unless [anyCount], its [count] (null for a step without
+ * one). Written `chop` (any count), `chop 1` (a count of 1) or `chop all` (no count, as much as it can).
+ */
+data class StepSpec(val keyword: String, val count: Int? = null, val anyCount: Boolean = false) {
+
+    fun matches(step: StepSummary): Boolean = keyword == step.keyword && (anyCount || step.count == count)
+
+    companion object {
+        fun of(text: String): StepSpec {
+            val words = words(text)
+            val count = words.getOrNull(1)
+            return StepSpec(words[0], count?.toIntOrNull(), anyCount = count == null)
+        }
+    }
+}
+
+private fun words(text: String): List<String> = text.trim().lowercase().split(Regex("\\s+"))
 
 /** What a player's autopilot is doing, as a lesson sees it: running or not, its steps, laps done. */
 data class FlowProgress(val running: Boolean, val steps: List<StepSummary>, val laps: Int)
@@ -58,12 +93,14 @@ data class FlowProgress(val running: Boolean, val steps: List<StepSummary>, val 
  * An idle lesson's goal: the autopilot [running] a flow that has a step matching each of [steps] and went round
  * [laps] times, or, when not [running], the autopilot stopped.
  */
-data class LessonGoal(val running: Boolean, val steps: List<StepSummary> = emptyList(), val laps: Int = 0) {
+data class LessonGoal(val running: Boolean, val steps: List<StepSpec> = emptyList(), val laps: Int = 0) : StepGoal {
+
+    override fun met(progress: PlayerProgress): Boolean = met(progress.flow)
 
     fun met(progress: FlowProgress): Boolean =
         if (running) progress.running && hasEverySpec(progress.steps) && progress.laps >= laps else !progress.running
 
-    private fun hasEverySpec(flow: List<StepSummary>): Boolean = steps.all { spec -> flow.any { it.matches(spec) } }
+    private fun hasEverySpec(flow: List<StepSummary>): Boolean = steps.all { spec -> flow.any(spec::matches) }
 }
 
 /** One box of a dialogue, one to [MAX_LINES] lines. */
@@ -209,12 +246,24 @@ internal data class StepJson(
     )
 }
 
-internal data class GoalJson(val running: Boolean? = null, val steps: List<String> = emptyList(), val laps: Int = 0) {
-    fun toGoal(step: String): LessonGoal {
-        val running = requireNotNull(running) { "The goal of tutorial step $step says neither running nor stopped" }
+internal data class GoalJson(
+    val running: Boolean? = null,
+    val steps: List<String> = emptyList(),
+    val laps: Int = 0,
+    val carries: Int? = null,
+    val run: Boolean = false,
+) {
+    /** One kind of goal per step: carrying an item, turning run on, or the autopilot running or stopped. */
+    fun toGoal(step: String): StepGoal {
+        val kinds = listOfNotNull(carries, run.takeIf { it }, running)
+        require(kinds.size == 1) { "The goal of tutorial step $step needs exactly one of carries, run or running" }
+        return carries?.let(StepGoal::Carries) ?: if (run) StepGoal.RunOn else lesson(step, running == true)
+    }
+
+    private fun lesson(step: String, running: Boolean): LessonGoal {
         require(laps >= 0) { "The goal of tutorial step $step counts $laps laps" }
         require(running || steps.isEmpty() && laps == 0) { "The goal of tutorial step $step wants a stopped autopilot with steps or laps" }
-        return LessonGoal(running, steps.map(StepSummary::of), laps)
+        return LessonGoal(running, steps.map(StepSpec::of), laps)
     }
 }
 

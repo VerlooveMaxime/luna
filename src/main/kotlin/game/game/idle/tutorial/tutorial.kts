@@ -16,6 +16,8 @@ npc1(TutorialScript.RUNESCAPE_GUIDE) { tutorial.talkToGuide(plr, targetNpc) }
 
 npc1(TutorialScript.SURVIVAL_EXPERT) { tutorial.talkToSurvivalExpert(plr, targetNpc) }
 
+npc1(TutorialScript.MASTER_CHEF) { tutorial.talkToChef(plr, targetNpc) }
+
 on(FlashingTabClickEvent::class) { tutorial.tabOpened(plr, tab) }
 
 cmd("tutorial", RIGHTS_DEV) { plr.sendMessage(tutorial.jumpTo(plr, args.firstOrNull().orEmpty())) }
