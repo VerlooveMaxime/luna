@@ -11,10 +11,16 @@ import game.idle.ui.StickyChatboxMessageWriter
 import game.player.login.firstLogin
 import game.skill.firemaking.LightAction
 import game.skill.fishing.catchFish.CatchFishAction
+import game.skill.mining.mineOre.MineOreAction
+import game.skill.smithing.smithBar.SmithingInterface
 import game.skill.woodcutting.cutTree.CutTreeAction
 import io.luna.game.event.impl.ControllableEvent
 import io.luna.game.event.impl.EquipItemEvent
+import io.luna.game.event.impl.InteractableEvent
 import io.luna.game.event.impl.ObjectClickEvent
+import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
+import io.luna.game.event.impl.ObjectClickEvent.ObjectSecondClickEvent
+import io.luna.game.event.impl.WidgetItemClickEvent
 import io.luna.game.event.impl.SkillChangeEvent
 import io.luna.game.action.Action
 import io.luna.game.action.ActionState
@@ -36,6 +42,7 @@ import io.luna.game.model.mob.interact.InteractionAction
 import io.luna.game.model.mob.interact.InteractionActionListener
 import io.luna.game.model.mob.interact.InteractionPolicy
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
+import io.luna.game.model.`object`.GameObject
 import io.luna.game.model.`object`.ObjectType
 import io.luna.net.msg.out.AddObjectMessageWriter
 import io.luna.net.msg.out.FlashTabMessageWriter
@@ -129,7 +136,8 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         val state = player.idleState
         val flow = FlowProgress(state.running, state.flow.map(StepSummary::of), state.laps)
         val carried = (0 until player.inventory.capacity()).mapNotNull { player.inventory[it]?.id }.toSet()
-        advance(player, script.goalProgress(player.tutorialStep, PlayerProgress(flow, carried, player.isRunning)))
+        val step = player.tutorialStep
+        advance(player, script.goalProgress(step, PlayerProgress(flow, carried, player.isRunning)) ?: script.oreProgress(step, carried))
     }
 
     /** An interrupted action stays queued until Luna's next pass over the queue, which comes after this check. */
@@ -144,8 +152,9 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
 
     fun allows(player: Player, event: ControllableEvent): Boolean = when (event) {
         is EquipItemEvent -> mayWield(player)
-        is ItemOnObjectEvent -> !cookedByScript(player, event)
-        is ObjectClickEvent -> !refusedAtLadder(player, event)
+        is ItemOnObjectEvent -> !cookedByScript(player, event) && !refusedUse(player, event)
+        is ObjectClickEvent -> !refusedAtLadder(player, event) && !answeredByScript(player, event)
+        is WidgetItemClickEvent -> maySmith(player, event)
         else -> true
     }
 
@@ -193,6 +202,14 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
     }
 
     fun talkToQuestGuide(player: Player, guide: Npc) = talk(player, guide, script.talkToQuestGuide(player.tutorialStep))
+
+    /** Lost tools are handed back as soon as Dezzick is talked to, and boxes after his lines show them. */
+    fun talkToMiningInstructor(player: Player, instructor: Npc) {
+        val step = player.tutorialStep
+        val given = script.miningTools(step).filterNot { owns(player, it) }
+        give(player, given)
+        talk(player, instructor, script.talkToMiningInstructor(step), boxes = script.miningToolBoxes(given))
+    }
 
     /** Luna's own ladder handler does the climbing; the first climb at the ladder's step moves the player on. */
     fun ladderClimbed(player: Player, ladder: Ladder) {
@@ -248,11 +265,7 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
     /** The first shrimp and the first bread are the instructors' lessons, not a roll of Luna's cooking. */
     private fun cookedByScript(player: Player, event: ItemOnObjectEvent): Boolean {
         val cook = script.scriptedCook(player.tutorialStep)?.takeIf { event.usedItemId == it.raw && event.objectId in it.places }
-        cook?.let { scripted ->
-            val listener = InteractionActionListener(InteractionPolicy.STANDARD_SIZE) { finishCooking(player, scripted) }
-            // The action removes each listener it runs, so the list must be mutable.
-            player.submitAction(InteractionAction(player, mutableListOf(listener), event.gameObject, event))
-        }
+        cook?.let { scripted -> onArrival(player, event.gameObject, event) { finishCooking(player, scripted) } }
         return cook != null
     }
 
@@ -263,11 +276,50 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
     private fun refusedAtLadder(player: Player, event: ObjectClickEvent): Boolean {
         val ladder = data.ladders.firstOrNull { it.id == event.gameObject.id } ?: return false
         val refusal = script.climbLadder(ladder, player.tutorialStep) as? PassageOutcome.Locked ?: return false
-        val listener = InteractionActionListener(InteractionPolicy.STANDARD_SIZE) {
-            openDialogue(player, listOf(refusal.dialogue), speaker = ladder.speaker) {}
-        }
-        player.submitAction(InteractionAction(player, mutableListOf(listener), event.gameObject, event))
+        onArrival(player, event.gameObject, event) { openDialogue(player, listOf(refusal.dialogue), speaker = ladder.speaker) {} }
         return true
+    }
+
+    /**
+     * Clicks the island answers itself once the player stands beside the object: prospecting the copper and tin rocks
+     * (always, as LostCity scripts it), and the boxes for rocks, the furnace and the anvils before their lessons.
+     */
+    private fun answeredByScript(player: Player, event: ObjectClickEvent): Boolean {
+        val target = event.gameObject
+        if (event is ObjectSecondClickEvent && target.id in TutorialScript.ROCKS) {
+            onArrival(player, target, event) { player.submitAction(TutorialProspectAction(player) { prospected(player, target.id) }) }
+            return true
+        }
+        val box = script.objectClicked(player.tutorialStep, target.id, firstOption = event is ObjectFirstClickEvent) ?: return false
+        onArrival(player, target, event) { openDialogue(player, listOf(box), speaker = NO_SPEAKER) {} }
+        return true
+    }
+
+    private fun refusedUse(player: Player, event: ItemOnObjectEvent): Boolean {
+        val box = script.itemUsedOn(player.tutorialStep, event.objectId) ?: return false
+        onArrival(player, event.gameObject, event) { openDialogue(player, listOf(box), speaker = NO_SPEAKER) {} }
+        return true
+    }
+
+    /** Only the anvil's window is limited: on the island it makes the bronze dagger and nothing else. */
+    private fun maySmith(player: Player, event: WidgetItemClickEvent): Boolean {
+        if (!player.overlays.has(SmithingInterface::class.java) || script.maySmith(player.tutorialStep, event.itemId)) {
+            return true
+        }
+        openDialogue(player, listOf(TutorialScript.ISLAND_DAGGER_ONLY), speaker = NO_SPEAKER) {}
+        return false
+    }
+
+    private fun prospected(player: Player, rock: Int) {
+        advance(player, script.prospected(player.tutorialStep, rock))
+        openDialogue(player, listOf(script.prospectResult(rock)), speaker = NO_SPEAKER) {}
+    }
+
+    /** Runs [then] once [player] reaches [target], as the click's own walk would have brought them there. */
+    private fun onArrival(player: Player, target: GameObject, event: InteractableEvent, then: () -> Unit) {
+        val listener = InteractionActionListener(InteractionPolicy.STANDARD_SIZE) { then() }
+        // The action removes each listener it runs, so the list must be mutable.
+        player.submitAction(InteractionAction(player, mutableListOf(listener), target, event))
     }
 
     /** A burn grants no experience: Luna ignores a gain of zero. */
@@ -325,15 +377,19 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
 
     private fun openDialogue(player: Player, names: List<String>, speaker: Int, then: () -> Unit) {
         val boxes = names.flatMap { data.dialogues.getValue(it) }
-        val dialogue = boxes.fold(player.newDialogue()) { builder, box -> add(builder, box, speaker) }
+        val name = script.spokenName(player.username)
+        val dialogue = boxes.fold(player.newDialogue()) { builder, box -> add(builder, box, speaker, name) }
         dialogue.then { then() }.open()
     }
 
-    private fun add(builder: DialogueQueueBuilder, box: DialogueBox, speaker: Int): DialogueQueueBuilder = when (box) {
-        is DialogueBox.Npc -> builder.npc(speaker, *box.lines.toTypedArray())
-        is DialogueBox.Player -> builder.player(*box.lines.toTypedArray())
-        is DialogueBox.Text -> builder.text(*box.lines.toTypedArray())
-        is DialogueBox.Items -> builder.add(ItemBox(box.items, box.lines))
+    private fun add(builder: DialogueQueueBuilder, box: DialogueBox, speaker: Int, name: String): DialogueQueueBuilder {
+        val lines = box.lines.map { it.replace(TutorialScript.DISPLAY_NAME, name) }.toTypedArray()
+        return when (box) {
+            is DialogueBox.Npc -> builder.npc(speaker, *lines)
+            is DialogueBox.Player -> builder.player(*lines)
+            is DialogueBox.Text -> builder.text(*lines)
+            is DialogueBox.Items -> builder.add(ItemBox(box.items, lines.toList()))
+        }
     }
 
     /** The server's door never opens: only [player] sees it open, and is walked through it. */
@@ -374,6 +430,8 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
             TutorialScript.WOODCUTTING to CutTreeAction::class.java,
             TutorialScript.FIREMAKING to LightAction::class.java,
             TutorialScript.FISHING to CatchFishAction::class.java,
+            TutorialScript.MINING to MineOreAction::class.java,
+            TutorialScript.PROSPECTING to TutorialProspectAction::class.java,
         )
         private const val NO_SPEAKER = -1
         private val WALL = ObjectType.STRAIGHT_WALL.id

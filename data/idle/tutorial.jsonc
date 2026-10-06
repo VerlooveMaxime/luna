@@ -462,7 +462,6 @@
       },
       "arrow": { "tile": { "x": 3088, "y": 3119 }, "height": 0 }
     },
-    // The Mining Instructor's section is next; he does not teach yet.
     "TALK_TO_MINING_INSTRUCTOR": {
       "help": {
         "title": "Mining and smithing.",
@@ -474,6 +473,195 @@
         ]
       },
       "arrow": { "npc": 948 }
+    },
+    "PROSPECT_ROCKS": {
+      "help": {
+        "title": "Prospecting",
+        "lines": [
+          "To prospect a mineable rock just right click it and select the",
+          "prospect rock option. This will tell you the type of ore you can",
+          "mine from it. Try it now on one of the rocks indicated."
+        ]
+      },
+      "arrow": { "tile": { "x": 3076, "y": 9504 }, "height": 100 }
+    },
+    "PROSPECTED_COPPER": {
+      "help": {
+        "title": "It's copper.",
+        "lines": [
+          "",
+          "So you know there's copper in the brown rocks, try prospecting",
+          "the grey ones next."
+        ]
+      },
+      "arrow": { "tile": { "x": 3076, "y": 9504 }, "height": 100 }
+    },
+    "PROSPECTED_TIN": {
+      "help": {
+        "title": "It's tin.",
+        "lines": [
+          "",
+          "So you know there's tin in the grey rocks, try prospecting",
+          "the brown ones next."
+        ]
+      },
+      "arrow": { "tile": { "x": 3086, "y": 9501 }, "height": 100 }
+    },
+    "PROSPECTED_TIN_LAST": {
+      "help": {
+        "title": "It's tin.",
+        "lines": [
+          "Talk to the mining instructor to find out about these types of",
+          "ore and how you can mine them. He'll give you the needed tools",
+          "too."
+        ]
+      },
+      "arrow": { "npc": 948 }
+    },
+    "PROSPECTED_COPPER_LAST": {
+      "help": {
+        "title": "It's copper.",
+        "lines": [
+          "Talk to the mining instructor to find out about these types of",
+          "ore and how you can mine them. He'll give you the needed tools",
+          "too."
+        ]
+      },
+      "arrow": { "npc": 948 }
+    },
+    "MINE_ORE": {
+      "help": {
+        "title": "Mining.",
+        "lines": [
+          "It's quite simple really, all you need to do is right click on the",
+          "rock and select mine. You can only mine when you have a pickaxe.",
+          "So give it a try, first mine one tin ore."
+        ]
+      },
+      "arrow": { "tile": { "x": 3076, "y": 9504 }, "height": 100 }
+    },
+    "MINED_COPPER": {
+      "help": {
+        "title": "Mining.",
+        "lines": [
+          "Now you have some copper ore you just need some tin ore, then",
+          "you'll have all you need to create a bronze bar. As you did",
+          "before right click on the tin rock and select 'mine'."
+        ]
+      },
+      "arrow": { "tile": { "x": 3076, "y": 9504 }, "height": 100 }
+    },
+    "MINED_TIN": {
+      "help": {
+        "title": "Mining.",
+        "lines": [
+          "Now you have some tin ore you just need some copper ore, then",
+          "you'll have all you need to create a bronze bar. As you did",
+          "before right click on the copper rock and select 'mine'."
+        ]
+      },
+      "arrow": { "tile": { "x": 3086, "y": 9501 }, "height": 100 }
+    },
+    "SMELT_BAR": {
+      "help": {
+        "title": "Smelting.",
+        "lines": [
+          "You should now have both copper and tin ore. So let's smelt",
+          "them to make a bronze bar. To do this right click on either tin or",
+          "copper ore and select use then left click on the furnace.",
+          "Try it now."
+        ]
+      },
+      "arrow": { "tile": { "x": 3079, "y": 9496 }, "height": 150 },
+      "goal": { "carries": 2349 }
+    },
+    "TALK_ABOUT_SMITHING": {
+      "help": {
+        "title": "You've made a bronze bar!",
+        "lines": [
+          "",
+          "Speak to Dezzick and he'll show you how to make it into a weapon."
+        ]
+      },
+      "arrow": { "npc": 948 }
+    },
+    "SMITH_DAGGER": {
+      "help": {
+        "title": "Smithing a dagger.",
+        "lines": [
+          "To smith you'll need a hammer like the one you were given by",
+          "Dezzick, access to an anvil like the one with the arrow over it",
+          "and enough metal bars to make what you are trying to smith.",
+          "To start the process use the bar on one of the anvils."
+        ]
+      },
+      "arrow": { "tile": { "x": 3083, "y": 9499 }, "height": 100 },
+      "goal": { "carries": 1205 }
+    },
+    // The chain lesson (ours): one flow over mining, smelting and smithing, each step using what the one before made.
+    "TALK_ABOUT_CHAIN": {
+      "help": {
+        "title": "",
+        "lines": [
+          "You've made a bronze dagger. Speak to Dezzick to continue."
+        ]
+      },
+      "arrow": { "npc": 948 }
+    },
+    "BUILD_CHAIN": {
+      "help": {
+        "title": "One flow, three skills",
+        "lines": [
+          "Open the flow builder and click 'Clear'. Add the steps",
+          "'mine 1 copper', 'mine 1 tin', 'smelt 1 bronze' and",
+          "'smith 1 bronze dagger', then click 'Run' here in the mine."
+        ]
+      },
+      "goal": { "running": true, "steps": ["mine 1", "mine 1", "smelt 1", "smith 1"] }
+    },
+    "WATCH_CHAIN": {
+      "help": {
+        "title": "Watch the chain",
+        "lines": [
+          "Each step uses what the one before it made: the ores go into",
+          "the bar and the bar into a dagger. Watch the flow go round once."
+        ]
+      },
+      "goal": { "running": true, "steps": ["mine 1", "mine 1", "smelt 1", "smith 1"], "laps": 1 }
+    },
+    "STOP_CHAIN": {
+      "help": {
+        "title": "A smith on autopilot",
+        "lines": [
+          "Ore to dagger without a click. Click 'Stop' when you have seen",
+          "enough, then speak to Dezzick if you need a recap of the flow."
+        ]
+      },
+      "goal": { "running": false }
+    },
+    // Jagex's lines without the last sentence, which pointed at the recap menu (2012 source, not built).
+    "LEAVE_MINE": {
+      "help": {
+        "title": "You've finished this area.",
+        "lines": [
+          "So let's move on. Go through the gates shown by the arrow.",
+          "Remember you may need to move the camera to see your",
+          "surroundings."
+        ]
+      },
+      "arrow": { "tile": { "x": 3094, "y": 9502 }, "edge": "EAST", "height": 125 }
+    },
+    // The Combat Instructor's section is next; combat is not built yet.
+    "FIND_COMBAT_INSTRUCTOR": {
+      "help": {
+        "title": "Combat.",
+        "lines": [
+          "In this area you will find out about combat,",
+          "both melee and ranged.",
+          "Speak to the guide and he'll tell you all about it."
+        ]
+      },
+      "arrow": { "npc": 944 }
     }
   },
 
@@ -587,6 +775,80 @@
     "quest_guide_caves": [
       { "npc": ["There's not a lot more I can tell you about questing.", "You have to experience the thrill of it yourself to fully", "understand. You may find some adventure in the caves", "under my house."] }
     ],
+    "dezzick_welcome": [
+      { "npc": ["Hi there... You must be new around here.", "So what do I call you? 'Newcomer'", "seems so impersonal... and if we're going", "to be working together, I'd rather call you by name."] },
+      { "player": ["You can call me <displayname>."] },
+      { "npc": ["Ok then, <displayname>. My name is Dezzick, and I'm a", "miner by trade. Let's prospect some of those rocks."] }
+    ],
+    // His closing words of the welcome: LostCity's menu at these steps is the 2012 recap, not built.
+    "dezzick_prospect_again": [
+      { "npc": ["Let's prospect some of those rocks."] }
+    ],
+    "dezzick_prospected": [
+      { "player": ["I prospected both types of rock! One set contains tin and", "the other has copper ore inside."] },
+      { "npc": ["Absolutely right <displayname>. These two ore types can be", "smelted together to make bronze."] },
+      { "npc": ["So now you know what ore is in the rocks over there, why", "don't you have a go at mining some tin and copper? Here,", "you'll need this to start with."] },
+      { "items": [1265], "text": ["Dezzick gives you a", "@blu@Bronze pickaxe!"] }
+    ],
+    "dezzick_mining": [
+      { "npc": ["The rocks around here contain tin and copper. You should", "try mining some."] }
+    ],
+    "dezzick_smelting": [
+      { "npc": ["Now that you have some ore, you should smelt it into a", "bronze bar. You can use the furnace over there to do so."] }
+    ],
+    "dezzick_smithing": [
+      { "player": ["How do I make a weapon out of this?"] },
+      { "npc": ["Okay, I'll show you how to make a dagger out of it. You'll", "be needing this..."] },
+      { "items": [2347], "text": ["Dezzick gives you a", "@blu@Hammer!"] }
+    ],
+    "dezzick_dagger": [
+      { "npc": ["See if you can use the anvil here to make a bronze dagger."] }
+    ],
+    // Ours: the chain lesson.
+    "dezzick_chain": [
+      { "npc": ["A fine dagger, <displayname>! Now, a smith with an", "autopilot never has to stop. One flow can mine the ore,", "smelt it and smith it, each step using what the one", "before it made."] },
+      { "npc": ["Build a flow of four steps: mine 1 copper, mine 1 tin,", "smelt 1 bronze and smith 1 bronze dagger. Then click Run", "here in the mine and watch it go round once."] }
+    ],
+    "dezzick_chain_again": [
+      { "npc": ["Mine 1 copper, mine 1 tin, smelt 1 bronze, smith 1 bronze", "dagger: build that flow and click Run here in the mine."] }
+    ],
+    "dezzick_hello": [
+      { "npc": ["Hello again."] }
+    ],
+    "dezzick_gives_pickaxe": [
+      { "items": [1265], "text": ["Dezzick gives you a", "@blu@Bronze pickaxe!"] }
+    ],
+    "dezzick_gives_hammer": [
+      { "items": [2347], "text": ["Dezzick gives you a", "@blu@Hammer!"] }
+    ],
+    "prospect_copper": [
+      { "text": ["This rock contains copper."] }
+    ],
+    "prospect_tin": [
+      { "text": ["This rock contains tin."] }
+    ],
+    "mine_not_ready": [
+      { "text": ["You are not ready to mine yet.", "Please follow the tutorial and you'll be mining in no time."] }
+    ],
+    "furnace_not_yet": [
+      { "text": ["This is a furnace for smelting metal.", "You'll learn how to use it soon."] }
+    ],
+    "furnace_how": [
+      { "text": ["This is a furnace for smelting metal. To use it simply", "click on the ore you wish to smelt then click on the", "furnace you would like to use."] }
+    ],
+    // LostCity writes "You'll lean how"; no source keeps the slip, so it is spelt like the furnace's line.
+    "anvil_not_yet": [
+      { "text": ["This is an anvil used for smithing.", "You'll learn how to use it soon."] }
+    ],
+    "anvil_no_hammer": [
+      { "text": ["You need a hammer to work the metal with.", "Talk to the mining instructor to get one"] }
+    ],
+    "island_dagger_only": [
+      { "text": ["You cannot make this on Tutorial Island."] }
+    ],
+    "mine_gate_locked": [
+      { "text": ["You need to finish with Mining and Smithing first."] }
+    ],
     "quest_guide_not_ready": [
       { "npc": ["I don't think you're ready to go down there yet."] }
     ],
@@ -634,6 +896,14 @@
         "As you gain fishing experience you'll find that there are many",
         "types of fish and many ways to catch them."
       ]
+    },
+    "mining": {
+      "title": "Please wait...",
+      "lines": ["", "Your character is now attempting to mine the rock. This should", "take only a few seconds."]
+    },
+    "prospecting": {
+      "title": "Please wait...",
+      "lines": ["", "Your character is now attempting to prospect the rock. This", "should take only a few seconds."]
     }
   },
 
@@ -645,7 +915,10 @@
     "You attempt to light the logs.",
     "The fire catches and the logs begin to burn.",
     "You cast out your net...",
-    "You catch some shrimps."
+    "You catch some shrimps.",
+    "You swing your pick at the rock.",
+    "You manage to mine some copper.",
+    "You manage to mine some tin."
   ],
 
   // Chat lines the tutorial sends.
@@ -702,6 +975,20 @@
       "opens_at": "FIND_QUEST_GUIDE",
       "first_pass": "TALK_TO_QUEST_GUIDE",
       "locked": "quest_door_locked"
+    },
+    // The mine's exit gate: two leaves on the east edge of their tiles, opened as LostCity places the open pieces.
+    {
+      "closed": [
+        { "id": 3020, "tile": { "x": 3094, "y": 9503 }, "side": "EAST" },
+        { "id": 3021, "tile": { "x": 3094, "y": 9502 }, "side": "EAST" }
+      ],
+      "open": [
+        { "id": 1562, "tile": { "x": 3095, "y": 9503 }, "rotation": 1 },
+        { "id": 1563, "tile": { "x": 3095, "y": 9502 }, "rotation": 3 }
+      ],
+      "opens_at": "LEAVE_MINE",
+      "first_pass": "FIND_COMBAT_INSTRUCTOR",
+      "locked": "mine_gate_locked"
     }
   ],
   // The ladder down to the mine, under the Quest Guide's house.

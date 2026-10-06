@@ -377,6 +377,193 @@ class TutorialScriptTest {
     }
 
     @Test
+    fun `Dezzick welcomes a player who came down the ladder and sends them prospecting`() {
+        assertEquals(
+            Talk(TutorialScript.DEZZICK_WELCOME, Progress(TutorialStep.PROSPECT_ROCKS)),
+            script.talkToMiningInstructor(TutorialStep.TALK_TO_MINING_INSTRUCTOR),
+        )
+    }
+
+    @Test
+    fun `Dezzick's welcome moves nobody on before his part of the island`() {
+        assertEquals(Talk(TutorialScript.DEZZICK_WELCOME, progress = null), script.talkToMiningInstructor(TutorialStep.ENTER_MINE))
+    }
+
+    @Test
+    fun `while the rocks are prospected Dezzick says to prospect them`() {
+        assertEquals(Talk(TutorialScript.DEZZICK_PROSPECT_AGAIN, progress = null), script.talkToMiningInstructor(TutorialStep.PROSPECTED_TIN))
+    }
+
+    @Test
+    fun `with both rocks prospected Dezzick hands over a pickaxe and sends the player mining`() {
+        assertEquals(
+            Talk(TutorialScript.DEZZICK_PROSPECTED, Progress(TutorialStep.MINE_ORE, listOf(TutorialScript.BRONZE_PICKAXE))),
+            script.talkToMiningInstructor(TutorialStep.PROSPECTED_COPPER_LAST),
+        )
+    }
+
+    @Test
+    fun `while the ores are mined Dezzick says to mine them`() {
+        assertEquals(Talk(TutorialScript.DEZZICK_MINING, progress = null), script.talkToMiningInstructor(TutorialStep.MINED_TIN))
+    }
+
+    @Test
+    fun `with both ores Dezzick points at the furnace`() {
+        assertEquals(Talk(TutorialScript.DEZZICK_SMELTING, progress = null), script.talkToMiningInstructor(TutorialStep.SMELT_BAR))
+    }
+
+    @Test
+    fun `with a bar Dezzick hands over a hammer and sends the player to the anvil`() {
+        assertEquals(
+            Talk(TutorialScript.DEZZICK_SMITHING, Progress(TutorialStep.SMITH_DAGGER, listOf(TutorialScript.HAMMER))),
+            script.talkToMiningInstructor(TutorialStep.TALK_ABOUT_SMITHING),
+        )
+    }
+
+    @Test
+    fun `while the dagger is smithed Dezzick points at the anvil`() {
+        assertEquals(Talk(TutorialScript.DEZZICK_DAGGER, progress = null), script.talkToMiningInstructor(TutorialStep.SMITH_DAGGER))
+    }
+
+    @Test
+    fun `with a dagger Dezzick explains the chain and sends the player to build it`() {
+        assertEquals(Talk(TutorialScript.DEZZICK_CHAIN, Progress(TutorialStep.BUILD_CHAIN)), script.talkToMiningInstructor(TutorialStep.TALK_ABOUT_CHAIN))
+    }
+
+    @Test
+    fun `Dezzick repeats the chain until it is stopped, then greets`() {
+        assertEquals(Talk(TutorialScript.DEZZICK_CHAIN_AGAIN, progress = null), script.talkToMiningInstructor(TutorialStep.STOP_CHAIN))
+        assertEquals(Talk(TutorialScript.DEZZICK_HELLO, progress = null), script.talkToMiningInstructor(TutorialStep.LEAVE_MINE))
+    }
+
+    @Test
+    fun `Dezzick keeps no tools before handing over the pickaxe, nor off the island`() {
+        assertEquals(emptyList<Int>(), script.miningTools(TutorialStep.PROSPECTED_TIN_LAST))
+        assertEquals(emptyList<Int>(), script.miningTools(DONE))
+    }
+
+    @Test
+    fun `Dezzick keeps the pickaxe from mining on, and the hammer from smithing on`() {
+        assertEquals(listOf(TutorialScript.BRONZE_PICKAXE), script.miningTools(TutorialStep.TALK_ABOUT_SMITHING))
+        assertEquals(listOf(TutorialScript.BRONZE_PICKAXE, TutorialScript.HAMMER), script.miningTools(TutorialStep.SMITH_DAGGER))
+    }
+
+    @Test
+    fun `each tool Dezzick hands back shows in its own box`() {
+        assertEquals(
+            listOf(TutorialScript.DEZZICK_GIVES_PICKAXE, TutorialScript.DEZZICK_GIVES_HAMMER),
+            script.miningToolBoxes(listOf(TutorialScript.BRONZE_PICKAXE, TutorialScript.HAMMER)),
+        )
+        assertEquals(listOf(TutorialScript.DEZZICK_GIVES_HAMMER), script.miningToolBoxes(listOf(TutorialScript.HAMMER)))
+        assertEquals(emptyList<String>(), script.miningToolBoxes(emptyList()))
+    }
+
+    @Test
+    fun `either rock can be prospected first`() {
+        assertEquals(TutorialStep.PROSPECTED_COPPER, script.prospected(TutorialStep.PROSPECT_ROCKS, TutorialScript.COPPER_ROCK))
+        assertEquals(TutorialStep.PROSPECTED_TIN, script.prospected(TutorialStep.PROSPECT_ROCKS, TutorialScript.TIN_ROCK))
+    }
+
+    @Test
+    fun `prospecting the other rock second sends the player to Dezzick`() {
+        assertEquals(TutorialStep.PROSPECTED_COPPER_LAST, script.prospected(TutorialStep.PROSPECTED_TIN, TutorialScript.COPPER_ROCK))
+        assertEquals(TutorialStep.PROSPECTED_TIN_LAST, script.prospected(TutorialStep.PROSPECTED_COPPER, TutorialScript.TIN_ROCK))
+    }
+
+    @Test
+    fun `prospecting a rock again, or at another step, moves nobody on`() {
+        assertNull(script.prospected(TutorialStep.PROSPECTED_COPPER, TutorialScript.COPPER_ROCK))
+        assertNull(script.prospected(TutorialStep.MINE_ORE, TutorialScript.TIN_ROCK))
+    }
+
+    @Test
+    fun `a prospected rock names its ore`() {
+        assertEquals(TutorialScript.PROSPECT_COPPER, script.prospectResult(TutorialScript.COPPER_ROCK))
+        assertEquals(TutorialScript.PROSPECT_TIN, script.prospectResult(TutorialScript.TIN_ROCK))
+    }
+
+    @Test
+    fun `either ore can be mined first`() {
+        assertEquals(TutorialStep.MINED_COPPER, script.oreProgress(TutorialStep.MINE_ORE, setOf(TutorialScript.COPPER_ORE)))
+        assertEquals(TutorialStep.MINED_TIN, script.oreProgress(TutorialStep.MINE_ORE, setOf(TutorialScript.TIN_ORE)))
+    }
+
+    @Test
+    fun `with both ores the player goes on to smelting, whichever came first`() {
+        val both = setOf(TutorialScript.COPPER_ORE, TutorialScript.TIN_ORE)
+
+        assertEquals(TutorialStep.SMELT_BAR, script.oreProgress(TutorialStep.MINE_ORE, both))
+        assertEquals(TutorialStep.SMELT_BAR, script.oreProgress(TutorialStep.MINED_COPPER, both))
+        assertEquals(TutorialStep.SMELT_BAR, script.oreProgress(TutorialStep.MINED_TIN, both))
+    }
+
+    @Test
+    fun `without the missing ore nobody moves on`() {
+        assertNull(script.oreProgress(TutorialStep.MINE_ORE, emptySet()))
+        assertNull(script.oreProgress(TutorialStep.MINED_COPPER, setOf(TutorialScript.COPPER_ORE)))
+        assertNull(script.oreProgress(TutorialStep.MINED_TIN, setOf(TutorialScript.TIN_ORE)))
+    }
+
+    @Test
+    fun `ore carried at another step moves nobody on`() {
+        assertNull(script.oreProgress(TutorialStep.SMELT_BAR, setOf(TutorialScript.COPPER_ORE, TutorialScript.TIN_ORE)))
+    }
+
+    @Test
+    fun `mining before it is taught is answered with a box`() {
+        assertEquals(TutorialScript.MINE_NOT_READY, script.objectClicked(TutorialStep.PROSPECT_ROCKS, TutorialScript.TIN_ROCK, firstOption = true))
+        assertNull(script.objectClicked(TutorialStep.MINE_ORE, TutorialScript.TIN_ROCK, firstOption = true))
+    }
+
+    @Test
+    fun `the furnace's own option only explains it`() {
+        assertEquals(TutorialScript.FURNACE_NOT_YET, script.objectClicked(TutorialStep.MINE_ORE, TutorialScript.FURNACE, firstOption = true))
+        assertEquals(TutorialScript.FURNACE_HOW, script.objectClicked(TutorialStep.SMELT_BAR, TutorialScript.FURNACE, firstOption = true))
+    }
+
+    @Test
+    fun `other options and other objects are left alone`() {
+        assertNull(script.objectClicked(TutorialStep.PROSPECT_ROCKS, TutorialScript.TIN_ROCK, firstOption = false))
+        assertNull(script.objectClicked(TutorialStep.PROSPECT_ROCKS, TutorialScript.ANVIL, firstOption = true))
+    }
+
+    @Test
+    fun `an item on the furnace before smelting is taught is answered with a box`() {
+        assertEquals(TutorialScript.FURNACE_NOT_YET, script.itemUsedOn(TutorialStep.MINED_TIN, TutorialScript.FURNACE))
+        assertNull(script.itemUsedOn(TutorialStep.SMELT_BAR, TutorialScript.FURNACE))
+    }
+
+    @Test
+    fun `an item on an anvil before smithing is taught is answered with a box`() {
+        assertEquals(TutorialScript.ANVIL_NOT_YET, script.itemUsedOn(TutorialStep.MINED_TIN, TutorialScript.ANVIL))
+        assertEquals(TutorialScript.ANVIL_NO_HAMMER, script.itemUsedOn(TutorialStep.TALK_ABOUT_SMITHING, TutorialScript.ANVIL))
+        assertNull(script.itemUsedOn(TutorialStep.SMITH_DAGGER, TutorialScript.ANVIL))
+    }
+
+    @Test
+    fun `items on other objects are left alone`() {
+        assertNull(script.itemUsedOn(TutorialStep.MINED_TIN, TutorialScript.COPPER_ROCK))
+    }
+
+    @Test
+    fun `on the island only the bronze dagger is smithed`() {
+        assertTrue(script.maySmith(TutorialStep.SMITH_DAGGER, TutorialScript.BRONZE_DAGGER))
+        assertFalse(script.maySmith(TutorialStep.SMITH_DAGGER, 1351))
+    }
+
+    @Test
+    fun `off the island anything is smithed`() {
+        assertTrue(script.maySmith(DONE, 1351))
+    }
+
+    @Test
+    fun `a name is said with each word capitalised`() {
+        assertEquals("Tut1", script.spokenName("tut1"))
+        assertEquals("Big Bob", script.spokenName("big_bob"))
+        assertEquals("Big Bob", script.spokenName("big__bob"))
+    }
+
+    @Test
     fun `the chef welcomes a player who found him and hands over flour and water`() {
         assertEquals(Talk(TutorialScript.CHEF_WELCOME, Progress(TutorialStep.MAKE_DOUGH, listOf(1929, 1933))), script.talkToChef(TutorialStep.TALK_TO_CHEF))
     }

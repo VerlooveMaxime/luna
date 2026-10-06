@@ -20,6 +20,8 @@ npc1(TutorialScript.MASTER_CHEF) { tutorial.talkToChef(plr, targetNpc) }
 
 npc1(TutorialScript.QUEST_GUIDE) { tutorial.talkToQuestGuide(plr, targetNpc) }
 
+npc1(TutorialScript.MINING_INSTRUCTOR) { tutorial.talkToMiningInstructor(plr, targetNpc) }
+
 on(FlashingTabClickEvent::class) { tutorial.tabOpened(plr, tab) }
 
 cmd("tutorial", RIGHTS_DEV) { plr.sendMessage(tutorial.jumpTo(plr, args.firstOrNull().orEmpty())) }

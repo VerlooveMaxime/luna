@@ -4,7 +4,7 @@ import game.idle.IdleState
 
 /**
  * Where a player is on Tutorial Island, numbered like the 377 island's progress value (varp 281). The idle lessons
- * are ours and use values between LostCity's (51-55, 100-104, 162-165).
+ * are ours and use values between LostCity's (51-55, 100-104, 162-165, 342-348).
  */
 enum class TutorialStep(val value: Int) {
     DESIGN_CHARACTER(0),
@@ -47,6 +47,23 @@ enum class TutorialStep(val value: Int) {
     TALK_ABOUT_QUESTS(240),
     ENTER_MINE(250),
     TALK_TO_MINING_INSTRUCTOR(260),
+    PROSPECT_ROCKS(270),
+    PROSPECTED_COPPER(274),
+    PROSPECTED_TIN(275),
+    PROSPECTED_TIN_LAST(279),
+    PROSPECTED_COPPER_LAST(280),
+    MINE_ORE(290),
+    MINED_COPPER(294),
+    MINED_TIN(295),
+    SMELT_BAR(320),
+    TALK_ABOUT_SMITHING(330),
+    SMITH_DAGGER(340),
+    TALK_ABOUT_CHAIN(342),
+    BUILD_CHAIN(344),
+    WATCH_CHAIN(346),
+    STOP_CHAIN(348),
+    LEAVE_MINE(350),
+    FIND_COMBAT_INSTRUCTOR(360),
     DONE(IdleState.TUTORIAL_DONE),
     ;
 

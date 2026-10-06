@@ -2,6 +2,7 @@ package game.idle.tutorial
 
 import game.idle.tutorial.TutorialStep.BAKE_BREAD
 import game.idle.tutorial.TutorialStep.BAKE_ON_AUTOPILOT
+import game.idle.tutorial.TutorialStep.BUILD_CHAIN
 import game.idle.tutorial.TutorialStep.CATCH_SHRIMP
 import game.idle.tutorial.TutorialStep.COOK_AGAIN
 import game.idle.tutorial.TutorialStep.COOK_SHRIMP
@@ -14,19 +15,33 @@ import game.idle.tutorial.TutorialStep.FIND_SURVIVAL_EXPERT
 import game.idle.tutorial.TutorialStep.LEAVE_SURVIVAL_AREA
 import game.idle.tutorial.TutorialStep.LIGHT_FIRE
 import game.idle.tutorial.TutorialStep.MAKE_DOUGH
-import game.idle.tutorial.TutorialStep.OPEN_MUSIC
-import game.idle.tutorial.TutorialStep.OPEN_QUEST_JOURNAL
+import game.idle.tutorial.TutorialStep.MINED_COPPER
+import game.idle.tutorial.TutorialStep.MINED_TIN
+import game.idle.tutorial.TutorialStep.MINE_ORE
 import game.idle.tutorial.TutorialStep.OPEN_HOUSE_DOOR
 import game.idle.tutorial.TutorialStep.OPEN_IDLE_TAB
 import game.idle.tutorial.TutorialStep.OPEN_INVENTORY
+import game.idle.tutorial.TutorialStep.OPEN_MUSIC
+import game.idle.tutorial.TutorialStep.OPEN_QUEST_JOURNAL
 import game.idle.tutorial.TutorialStep.OPEN_SKILLS
+import game.idle.tutorial.TutorialStep.PROSPECTED_COPPER
+import game.idle.tutorial.TutorialStep.PROSPECTED_COPPER_LAST
+import game.idle.tutorial.TutorialStep.PROSPECTED_TIN
+import game.idle.tutorial.TutorialStep.PROSPECTED_TIN_LAST
+import game.idle.tutorial.TutorialStep.PROSPECT_ROCKS
+import game.idle.tutorial.TutorialStep.SMELT_BAR
+import game.idle.tutorial.TutorialStep.SMITH_DAGGER
+import game.idle.tutorial.TutorialStep.STOP_CHAIN
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_AUTOPILOT
+import game.idle.tutorial.TutorialStep.TALK_ABOUT_CHAIN
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_FOOD
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_LOOP
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_QUESTS
+import game.idle.tutorial.TutorialStep.TALK_ABOUT_SMITHING
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_SUPPLIES
 import game.idle.tutorial.TutorialStep.TALK_TO_CHEF
 import game.idle.tutorial.TutorialStep.TALK_TO_GUIDE
+import game.idle.tutorial.TutorialStep.TALK_TO_MINING_INSTRUCTOR
 import game.idle.tutorial.TutorialStep.TALK_TO_QUEST_GUIDE
 import game.idle.tutorial.TutorialStep.WATCH_THE_BAKING
 import game.player.Animations
@@ -114,6 +129,83 @@ class TutorialScript(private val data: TutorialData) {
         step == TALK_ABOUT_QUESTS -> Talk(listOf(QUEST_GUIDE_JOURNAL) + QUEST_GUIDE_EXPLAINS, Progress(ENTER_MINE))
         else -> Talk(QUEST_GUIDE_EXPLAINS, progress = null)
     }
+
+    fun talkToMiningInstructor(step: TutorialStep): Talk = when {
+        step <= TALK_TO_MINING_INSTRUCTOR ->
+            Talk(DEZZICK_WELCOME, Progress(PROSPECT_ROCKS).takeIf { step == TALK_TO_MINING_INSTRUCTOR })
+        step < PROSPECTED_TIN_LAST -> Talk(DEZZICK_PROSPECT_AGAIN, progress = null)
+        step < MINE_ORE -> Talk(DEZZICK_PROSPECTED, Progress(MINE_ORE, listOf(BRONZE_PICKAXE)))
+        step < SMELT_BAR -> Talk(DEZZICK_MINING, progress = null)
+        step == SMELT_BAR -> Talk(DEZZICK_SMELTING, progress = null)
+        step == TALK_ABOUT_SMITHING -> Talk(DEZZICK_SMITHING, Progress(SMITH_DAGGER, listOf(HAMMER)))
+        step == SMITH_DAGGER -> Talk(DEZZICK_DAGGER, progress = null)
+        step == TALK_ABOUT_CHAIN -> Talk(DEZZICK_CHAIN, Progress(BUILD_CHAIN))
+        step <= STOP_CHAIN -> Talk(DEZZICK_CHAIN_AGAIN, progress = null)
+        else -> Talk(DEZZICK_HELLO, progress = null)
+    }
+
+    /** The tools Dezzick makes sure a player still has, once he handed them over; nothing once off the island. */
+    fun miningTools(step: TutorialStep): List<Int> = when {
+        step < MINE_ORE || step == DONE -> emptyList()
+        step < SMITH_DAGGER -> listOf(BRONZE_PICKAXE)
+        else -> listOf(BRONZE_PICKAXE, HAMMER)
+    }
+
+    /** The boxes showing the tools Dezzick just handed back, one per tool. */
+    fun miningToolBoxes(given: List<Int>): List<String> = listOfNotNull(
+        DEZZICK_GIVES_PICKAXE.takeIf { BRONZE_PICKAXE in given },
+        DEZZICK_GIVES_HAMMER.takeIf { HAMMER in given },
+    )
+
+    /** Prospecting the copper and the tin rocks, in either order, moves the player on; a rock is copper or tin. */
+    fun prospected(step: TutorialStep, rock: Int): TutorialStep? = when (rock to step) {
+        COPPER_ROCK to PROSPECT_ROCKS -> PROSPECTED_COPPER
+        COPPER_ROCK to PROSPECTED_TIN -> PROSPECTED_COPPER_LAST
+        TIN_ROCK to PROSPECT_ROCKS -> PROSPECTED_TIN
+        TIN_ROCK to PROSPECTED_COPPER -> PROSPECTED_TIN_LAST
+        else -> null
+    }
+
+    /** The box naming what a prospected [rock] holds. */
+    fun prospectResult(rock: Int): String = if (rock == COPPER_ROCK) PROSPECT_COPPER else PROSPECT_TIN
+
+    /** Mining either ore first; once both are carried, smelting. */
+    fun oreProgress(step: TutorialStep, carried: Set<Int>): TutorialStep? {
+        val copper = COPPER_ORE in carried
+        val tin = TIN_ORE in carried
+        return when (step) {
+            MINE_ORE -> if (copper && tin) SMELT_BAR else if (copper) MINED_COPPER else MINED_TIN.takeIf { tin }
+            MINED_COPPER -> SMELT_BAR.takeIf { tin }
+            MINED_TIN -> SMELT_BAR.takeIf { copper }
+            else -> null
+        }
+    }
+
+    /**
+     * A click on an island object the tutorial answers itself, with the box to show once the player stands beside it:
+     * the rocks before mining is taught, and the furnace's own option, which only explains it.
+     */
+    fun objectClicked(step: TutorialStep, objectId: Int, firstOption: Boolean): String? = when {
+        !firstOption -> null
+        objectId in ROCKS && step < MINE_ORE -> MINE_NOT_READY
+        objectId == FURNACE -> if (step < SMELT_BAR) FURNACE_NOT_YET else FURNACE_HOW
+        else -> null
+    }
+
+    /** An item used on the furnace or an anvil before its lesson, with the box saying so. */
+    fun itemUsedOn(step: TutorialStep, objectId: Int): String? = when {
+        objectId == FURNACE && step < SMELT_BAR -> FURNACE_NOT_YET
+        objectId == ANVIL && step < SMELT_BAR -> ANVIL_NOT_YET
+        objectId == ANVIL && step < SMITH_DAGGER -> ANVIL_NO_HAMMER
+        else -> null
+    }
+
+    /** On the island the anvil makes only the bronze dagger. */
+    fun maySmith(step: TutorialStep, itemId: Int): Boolean = step == DONE || itemId == BRONZE_DAGGER
+
+    /** How the instructors say a player's name: the login name with each word capitalised. */
+    fun spokenName(username: String): String =
+        username.split('_', ' ').filter { it.isNotEmpty() }.joinToString(" ") { it[0].uppercaseChar() + it.substring(1) }
 
     fun talkToChef(step: TutorialStep): Talk = when {
         step <= TALK_TO_CHEF -> Talk(CHEF_WELCOME, Progress(MAKE_DOUGH, listOf(BUCKET_OF_WATER, POT_OF_FLOUR)).takeIf { step == TALK_TO_CHEF })
@@ -217,6 +309,17 @@ class TutorialScript(private val data: TutorialData) {
         const val SURVIVAL_EXPERT = 943
         const val MASTER_CHEF = 942
         const val QUEST_GUIDE = 949
+        const val MINING_INSTRUCTOR = 948
+        const val COPPER_ROCK = 3042
+        const val TIN_ROCK = 3043
+        val ROCKS = setOf(COPPER_ROCK, TIN_ROCK)
+        const val FURNACE = 3044
+        const val ANVIL = 2783
+        const val BRONZE_PICKAXE = 1265
+        const val HAMMER = 2347
+        const val COPPER_ORE = 436
+        const val TIN_ORE = 438
+        const val BRONZE_DAGGER = 1205
 
         /** The island's line in the quest journal's stages (`idlers.QuestJournal.TUTORIAL_LINE` in `luna-client`). */
         const val JOURNAL_LINE = 30301
@@ -277,9 +380,35 @@ class TutorialScript(private val data: TutorialData) {
         /** Jagex's lines about quests, ours about stages and resets, then Jagex's pointer to the caves. */
         val QUEST_GUIDE_EXPLAINS = listOf(QUEST_GUIDE_QUESTS, QUEST_GUIDE_STAGES, QUEST_GUIDE_CAVES)
 
+        const val DEZZICK_WELCOME = "dezzick_welcome"
+        const val DEZZICK_PROSPECT_AGAIN = "dezzick_prospect_again"
+        const val DEZZICK_PROSPECTED = "dezzick_prospected"
+        const val DEZZICK_MINING = "dezzick_mining"
+        const val DEZZICK_SMELTING = "dezzick_smelting"
+        const val DEZZICK_SMITHING = "dezzick_smithing"
+        const val DEZZICK_DAGGER = "dezzick_dagger"
+        const val DEZZICK_CHAIN = "dezzick_chain"
+        const val DEZZICK_CHAIN_AGAIN = "dezzick_chain_again"
+        const val DEZZICK_HELLO = "dezzick_hello"
+        const val DEZZICK_GIVES_PICKAXE = "dezzick_gives_pickaxe"
+        const val DEZZICK_GIVES_HAMMER = "dezzick_gives_hammer"
+        const val PROSPECT_COPPER = "prospect_copper"
+        const val PROSPECT_TIN = "prospect_tin"
+        const val MINE_NOT_READY = "mine_not_ready"
+        const val FURNACE_NOT_YET = "furnace_not_yet"
+        const val FURNACE_HOW = "furnace_how"
+        const val ANVIL_NOT_YET = "anvil_not_yet"
+        const val ANVIL_NO_HAMMER = "anvil_no_hammer"
+        const val ISLAND_DAGGER_ONLY = "island_dagger_only"
+
+        /** Stands for the player's name in an instructor's lines. */
+        const val DISPLAY_NAME = "<displayname>"
+
         const val WOODCUTTING = "woodcutting"
         const val FIREMAKING = "firemaking"
         const val FISHING = "fishing"
+        const val MINING = "mining"
+        const val PROSPECTING = "prospecting"
 
         private val DIALOGUES = listOf(
             GUIDE_WELCOME, GUIDE_AGAIN, SURVIVAL_WELCOME, SURVIVAL_INVENTORY, SURVIVAL_FIRE, SURVIVAL_SKILLS,
@@ -287,10 +416,13 @@ class TutorialScript(private val data: TutorialData) {
             SURVIVAL_DONE, GIVES_AXE_AND_TINDERBOX, GIVES_AXE, GIVES_TINDERBOX, GIVES_NET, CHEF_WELCOME, CHEF_BREAD,
             CHEF_SUPPLIES, CHEF_SUPPLIES_AGAIN, CHEF_HELLO, CHEF_GIVES_FLOUR_AND_WATER, CHEF_GIVES_FLOUR, CHEF_GIVES_WATER,
             CHEF_GIVES_SUPPLIES, QUEST_GUIDE_WELCOME, QUEST_GUIDE_OPEN_JOURNAL, QUEST_GUIDE_JOURNAL, QUEST_GUIDE_QUESTS,
-            QUEST_GUIDE_STAGES, QUEST_GUIDE_CAVES,
+            QUEST_GUIDE_STAGES, QUEST_GUIDE_CAVES, DEZZICK_WELCOME, DEZZICK_PROSPECT_AGAIN, DEZZICK_PROSPECTED, DEZZICK_MINING,
+            DEZZICK_SMELTING, DEZZICK_SMITHING, DEZZICK_DAGGER, DEZZICK_CHAIN, DEZZICK_CHAIN_AGAIN, DEZZICK_HELLO,
+            DEZZICK_GIVES_PICKAXE, DEZZICK_GIVES_HAMMER, PROSPECT_COPPER, PROSPECT_TIN, MINE_NOT_READY, FURNACE_NOT_YET,
+            FURNACE_HOW, ANVIL_NOT_YET, ANVIL_NO_HAMMER, ISLAND_DAGGER_ONLY,
         )
 
-        private val ACTIVITIES = listOf(WOODCUTTING, FIREMAKING, FISHING)
+        private val ACTIVITIES = listOf(WOODCUTTING, FIREMAKING, FISHING, MINING, PROSPECTING)
 
         private val FIRST_GAINS = mapOf(
             CUT_TREE to (Skill.WOODCUTTING to LIGHT_FIRE),

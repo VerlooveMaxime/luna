@@ -1,13 +1,13 @@
 package game.idle.tutorial
 
 import game.harness.RecordedMessage
+import game.idle.idleState
 import game.idle.tutorial.TutorialScript.Companion.BRONZE_AXE
 import game.idle.tutorial.TutorialScript.Companion.BURNT_FISH
 import game.idle.tutorial.TutorialScript.Companion.RAW_SHRIMPS
 import game.idle.tutorial.TutorialScript.Companion.SHRIMPS
 import game.idle.tutorial.TutorialScript.Companion.SMALL_FISHING_NET
 import game.idle.tutorial.TutorialScript.Companion.TINDERBOX
-import game.idle.idleState
 import game.idle.tutorial.TutorialStep.BUILD_FIRST_FLOW
 import game.idle.tutorial.TutorialStep.COOK_AGAIN
 import game.idle.tutorial.TutorialStep.COOK_SHRIMP
@@ -24,18 +24,22 @@ import game.idle.tutorial.TutorialStep.OPEN_INVENTORY
 import game.idle.tutorial.TutorialStep.OPEN_SKILLS
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_FOOD
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_LOOP
+import game.idle.tutorial.TutorialStep.TALK_TO_GUIDE
 import game.idle.tutorial.TutorialStep.WATCH_THE_AUTOPILOT
 import game.idle.ui.FlowWidgets
-import game.idle.tutorial.TutorialStep.TALK_TO_GUIDE
 import game.player.login.firstLogin
 import game.skill.firemaking.LightAction
+import game.skill.smithing.BarType
+import game.skill.smithing.smithBar.SmithingInterface
 import game.testworld.TestWorld
 import io.luna.Luna
 import io.luna.game.event.impl.DropItemEvent
 import io.luna.game.event.impl.EquipItemEvent
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
+import io.luna.game.event.impl.ObjectClickEvent.ObjectSecondClickEvent
 import io.luna.game.event.impl.SkillChangeEvent
 import io.luna.game.event.impl.UseItemEvent.ItemOnObjectEvent
+import io.luna.game.event.impl.WidgetItemClickEvent.WidgetItemThirdClickEvent
 import io.luna.game.model.Position
 import io.luna.game.model.item.Equipment
 import io.luna.game.model.item.Item
@@ -425,6 +429,180 @@ class LunaTutorialTest {
         tutorial.ladderClimbed(player, TutorialFixtures.ladder)
 
         assertEquals(TutorialStep.TALK_ABOUT_QUESTS, player.tutorialStep)
+    }
+
+    private fun talkToDezzick(tutorial: LunaTutorial, player: Player) {
+        tutorial.talkToMiningInstructor(player, TestWorld.spawnNpc(TutorialScript.MINING_INSTRUCTOR, besideElsewhere))
+        readToTheEnd(player)
+    }
+
+    /** The island furnace opens to one side; placed facing north, that is the side the player stands on. */
+    private val furnaceCorner = Position(3239, 3241)
+
+    @Test
+    fun `Dezzick hands back a lost pickaxe and shows it after his lines`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.MINE_ORE), tutorial)
+
+        talkToDezzick(tutorial, player)
+
+        assertEquals(1, carried(player, TutorialScript.BRONZE_PICKAXE))
+        assertTrue("A pickaxe." in texts(player))
+    }
+
+    @Test
+    fun `Dezzick's lines say the player's name`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.TALK_TO_MINING_INSTRUCTOR), tutorial)
+
+        talkToDezzick(tutorial, player)
+
+        assertTrue("I'm Tutee." in texts(player))
+    }
+
+    @Test
+    fun `carrying the first ore moves the player on`() {
+        val player = loggedIn(returning(TutorialStep.MINE_ORE))
+
+        player.inventory.add(Item(TutorialScript.COPPER_ORE))
+        TestWorld.tick()
+
+        assertEquals(TutorialStep.MINED_COPPER, player.tutorialStep)
+    }
+
+    @Test
+    fun `prospecting the island's rocks is the tutorial's own, not Luna's`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.PROSPECT_ROCKS), tutorial)
+        val rock = TestWorld.place(TutorialScript.COPPER_ROCK, besideElsewhere)
+
+        assertFalse(tutorial.allows(player, ObjectSecondClickEvent(player, rock)))
+    }
+
+    @Test
+    fun `prospecting names the ore after a few ticks and moves the player on`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.PROSPECT_ROCKS), tutorial)
+        val rock = TestWorld.place(TutorialScript.COPPER_ROCK, besideElsewhere)
+
+        tutorial.allows(player, ObjectSecondClickEvent(player, rock))
+        TestWorld.tick(6)
+
+        assertEquals(TutorialStep.PROSPECTED_COPPER, player.tutorialStep)
+        assertTrue("Copper." in texts(player))
+    }
+
+    @Test
+    fun `while prospecting the help box says to wait`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.PROSPECT_ROCKS), tutorial)
+        val rock = TestWorld.place(TutorialScript.TIN_ROCK, besideElsewhere)
+
+        tutorial.allows(player, ObjectSecondClickEvent(player, rock))
+        TestWorld.tick(2)
+        tutorial.checkBusy(player)
+
+        assertTrue("Prospecting." in texts(player))
+    }
+
+    @Test
+    fun `mining before it is taught is refused with a box once beside the rock`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.PROSPECT_ROCKS), tutorial)
+        val rock = TestWorld.place(TutorialScript.TIN_ROCK, besideElsewhere)
+
+        assertFalse(tutorial.allows(player, ObjectFirstClickEvent(player, rock)))
+        TestWorld.tick()
+
+        assertTrue("Not ready to mine." in texts(player))
+    }
+
+    @Test
+    fun `mining once taught goes on to Luna`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.MINE_ORE), tutorial)
+        val rock = TestWorld.place(TutorialScript.TIN_ROCK, besideElsewhere)
+
+        assertTrue(tutorial.allows(player, ObjectFirstClickEvent(player, rock)))
+    }
+
+    @Test
+    fun `the furnace's own option explains it`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.SMELT_BAR), tutorial)
+        val furnace = TestWorld.place(TutorialScript.FURNACE, furnaceCorner)
+
+        assertFalse(tutorial.allows(player, ObjectFirstClickEvent(player, furnace)))
+        TestWorld.tick()
+
+        assertTrue("Use ore on it." in texts(player))
+    }
+
+    @Test
+    fun `an object's other options go on to its handlers`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.SMELT_BAR), tutorial)
+        val furnace = TestWorld.place(TutorialScript.FURNACE, furnaceCorner)
+
+        assertTrue(tutorial.allows(player, ObjectSecondClickEvent(player, furnace)))
+    }
+
+    @Test
+    fun `ore on the furnace before smelting is taught is refused with a box`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.MINED_TIN), tutorial)
+        val furnace = TestWorld.place(TutorialScript.FURNACE, furnaceCorner)
+
+        assertFalse(tutorial.allows(player, ItemOnObjectEvent(player, TutorialScript.TIN_ORE, 0, INVENTORY, furnace)))
+        TestWorld.tick()
+
+        assertTrue("A furnace, later." in texts(player))
+    }
+
+    @Test
+    fun `a bar on an anvil before the hammer is refused with a box`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.TALK_ABOUT_SMITHING), tutorial)
+
+        assertFalse(useOn(tutorial, player, 2349, TutorialScript.ANVIL))
+        TestWorld.tick()
+
+        assertTrue("Get a hammer." in texts(player))
+    }
+
+    @Test
+    fun `a bar on an anvil once smithing is taught goes on to Luna`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.SMITH_DAGGER), tutorial)
+
+        assertTrue(useOn(tutorial, player, 2349, TutorialScript.ANVIL))
+    }
+
+    @Test
+    fun `the anvil's window makes nothing but the bronze dagger on the island`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.SMITH_DAGGER), tutorial)
+        player.overlays.open(SmithingInterface(BarType.BRONZE))
+
+        assertFalse(tutorial.allows(player, WidgetItemThirdClickEvent(player, 0, 1120, 1351)))
+        assertTrue("Daggers only." in texts(player))
+    }
+
+    @Test
+    fun `the anvil's window makes the bronze dagger`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.SMITH_DAGGER), tutorial)
+        player.overlays.open(SmithingInterface(BarType.BRONZE))
+
+        assertTrue(tutorial.allows(player, WidgetItemThirdClickEvent(player, 0, 1119, TutorialScript.BRONZE_DAGGER)))
+    }
+
+    @Test
+    fun `item clicks in other windows are left alone`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.SMITH_DAGGER), tutorial)
+
+        assertTrue(tutorial.allows(player, WidgetItemThirdClickEvent(player, 0, 1119, 1351)))
     }
 
     private fun talkToChef(tutorial: LunaTutorial, player: Player) {
