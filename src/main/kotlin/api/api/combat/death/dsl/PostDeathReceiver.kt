@@ -32,11 +32,7 @@ class PostDeathReceiver(val receiver: DeathHookReceiver<*>) {
         } else if (victim is Npc) {
             world.npcs.remove(victim)
             if (victim.respawnTicks > 0 && victim.state == EntityState.INACTIVE) {
-                world.scheduleOnce(victim.respawnTicks) {
-                    val respawnNpc = Npc(ctx, victim.baseId, victim.basePosition)
-                    respawnNpc.respawnTicks = victim.respawnTicks
-                    world.npcs.add(respawnNpc)
-                }
+                world.scheduleOnce(victim.respawnTicks) { world.npcs.add(victim.createRespawn()) }
             }
         }
     }

@@ -23,6 +23,23 @@ class PersistentNpc(id: Int, position: Position,
         }
         if (respawnAfter != null) {
             respawnTicks = respawnAfter
+        } else if (respawnTicks <= 0) {
+            respawnTicks = DEFAULT_RESPAWN_TICKS
         }
+    }
+
+    override fun createRespawn(): Npc {
+        val respawn = PersistentNpc(baseId, basePosition, respawnAfter, wanderingRadius, wanderingFrequency)
+        respawn.respawnTicks = respawnTicks
+        respawn.defaultDirection = defaultDirection
+        return respawn
+    }
+
+    companion object {
+
+        /**
+         * The respawn delay of a spawn whose file entry and combat definition give none.
+         */
+        const val DEFAULT_RESPAWN_TICKS = 50
     }
 }

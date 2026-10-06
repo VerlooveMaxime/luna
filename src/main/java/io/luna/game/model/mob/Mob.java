@@ -404,8 +404,7 @@ public abstract class Mob extends Entity {
         int levelBefore = hp.getLevel();
         hp.setLevel(Math.max(amount, 0));
         if (levelBefore > 0 && hp.getLevel() <= 0) {
-            Mob source = getCombat().getDamageStack().getHighestDamage();
-            submitAction(new MobDeathAction(this, source));
+            submitAction(new MobDeathAction(this));
         }
     }
 

@@ -61,9 +61,10 @@ public final class MobDeathAction extends Action<Mob> {
     private final Mob victim;
 
     /**
-     * The entity responsible for the kill, or {@code null} if unknown.
+     * The entity responsible for the kill, or {@code null} if unknown. Read when the death starts: the killing hit
+     * joins the victim's damage stack only after the health change that submits this action.
      */
-    private final Mob source;
+    private Mob source;
 
     /**
      * Internal tick counter controlling which stage executes.
@@ -74,12 +75,10 @@ public final class MobDeathAction extends Action<Mob> {
      * Creates a new {@link MobDeathAction}.
      *
      * @param victim The mob being killed.
-     * @param source The killer, or {@code null} if the cause is environmental or unknown.
      */
-    public MobDeathAction(Mob victim, Mob source) {
+    public MobDeathAction(Mob victim) {
         super(victim, ActionType.STRONG, false, 1);
         this.victim = victim;
-        this.source = source;
     }
 
     @Override
@@ -92,6 +91,7 @@ public final class MobDeathAction extends Action<Mob> {
     public boolean run() {
         try {
             if (currentLoop == 0) {
+                source = victim.getCombat().getDamageStack().getHighestDamage();
                 victim.interact(null);
                 DeathHookHandler.INSTANCE.onDeath(victim, source, DeathStage.PRE_DEATH);
             } else if (currentLoop == 4) {

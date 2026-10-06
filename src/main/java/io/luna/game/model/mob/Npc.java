@@ -388,6 +388,19 @@ public class Npc extends Mob {
     }
 
     /**
+     * Creates the NPC that replaces this one when it respawns: the same base id, base position, respawn delay and
+     * default direction. Subclasses that set themselves up on spawn return a copy of their own type.
+     *
+     * @return The NPC to add to the world once the respawn delay is over.
+     */
+    public Npc createRespawn() {
+        Npc respawn = new Npc(context, id, basePosition);
+        respawn.respawnTicks = respawnTicks;
+        respawn.defaultDirection = defaultDirection;
+        return respawn;
+    }
+
+    /**
      * Starts a wandering behaviour for this NPC within the given radius.
      * <p>
      * This method:

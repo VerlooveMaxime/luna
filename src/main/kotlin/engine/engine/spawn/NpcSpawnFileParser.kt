@@ -33,7 +33,7 @@ internal class NpcSpawnFileParser : JsonFileParser<PersistentNpc>(PATH) {
         val id = if (nameOrId is Int) nameOrId else NpcDefinition.ALL.find {
             it.name.contentEquals(nameOrId as String, true)
         }?.id()
-        val respawn = if (token.has("respawn_ticks")) token["respawn_ticks"].asInt else 50
+        val respawn = if (token.has("respawn_ticks")) token["respawn_ticks"].asInt else null
         val defaultDirection =
             if (token.has("default_direction")) Direction.valueOf(token["default_direction"].asString) else null
         val wander = if (token.has("wander")) token["wander"] else null

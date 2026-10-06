@@ -307,7 +307,7 @@ public final class CombatFormula {
         }
 
         switch (stance) {
-            case ACCURATE:
+            case AGGRESSIVE:
                 return 3;
             case CONTROLLED:
                 return 1;

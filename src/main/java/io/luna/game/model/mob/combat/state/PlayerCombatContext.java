@@ -117,11 +117,13 @@ public final class PlayerCombatContext extends CombatContext<Player> {
     @Override
     public CombatAttack<Player> getNextAttack(Mob victim) {
 
-        // Handle cached initial attack from interaction code.
+        // Handle cached initial attack from interaction code, unless it was prepared against another victim.
         if (firstAttack != null) {
             CombatAttack<Player> nextAttack = firstAttack;
             firstAttack = null;
-            return nextAttack;
+            if (nextAttack.getVictim() == victim) {
+                return nextAttack;
+            }
         }
 
         // Combat hooks from scripts always take first priority.
@@ -291,6 +293,19 @@ public final class PlayerCombatContext extends CombatContext<Player> {
      * @return The cached first attack, or {@code null} if none is set.
      */
     public CombatAttack<Player> getFirstAttack() {
+        return firstAttack;
+    }
+
+    /**
+     * Prepares and caches a fresh first attack against {@code victim}, replacing any attack cached by an earlier click
+     * that never reached its target.
+     *
+     * @param victim The mob about to be attacked.
+     * @return The prepared attack.
+     */
+    public CombatAttack<Player> prepareFirstAttack(Mob victim) {
+        firstAttack = null;
+        firstAttack = getNextAttack(victim);
         return firstAttack;
     }
 
