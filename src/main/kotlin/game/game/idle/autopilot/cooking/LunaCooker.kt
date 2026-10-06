@@ -1,5 +1,6 @@
 package game.idle.autopilot.cooking
 
+import game.idle.autopilot.PlaceCandidate
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
 import game.idle.movement.footprintOf
@@ -37,7 +38,7 @@ class LunaCooker(private val player: Player, private val rawIds: Set<Int>, priva
             windowOpen = cookingWindowOpen(),
             atLocation = scan.atLocation(player.position),
             places = scan.reachable(player.position, places(), ::footprintOf, terrain = this)
-                .map { (place, reach) -> PlaceCandidate(place.id, place.position, reach.distance, reach.usableFromHere, reach.approach) },
+                .map { (place, reach) -> PlaceCandidate.of(place, reach) },
         )
 
     override fun useOn(place: PlaceCandidate, slot: Int) {

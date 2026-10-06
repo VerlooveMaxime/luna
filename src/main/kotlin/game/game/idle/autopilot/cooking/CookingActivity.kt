@@ -6,6 +6,7 @@ import game.idle.autopilot.cooking.CookingDecision.Done
 import game.idle.autopilot.cooking.CookingDecision.UseOn
 import game.idle.autopilot.cooking.CookingDecision.WalkTo
 import game.idle.autopilot.cooking.CookingDecision.WalkToLocation
+import game.idle.autopilot.PlaceCandidate
 import game.idle.flow.StepActivity
 import io.luna.game.model.Position
 
@@ -34,15 +35,6 @@ interface Cooker {
 
     fun tell(message: String)
 }
-
-/** A fire or range the player can walk to: [distance] walking steps to [approach]. */
-data class PlaceCandidate(
-    val objectId: Int,
-    val position: Position,
-    val distance: Int,
-    val usableFromHere: Boolean,
-    val approach: Position,
-)
 
 /** What the cook step knows when it decides: [rawSlot] holds some of the step's raw food, if any is left. */
 data class CookingView(

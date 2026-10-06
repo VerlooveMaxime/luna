@@ -7,6 +7,9 @@ import game.idle.autopilot.firemaking.LightStepType
 import game.idle.autopilot.fishing.FishStepType
 import game.idle.autopilot.making.MakeStepType
 import game.idle.autopilot.making.RecipeCatalog
+import game.idle.autopilot.mining.MineStepType
+import game.idle.autopilot.smelting.SmeltStepType
+import game.idle.autopilot.smithing.SmithStepType
 import game.idle.autopilot.walk.WalkStepType
 import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.flow.FlowGrammar
@@ -17,8 +20,8 @@ class IdleSteps(banks: BankCatalog, recipes: RecipeCatalog) {
 
     val grammar = FlowGrammar(
         listOf(
-            ChopStepType, FishStepType, LightStepType, CookStepType, MakeStepType(recipes), WalkStepType, DropStepType,
-            BankStepType(banks),
+            ChopStepType, MineStepType, FishStepType, LightStepType, CookStepType, MakeStepType(recipes), SmeltStepType,
+            SmithStepType, WalkStepType, DropStepType, BankStepType(banks),
         ),
     )
 }

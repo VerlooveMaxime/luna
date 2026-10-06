@@ -14,6 +14,12 @@ import game.idle.autopilot.fishing.FishStep
 import game.idle.autopilot.fishing.FishingActivity
 import game.idle.autopilot.fishing.FishingMethod
 import game.idle.autopilot.making.MakeActivity
+import game.idle.autopilot.mining.MineStep
+import game.idle.autopilot.mining.MiningActivity
+import game.idle.autopilot.smelting.SmeltStep
+import game.idle.autopilot.smelting.SmeltingActivity
+import game.idle.autopilot.smithing.SmithStep
+import game.idle.autopilot.smithing.SmithingActivity
 import game.idle.autopilot.making.MakeStep
 import game.idle.autopilot.making.Recipe
 import game.idle.autopilot.walk.WalkActivity
@@ -27,6 +33,9 @@ import game.idle.flow.WorkSpot
 import game.idle.idleState
 import game.idle.location.Bank
 import game.idle.location.Tile
+import game.skill.mining.Ore
+import game.skill.smithing.BarType
+import game.skill.smithing.smithBar.SmithingTable
 import game.skill.woodcutting.cutTree.Tree
 import game.testworld.TestWorld
 import io.luna.game.model.Position
@@ -198,6 +207,23 @@ class LunaAutopilotPlayerTest {
     @Test
     fun `a cook step runs as a cooking activity`() {
         assertInstanceOf(CookingActivity::class.java, autopilotPlayer().activity(CookStep(setOf(317), 10, WorkSpot.RunTile)))
+    }
+
+    @Test
+    fun `a mine step runs as a mining activity`() {
+        assertInstanceOf(MiningActivity::class.java, autopilotPlayer().activity(MineStep(Ore.COPPER, 10, WorkSpot.RunTile)))
+    }
+
+    @Test
+    fun `a smelt step runs as a smelting activity`() {
+        assertInstanceOf(SmeltingActivity::class.java, autopilotPlayer().activity(SmeltStep(BarType.BRONZE, 10, WorkSpot.RunTile)))
+    }
+
+    @Test
+    fun `a smith step runs as a smithing activity`() {
+        val step = SmithStep(BarType.BRONZE, SmithingTable.DAGGER, 10, WorkSpot.RunTile)
+
+        assertInstanceOf(SmithingActivity::class.java, autopilotPlayer().activity(step))
     }
 
     @Test

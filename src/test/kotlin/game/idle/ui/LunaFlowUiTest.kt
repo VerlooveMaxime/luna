@@ -73,15 +73,15 @@ class LunaFlowUiTest {
 
         ui.click(player, FlowWidgets.DRAFT_KIND)
 
-        assertEquals("fish", texts(player)[FlowWidgets.DRAFT_KIND])
-        assertEquals("shrimp", texts(player)[FlowWidgets.DRAFT_FIELDS[0]])
+        assertEquals("mine", texts(player)[FlowWidgets.DRAFT_KIND])
+        assertEquals("clay", texts(player)[FlowWidgets.DRAFT_FIELDS[0]])
     }
 
     @Test
     fun `clicking a walk step's tile asks the client to open the map on it`() {
         val player = login()
         ui.click(player, FlowWidgets.TAB_OPEN_BUILDER)
-        cycleKind(player, times = 5)
+        cycleKind(player, times = 8)
 
         ui.click(player, FlowWidgets.DRAFT_FIELDS[0])
 
@@ -94,7 +94,7 @@ class LunaFlowUiTest {
     fun `a tile picked on the map shows in the builder`() {
         val player = login()
         ui.click(player, FlowWidgets.TAB_OPEN_BUILDER)
-        cycleKind(player, times = 5)
+        cycleKind(player, times = 8)
         ui.click(player, FlowWidgets.DRAFT_FIELDS[0])
 
         ui.picked(player, Tile(3086, 3233))

@@ -17,10 +17,12 @@ import game.idle.flow.StepField
 import game.idle.location.Bank
 import game.idle.location.BankCatalog
 import game.idle.location.Tile
+import game.testworld.TestWorld
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -36,6 +38,12 @@ class FlowBuilderTest {
 
     private fun click(widgetId: Int, times: Int = 1) = repeat(times) { builder.click(player, widgetId) }
 
+    /** The mine, smelt and smith steps name their choices from Luna's item definitions, which need the cache. */
+    @BeforeEach
+    fun `item definitions are loaded`() {
+        TestWorld.world
+    }
+
     @Test
     fun `the first draft chops the easiest tree`() {
         assertEquals("chop normal", builder.draft(player).line())
@@ -43,7 +51,7 @@ class FlowBuilderTest {
 
     @Test
     fun `a grammar with more fields per step than the screen shows is refused`() {
-        val wide = FakeStepType("wide", List(4) { StepField.Choice("field $it") { emptyList() } })
+        val wide = FakeStepType("wide", List(5) { StepField.Choice("field $it") { emptyList() } })
 
         assertThrows<IllegalArgumentException> { FlowBuilder(autopilot, FlowResolver(FlowGrammar(listOf(wide)))) }
     }
@@ -77,7 +85,7 @@ class FlowBuilderTest {
 
     @Test
     fun `a walk draft goes to the tile the player stands on`() {
-        click(FlowWidgets.DRAFT_KIND, times = 5)
+        click(FlowWidgets.DRAFT_KIND, times = 8)
 
         assertEquals(WalkStepType, builder.draft(player).type)
         assertEquals("walk 3200 3200", builder.draft(player).line())
@@ -85,7 +93,7 @@ class FlowBuilderTest {
 
     @Test
     fun `an untouched walk draft follows the player`() {
-        click(FlowWidgets.DRAFT_KIND, times = 5)
+        click(FlowWidgets.DRAFT_KIND, times = 8)
 
         player.tile = Tile(3100, 3100)
 
@@ -94,7 +102,7 @@ class FlowBuilderTest {
 
     @Test
     fun `clicking the tile opens the map on the tile it holds`() {
-        click(FlowWidgets.DRAFT_KIND, times = 5)
+        click(FlowWidgets.DRAFT_KIND, times = 8)
 
         assertEquals(ClickResult.PickTile(Tile(3200, 3200)), builder.click(player, FlowWidgets.DRAFT_FIELDS[0]))
     }
@@ -109,7 +117,7 @@ class FlowBuilderTest {
 
     @Test
     fun `a tile picked on the map goes into the walk step and stays there`() {
-        click(FlowWidgets.DRAFT_KIND, times = 5)
+        click(FlowWidgets.DRAFT_KIND, times = 8)
         click(FlowWidgets.DRAFT_FIELDS[0])
 
         assertEquals(ClickResult.Refresh, builder.picked(player, Tile(3086, 3233)))
@@ -120,7 +128,7 @@ class FlowBuilderTest {
 
     @Test
     fun `a pick nobody asked for is ignored`() {
-        click(FlowWidgets.DRAFT_KIND, times = 5)
+        click(FlowWidgets.DRAFT_KIND, times = 8)
 
         assertEquals(ClickResult.Ignored, builder.picked(player, Tile(3086, 3233)))
         assertEquals("walk 3200 3200", builder.draft(player).line())
@@ -128,7 +136,7 @@ class FlowBuilderTest {
 
     @Test
     fun `a pick is taken once`() {
-        click(FlowWidgets.DRAFT_KIND, times = 5)
+        click(FlowWidgets.DRAFT_KIND, times = 8)
         click(FlowWidgets.DRAFT_FIELDS[0])
         builder.picked(player, Tile(3086, 3233))
 
@@ -137,7 +145,7 @@ class FlowBuilderTest {
 
     @Test
     fun `a pick for a field the draft no longer has is ignored`() {
-        click(FlowWidgets.DRAFT_KIND, times = 5)
+        click(FlowWidgets.DRAFT_KIND, times = 8)
         click(FlowWidgets.DRAFT_FIELDS[0])
         click(FlowWidgets.DRAFT_KIND)
 
@@ -148,7 +156,7 @@ class FlowBuilderTest {
     fun `the kind cycles and each kind keeps its fields`() {
         click(FlowWidgets.DRAFT_FIELDS[0])
 
-        click(FlowWidgets.DRAFT_KIND, times = 6)
+        click(FlowWidgets.DRAFT_KIND, times = 9)
 
         assertEquals(DropStepType, builder.draft(player).type)
 
@@ -159,7 +167,7 @@ class FlowBuilderTest {
 
     @Test
     fun `a field the kind of step does not have does nothing`() {
-        click(FlowWidgets.DRAFT_KIND, times = 6)
+        click(FlowWidgets.DRAFT_KIND, times = 9)
 
         assertEquals(ClickResult.Refresh, builder.click(player, FlowWidgets.DRAFT_FIELDS[0]))
 
@@ -176,7 +184,7 @@ class FlowBuilderTest {
 
     @Test
     fun `adding a step the resolver refuses changes nothing`() {
-        click(FlowWidgets.DRAFT_KIND, times = 6)
+        click(FlowWidgets.DRAFT_KIND, times = 9)
 
         click(FlowWidgets.DRAFT_ADD)
 
@@ -409,7 +417,7 @@ class FlowBuilderTest {
 
     @Test
     fun `forgetting a player drops a pick in progress`() {
-        click(FlowWidgets.DRAFT_KIND, times = 5)
+        click(FlowWidgets.DRAFT_KIND, times = 8)
         click(FlowWidgets.DRAFT_FIELDS[0])
 
         builder.forget(player)

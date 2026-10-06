@@ -1,5 +1,6 @@
 package game.idle.autopilot.cooking
 
+import game.idle.autopilot.PlaceCandidate
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse

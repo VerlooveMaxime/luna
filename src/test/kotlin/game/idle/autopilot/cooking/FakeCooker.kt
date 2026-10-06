@@ -1,5 +1,7 @@
 package game.idle.autopilot.cooking
 
+import game.idle.autopilot.PlaceCandidate
+
 /** Records each step as text, for example `use 2 on 3100,3095`. */
 class FakeCooker(var view: CookingView) : Cooker {
 

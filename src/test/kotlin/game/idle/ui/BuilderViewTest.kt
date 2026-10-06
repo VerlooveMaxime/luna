@@ -49,15 +49,15 @@ class BuilderViewTest {
         val texts = BuilderView.draftTexts(draft, editing = null)
 
         assertEquals("chop label", texts[FlowWidgets.DRAFT_KIND])
-        assertEquals(listOf("tree", "bush", ""), FlowWidgets.DRAFT_FIELD_LABELS.map(texts::getValue))
-        assertEquals(listOf("oak", "-", ""), FlowWidgets.DRAFT_FIELDS.map(texts::getValue))
+        assertEquals(listOf("tree", "bush", "", ""), FlowWidgets.DRAFT_FIELD_LABELS.map(texts::getValue))
+        assertEquals(listOf("oak", "-", "", ""), FlowWidgets.DRAFT_FIELDS.map(texts::getValue))
     }
 
     @Test
     fun `a kind of step without fields blanks every field and label`() {
         val texts = BuilderView.draftTexts(draft.nextType(listOf(chop, drop)), editing = null)
 
-        assertEquals(List(6) { "" }, (FlowWidgets.DRAFT_FIELD_LABELS + FlowWidgets.DRAFT_FIELDS).map(texts::getValue))
+        assertEquals(List(8) { "" }, (FlowWidgets.DRAFT_FIELD_LABELS + FlowWidgets.DRAFT_FIELDS).map(texts::getValue))
     }
 
     @Test

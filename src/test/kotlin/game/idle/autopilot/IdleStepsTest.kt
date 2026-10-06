@@ -7,6 +7,9 @@ import game.idle.autopilot.firemaking.LightStepType
 import game.idle.autopilot.fishing.FishStepType
 import game.idle.autopilot.making.MakeStepType
 import game.idle.autopilot.making.RecipeCatalog
+import game.idle.autopilot.mining.MineStepType
+import game.idle.autopilot.smelting.SmeltStepType
+import game.idle.autopilot.smithing.SmithStepType
 import game.idle.autopilot.walk.WalkStepType
 import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.location.BankCatalog
@@ -20,10 +23,10 @@ class IdleStepsTest {
 
     @Test
     fun `the builder cycles through gathering, processing, then walking, dropping and banking`() {
-        assertEquals(listOf(ChopStepType, FishStepType, LightStepType, CookStepType), types.take(4))
-        assertInstanceOf(MakeStepType::class.java, types[4])
-        assertEquals(listOf(WalkStepType, DropStepType), types.subList(5, 7))
-        assertInstanceOf(BankStepType::class.java, types[7])
-        assertEquals(8, types.size)
+        assertEquals(listOf(ChopStepType, MineStepType, FishStepType, LightStepType, CookStepType), types.take(5))
+        assertInstanceOf(MakeStepType::class.java, types[5])
+        assertEquals(listOf(SmeltStepType, SmithStepType, WalkStepType, DropStepType), types.subList(6, 10))
+        assertInstanceOf(BankStepType::class.java, types[10])
+        assertEquals(11, types.size)
     }
 }

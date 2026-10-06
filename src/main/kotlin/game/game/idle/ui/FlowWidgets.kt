@@ -53,8 +53,8 @@ object FlowWidgets {
     const val MESSAGE = 30214
 
     /** The draft step's field buttons and the labels above them, as many as a kind of step may have fields. */
-    val DRAFT_FIELDS = listOf(30202, 30203, 30204)
-    val DRAFT_FIELD_LABELS = listOf(30221, 30222, 30223)
+    val DRAFT_FIELDS = listOf(30202, 30203, 30204, 30205)
+    val DRAFT_FIELD_LABELS = listOf(30221, 30222, 30223, 30224)
 
     fun rowText(row: Int): Int = ROW_BASE + row * ROW_STRIDE
 

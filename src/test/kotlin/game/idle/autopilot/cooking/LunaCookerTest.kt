@@ -1,5 +1,6 @@
 package game.idle.autopilot.cooking
 
+import game.idle.autopilot.PlaceCandidate
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
