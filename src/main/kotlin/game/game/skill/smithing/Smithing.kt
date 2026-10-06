@@ -20,7 +20,13 @@ object Smithing {
     val ANVIL_OBJECTS = setOf(2782, 2783, 4306, 6150)
 
     /**
-     * Retrieves all object IDs with the interaction action "Smelt."
+     * Tutorial Island's furnace, which only has a "Use" action: ore is used on it.
      */
-    val FURNACE_OBJECTS = GameObjectDefinition.ALL.filter { it.actions.contains("Smelt") }.map { it.id() }.toSet()
+    const val TUTORIAL_FURNACE = 3044
+
+    /**
+     * Retrieves all object IDs with the interaction action "Smelt," and Tutorial Island's furnace.
+     */
+    val FURNACE_OBJECTS =
+        GameObjectDefinition.ALL.filter { it.actions.contains("Smelt") }.map { it.id() }.toSet() + TUTORIAL_FURNACE
 }
