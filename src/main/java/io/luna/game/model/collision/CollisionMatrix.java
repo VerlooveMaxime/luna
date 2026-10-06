@@ -595,10 +595,12 @@ public final class CollisionMatrix {
         int radiusY = (endY + sizeY) - 1;
         if (startX >= endX && startX <= radiusX && startY >= endY && startY <= radiusY)
             return true;
-        return startX == endX - 1 && startY >= endY && startY <= radiusY && (get(start) & 8) == 0 && (packed & 8) == 0
-                || startX == radiusX + 1 && startY >= endY && startY <= radiusY && (get(start) & 0x80) == 0 && (packed & 2) == 0
-                || startY == endY - 1 && startX >= endX && startX <= radiusX && (get(start) & 2) == 0 && (packed & 4) == 0
-                || startY == radiusY + 1 && startX >= endX && startX <= radiusX && (get(start) & 0x20) == 0 && (packed & 1) == 0;
+        // The client tests its own wall bits here; Luna's matrix keeps a wall on a tile's side as that side's MOB flag.
+        int flags = get(start);
+        return startX == endX - 1 && startY >= endY && startY <= radiusY && (flags & CollisionFlag.MOB_EAST.asShort()) == 0 && (packed & 8) == 0
+                || startX == radiusX + 1 && startY >= endY && startY <= radiusY && (flags & CollisionFlag.MOB_WEST.asShort()) == 0 && (packed & 2) == 0
+                || startY == endY - 1 && startX >= endX && startX <= radiusX && (flags & CollisionFlag.MOB_NORTH.asShort()) == 0 && (packed & 4) == 0
+                || startY == radiusY + 1 && startX >= endX && startX <= radiusX && (flags & CollisionFlag.MOB_SOUTH.asShort()) == 0 && (packed & 1) == 0;
     }
 
     /**

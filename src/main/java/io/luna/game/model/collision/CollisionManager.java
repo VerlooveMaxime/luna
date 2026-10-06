@@ -558,7 +558,8 @@ public final class CollisionManager {
             // Distance of 0 always requires player to occupy tile.
             return start.equals(end);
         }
-        CollisionMatrix matrices = world.getChunks().load(end.getChunk()).getMatrices()[end.getZ()];
+        // The reach checks read the flags of the source's tile, so they need the source's own chunk.
+        CollisionMatrix matrices = world.getChunks().load(start.getChunk()).getMatrices()[start.getZ()];
         switch (policy.getType()) {
             case LINE_OF_SIGHT:
                 // Line of sight requires raycast and being within the distance.
