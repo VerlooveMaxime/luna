@@ -3,8 +3,8 @@ package game.idle.movement
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
 
-/** Something to walk up to: its south-west tile and the longest side of its footprint. */
-data class Footprint(val position: Position, val size: Int)
+/** Something to walk up to: its south-west tile and the tiles it covers east and north of it. */
+data class Footprint(val position: Position, val width: Int, val height: Int)
 
 /** How a player gets to use a target: [distance] walking steps to [approach], zero when [usableFromHere]. */
 data class Reach(val distance: Int, val usableFromHere: Boolean, val approach: Position)
@@ -13,8 +13,6 @@ data class Reach(val distance: Int, val usableFromHere: Boolean, val approach: P
 interface ReachTerrain<in T> {
 
     fun canStep(from: Position, direction: Direction): Boolean
-
-    fun isBlocked(tile: Position): Boolean
 
     /**
      * Whether a player standing on [tile] can use [target] without moving, by the same rule as the click's listener:
@@ -46,8 +44,9 @@ class ReachScan(private val anchor: Position, radius: Int, private val maxWalk: 
         if (terrain.reachedFrom(here, target)) {
             return Reach(distance = 0, usableFromHere = true, approach = here)
         }
-        val (approach, steps) = approachTiles(placed.position, placed.size, from = here)
-            .filter { !terrain.isBlocked(it) && terrain.reachedFrom(it, target) }
+        val (approach, steps) = approachTiles(placed.position, placed.width, placed.height, from = here)
+            .filter { terrain.reachedFrom(it, target) }
+            // Only tiles the walk can enter have a distance, which leaves out the ones something stands on.
             .mapNotNull { tile -> distances[tile]?.let { tile to it } }
             .minByOrNull { (_, steps) -> steps }
             ?: return null

@@ -20,7 +20,7 @@ class TreeScan(anchor: Position, radius: Int, maxWalk: Int = ReachScan.MAX_WALK)
     fun atLocation(here: Position): Boolean = scan.atLocation(here)
 
     fun candidates(here: Position, trees: List<StandingTree>, terrain: ReachTerrain<StandingTree>): List<TreeCandidate> =
-        scan.reachable(here, trees, { Footprint(it.position, it.size) }, terrain).map { (tree, reach) ->
+        scan.reachable(here, trees, { Footprint(it.position, it.size, it.size) }, terrain).map { (tree, reach) ->
             TreeCandidate(tree.objectId, tree.position, tree.tree, reach.distance, reach.usableFromHere, reach.approach)
         }
 }

@@ -26,14 +26,14 @@ class TreeScanTest {
 
         override fun canStep(from: Position, direction: Direction): Boolean = !isBlocked(from.translate(1, direction))
 
-        override fun isBlocked(tile: Position): Boolean =
-            trees.any { Footprint(it.position, it.size).covers(tile) } || (fence && tile.x == 3168 && tile.y in 3440..3448)
+        fun isBlocked(tile: Position): Boolean =
+            trees.any { Footprint(it.position, it.size, it.size).covers(tile) } || (fence && tile.x == 3168 && tile.y in 3440..3448)
 
         override fun reachedFrom(tile: Position, target: StandingTree): Boolean =
-            Direction.NESW.any { Footprint(target.position, target.size).covers(tile.translate(1, it)) }
+            Direction.NESW.any { Footprint(target.position, target.size, target.size).covers(tile.translate(1, it)) }
 
         private fun Footprint.covers(tile: Position): Boolean =
-            tile.x in position.x until position.x + size && tile.y in position.y until position.y + size
+            tile.x in position.x until position.x + width && tile.y in position.y until position.y + height
     }
 
     @Test

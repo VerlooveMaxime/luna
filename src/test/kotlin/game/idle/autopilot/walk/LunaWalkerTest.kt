@@ -11,6 +11,8 @@ import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 import io.luna.game.model.mob.overlay.OverlayType
 import io.luna.game.model.mob.overlay.StandardInterface
+import io.luna.game.model.`object`.ObjectDirection
+import io.luna.game.model.`object`.ObjectType
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -22,6 +24,7 @@ class LunaWalkerTest {
     private val start = Position(3200, 3200)
     private val target = Tile(3210, 3200)
     private val deadTreeId = 1286
+    private val wallId = 1902
 
     @AfterEach
     fun resetWorld() = TestWorld.reset()
@@ -72,6 +75,16 @@ class LunaWalkerTest {
     }
 
     @Test
+    fun `a target tile with a wall along one side is walked to itself`() {
+        val player = login()
+        TestWorld.place(wallId, target.toPosition(), ObjectType.STRAIGHT_WALL, ObjectDirection.NORTH)
+
+        LunaWalker(player, target).walk()
+
+        assertEquals(target.toPosition(), player.navigator.currentTarget)
+    }
+
+    @Test
     fun `walking to a taken tile heads for the nearest free tile next to it`() {
         val player = login()
         TestWorld.place(deadTreeId, target.toPosition())
@@ -85,7 +98,7 @@ class LunaWalkerTest {
     fun `walking to a taken tile with no free tile next to it heads for the tile itself`() {
         val player = login()
         val goal = target.toPosition()
-        (approachTiles(goal, size = 1, from = start) + goal).forEach { TestWorld.place(deadTreeId, it) }
+        (approachTiles(goal, width = 1, height = 1, from = start) + goal).forEach { TestWorld.place(deadTreeId, it) }
 
         LunaWalker(player, target).walk()
 

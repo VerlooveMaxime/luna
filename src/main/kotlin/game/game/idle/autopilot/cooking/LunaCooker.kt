@@ -2,7 +2,7 @@ package game.idle.autopilot.cooking
 
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
-import game.idle.movement.Footprint
+import game.idle.movement.footprintOf
 import game.idle.movement.ReachScan
 import game.idle.movement.ReachTerrain
 import game.skill.cooking.cookFood.Cooking
@@ -36,7 +36,7 @@ class LunaCooker(private val player: Player, private val rawIds: Set<Int>, priva
             rawSlot = (0 until player.inventory.capacity()).firstOrNull { player.inventory[it]?.id in rawIds },
             windowOpen = cookingWindowOpen(),
             atLocation = scan.atLocation(player.position),
-            places = scan.reachable(player.position, places(), { Footprint(it.position, maxOf(it.sizeX(), it.sizeY())) }, terrain = this)
+            places = scan.reachable(player.position, places(), ::footprintOf, terrain = this)
                 .map { (place, reach) -> PlaceCandidate(place.id, place.position, reach.distance, reach.usableFromHere, reach.approach) },
         )
 
@@ -85,8 +85,6 @@ class LunaCooker(private val player: Player, private val rawIds: Set<Int>, priva
 
     override fun canStep(from: Position, direction: Direction): Boolean =
         world.collisionManager.traversable(from, EntityType.PLAYER, direction)
-
-    override fun isBlocked(tile: Position): Boolean = world.collisionManager.isBlocked(tile, false)
 
     override fun reachedFrom(tile: Position, target: GameObject): Boolean =
         world.collisionManager.reached(tile, target, STANDARD_SIZE)

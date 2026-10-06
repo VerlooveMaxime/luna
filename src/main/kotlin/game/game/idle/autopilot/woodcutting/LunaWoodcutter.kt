@@ -85,8 +85,6 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
     override fun canStep(from: Position, direction: Direction): Boolean =
         collision.traversable(from, EntityType.PLAYER, direction)
 
-    override fun isBlocked(tile: Position): Boolean = collision.isBlocked(tile, false)
-
     override fun reachedFrom(tile: Position, target: StandingTree): Boolean =
         collision.reached(tile, target.position, STANDARD_SIZE)
 

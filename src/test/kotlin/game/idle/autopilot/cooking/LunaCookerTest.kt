@@ -15,6 +15,8 @@ import io.luna.game.model.Position
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.overlay.StandardInterface
+import io.luna.game.model.`object`.ObjectDirection
+import io.luna.game.model.`object`.ObjectType
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -81,6 +83,19 @@ class LunaCookerTest {
             )),
             cooker(player).look(),
         )
+    }
+
+    /** Tutorial Island's kitchen: the range lies across the back of an alcove whose side walls flank the front tiles. */
+    @Test
+    fun `a long range at the back of an alcove is walked up to between the walls`() {
+        val player = login(Position(3205, 3205))
+        TestWorld.place(3039, Position(3205, 3200), direction = ObjectDirection.SOUTH)
+        TestWorld.place(1902, Position(3205, 3201), ObjectType.STRAIGHT_WALL, ObjectDirection.WEST)
+        TestWorld.place(1902, Position(3206, 3201), ObjectType.STRAIGHT_WALL, ObjectDirection.EAST)
+
+        val place = cooker(player).look().places.single()
+
+        assertTrue(place.approach in listOf(Position(3205, 3201), Position(3206, 3201)))
     }
 
     @Test

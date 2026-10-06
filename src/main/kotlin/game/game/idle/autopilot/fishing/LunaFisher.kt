@@ -31,7 +31,7 @@ class LunaFisher(private val player: Player, private val method: FishingMethod, 
             hasTool = player.inventory.contains(method.tool.id),
             inventoryFull = player.inventory.isFull,
             atLocation = scan.atLocation(player.position),
-            spots = scan.reachable(player.position, spots(), { Footprint(it.position, it.size()) }, terrain = this)
+            spots = scan.reachable(player.position, spots(), { Footprint(it.position, it.size(), it.size()) }, terrain = this)
                 .map { (npc, reach) -> SpotCandidate(npc.index, npc.position, reach.distance, reach.usableFromHere, reach.approach) },
         )
 
@@ -67,8 +67,6 @@ class LunaFisher(private val player: Player, private val method: FishingMethod, 
 
     override fun canStep(from: Position, direction: Direction): Boolean =
         world.collisionManager.traversable(from, EntityType.PLAYER, direction)
-
-    override fun isBlocked(tile: Position): Boolean = world.collisionManager.isBlocked(tile, false)
 
     override fun reachedFrom(tile: Position, target: Npc): Boolean = world.collisionManager.reached(tile, target, STANDARD_SIZE)
 }

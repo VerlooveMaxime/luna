@@ -3,6 +3,7 @@ package game.idle.autopilot.walk
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Tile
 import game.idle.movement.approachTiles
+import game.idle.movement.canStandOn
 import io.luna.game.model.mob.Player
 
 /**
@@ -19,10 +20,10 @@ class LunaWalker(private val player: Player, private val target: Tile) : Walker 
     override fun walk() {
         val collision = player.world.collisionManager
         val goal = target.toPosition()
-        val tile = if (!collision.isBlocked(goal, false)) {
+        val tile = if (canStandOn(collision, goal)) {
             goal
         } else {
-            approachTiles(goal, size = 1, from = player.position).firstOrNull { !collision.isBlocked(it, false) } ?: goal
+            approachTiles(goal, width = 1, height = 1, from = player.position).firstOrNull { canStandOn(collision, it) } ?: goal
         }
         player.overlays.closeWindows(false)
         player.navigator.navigate(tile, true)

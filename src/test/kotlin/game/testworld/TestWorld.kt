@@ -113,8 +113,12 @@ object TestWorld {
         messages(player).filter { it.type == "GameChatboxMessageWriter" }.map { it.fields.getValue("message").toString() }
 
     /** An object of [id] on [position], which blocks the tile as a map object would if its definition is solid. */
-    fun place(id: Int, position: Position, type: ObjectType = ObjectType.DEFAULT): GameObject =
-        register(GameObject.createStatic(context, id, position, type, ObjectDirection.NORTH))
+    fun place(
+        id: Int,
+        position: Position,
+        type: ObjectType = ObjectType.DEFAULT,
+        direction: ObjectDirection = ObjectDirection.NORTH,
+    ): GameObject = register(GameObject.createStatic(context, id, position, type, direction))
 
     /** An object only [viewer] sees, as content spawns for one player. */
     fun placeFor(viewer: Player, id: Int, position: Position): GameObject =

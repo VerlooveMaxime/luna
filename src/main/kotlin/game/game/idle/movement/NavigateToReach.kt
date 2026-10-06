@@ -13,8 +13,9 @@ import java.util.concurrent.CompletableFuture
  */
 fun navigateToReach(player: Player, target: GameObject): CompletableFuture<NavigationResult> {
     val collision = player.world.collisionManager
-    val tile = approachTiles(target.position, maxOf(target.sizeX(), target.sizeY()), from = player.position)
-        .firstOrNull { !collision.isBlocked(it, false) && collision.reached(it, target, STANDARD_SIZE) }
+    val footprint = footprintOf(target)
+    val tile = approachTiles(footprint.position, footprint.width, footprint.height, from = player.position)
+        .firstOrNull { canStandOn(collision, it) && collision.reached(it, target, STANDARD_SIZE) }
     return when (tile) {
         null -> player.navigator.navigate(target, true, false)
         else -> player.navigator.navigate(tile, true)
