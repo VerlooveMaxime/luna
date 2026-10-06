@@ -24033,10 +24033,24 @@
   },
   {
     "ids": [
+      950 // Giant rat (Tutorial Island: bones only, as the 2006 island's rats dropped)
+    ],
+    "rare": null,
+    "drops": [
+      {
+        "id": 526, // Bones
+        "quantity": "1",
+        "noted": false,
+        "rarity": 1.0,
+        "table": 1
+      }
+    ]
+  },
+  {
+    "ids": [
       87, // Giant rat
       86, // Giant rat
       446, // Giant rat
-      950, // Giant rat
       2722, // Giant rat
       2723 // Giant rat
     ],
