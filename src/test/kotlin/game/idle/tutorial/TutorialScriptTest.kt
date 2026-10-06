@@ -645,6 +645,21 @@ class TutorialScriptTest {
     }
 
     @Test
+    fun `an island player down to 1 hitpoint is spared`() {
+        assertTrue(script.sparesPlayer(CUT_TREE, hitpoints = 1))
+    }
+
+    @Test
+    fun `an island player with hitpoints to spare is hit as rolled`() {
+        assertFalse(script.sparesPlayer(CUT_TREE, hitpoints = 2))
+    }
+
+    @Test
+    fun `a player who finished the island is not spared`() {
+        assertFalse(script.sparesPlayer(DONE, hitpoints = 1))
+    }
+
+    @Test
     fun `a door stays locked before its step`() {
         assertEquals(PassageOutcome.Locked(TutorialFixtures.LOCKED), script.openDoor(door, TALK_TO_GUIDE))
     }

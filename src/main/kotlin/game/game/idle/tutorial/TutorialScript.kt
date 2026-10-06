@@ -289,6 +289,9 @@ class TutorialScript(private val data: TutorialData) {
     /** Wielding waits until the worn equipment tab exists: an item worn before then could not be taken off again. */
     fun mayWield(step: TutorialStep): Boolean = step == DONE || TabIndex.EQUIPMENT in screen(step).tabs
 
+    /** Nobody dies on the 2006 island: an npc's hit lands for nothing on a player down to 1 hitpoint. */
+    fun sparesPlayer(step: TutorialStep, hitpoints: Int): Boolean = step != DONE && hitpoints == 1
+
     fun openDoor(door: Door, step: TutorialStep): PassageOutcome = pass(step, door.opensAt, door.firstPass, door.locked)
 
     fun climbLadder(ladder: Ladder, step: TutorialStep): PassageOutcome =

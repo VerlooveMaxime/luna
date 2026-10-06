@@ -31,6 +31,7 @@ import io.luna.game.model.chunk.ChunkUpdatableMessage
 import io.luna.game.model.chunk.ChunkUpdatableView
 import io.luna.game.model.item.GroundItem
 import io.luna.game.model.item.Item
+import io.luna.game.model.mob.Mob
 import io.luna.game.model.mob.Npc
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
@@ -157,6 +158,10 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         is WidgetItemClickEvent -> maySmith(player, event)
         else -> true
     }
+
+    /** Whether [attacker]'s next hit on [player] must land for nothing. */
+    fun spares(player: Player, attacker: Mob): Boolean =
+        attacker is Npc && script.sparesPlayer(player.tutorialStep, player.health)
 
     fun talkToGuide(player: Player, guide: Npc) = talk(player, guide, script.talkToGuide(player.tutorialStep))
 

@@ -1,9 +1,11 @@
 package game.idle.tutorial
 
+import api.combat.player.PlayerCombatHandler.playerDefence
 import api.predef.*
 import io.luna.game.event.impl.FlashingTabClickEvent
 import io.luna.game.event.impl.LoginEvent
 import io.luna.game.event.impl.SkillChangeEvent
+import io.luna.game.model.mob.combat.damage.CombatDamageRequest
 
 val tutorialData = TutorialData.load(TutorialData.PATH)
 val tutorial = LunaTutorial(TutorialScript(tutorialData), tutorialData, world)
@@ -21,6 +23,8 @@ npc1(TutorialScript.MASTER_CHEF) { tutorial.talkToChef(plr, targetNpc) }
 npc1(TutorialScript.QUEST_GUIDE) { tutorial.talkToQuestGuide(plr, targetNpc) }
 
 npc1(TutorialScript.MINING_INSTRUCTOR) { tutorial.talkToMiningInstructor(plr, targetNpc) }
+
+playerDefence { tutorial.spares(player, other) }.then { damage = CombatDamageRequest.zero(other, player).resolve() }
 
 on(FlashingTabClickEvent::class) { tutorial.tabOpened(plr, tab) }
 

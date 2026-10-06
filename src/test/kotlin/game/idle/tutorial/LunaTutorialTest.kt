@@ -154,6 +154,7 @@ class LunaTutorialTest {
         const val LOGS = 1511
         const val INVENTORY = 3214
         const val INVENTORY_SIZE = 28
+        const val GIANT_RAT = 950
     }
 
     @Test
@@ -1221,6 +1222,30 @@ class LunaTutorialTest {
         val player = returning(DONE)
 
         assertTrue(tutorial.allows(player, EquipItemEvent(player, 0, BRONZE_AXE, INVENTORY)))
+    }
+
+    @Test
+    fun `an npc spares an island player down to 1 hitpoint`() {
+        val player = returning(CUT_TREE)
+        player.health = 1
+
+        assertTrue(tutorial().spares(player, TestWorld.spawnNpc(GIANT_RAT, besideElsewhere)))
+    }
+
+    @Test
+    fun `an npc hits an island player with hitpoints to spare`() {
+        val player = returning(CUT_TREE)
+        player.health = 2
+
+        assertFalse(tutorial().spares(player, TestWorld.spawnNpc(GIANT_RAT, besideElsewhere)))
+    }
+
+    @Test
+    fun `another player is not held back on the island`() {
+        val player = returning(CUT_TREE)
+        player.health = 1
+
+        assertFalse(tutorial().spares(player, TestWorld.login("other", besideElsewhere)))
     }
 
     @Test
