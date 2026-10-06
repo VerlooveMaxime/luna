@@ -332,6 +332,51 @@ class TutorialScriptTest {
     }
 
     @Test
+    fun `the quest guide welcomes a player who came through his door and asks for the quest journal`() {
+        assertEquals(
+            Talk(TutorialScript.QUEST_GUIDE_WELCOME, Progress(TutorialStep.OPEN_QUEST_JOURNAL)),
+            script.talkToQuestGuide(TutorialStep.TALK_TO_QUEST_GUIDE),
+        )
+    }
+
+    @Test
+    fun `the quest guide's welcome moves nobody on before his part of the island`() {
+        assertEquals(Talk(TutorialScript.QUEST_GUIDE_WELCOME, progress = null), script.talkToQuestGuide(TutorialStep.FIND_QUEST_GUIDE))
+    }
+
+    @Test
+    fun `the quest guide waits for the journal to be opened`() {
+        assertEquals(Talk(TutorialScript.QUEST_GUIDE_OPEN_JOURNAL, progress = null), script.talkToQuestGuide(TutorialStep.OPEN_QUEST_JOURNAL))
+    }
+
+    @Test
+    fun `with the journal open the quest guide explains quests and stages and sends the player to the caves`() {
+        val explained = listOf(
+            TutorialScript.QUEST_GUIDE_JOURNAL,
+            TutorialScript.QUEST_GUIDE_QUESTS,
+            TutorialScript.QUEST_GUIDE_STAGES,
+            TutorialScript.QUEST_GUIDE_CAVES,
+        )
+
+        assertEquals(Talk(explained, Progress(TutorialStep.ENTER_MINE)), script.talkToQuestGuide(TutorialStep.TALK_ABOUT_QUESTS))
+    }
+
+    @Test
+    fun `later the quest guide explains quests and stages again`() {
+        assertEquals(Talk(TutorialScript.QUEST_GUIDE_EXPLAINS, progress = null), script.talkToQuestGuide(TutorialStep.ENTER_MINE))
+    }
+
+    @Test
+    fun `the island's journal line is yellow while the player is on it`() {
+        assertEquals("@yel@Tutorial Island", script.journalLine(TutorialStep.TALK_ABOUT_QUESTS))
+    }
+
+    @Test
+    fun `the island's journal line is green once it is done`() {
+        assertEquals("@gre@Tutorial Island", script.journalLine(DONE))
+    }
+
+    @Test
     fun `the chef welcomes a player who found him and hands over flour and water`() {
         assertEquals(Talk(TutorialScript.CHEF_WELCOME, Progress(TutorialStep.MAKE_DOUGH, listOf(1929, 1933))), script.talkToChef(TutorialStep.TALK_TO_CHEF))
     }
@@ -414,17 +459,30 @@ class TutorialScriptTest {
 
     @Test
     fun `a door stays locked before its step`() {
-        assertEquals(DoorOutcome.Locked(TutorialFixtures.LOCKED), script.openDoor(door, TALK_TO_GUIDE))
+        assertEquals(PassageOutcome.Locked(TutorialFixtures.LOCKED), script.openDoor(door, TALK_TO_GUIDE))
     }
 
     @Test
     fun `going through a door at its step moves the player on`() {
-        assertEquals(DoorOutcome.Pass(FIND_SURVIVAL_EXPERT), script.openDoor(door, OPEN_HOUSE_DOOR))
+        assertEquals(PassageOutcome.Pass(FIND_SURVIVAL_EXPERT), script.openDoor(door, OPEN_HOUSE_DOOR))
+    }
+
+    @Test
+    fun `a ladder is refused before its step`() {
+        assertEquals(PassageOutcome.Locked(TutorialFixtures.NOT_READY), script.climbLadder(TutorialFixtures.ladder, TutorialStep.TALK_ABOUT_QUESTS))
+    }
+
+    @Test
+    fun `climbing a ladder at its step moves the player on`() {
+        assertEquals(
+            PassageOutcome.Pass(TutorialStep.TALK_TO_MINING_INSTRUCTOR),
+            script.climbLadder(TutorialFixtures.ladder, TutorialStep.ENTER_MINE),
+        )
     }
 
     @Test
     fun `going through a door again later moves nobody on`() {
-        assertEquals(DoorOutcome.Pass(null), script.openDoor(door, FIND_SURVIVAL_EXPERT))
+        assertEquals(PassageOutcome.Pass(null), script.openDoor(door, FIND_SURVIVAL_EXPERT))
     }
 
     @Test

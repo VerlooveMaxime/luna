@@ -8,12 +8,14 @@ import game.idle.tutorial.TutorialStep.COOK_SHRIMP
 import game.idle.tutorial.TutorialStep.CUT_TREE
 import game.idle.tutorial.TutorialStep.DESIGN_CHARACTER
 import game.idle.tutorial.TutorialStep.DONE
+import game.idle.tutorial.TutorialStep.ENTER_MINE
 import game.idle.tutorial.TutorialStep.EXTEND_THE_FLOW
 import game.idle.tutorial.TutorialStep.FIND_SURVIVAL_EXPERT
 import game.idle.tutorial.TutorialStep.LEAVE_SURVIVAL_AREA
 import game.idle.tutorial.TutorialStep.LIGHT_FIRE
 import game.idle.tutorial.TutorialStep.MAKE_DOUGH
 import game.idle.tutorial.TutorialStep.OPEN_MUSIC
+import game.idle.tutorial.TutorialStep.OPEN_QUEST_JOURNAL
 import game.idle.tutorial.TutorialStep.OPEN_HOUSE_DOOR
 import game.idle.tutorial.TutorialStep.OPEN_IDLE_TAB
 import game.idle.tutorial.TutorialStep.OPEN_INVENTORY
@@ -21,9 +23,11 @@ import game.idle.tutorial.TutorialStep.OPEN_SKILLS
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_AUTOPILOT
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_FOOD
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_LOOP
+import game.idle.tutorial.TutorialStep.TALK_ABOUT_QUESTS
 import game.idle.tutorial.TutorialStep.TALK_ABOUT_SUPPLIES
 import game.idle.tutorial.TutorialStep.TALK_TO_CHEF
 import game.idle.tutorial.TutorialStep.TALK_TO_GUIDE
+import game.idle.tutorial.TutorialStep.TALK_TO_QUEST_GUIDE
 import game.idle.tutorial.TutorialStep.WATCH_THE_BAKING
 import game.player.Animations
 import game.skill.cooking.cookFood.Cooking
@@ -36,13 +40,16 @@ data class Screen(val help: HelpBox, val arrow: HintTarget, val tabs: Set<TabInd
 /** Moving on to [step], with [items] handed over. */
 data class Progress(val step: TutorialStep, val items: List<Int> = emptyList())
 
-/** A dialogue to open, and the progress it makes once read, if any. */
-data class Talk(val dialogue: String, val progress: Progress?)
+/** The dialogues to open one after the other, and the progress they make once read, if any. */
+data class Talk(val dialogues: List<String>, val progress: Progress?) {
+    constructor(dialogue: String, progress: Progress?) : this(listOf(dialogue), progress)
+}
 
-sealed interface DoorOutcome {
-    data class Locked(val dialogue: String) : DoorOutcome
+/** What trying a door, gate or ladder on the path gives. */
+sealed interface PassageOutcome {
+    data class Locked(val dialogue: String) : PassageOutcome
 
-    data class Pass(val advanceTo: TutorialStep?) : DoorOutcome
+    data class Pass(val advanceTo: TutorialStep?) : PassageOutcome
 }
 
 /**
@@ -98,6 +105,14 @@ class TutorialScript(private val data: TutorialData) {
         step == TALK_ABOUT_LOOP -> Talk(SURVIVAL_LOOP, Progress(EXTEND_THE_FLOW))
         step < LEAVE_SURVIVAL_AREA -> Talk(SURVIVAL_LOOP_AGAIN, progress = null)
         else -> Talk(SURVIVAL_DONE, progress = null)
+    }
+
+    fun talkToQuestGuide(step: TutorialStep): Talk = when {
+        step <= TALK_TO_QUEST_GUIDE ->
+            Talk(QUEST_GUIDE_WELCOME, Progress(OPEN_QUEST_JOURNAL).takeIf { step == TALK_TO_QUEST_GUIDE })
+        step == OPEN_QUEST_JOURNAL -> Talk(QUEST_GUIDE_OPEN_JOURNAL, progress = null)
+        step == TALK_ABOUT_QUESTS -> Talk(listOf(QUEST_GUIDE_JOURNAL) + QUEST_GUIDE_EXPLAINS, Progress(ENTER_MINE))
+        else -> Talk(QUEST_GUIDE_EXPLAINS, progress = null)
     }
 
     fun talkToChef(step: TutorialStep): Talk = when {
@@ -182,17 +197,29 @@ class TutorialScript(private val data: TutorialData) {
     /** Wielding waits until the worn equipment tab exists: an item worn before then could not be taken off again. */
     fun mayWield(step: TutorialStep): Boolean = step == DONE || TabIndex.EQUIPMENT in screen(step).tabs
 
-    fun openDoor(door: Door, step: TutorialStep): DoorOutcome =
-        if (step < door.opensAt) {
-            DoorOutcome.Locked(door.locked)
+    fun openDoor(door: Door, step: TutorialStep): PassageOutcome = pass(step, door.opensAt, door.firstPass, door.locked)
+
+    fun climbLadder(ladder: Ladder, step: TutorialStep): PassageOutcome =
+        pass(step, ladder.opensAt, ladder.firstPass, ladder.refused)
+
+    private fun pass(step: TutorialStep, opensAt: TutorialStep, firstPass: TutorialStep, refused: String): PassageOutcome =
+        if (step < opensAt) {
+            PassageOutcome.Locked(refused)
         } else {
-            DoorOutcome.Pass(door.firstPass.takeIf { step == door.opensAt })
+            PassageOutcome.Pass(firstPass.takeIf { step == opensAt })
         }
+
+    /** The island's line among the quest journal's stages: yellow like a started quest, green once left behind. */
+    fun journalLine(step: TutorialStep): String = (if (step == DONE) "@gre@" else "@yel@") + data.journal
 
     companion object {
         const val RUNESCAPE_GUIDE = 945
         const val SURVIVAL_EXPERT = 943
         const val MASTER_CHEF = 942
+        const val QUEST_GUIDE = 949
+
+        /** The island's line in the quest journal's stages (`idlers.QuestJournal.TUTORIAL_LINE` in `luna-client`). */
+        const val JOURNAL_LINE = 30301
         const val BRONZE_AXE = 1351
         const val TINDERBOX = 590
         const val SMALL_FISHING_NET = 303
@@ -240,6 +267,15 @@ class TutorialScript(private val data: TutorialData) {
         const val CHEF_GIVES_FLOUR = "chef_gives_flour"
         const val CHEF_GIVES_WATER = "chef_gives_water"
         const val CHEF_GIVES_SUPPLIES = "chef_gives_supplies"
+        const val QUEST_GUIDE_WELCOME = "quest_guide_welcome"
+        const val QUEST_GUIDE_OPEN_JOURNAL = "quest_guide_open_journal"
+        const val QUEST_GUIDE_JOURNAL = "quest_guide_journal"
+        const val QUEST_GUIDE_QUESTS = "quest_guide_quests"
+        const val QUEST_GUIDE_STAGES = "quest_guide_stages"
+        const val QUEST_GUIDE_CAVES = "quest_guide_caves"
+
+        /** Jagex's lines about quests, ours about stages and resets, then Jagex's pointer to the caves. */
+        val QUEST_GUIDE_EXPLAINS = listOf(QUEST_GUIDE_QUESTS, QUEST_GUIDE_STAGES, QUEST_GUIDE_CAVES)
 
         const val WOODCUTTING = "woodcutting"
         const val FIREMAKING = "firemaking"
@@ -250,7 +286,8 @@ class TutorialScript(private val data: TutorialData) {
             SURVIVAL_AUTOPILOT, SURVIVAL_AUTOPILOT_AGAIN, SURVIVAL_FOOD, SURVIVAL_SHRIMP, SURVIVAL_LOOP, SURVIVAL_LOOP_AGAIN,
             SURVIVAL_DONE, GIVES_AXE_AND_TINDERBOX, GIVES_AXE, GIVES_TINDERBOX, GIVES_NET, CHEF_WELCOME, CHEF_BREAD,
             CHEF_SUPPLIES, CHEF_SUPPLIES_AGAIN, CHEF_HELLO, CHEF_GIVES_FLOUR_AND_WATER, CHEF_GIVES_FLOUR, CHEF_GIVES_WATER,
-            CHEF_GIVES_SUPPLIES,
+            CHEF_GIVES_SUPPLIES, QUEST_GUIDE_WELCOME, QUEST_GUIDE_OPEN_JOURNAL, QUEST_GUIDE_JOURNAL, QUEST_GUIDE_QUESTS,
+            QUEST_GUIDE_STAGES, QUEST_GUIDE_CAVES,
         )
 
         private val ACTIVITIES = listOf(WOODCUTTING, FIREMAKING, FISHING)

@@ -171,24 +171,35 @@ data class Door(
 }
 
 /**
+ * A ladder on the tutorial's path, climbed by Luna's own ladder handler: refused below [opensAt], [speaker] saying the
+ * [refused] dialogue; the first climb at [opensAt] moves the player on to [firstPass].
+ */
+data class Ladder(val id: Int, val opensAt: TutorialStep, val firstPass: TutorialStep, val refused: String, val speaker: Int)
+
+/**
  * Everything `tutorial.jsonc` holds. Loaded once at boot from [PATH]; a bad file fails the boot. [busy] holds the
  * help boxes shown while an activity runs, by activity; [quietMessages] the chat lines players on the island never
- * get, because the 2006 island showed a help box instead.
+ * get, because the 2006 island showed a help box instead. [journal] names the island in the quest journal's stages.
  */
 data class TutorialData(
     val start: Position,
     val steps: Map<TutorialStep, StepScreen>,
     val dialogues: Map<String, List<DialogueBox>>,
     val doors: List<Door>,
+    val ladders: List<Ladder>,
     val messages: Map<String, String>,
     val busy: Map<String, HelpBox>,
     val quietMessages: Set<String>,
+    val journal: String,
 ) {
     init {
         val missing = TutorialStep.entries.filter { it != TutorialStep.DONE && it !in steps }
         require(missing.isEmpty()) { "Tutorial steps without a screen: $missing" }
         val unknown = doors.map { it.locked }.filter { it !in dialogues }
         require(unknown.isEmpty()) { "Doors name dialogues that do not exist: $unknown" }
+        val unknownRefusals = ladders.map { it.refused }.filter { it !in dialogues }
+        require(unknownRefusals.isEmpty()) { "Ladders name dialogues that do not exist: $unknownRefusals" }
+        require(journal.isNotBlank()) { "The tutorial has no name for the quest journal" }
     }
 
     companion object {
@@ -211,18 +222,22 @@ internal data class TutorialJson(
     val steps: Map<String, StepJson> = emptyMap(),
     val dialogues: Map<String, List<BoxJson>> = emptyMap(),
     val doors: List<DoorJson> = emptyList(),
+    val ladders: List<LadderJson> = emptyList(),
     val messages: Map<String, String> = emptyMap(),
     val busy: Map<String, HelpJson> = emptyMap(),
     val quietMessages: List<String> = emptyList(),
+    val journal: String = "",
 ) {
     fun toData(): TutorialData = TutorialData(
         start = requireNotNull(start) { "The tutorial has no start tile" }.toPosition(),
         steps = steps.entries.associate { (name, step) -> TutorialStep.valueOf(name) to step.toScreen(name) },
         dialogues = dialogues.mapValues { (name, boxes) -> boxes.map { it.toBox(name) } },
         doors = doors.mapIndexed { index, door -> door.toDoor(index) },
+        ladders = ladders.map { it.toLadder() },
         messages = messages,
         busy = busy.mapValues { (activity, help) -> help.toHelp("busy $activity") },
         quietMessages = quietMessages.toSet(),
+        journal = journal,
     )
 }
 
@@ -354,6 +369,20 @@ internal data class DoorJson(
             firstPass = TutorialStep.valueOf(firstPass),
             locked = locked,
         )
+    }
+}
+
+internal data class LadderJson(
+    val id: Int = -1,
+    val opensAt: String = "",
+    val firstPass: String = "",
+    val refused: String = "",
+    val speaker: Int = -1,
+) {
+    fun toLadder(): Ladder {
+        require(id >= 0) { "A tutorial ladder has no id" }
+        require(speaker >= 0) { "Tutorial ladder $id has no speaker for its refusal" }
+        return Ladder(id, TutorialStep.valueOf(opensAt), TutorialStep.valueOf(firstPass), refused, speaker)
     }
 }
 

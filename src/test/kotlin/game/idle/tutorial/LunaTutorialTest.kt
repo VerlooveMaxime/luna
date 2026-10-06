@@ -33,6 +33,7 @@ import game.testworld.TestWorld
 import io.luna.Luna
 import io.luna.game.event.impl.DropItemEvent
 import io.luna.game.event.impl.EquipItemEvent
+import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
 import io.luna.game.event.impl.SkillChangeEvent
 import io.luna.game.event.impl.UseItemEvent.ItemOnObjectEvent
 import io.luna.game.model.Position
@@ -83,6 +84,10 @@ class LunaTutorialTest {
     private fun sent(player: Player, type: String): List<RecordedMessage> = TestWorld.messages(player).filter { it.type == type }
 
     private fun texts(player: Player): List<String> = sent(player, "WidgetTextMessageWriter").map { it.fields.getValue("text").toString() }
+
+    /** Texts sent anywhere but the quest journal's line, which goes out at every login. */
+    private fun textsBesideJournal(player: Player): List<RecordedMessage> =
+        sent(player, "WidgetTextMessageWriter").filter { it.fields.getValue("id") != TutorialScript.JOURNAL_LINE }
 
     private fun arrow(player: Player): Map<String, Any> = sent(player, "HintArrowMessageWriter").last().fields
 
@@ -312,6 +317,116 @@ class LunaTutorialTest {
         assertEquals(listOf(CUT_TREE, DONE), listOf(onIsland.tutorialStep, done.tutorialStep))
     }
 
+    private fun talkToQuestGuide(tutorial: LunaTutorial, player: Player) {
+        tutorial.talkToQuestGuide(player, TestWorld.spawnNpc(TutorialScript.QUEST_GUIDE, besideElsewhere))
+        readToTheEnd(player)
+    }
+
+    @Test
+    fun `the quest guide's welcome sends the player to open the quest journal`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.TALK_TO_QUEST_GUIDE), tutorial)
+
+        talkToQuestGuide(tutorial, player)
+
+        assertEquals(TutorialStep.OPEN_QUEST_JOURNAL, player.tutorialStep)
+    }
+
+    @Test
+    fun `with the journal open the quest guide says all his parts and sends the player to the caves`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.TALK_ABOUT_QUESTS), tutorial)
+
+        talkToQuestGuide(tutorial, player)
+
+        assertTrue(texts(player).containsAll(listOf("All red.", "Yellow, then green.", "Stages and resets.", "Off to the caves.")))
+        assertEquals(TutorialStep.ENTER_MINE, player.tutorialStep)
+    }
+
+    @Test
+    fun `the island's journal line goes out yellow at login while on the island`() {
+        val player = loggedIn(returning(TALK_TO_GUIDE))
+
+        assertTrue("@yel@Tutorial Island" in texts(player))
+    }
+
+    @Test
+    fun `the island's journal line goes out after the side tabs, which drop it in the client`() {
+        val player = loggedIn(returning(TALK_TO_GUIDE))
+        val messages = TestWorld.messages(player)
+
+        val lastTab = messages.indexOfLast { it.type == "TabInterfaceMessageWriter" }
+        val journal = messages.indexOfLast { it.fields["id"] == TutorialScript.JOURNAL_LINE }
+
+        assertTrue(journal > lastTab)
+    }
+
+    @Test
+    fun `the island's journal line goes out green at login once the island is done`() {
+        val player = loggedIn(returning(DONE))
+
+        assertTrue("@gre@Tutorial Island" in texts(player))
+    }
+
+    @Test
+    fun `a ladder refused at the player's step is not climbed`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.TALK_ABOUT_QUESTS), tutorial)
+        val ladder = TestWorld.place(TutorialFixtures.LADDER, besideElsewhere)
+
+        assertFalse(tutorial.allows(player, ObjectFirstClickEvent(player, ladder)))
+    }
+
+    @Test
+    fun `at a refused ladder its keeper says why once the player stands beside it`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.TALK_ABOUT_QUESTS), tutorial)
+        val ladder = TestWorld.place(TutorialFixtures.LADDER, besideElsewhere)
+
+        tutorial.allows(player, ObjectFirstClickEvent(player, ladder))
+        TestWorld.tick()
+
+        assertTrue("Not yet." in texts(player))
+    }
+
+    @Test
+    fun `at its step a ladder click goes on to Luna's ladder`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.ENTER_MINE), tutorial)
+        val ladder = TestWorld.place(TutorialFixtures.LADDER, besideElsewhere)
+
+        assertTrue(tutorial.allows(player, ObjectFirstClickEvent(player, ladder)))
+    }
+
+    @Test
+    fun `a click on any other object goes on to its handlers`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.TALK_ABOUT_QUESTS), tutorial)
+        val fire = TestWorld.place(FIRE, besideElsewhere)
+
+        assertTrue(tutorial.allows(player, ObjectFirstClickEvent(player, fire)))
+    }
+
+    @Test
+    fun `climbing the ladder at its step moves the player on to the mine`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.ENTER_MINE), tutorial)
+
+        tutorial.ladderClimbed(player, TutorialFixtures.ladder)
+
+        assertEquals(TutorialStep.TALK_TO_MINING_INSTRUCTOR, player.tutorialStep)
+    }
+
+    @Test
+    fun `climbing the ladder before its step moves nobody on`() {
+        val tutorial = tutorial()
+        val player = loggedIn(returning(TutorialStep.TALK_ABOUT_QUESTS), tutorial)
+
+        tutorial.ladderClimbed(player, TutorialFixtures.ladder)
+
+        assertEquals(TutorialStep.TALK_ABOUT_QUESTS, player.tutorialStep)
+    }
+
     private fun talkToChef(tutorial: LunaTutorial, player: Player) {
         tutorial.talkToChef(player, TestWorld.spawnNpc(TutorialScript.MASTER_CHEF, besideElsewhere))
         readToTheEnd(player)
@@ -393,14 +508,14 @@ class LunaTutorialTest {
     fun `the help box shows the step's title and lines, blank below them`() {
         val player = loggedIn(returning(OPEN_HOUSE_DOOR))
 
-        assertEquals(listOf("Doors", "Open the door.", "", "", ""), texts(player))
+        assertEquals(listOf("Doors", "Open the door.", "", "", ""), textsBesideJournal(player).map { it.fields.getValue("text") })
     }
 
     @Test
     fun `the help box texts go to the help box widgets`() {
         val player = loggedIn(returning(OPEN_HOUSE_DOOR))
 
-        val ids = sent(player, "WidgetTextMessageWriter").map { it.fields.getValue("id") }
+        val ids = textsBesideJournal(player).map { it.fields.getValue("id") }
 
         assertEquals(listOf(LunaTutorial.HELP_TITLE) + LunaTutorial.HELP_LINES, ids)
     }

@@ -3,6 +3,7 @@ package game.idle.tutorial
 import game.idle.tutorial.TutorialStep.BUILD_FIRST_FLOW
 import game.idle.tutorial.TutorialStep.CUT_TREE
 import game.idle.tutorial.TutorialStep.DESIGN_CHARACTER
+import game.idle.tutorial.TutorialStep.ENTER_MINE
 import game.idle.tutorial.TutorialStep.FIND_MASTER_CHEF
 import game.idle.tutorial.TutorialStep.FIND_SURVIVAL_EXPERT
 import game.idle.tutorial.TutorialStep.LEAVE_SURVIVAL_AREA
@@ -14,6 +15,7 @@ import game.idle.tutorial.TutorialStep.OPEN_INVENTORY
 import game.idle.tutorial.TutorialStep.OPEN_SKILLS
 import game.idle.tutorial.TutorialStep.STOP_THE_AUTOPILOT
 import game.idle.tutorial.TutorialStep.TALK_TO_GUIDE
+import game.idle.tutorial.TutorialStep.TALK_TO_MINING_INSTRUCTOR
 import game.idle.ui.TileEdge
 import io.luna.game.model.Position
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
@@ -25,6 +27,9 @@ object TutorialFixtures {
     const val EXPERT = TutorialScript.SURVIVAL_EXPERT
     const val LOCKED = "house_door_locked"
     const val GATE_LOCKED = "gate_locked"
+    const val NOT_READY = "not_ready"
+    const val LADDER = 3029
+    const val JOURNAL = "Tutorial Island"
 
     val start = Position(3200, 3200)
 
@@ -43,6 +48,8 @@ object TutorialFixtures {
         firstPass = FIND_MASTER_CHEF,
         locked = GATE_LOCKED,
     )
+
+    val ladder = Ladder(LADDER, opensAt = ENTER_MINE, firstPass = TALK_TO_MINING_INSTRUCTOR, refused = NOT_READY, speaker = TutorialScript.QUEST_GUIDE)
 
     private val plainSteps = TutorialStep.entries.filter { it != TutorialStep.DONE }
         .associateWith { StepScreen(HelpBox(it.name, listOf("${it.name} line.")), HintTarget.None, emptyList()) }
@@ -110,8 +117,16 @@ object TutorialFixtures {
             TutorialScript.GIVES_NET to listOf(DialogueBox.Items(listOf(303), listOf("A net."))),
             LOCKED to listOf(DialogueBox.Text(listOf("Locked."))),
             GATE_LOCKED to listOf(DialogueBox.Text(listOf("Gate locked."))),
+            TutorialScript.QUEST_GUIDE_WELCOME to listOf(DialogueBox.Npc(listOf("All about quests."))),
+            TutorialScript.QUEST_GUIDE_OPEN_JOURNAL to listOf(DialogueBox.Npc(listOf("Open the journal."))),
+            TutorialScript.QUEST_GUIDE_JOURNAL to listOf(DialogueBox.Npc(listOf("All red."))),
+            TutorialScript.QUEST_GUIDE_QUESTS to listOf(DialogueBox.Npc(listOf("Yellow, then green."))),
+            TutorialScript.QUEST_GUIDE_STAGES to listOf(DialogueBox.Npc(listOf("Stages and resets."))),
+            TutorialScript.QUEST_GUIDE_CAVES to listOf(DialogueBox.Npc(listOf("Off to the caves."))),
+            NOT_READY to listOf(DialogueBox.Npc(listOf("Not yet."))),
         ),
         doors = listOf(door, gate),
+        ladders = listOf(ladder),
         messages = mapOf(
             LunaTutorial.CANNOT_WIELD to "Not yet.",
             TutorialScript.SHRIMP_BURNT to "Burnt.",
@@ -123,6 +138,7 @@ object TutorialFixtures {
             TutorialScript.FISHING to HelpBox("Please wait...", listOf("Fishing.")),
         ),
         quietMessages = setOf("You get some logs."),
+        journal = JOURNAL,
     )
 
     /** A valid `tutorial.jsonc`, with any part replaced. */
@@ -131,11 +147,13 @@ object TutorialFixtures {
         steps: String = steps(),
         dialogues: String = DIALOGUES,
         doors: String = "",
+        ladders: String = "",
         messages: String = "",
         busy: String = "",
         quiet: String = "",
-    ) = """{ "start": $start, "steps": { $steps }, "dialogues": { $dialogues }, "doors": [ $doors ], "messages": { $messages },
-        "busy": { $busy }, "quiet_messages": [ $quiet ] }"""
+        journal: String = "\"$JOURNAL\"",
+    ) = """{ "start": $start, "steps": { $steps }, "dialogues": { $dialogues }, "doors": [ $doors ], "ladders": [ $ladders ],
+        "messages": { $messages }, "busy": { $busy }, "quiet_messages": [ $quiet ], "journal": $journal }"""
 
     /** Every step with a plain help box, [replaced] ones aside. */
     fun steps(vararg replaced: Pair<TutorialStep, String>): String {
@@ -153,4 +171,6 @@ object TutorialFixtures {
         "closed": [ { "id": 3014, "tile": { "x": 3205, "y": 3200 }, "side": "WEST" } ],
         "open": [ { "id": 1535, "tile": { "x": 3204, "y": 3200 }, "rotation": 1 } ],
         "opens_at": "OPEN_HOUSE_DOOR", "first_pass": "FIND_SURVIVAL_EXPERT", "locked": "locked" }"""
+
+    const val LADDER_JSON = """{ "id": 3029, "opens_at": "ENTER_MINE", "first_pass": "TALK_TO_MINING_INSTRUCTOR", "refused": "locked", "speaker": 949 }"""
 }

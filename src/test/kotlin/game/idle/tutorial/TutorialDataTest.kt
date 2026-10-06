@@ -2,6 +2,7 @@ package game.idle.tutorial
 
 import game.idle.tutorial.TutorialFixtures.DOOR
 import game.idle.tutorial.TutorialFixtures.HELP
+import game.idle.tutorial.TutorialFixtures.LADDER_JSON
 import game.idle.tutorial.TutorialFixtures.json
 import game.idle.tutorial.TutorialFixtures.steps
 import game.idle.tutorial.TutorialStep.OPEN_HOUSE_DOOR
@@ -309,5 +310,37 @@ class TutorialDataTest {
     @Test
     fun `a door's steps are read as tutorial steps`() {
         assertEquals(OPEN_HOUSE_DOOR, TutorialData.parse(json(doors = DOOR)).doors.single().opensAt)
+    }
+
+    @Test
+    fun `a ladder is read with its steps, refusal and who says it`() {
+        val ladder = TutorialData.parse(json(ladders = LADDER_JSON)).ladders.single()
+
+        assertEquals(TutorialFixtures.ladder.copy(refused = "locked"), ladder)
+    }
+
+    @Test
+    fun `a ladder without an id is refused`() {
+        refused(json(ladders = LADDER_JSON.replace(""""id": 3029, """, "")))
+    }
+
+    @Test
+    fun `a ladder without a speaker for its refusal is refused`() {
+        refused(json(ladders = LADDER_JSON.replace(""", "speaker": 949""", "")))
+    }
+
+    @Test
+    fun `a ladder naming a dialogue that does not exist is refused`() {
+        refused(json(ladders = LADDER_JSON.replace(""""refused": "locked"""", """"refused": "nowhere"""")))
+    }
+
+    @Test
+    fun `the island's name in the quest journal is read`() {
+        assertEquals("Tutorial Island", TutorialData.parse(json()).journal)
+    }
+
+    @Test
+    fun `a file without the island's name for the quest journal is refused`() {
+        refused(json(journal = "\"\""))
     }
 }

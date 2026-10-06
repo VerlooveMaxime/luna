@@ -18,6 +18,8 @@ npc1(TutorialScript.SURVIVAL_EXPERT) { tutorial.talkToSurvivalExpert(plr, target
 
 npc1(TutorialScript.MASTER_CHEF) { tutorial.talkToChef(plr, targetNpc) }
 
+npc1(TutorialScript.QUEST_GUIDE) { tutorial.talkToQuestGuide(plr, targetNpc) }
+
 on(FlashingTabClickEvent::class) { tutorial.tabOpened(plr, tab) }
 
 cmd("tutorial", RIGHTS_DEV) { plr.sendMessage(tutorial.jumpTo(plr, args.firstOrNull().orEmpty())) }
@@ -29,3 +31,5 @@ on(SkillChangeEvent::class)
 tutorialData.doors.forEach { door ->
     door.closed.forEach { leaf -> object1(leaf.id) { tutorial.openDoor(plr, door, leaf) } }
 }
+
+tutorialData.ladders.forEach { ladder -> object1(ladder.id) { tutorial.ladderClimbed(plr, ladder) } }

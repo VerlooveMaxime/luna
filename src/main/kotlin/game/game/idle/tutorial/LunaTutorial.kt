@@ -14,6 +14,7 @@ import game.skill.fishing.catchFish.CatchFishAction
 import game.skill.woodcutting.cutTree.CutTreeAction
 import io.luna.game.event.impl.ControllableEvent
 import io.luna.game.event.impl.EquipItemEvent
+import io.luna.game.event.impl.ObjectClickEvent
 import io.luna.game.event.impl.SkillChangeEvent
 import io.luna.game.action.Action
 import io.luna.game.action.ActionState
@@ -67,7 +68,8 @@ class TutorialController(private val player: Player, private val tutorial: LunaT
 /**
  * Tutorial Island on real players: starts new characters there, shows each step (side tabs, help box, arrow), opens
  * the instructors' dialogues, hands out their tools, follows the player's first log, fire and shrimp, scripts the
- * first two shrimp cooked, and lets players through the doors.
+ * first two shrimp cooked, lets players through the doors and up or down the ladders at their steps, and keeps the
+ * island's line in the quest journal's stages.
  */
 class LunaTutorial(private val script: TutorialScript, private val data: TutorialData, private val world: World) {
 
@@ -83,6 +85,8 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         }
         if (player.tutorialStep != TutorialStep.DONE) {
             resume(player)
+        } else {
+            showJournalLine(player)
         }
     }
 
@@ -141,6 +145,7 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
     fun allows(player: Player, event: ControllableEvent): Boolean = when (event) {
         is EquipItemEvent -> mayWield(player)
         is ItemOnObjectEvent -> !cookedByScript(player, event)
+        is ObjectClickEvent -> !refusedAtLadder(player, event)
         else -> true
     }
 
@@ -187,16 +192,26 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         return "Tutorial step: ${step.name}"
     }
 
+    fun talkToQuestGuide(player: Player, guide: Npc) = talk(player, guide, script.talkToQuestGuide(player.tutorialStep))
+
+    /** Luna's own ladder handler does the climbing; the first climb at the ladder's step moves the player on. */
+    fun ladderClimbed(player: Player, ladder: Ladder) {
+        val outcome = script.climbLadder(ladder, player.tutorialStep)
+        if (outcome is PassageOutcome.Pass) {
+            advance(player, outcome.advanceTo)
+        }
+    }
+
     fun openDoor(player: Player, door: Door, leaf: DoorLeaf) = when (val outcome = script.openDoor(door, player.tutorialStep)) {
-        is DoorOutcome.Locked -> openDialogue(player, listOf(outcome.dialogue), speaker = NO_SPEAKER) {}
-        is DoorOutcome.Pass -> {
+        is PassageOutcome.Locked -> openDialogue(player, listOf(outcome.dialogue), speaker = NO_SPEAKER) {}
+        is PassageOutcome.Pass -> {
             goThrough(player, door, leaf)
             advance(player, outcome.advanceTo)
         }
     }
 
     private fun talk(player: Player, npc: Npc, talk: Talk, boxes: List<String> = emptyList()) =
-        openDialogue(player, listOf(talk.dialogue) + boxes, speaker = npc.id) {
+        openDialogue(player, talk.dialogues + boxes, speaker = npc.id) {
             talk.progress?.let { makeProgress(player, it) }
         }
 
@@ -241,6 +256,20 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         return cook != null
     }
 
+    /**
+     * A ladder refused at the player's step is not climbed: they walk up to it and its [Ladder.speaker] says why, as
+     * the click's own walk would have brought them there.
+     */
+    private fun refusedAtLadder(player: Player, event: ObjectClickEvent): Boolean {
+        val ladder = data.ladders.firstOrNull { it.id == event.gameObject.id } ?: return false
+        val refusal = script.climbLadder(ladder, player.tutorialStep) as? PassageOutcome.Locked ?: return false
+        val listener = InteractionActionListener(InteractionPolicy.STANDARD_SIZE) {
+            openDialogue(player, listOf(refusal.dialogue), speaker = ladder.speaker) {}
+        }
+        player.submitAction(InteractionAction(player, mutableListOf(listener), event.gameObject, event))
+        return true
+    }
+
     /** A burn grants no experience: Luna ignores a gain of zero. */
     private fun finishCooking(player: Player, cook: ScriptedCook) {
         if (player.inventory.remove(Item(cook.raw))) {
@@ -256,10 +285,18 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
         val screen = script.screen(step)
         player.tutorialBusy = ""
         TabIndex.values().forEach { showTab(player, it, visible = it in screen.tabs) }
+        showJournalLine(player)
         screen.flash?.let { player.queue(FlashTabMessageWriter(it)) }
         showHelp(player, screen.help)
         player.queue(arrow(player, screen.arrow))
     }
+
+    /**
+     * The client drops every widget of a side tab taken away, the journal's line with them, so the line goes out
+     * again after the tabs.
+     */
+    private fun showJournalLine(player: Player) =
+        player.queue(WidgetTextMessageWriter(script.journalLine(player.tutorialStep), TutorialScript.JOURNAL_LINE))
 
     /** The Idle tab sits in the unused slot 7, which Luna's own tab reset leaves empty. */
     private fun showTab(player: Player, tab: TabIndex, visible: Boolean) = when {

@@ -405,7 +405,6 @@
       },
       "goal": { "run": true }
     },
-    // The Quest Guide's door (3019) is the next section; it does not open yet.
     "FIND_QUEST_GUIDE": {
       "help": {
         "title": "Run to the next guide.",
@@ -417,6 +416,64 @@
         ]
       },
       "arrow": { "tile": { "x": 3086, "y": 3126 }, "edge": "SOUTH", "height": 150 }
+    },
+    "TALK_TO_QUEST_GUIDE": {
+      "help": {
+        "title": "",
+        "lines": [
+          "Talk with the Quest Guide Instructor.",
+          "",
+          "He'll tell you all about quests."
+        ]
+      },
+      "arrow": { "npc": 949 }
+    },
+    "OPEN_QUEST_JOURNAL": {
+      "help": {
+        "title": "",
+        "lines": [
+          "Open the Quest journal.",
+          "",
+          "Click on the flashing icon next to your inventory."
+        ]
+      },
+      "tabs": ["QUEST"],
+      "flash": "QUEST"
+    },
+    "TALK_ABOUT_QUESTS": {
+      "help": {
+        "title": "",
+        "lines": [
+          "Your Quest journal.",
+          "This is your quest journal, a list of all the quests in the game.",
+          "Talk to the instructor again for an explanation."
+        ]
+      },
+      "arrow": { "npc": 949 }
+    },
+    "ENTER_MINE": {
+      "help": {
+        "title": "",
+        "lines": [
+          "Moving on.",
+          "It's time to enter some caves. Click on the ladder to go down to",
+          "the next area."
+        ]
+      },
+      "arrow": { "tile": { "x": 3088, "y": 3119 }, "height": 0 }
+    },
+    // The Mining Instructor's section is next; he does not teach yet.
+    "TALK_TO_MINING_INSTRUCTOR": {
+      "help": {
+        "title": "Mining and smithing.",
+        "lines": [
+          "Next let's get you a weapon, or more to the point, you can",
+          "make your first weapon yourself. Don't panic, the mining",
+          "instructor will help you. Talk to him and he'll tell you all",
+          "about it."
+        ]
+      },
+      "arrow": { "npc": 948 }
     }
   },
 
@@ -501,6 +558,37 @@
     ],
     "chef_hello": [
       { "npc": ["Hello again."] }
+    ],
+    // LostCity's own line: no source shows this door refusing anyone.
+    "quest_door_locked": [
+      { "text": ["You should try turning run on before continuing."] }
+    ],
+    "quest_guide_welcome": [
+      { "npc": ["Ah... welcome adventurer. I'm here to tell you all about", "quests. Let's start by opening the quest side panel."] }
+    ],
+    "quest_guide_open_journal": [
+      { "npc": ["Have you not opened that menu yet?"] }
+    ],
+    "quest_guide_journal": [
+      { "npc": ["Now you have the journal open I'll tell you a bit about", "it. As you see at the moment all the quests are shown", "in red, a quest shown in red is unstarted."] }
+    ],
+    "quest_guide_quests": [
+      { "npc": ["When you start a quest it will change colour to yellow,", "and green when you've finished. This is so you can", "easily see what's complete, what's started, and what's left", "to begin."] },
+      { "npc": ["The start of quests are easy to find. Look out for the", "star icons on the minimap, like the one you should see", "marking my house."] },
+      { "npc": ["The quests themselves can vary greatly from collecting", "beads to hunting down dragons. Generally quests are", "started by talking to a non player character and will", "involve a series of tasks."] }
+    ],
+    // Ours: stages and resets.
+    "quest_guide_stages": [
+      { "npc": ["Have a look at the top of your journal too. Here your", "adventure is told in stages, and each stage asks for", "some levels, some items and a quest before it is done."] },
+      { "npc": ["Tutorial Island is your first stage. It shows in yellow", "because you have started it but not finished it yet."] },
+      { "npc": ["Finishing a stage lets you reset: you start over without", "your experience or your belongings, but you keep your", "quests and the flows you have built, and every reset", "makes you learn a little faster."] },
+      { "npc": ["The Magic Instructor at the end of the island will take", "you through your first reset. You have little to lose yet."] }
+    ],
+    "quest_guide_caves": [
+      { "npc": ["There's not a lot more I can tell you about questing.", "You have to experience the thrill of it yourself to fully", "understand. You may find some adventure in the caves", "under my house."] }
+    ],
+    "quest_guide_not_ready": [
+      { "npc": ["I don't think you're ready to go down there yet."] }
     ],
     "chef_exit_locked": [
       { "text": ["You need to finish the Cooking Guide's tasks first."] }
@@ -607,6 +695,19 @@
       "opens_at": "LEAVE_CHEF",
       "first_pass": "OPEN_PLAYER_CONTROLS",
       "locked": "chef_exit_locked"
+    },
+    {
+      "closed": [{ "id": 3019, "tile": { "x": 3086, "y": 3126 }, "side": "SOUTH" }],
+      "open": [{ "id": 1535, "tile": { "x": 3086, "y": 3125 }, "rotation": 0 }],
+      "opens_at": "FIND_QUEST_GUIDE",
+      "first_pass": "TALK_TO_QUEST_GUIDE",
+      "locked": "quest_door_locked"
     }
-  ]
+  ],
+  // The ladder down to the mine, under the Quest Guide's house.
+  "ladders": [
+    { "id": 3029, "opens_at": "ENTER_MINE", "first_pass": "TALK_TO_MINING_INSTRUCTOR", "refused": "quest_guide_not_ready", "speaker": 949 }
+  ],
+  // The island's name among the quest journal's stages.
+  "journal": "Tutorial Island"
 }
