@@ -42,13 +42,15 @@ object EatBelow {
 }
 
 /**
- * Fight: fights npcs from [FightTargetCatalog] around the work spot one at a time, a count of kills or, without one,
- * until stopped. Food in the inventory is eaten once hitpoints fall below a share of full; with none left the player
- * runs from what attacks them and the flow stops.
+ * Fight: fights the npcs of a [FightTargetCatalog] target around the work spot one at a time, a count of kills or,
+ * without one, until stopped. Food in the inventory is eaten once hitpoints fall below a share of full; with none left
+ * the player runs from what attacks them and the flow stops.
  */
 class FightStepType(private val catalog: FightTargetCatalog) : StepType {
 
-    private val names: List<String> = catalog.targets.map { it.name }
+    /** The v1 builder cycles through every target, weakest first, until the search replaces it (S06). */
+    private val names: List<String> =
+        catalog.targets.sortedWith(compareBy({ it.levels.first }, { it.name })).map { it.name }
 
     override val kind = "fight"
 
@@ -67,7 +69,7 @@ class FightStepType(private val catalog: FightTargetCatalog) : StepType {
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val name = settings[NPC]?.lowercase() ?: throw FlowError("fight needs an npc")
         val target = catalog.find(name)
-            ?: throw FlowError("'$name' is not something you can fight yet. Fight: ${names.sorted().joinToString(", ")}")
+            ?: throw FlowError("'$name' is not something you can fight")
         return FightStep(target, StepRadius.read(settings), context.workSpot, StepAmount.read(settings), EatBelow.read(settings))
     }
 
@@ -84,6 +86,8 @@ data class FightStep(
     val amount: Int? = null,
     val eatBelow: Int = EatBelow.DEFAULT,
 ) : ResolvedStep {
+
+    override fun after(context: FlowContext): FlowContext = context.copy(fought = target.npcs)
 
     override fun activity(player: Player, runTile: Tile): StepActivity =
         FightingActivity(LunaFighter(player, target, Area(workSpot.tile(runTile), radius)), eatBelow, amount)

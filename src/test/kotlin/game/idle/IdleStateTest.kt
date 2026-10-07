@@ -95,4 +95,16 @@ class IdleStateTest {
 
         assertEquals(IdleState.TUTORIAL_DONE, saved.tutorialStep)
     }
+
+    @Test
+    fun `a new state has options judged on unboosted levels`() {
+        assertFalse(IdleState().countBoostedLevels)
+    }
+
+    @Test
+    fun `the choice to count boosted levels is saved and read back`() {
+        val counting = state.copy(countBoostedLevels = true)
+
+        assertEquals(counting, GsonUtils.GSON.fromJson(GsonUtils.GSON.toJson(counting), IdleState::class.java))
+    }
 }

@@ -1,85 +1,62 @@
 package game.idle.autopilot.fighting
 
+import game.idle.content.audit.NpcKind
+import game.testworld.TestWorld
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
-import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Files
-import java.nio.file.NoSuchFileException
-import java.nio.file.Path
 
 class FightTargetCatalogTest {
 
-    private val chicken = """{ "name": "chicken", "npcs": [41, 951] }"""
-
-    private fun parse(vararg targets: String) = FightTargetCatalog.parse("""{ "targets": [${targets.joinToString(",")}] }""")
+    private fun npc(id: Int, name: String, level: Int, attack: String = "Attack") =
+        NpcKind(id, name, level, listOf("Talk-to", attack, "", "", ""))
 
     @Test
-    fun `parse reads the name and npcs of a target`() {
-        assertEquals(listOf(FightTarget("chicken", setOf(41, 951))), parse(chicken).targets)
+    fun `npcs of one name are one target, spelled as the cache spells the first`() {
+        val catalog = FightTargetCatalog.of(listOf(npc(81, "Cow", 2), npc(397, "cow", 2)))
+
+        assertEquals(listOf(FightTarget("cow", setOf(81, 397), "Cow", 2..2)), catalog.targets)
     }
 
     @Test
-    fun `a target is found by name`() {
-        assertEquals(setOf(41, 951), parse(chicken).find("chicken")?.npcs)
+    fun `a target spans the combat levels of its npcs`() {
+        val catalog = FightTargetCatalog.of(listOf(npc(86, "Giant rat", 3), npc(87, "Giant rat", 6), npc(446, "Giant rat", 1)))
+
+        assertEquals(1..6, catalog.targets.single().levels)
+    }
+
+    @Test
+    fun `an npc without an attack option is no target`() {
+        val catalog = FightTargetCatalog.of(listOf(npc(0, "Hans", 0, attack = "")))
+
+        assertEquals(emptyList<FightTarget>(), catalog.targets)
+    }
+
+    @Test
+    fun `a target is found by its lower-case name`() {
+        val catalog = FightTargetCatalog.of(listOf(npc(81, "Cow", 2)))
+
+        assertEquals(setOf(81), catalog.find("cow")?.npcs)
     }
 
     @Test
     fun `an unknown name finds no target`() {
-        assertNull(parse(chicken).find("cow"))
+        assertNull(FightTargetCatalog.of(listOf(npc(81, "Cow", 2))).find("goblin"))
     }
 
     @Test
-    fun `the tracked data file loads chickens, cows and giant rats`() {
-        val names = FightTargetCatalog.load(FightTargetCatalog.PATH).targets.map { it.name }
+    fun `the cache's catalog holds the island rat with the mainland's giant rats`() {
+        TestWorld.context
 
-        assertEquals(listOf("chicken", "cow", "giant rat"), names)
+        val rats = FightTargetCatalog.fromCache().find("giant rat")
+
+        assertEquals(listOf(true, true, "Giant rat"), listOf(rats?.npcs?.contains(950), rats?.npcs?.contains(86), rats?.label))
     }
 
     @Test
-    fun `an existing file is read`(@TempDir dir: Path) {
-        val file = Files.writeString(dir.resolve("fight_targets.jsonc"), """{ "targets": [$chicken] }""")
+    fun `the cache's catalog leaves out npcs nobody can attack`() {
+        TestWorld.context
 
-        assertEquals(1, FightTargetCatalog.load(file).targets.size)
-    }
-
-    @Test
-    fun `a missing file is an error`(@TempDir dir: Path) {
-        assertThrows<NoSuchFileException> { FightTargetCatalog.load(dir.resolve("none.jsonc")) }
-    }
-
-    @Test
-    fun `an empty document gives an empty catalog`() {
-        assertEquals(emptyList<FightTarget>(), FightTargetCatalog.parse("").targets)
-    }
-
-    @Test
-    fun `a document without targets gives an empty catalog`() {
-        assertEquals(emptyList<FightTarget>(), FightTargetCatalog.parse("{}").targets)
-    }
-
-    @Test
-    fun `duplicate names are rejected`() {
-        assertRejected("Duplicate fight target names: [chicken]") { parse(chicken, chicken) }
-    }
-
-    @Test
-    fun `a target needs a name`() {
-        assertRejected("A fight target has no name: FightTargetJson(name=, npcs=[1])") { parse("""{ "npcs": [1] }""") }
-    }
-
-    @Test
-    fun `a target is named in lower case`() {
-        assertRejected("Fight target 'Cow' must be named in lower case") { parse("""{ "name": "Cow", "npcs": [81] }""") }
-    }
-
-    @Test
-    fun `a target needs npcs`() {
-        assertRejected("Fight target 'cow' has no npcs") { parse("""{ "name": "cow" }""") }
-    }
-
-    private fun assertRejected(message: String, block: () -> Unit) {
-        assertEquals(message, assertThrows<IllegalArgumentException>(block).message)
+        assertNull(FightTargetCatalog.fromCache().find("hans"))
     }
 }

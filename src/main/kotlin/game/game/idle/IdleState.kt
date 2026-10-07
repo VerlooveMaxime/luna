@@ -13,7 +13,8 @@ import io.luna.game.model.mob.Player
  * step, the work spot of action steps no walk step comes before; [laps] counts the times it went round since then (the
  * tutorial's lessons wait for them). [savedFlows] are the flows the player keeps to switch between, and [savedSlot]
  * the one the current flow was last loaded from or saved to. [tutorialStep] is the value of a `TutorialStep`; a save
- * from before the tutorial existed loads as finished.
+ * from before the tutorial existed loads as finished. [countBoostedLevels] is the player's choice to have the builder's
+ * options judged on boosted levels instead of the unboosted ones; a flow that stops when a boost wears off is theirs.
  *
  * The flow was kept as typed lines under the name `flow` until 2026-10-07; a save still holding them loads with an
  * empty flow, which the next save makes final.
@@ -29,6 +30,7 @@ data class IdleState(
     val tutorialStep: Int = TUTORIAL_DONE,
     val savedFlows: List<SavedFlow> = emptyList(),
     val savedSlot: Int? = null,
+    val countBoostedLevels: Boolean = false,
 ) {
     fun withFlow(steps: List<StepSettings>): IdleState =
         copy(steps = steps, stepIndex = 0, running = false, runTile = null, laps = 0)

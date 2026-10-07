@@ -50,4 +50,23 @@ class FlowResolverTest {
 
         assertEquals(message, error.message)
     }
+
+    @Test
+    fun `the context before a step is what the steps before it set up`() {
+        val steps = listOf(step("walk", "gather"), step("rest"), step("rest", "gather"))
+
+        assertEquals(FlowContext(gathered = setOf(1)), resolver.contextBefore(steps, 2))
+    }
+
+    @Test
+    fun `the first step has an empty context before it`() {
+        assertEquals(FlowContext(), resolver.contextBefore(listOf(step("walk", "gather")), 0))
+    }
+
+    @Test
+    fun `a step that does not resolve adds nothing to the context after it`() {
+        val steps = listOf(step("walk", "bad"), step("fly"), step("rest"))
+
+        assertEquals(FlowContext(), resolver.contextBefore(steps, 2))
+    }
 }

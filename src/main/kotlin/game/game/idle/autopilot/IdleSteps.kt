@@ -28,8 +28,8 @@ class IdleSteps(banks: BankCatalog, recipes: RecipeCatalog, fightTargets: FightT
     )
 
     companion object {
-        /** The steps over the data files; a bad file fails the boot. */
+        /** The steps over the data files and the cache; a bad file fails the boot. */
         fun load(): IdleSteps =
-            IdleSteps(BankCatalog.load(BankCatalog.PATH), RecipeCatalog.load(RecipeCatalog.PATH), FightTargetCatalog.load(FightTargetCatalog.PATH))
+            IdleSteps(BankCatalog.load(BankCatalog.PATH), RecipeCatalog.load(RecipeCatalog.PATH), FightTargetCatalog.fromCache())
     }
 }

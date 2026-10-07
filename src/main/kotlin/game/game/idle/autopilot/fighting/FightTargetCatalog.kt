@@ -1,47 +1,36 @@
 package game.idle.autopilot.fighting
 
-import io.luna.util.GsonUtils
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
+import game.idle.content.audit.LunaKinds
+import game.idle.content.audit.NpcKind
 
-/** Something the fight step can fight: every npc of [npcs] goes by [name] in a flow. */
-data class FightTarget(val name: String, val npcs: Set<Int>)
+/**
+ * Something the fight step can fight: every npc of [npcs] goes by [name] in a flow; [label] is how the cache spells it
+ * and [levels] spans their combat levels.
+ */
+data class FightTarget(val name: String, val npcs: Set<Int>, val label: String, val levels: IntRange)
 
-/** Every fight target flows can use, from [PATH]. Loaded once at boot; a bad file fails the boot. */
+/**
+ * Every npc a fight step can fight: the cache's attackable npcs, one target per name (Maxime, 2026-10-07), so the data
+ * lives in one place. Npcs whose combat stats are still placeholders fight oddly until the combat import covers them.
+ */
 class FightTargetCatalog(val targets: List<FightTarget>) {
 
     private val byName: Map<String, FightTarget> = targets.associateBy { it.name }
 
-    init {
-        val duplicates = targets.groupingBy { it.name }.eachCount().filterValues { it > 1 }.keys
-        require(duplicates.isEmpty()) { "Duplicate fight target names: ${duplicates.sorted()}" }
-    }
-
     fun find(name: String): FightTarget? = byName[name]
 
     companion object {
-        val PATH: Path = Paths.get("data", "idle", "fight_targets.jsonc")
 
-        fun parse(jsonc: String): FightTargetCatalog {
-            val file = GsonUtils.GSON.fromJson(jsonc, FightTargetsJson::class.java) ?: FightTargetsJson()
-            return FightTargetCatalog(file.targets.map { it.toTarget() })
-        }
+        /** One target per lower-case name over the attackable [npcs]. */
+        fun of(npcs: List<NpcKind>): FightTargetCatalog =
+            FightTargetCatalog(
+                npcs.filter { it.attackable }.groupBy { it.name.lowercase() }.map { (name, kinds) ->
+                    val levels = kinds.map { it.combatLevel }
+                    FightTarget(name, kinds.map { it.id }.toSet(), kinds.first().name, levels.min()..levels.max())
+                },
+            )
 
-        fun load(path: Path): FightTargetCatalog = parse(Files.readString(path))
-    }
-}
-
-/* Raw Gson shapes: every field has a default, so a missing key becomes a message naming the target. */
-
-internal data class FightTargetsJson(val targets: List<FightTargetJson> = emptyList())
-
-internal data class FightTargetJson(val name: String = "", val npcs: List<Int> = emptyList()) {
-
-    fun toTarget(): FightTarget {
-        require(name.isNotBlank()) { "A fight target has no name: $this" }
-        require(name == name.lowercase().trim()) { "Fight target '$name' must be named in lower case" }
-        require(npcs.isNotEmpty()) { "Fight target '$name' has no npcs" }
-        return FightTarget(name, npcs.toSet())
+        /** Over the cache's npc definitions, which a booted server has loaded before its plugins. */
+        fun fromCache(): FightTargetCatalog = of(LunaKinds.npcs())
     }
 }

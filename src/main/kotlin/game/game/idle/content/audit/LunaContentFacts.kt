@@ -88,23 +88,28 @@ class LunaContentFacts(private val world: World, private val registries: Content
     private fun regionCounts(regionAndId: Sequence<Pair<Int, Int>>): List<RegionCount> =
         regionAndId.groupingBy { it }.eachCount().map { (key, count) -> RegionCount(key.first, key.second, count) }
 
-    private fun npcKind(id: Int): NpcKind {
-        val definition = NpcDefinition.ALL.retrieve(id)
-        return NpcKind(id, definition.name, definition.combatLevel, menu(definition.actions))
-    }
+    private fun npcKind(id: Int): NpcKind = LunaKinds.npc(NpcDefinition.ALL.retrieve(id))
 
     private fun objectKind(id: Int): ObjectKind {
         val definition = GameObjectDefinition.ALL.retrieve(id)
-        return ObjectKind(id, definition.name, menu(definition.actions))
+        return ObjectKind(id, definition.name, LunaKinds.menu(definition.actions))
     }
+}
+
+/** Cache definitions as the client shows them. */
+object LunaKinds {
+
+    private const val MENU_SIZE = 5
+
+    fun npc(definition: NpcDefinition): NpcKind =
+        NpcKind(definition.id(), definition.name, definition.combatLevel, menu(definition.actions))
+
+    /** Every npc the cache defines. */
+    fun npcs(): List<NpcKind> = NpcDefinition.ALL.stream().map(::npc).toList()
 
     /** Luna's decoders store an absent action as "null"; the client shows no "hidden" option either, in any case. */
-    private fun menu(actions: List<String>): List<String> =
+    fun menu(actions: List<String>): List<String> =
         actions.take(MENU_SIZE).map { if (it == "null" || it.equals("hidden", ignoreCase = true)) "" else it }
-
-    private companion object {
-        const val MENU_SIZE = 5
-    }
 }
 
 /** Region id to the lower-case name of the bot [Zone] holding it. */

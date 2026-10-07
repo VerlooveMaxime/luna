@@ -80,8 +80,15 @@ sealed interface WorkSpot {
         }
 }
 
-/** What a step can rely on from the steps before it in the flow. */
-data class FlowContext(val workSpot: WorkSpot = WorkSpot.RunTile, val gathered: Set<Int> = emptySet())
+/**
+ * What a step can rely on from the steps before it in the flow: where they work, the item ids they get, and the npcs
+ * the last fight step fights (a pick-up step offers their drops).
+ */
+data class FlowContext(
+    val workSpot: WorkSpot = WorkSpot.RunTile,
+    val gathered: Set<Int> = emptySet(),
+    val fought: Set<Int> = emptySet(),
+)
 
 /** A step checked against the data: every name became the thing it names, so it can run. */
 interface ResolvedStep {

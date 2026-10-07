@@ -30,7 +30,7 @@ class LunaFighterTest {
     private val chicken = 41
     private val cow = 81
     private val runescapeGuide = 945
-    private val chickens = FightTarget("chicken", setOf(chicken, runescapeGuide))
+    private val chickens = FightTarget("chicken", setOf(chicken, runescapeGuide), "Chicken", 1..1)
     private val bread = 2309
     private val logs = 1511
     private val shortbow = 841

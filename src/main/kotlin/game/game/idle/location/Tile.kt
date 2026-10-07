@@ -1,6 +1,7 @@
 package game.idle.location
 
 import io.luna.game.model.Position
+import kotlin.math.abs
 
 /** A map tile. Kept separate from Luna's `Position` so data files and saves have no dependency on engine classes. */
 data class Tile(val x: Int, val y: Int, val z: Int = 0) {
@@ -17,6 +18,9 @@ data class Tile(val x: Int, val y: Int, val z: Int = 0) {
 
 /** A square of tiles around [anchor], [radius] tiles to each side. */
 data class Area(val anchor: Tile, val radius: Int) {
+
+    operator fun contains(tile: Tile): Boolean =
+        tile.z == anchor.z && abs(tile.x - anchor.x) <= radius && abs(tile.y - anchor.y) <= radius
 
     companion object {
         const val MAX_RADIUS = 32

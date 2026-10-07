@@ -17,4 +17,17 @@ class FlowResolver(val types: StepTypes) {
             step
         }
     }
+
+    /** What the steps before the one at [index] set up, for its options; a step that does not resolve adds nothing. */
+    fun contextBefore(steps: List<StepSettings>, index: Int): FlowContext =
+        steps.take(index).fold(FlowContext()) { context, settings ->
+            resolvedOrNull(settings, context)?.after(context) ?: context
+        }
+
+    private fun resolvedOrNull(settings: StepSettings, context: FlowContext): ResolvedStep? =
+        try {
+            types.find(settings.kind)?.resolve(settings, context)
+        } catch (e: FlowError) {
+            null
+        }
 }

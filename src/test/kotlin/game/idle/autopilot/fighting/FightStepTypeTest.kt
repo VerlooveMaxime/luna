@@ -13,8 +13,8 @@ import org.junit.jupiter.api.assertThrows
 
 class FightStepTypeTest {
 
-    private val rats = FightTarget("giant rat", setOf(950))
-    private val cows = FightTarget("cow", setOf(81))
+    private val rats = FightTarget("giant rat", setOf(950), "Giant rat", 3..3)
+    private val cows = FightTarget("cow", setOf(81), "Cow", 2..2)
     private val type = FightStepType(FightTargetCatalog(listOf(rats, cows)))
     private val walkedTo = WorkSpot.At(Tile(3105, 9517))
 
@@ -63,15 +63,22 @@ class FightStepTypeTest {
     }
 
     @Test
-    fun `an npc nobody can fight yet lists the ones they can`() {
-        assertRejected("'goblin' is not something you can fight yet. Fight: cow, giant rat") {
+    fun `an npc of no fight target is rejected`() {
+        assertRejected("'goblin' is not something you can fight") {
             type.resolve(fight("npc" to "goblin"), FlowContext())
         }
     }
 
     @Test
-    fun `the builder offers the npcs of the catalog`() {
-        assertEquals(listOf("giant rat", "cow"), field(0).choices(fight()))
+    fun `the builder offers the npcs of the catalog, weakest first`() {
+        assertEquals(listOf("cow", "giant rat"), field(0).choices(fight()))
+    }
+
+    @Test
+    fun `the builder offers npcs of one level by name`() {
+        val type = FightStepType(FightTargetCatalog(listOf(rats, cows.copy(levels = 3..3))))
+
+        assertEquals(listOf("cow", "giant rat"), (type.fields[0] as StepField.Choice).choices(fight()))
     }
 
     @Test
@@ -92,10 +99,10 @@ class FightStepTypeTest {
     }
 
     @Test
-    fun `a fight step tells later steps nothing new`() {
-        val context = FlowContext(walkedTo, gathered = setOf(526))
+    fun `a fight step tells later steps which npcs it fights`() {
+        val context = FlowContext(walkedTo, gathered = setOf(526), fought = setOf(81))
 
-        assertEquals(context, FightStep(rats, 10, walkedTo).after(context))
+        assertEquals(FlowContext(walkedTo, gathered = setOf(526), fought = setOf(950)), FightStep(rats, 10, walkedTo).after(context))
     }
 
     private fun assertRejected(message: String, action: () -> Unit) {
