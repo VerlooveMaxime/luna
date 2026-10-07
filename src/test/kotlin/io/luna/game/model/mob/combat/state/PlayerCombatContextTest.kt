@@ -1,13 +1,16 @@
 package io.luna.game.model.mob.combat.state
 
 import game.testworld.TestWorld
+import io.luna.game.model.Direction
 import io.luna.game.model.Position
 import io.luna.game.model.mob.combat.attack.PlayerMeleeCombatAttack
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class PlayerCombatContextTest {
@@ -56,5 +59,18 @@ class PlayerCombatContextTest {
         val prepared = player.combat.prepareFirstAttack(rat)
 
         assertEquals(prepared, player.combat.getNextAttack(rat))
+    }
+
+    @Test
+    fun `a player standing still fights back`() {
+        assertTrue(TestWorld.login("fighter", tile).combat.isAutoRetaliate)
+    }
+
+    @Test
+    fun `a walking player does not turn to fight back`() {
+        val player = TestWorld.login("fighter", tile)
+        player.walking.addStep(Direction.EAST)
+
+        assertFalse(player.combat.isAutoRetaliate)
     }
 }

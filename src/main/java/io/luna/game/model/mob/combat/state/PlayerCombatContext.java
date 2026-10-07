@@ -147,9 +147,12 @@ public final class PlayerCombatContext extends CombatContext<Player> {
         return getDefaultAttack(victim);
     }
 
+    /**
+     * A player fights back only while standing still: one who is walking or running away is not turned around.
+     */
     @Override
     public boolean isAutoRetaliate() {
-        return player.getVarpManager().getValue(PersistentVarp.AUTO_RETALIATE) == 0;
+        return player.getVarpManager().getValue(PersistentVarp.AUTO_RETALIATE) == 0 && player.getWalking().isEmpty();
     }
 
     @Override
