@@ -3,18 +3,23 @@ package game.idle
 import api.attr.Attr
 import api.attr.getValue
 import api.attr.setValue
+import game.idle.flow.StepSettings
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
 /**
- * Per-player IdleRS progress. Persisted as one player attribute, so every field must stay Gson-friendly: the flow
- * is kept as the lines the player typed and parsed again when it runs. [runTile] is where the flow was started from
- * its first step, the work spot of action steps no walk step comes before; [laps] counts the times it went round
- * since then (the tutorial's lessons wait for them). [tutorialStep] is the value of a
- * `TutorialStep`; a save from before the tutorial existed loads as finished.
+ * Per-player IdleRS progress. Persisted as one player attribute, so every field must stay Gson-friendly: the flow is
+ * kept as its [steps]' settings and resolved again when it runs. [runTile] is where the flow was started from its first
+ * step, the work spot of action steps no walk step comes before; [laps] counts the times it went round since then (the
+ * tutorial's lessons wait for them). [savedFlows] are the flows the player keeps to switch between, and [savedSlot]
+ * the one the current flow was last loaded from or saved to. [tutorialStep] is the value of a `TutorialStep`; a save
+ * from before the tutorial existed loads as finished.
+ *
+ * The flow was kept as typed lines under the name `flow` until 2026-10-07; a save still holding them loads with an
+ * empty flow, which the next save makes final.
  */
 data class IdleState(
-    val flow: List<String> = emptyList(),
+    val steps: List<StepSettings> = emptyList(),
     val stepIndex: Int = 0,
     val running: Boolean = false,
     val runTile: Tile? = null,
@@ -22,8 +27,11 @@ data class IdleState(
     val stage: Int = 0,
     val resets: Int = 0,
     val tutorialStep: Int = TUTORIAL_DONE,
+    val savedFlows: List<SavedFlow> = emptyList(),
+    val savedSlot: Int? = null,
 ) {
-    fun withFlow(flow: List<String>): IdleState = copy(flow = flow, stepIndex = 0, running = false, runTile = null, laps = 0)
+    fun withFlow(steps: List<StepSettings>): IdleState =
+        copy(steps = steps, stepIndex = 0, running = false, runTile = null, laps = 0)
 
     fun atStep(index: Int): IdleState = copy(stepIndex = index)
 
@@ -41,5 +49,8 @@ data class IdleState(
         const val TUTORIAL_DONE = 1000
     }
 }
+
+/** A flow the player saved under [name] in saved-flow slot [slot]. */
+data class SavedFlow(val slot: Int = 0, val name: String = "", val steps: List<StepSettings> = emptyList())
 
 var Player.idleState by Attr.obj { IdleState() }.persist("idle_state")

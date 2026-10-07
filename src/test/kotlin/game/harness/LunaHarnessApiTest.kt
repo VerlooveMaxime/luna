@@ -1,6 +1,10 @@
 package game.harness
 
 import game.idle.IdleState
+import game.idle.flow.FakeStepType
+import game.idle.flow.FlowCheck
+import game.idle.flow.FlowResolver
+import game.idle.flow.StepTypes
 import game.idle.idleState
 import game.testworld.TestWorld
 import io.luna.game.action.Action
@@ -46,16 +50,20 @@ class LunaHarnessApiTest {
         override fun run(): Boolean = false
     }
 
+    private val flows = FlowCheck(FlowResolver(StepTypes(listOf(FakeStepType("chop"), FakeStepType("drop")))), maxSteps = 2)
+
     private fun api() = LunaHarnessApi(
         TestWorld.world,
         LunaGameThread(TestWorld.context.game, Duration.ofSeconds(1)),
         HeadlessPlayers(TestWorld.context, HarnessConfig()) { CompletableFuture.completedFuture(null) },
+        flows,
     )
 
     private fun apiOn(date: String) = LunaHarnessApi(
         TestWorld.world,
         LunaGameThread(TestWorld.context.game, Duration.ofSeconds(1)),
         HeadlessPlayers(TestWorld.context, HarnessConfig()) { CompletableFuture.completedFuture(null) },
+        flows,
         clock = Clock.fixed(Instant.parse("${date}T12:00:00Z"), ZoneOffset.UTC),
     )
 
@@ -594,7 +602,7 @@ class LunaHarnessApiTest {
     fun `a command is queued like the client's`() {
         agent()
 
-        val view = api().act("agent_a", PlayerAction.Command("::flow show"))
+        val view = api().act("agent_a", PlayerAction.Command("::tutorial build_chain"))
 
         assertEquals(ActionView("agent_a", "command", "opcode 56 queued for the next tick"), view)
     }
@@ -604,10 +612,10 @@ class LunaHarnessApiTest {
         agent()
         val commands = record(CommandEvent::class.java) { "${it.name} ${it.args.joinToString()}" }
 
-        api().act("agent_a", PlayerAction.Command("::flow show"))
+        api().act("agent_a", PlayerAction.Command("::tutorial build_chain"))
         TestWorld.tick()
 
-        assertEquals(listOf("flow show"), commands)
+        assertEquals(listOf("tutorial build_chain"), commands)
     }
 
     @Test
@@ -696,4 +704,56 @@ class LunaHarnessApiTest {
 
         assertEquals("Content audit: lumbridge, 2026-10-02", lumbridge.lines().first())
     }
+
+    @Test
+    fun `a player's flow reads as its steps, each with how it reads`() {
+        agent().idleState = IdleState(steps = listOf(step("chop", "oak"), step("drop")), stepIndex = 1)
+
+        val view = api().flow("agent_a")
+
+        val steps = listOf(FlowStepView("chop", mapOf("word" to "oak"), "chop oak"), FlowStepView("drop", emptyMap(), "drop"))
+        assertEquals(FlowView("agent_a", running = false, stepIndex = 1, steps = steps), view)
+    }
+
+    @Test
+    fun `replacing a flow sets it from its first step, stopped, and answers it`() {
+        val player = agent()
+        player.idleState = IdleState(steps = listOf(step("drop")), stepIndex = 1, laps = 3, stage = 2)
+
+        val view = api().replaceFlow("agent_a", listOf(step("chop", "oak"), step("drop")))
+
+        assertEquals(IdleState(steps = listOf(step("chop", "oak"), step("drop")), stage = 2), player.idleState)
+        assertEquals(listOf("chop oak", "drop"), view.steps.map { it.summary })
+    }
+
+    @Test
+    fun `a running flow is not replaced`() {
+        agent().idleState = IdleState(steps = listOf(step("drop")), running = true)
+
+        assertEquals(409, status { api().replaceFlow("agent_a", emptyList()) })
+    }
+
+    @Test
+    fun `a flow the builder would refuse is a 400 with the reason`() {
+        val player = agent()
+
+        val thrown = assertThrows<HarnessException> { api().replaceFlow("agent_a", listOf(step("chop", "bad"))) }
+
+        assertEquals(400 to "Step 1: 'bad' is refused", thrown.status to thrown.message)
+        assertEquals(IdleState(), player.idleState)
+    }
+
+    @Test
+    fun `a bot has no flow to replace`() {
+        TestWorld.bot("botty", spawn)
+
+        assertEquals(409, status { api().replaceFlow("botty", emptyList()) })
+    }
+
+    @Test
+    fun `the flow of a player not online is a 404`() {
+        assertEquals(404, status { api().flow("nobody") })
+    }
+
+    private fun step(kind: String, word: String? = null) = FakeStepType.step(kind, word)
 }

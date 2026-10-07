@@ -1,30 +1,35 @@
 package game.idle.ui
 
 import game.idle.IdleState
+import game.idle.flow.StepSettings
 
-/** The lines the status overlay shows for a player's [IdleState]: nothing while the autopilot is off. */
-object AutopilotStatus {
+/** The lines the status overlay and the tab show for a player's [IdleState], each step worded by [summary]. */
+class AutopilotStatus(private val summary: (StepSettings) -> String) {
 
+    /** Nothing while the autopilot is off. */
     fun text(state: IdleState): String {
         if (!state.running) return ""
-        val header = "@gre@Autopilot@whi@ step ${state.stepIndex + 1}/${state.flow.size}"
-        val step = state.flow.getOrNull(state.stepIndex)?.let { "@yel@${plain(it)}" }
+        val header = "@gre@Autopilot@whi@ step ${state.stepIndex + 1}/${state.steps.size}"
+        val step = current(state)?.let { "@yel@${plain(it)}" }
         return listOfNotNull(header, step).joinToString(StatusOverlayMessageWriter.LINE_SEPARATOR.toString())
     }
 
     /** The three lines of the sidebar tab, which is about 28 characters wide. */
     fun tabLines(state: IdleState): List<String> {
         if (!state.running) return listOf("Autopilot: off", "", "")
-        val step = state.flow.getOrNull(state.stepIndex) ?: ""
-        return listOf("Autopilot: running", "Step ${state.stepIndex + 1}/${state.flow.size}", shortened(step))
+        return listOf("Autopilot: running", "Step ${state.stepIndex + 1}/${state.steps.size}", shortened(current(state) ?: ""))
     }
+
+    private fun current(state: IdleState): String? = state.steps.getOrNull(state.stepIndex)?.let(summary)
 
     private fun shortened(line: String): String =
         if (line.length <= TAB_WIDTH) line else line.take(TAB_WIDTH - 2) + ".."
 
-    private const val TAB_WIDTH = 28
-
-    /** A flow line is typed by the player, so it must not carry the separator or the string terminator. */
+    /** Settings can come from outside the game (the harness), so a summary must not carry the separator or the string terminator. */
     private fun plain(line: String): String =
         line.replace(StatusOverlayMessageWriter.LINE_SEPARATOR, ' ').replace('\n', ' ')
+
+    private companion object {
+        const val TAB_WIDTH = 28
+    }
 }

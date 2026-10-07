@@ -1,5 +1,7 @@
 package game.harness
 
+import game.idle.flow.StepSettings
+
 /** The endpoint table. `GET /` lists it, so an agent can discover the API from the server itself. */
 fun harnessRoutes(api: HarnessApi): List<Route> {
 
@@ -47,6 +49,13 @@ fun harnessRoutes(api: HarnessApi): List<Route> {
         bodilessAction("continue", PlayerAction.ContinueDialogue),
         bodilessAction("close", PlayerAction.CloseInterface),
         Route("GET", "/content/audit") { api.contentAudit() },
+        Route("GET", "/player/{name}/flow") { call -> api.flow(call.path("name")) },
+        Route("POST", "/player/{name}/flow") { call ->
+            val steps = call.body().objects("steps").map { step ->
+                StepSettings(step.string("kind"), step.strings("values").filterValues { it.isNotEmpty() })
+            }
+            api.replaceFlow(call.path("name"), steps)
+        },
     )
     val index = Route("GET", "/") { endpoints.map { "${it.method} ${it.pattern}" } }
     return listOf(index) + endpoints

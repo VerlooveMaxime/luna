@@ -1,6 +1,7 @@
 package game.harness
 
 import com.google.gson.JsonElement
+import game.idle.flow.StepSettings
 
 /** Records every call and answers with fixed views, so route tests can check what reached the API. */
 class FakeHarnessApi : HarnessApi {
@@ -55,6 +56,20 @@ class FakeHarnessApi : HarnessApi {
     override fun contentAudit(): ContentAuditView {
         calls += "contentAudit"
         return contentAuditView
+    }
+
+    val flowView = FlowView("agent_a", running = false, stepIndex = 0, steps = emptyList())
+
+    val replacedFlows = mutableListOf<Pair<String, List<StepSettings>>>()
+
+    override fun flow(name: String): FlowView {
+        calls += "flow $name"
+        return flowView
+    }
+
+    override fun replaceFlow(name: String, steps: List<StepSettings>): FlowView {
+        replacedFlows += name to steps
+        return flowView
     }
 
     private fun playerView(name: String) =

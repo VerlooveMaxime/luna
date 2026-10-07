@@ -7,6 +7,7 @@ import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepRadius
+import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
@@ -15,46 +16,32 @@ import game.skill.smithing.BarType
 import io.luna.game.model.mob.Player
 
 /**
- * `smelt [<n>] <bar> [within <r>]`: smelts n bars or, without n, every bar the ores carried make, at a furnace within r
- * tiles of the work spot.
+ * Smelt: smelts a count of bars or, without one, every bar the ores carried make, at a furnace within a radius of the
+ * work spot.
  */
 object SmeltStepType : StepType {
 
-    /** The amount field's word for "every bar the ores make". */
-    const val ALL = "all"
+    const val BAR = "bar"
 
-    override val keyword = "smelt"
+    override val kind = "smelt"
 
     override val label = "smelt"
 
-    override val usage = "smelt [<n>] <bar> [within <r>]"
-
     override val fields = listOf(
-        StepField.Choice("bar") { BarType.entries.sortedBy { it.level }.map { it.name.lowercase() } },
-        StepField.Choice("amount") { listOf(ALL) + StepAmount.COUNTS },
+        StepField.Choice(BAR, "bar") { BarType.entries.sortedBy { it.level }.map { it.name.lowercase() } },
+        StepAmount.field(unbounded = "all"),
         StepRadius.field(),
     )
 
-    override fun parse(words: List<String>): List<String> {
-        val (count, afterCount) = StepAmount.split(words)
-        val bar = afterCount.firstOrNull() ?: throw FlowError("smelt needs a bar: $usage")
-        val radius = StepRadius.parse(afterCount.drop(1), after = "bar", usage)
-        return listOf(bar, StepAmount.value(count, ALL), radius.toString())
-    }
+    override fun summary(settings: StepSettings): String =
+        "smelt ${StepAmount.prefix(settings)}${settings[BAR] ?: "?"}${StepRadius.suffix(settings)}"
 
-    override fun line(values: List<String>): String =
-        "smelt ${StepAmount.prefix(values[AMOUNT])}${values[BAR]}${StepRadius.suffix(values[RADIUS])}"
-
-    override fun resolve(values: List<String>, context: FlowContext): ResolvedStep {
-        val name = values[BAR]
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+        val name = settings[BAR] ?: throw FlowError("smelt needs a bar")
         val bar = BarType.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
             ?: throw FlowError("'$name' is not a bar to smelt")
-        return SmeltStep(bar, StepRadius.check(values[RADIUS]), context.workSpot, StepAmount.count(values[AMOUNT]))
+        return SmeltStep(bar, StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
     }
-
-    private const val BAR = 0
-    private const val AMOUNT = 1
-    private const val RADIUS = 2
 }
 
 /** A smelt step resolved: the bar, where, and how many ([amount], null for all). Later steps know it makes that bar. */

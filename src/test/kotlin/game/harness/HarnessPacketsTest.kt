@@ -201,9 +201,9 @@ class HarnessPacketsTest {
 
     @Test
     fun `command strips the leading colons`() {
-        val event: CommandEvent = CommandMessageReader().decode(null, HarnessPackets.command(" ::idle"))
+        val event: CommandEvent = CommandMessageReader().decode(null, HarnessPackets.command(" ::move"))
 
-        assertEquals("idle", event.name)
+        assertEquals("move", event.name)
     }
 
     @Test

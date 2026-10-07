@@ -7,6 +7,7 @@ import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepRadius
+import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
@@ -16,29 +17,30 @@ import game.skill.smithing.smithBar.SmithingTable
 import io.luna.game.model.mob.Player
 
 /**
- * `smith [<n>] <metal> <item> [within <r>]`: smiths n of an item or, without n, as many as the bars carried make, at an
- * anvil within r tiles of the work spot.
+ * Smith: smiths a count of an item or, without one, as many as the bars carried make, at an anvil within a radius of
+ * the work spot.
  */
 object SmithStepType : StepType {
 
-    /** The amount field's word for "as many as the bars make". */
-    const val ALL = "all"
+    const val METAL = "metal"
+
+    const val ITEM = "item"
 
     /** The bars Luna smiths items from, easiest first. */
     val METALS: List<BarType> by lazy {
         BarType.entries.filter { SmithingTable.BAR_TO_ITEM.containsKey(it) }.sortedBy { it.level }
     }
 
-    override val keyword = "smith"
+    override val kind = "smith"
 
     override val label = "smith"
 
-    override val usage = "smith [<n>] <metal> <item> [within <r>]"
-
     override val fields = listOf(
-        StepField.Choice("metal") { METALS.map { it.name.lowercase() } },
-        StepField.Choice("item") { values -> itemsOf(metal(values[METAL]) ?: METALS.first()).map { it.name.lowercase() } },
-        StepField.Choice("amount") { listOf(ALL) + StepAmount.COUNTS },
+        StepField.Choice(METAL, "metal") { METALS.map { it.name.lowercase() } },
+        StepField.Choice(ITEM, "item") { settings ->
+            itemsOf(settings[METAL]?.let(::metal) ?: METALS.first()).map { it.name.lowercase() }
+        },
+        StepAmount.field(unbounded = "all"),
         StepRadius.field(),
     )
 
@@ -46,31 +48,21 @@ object SmithStepType : StepType {
     fun itemsOf(metal: BarType): List<SmithingTable> =
         SmithingTable.entries.filter { item(it, metal) != null }.sortedBy { item(it, metal)?.level }
 
-    override fun parse(words: List<String>): List<String> {
-        val (count, afterCount) = StepAmount.split(words)
-        if (afterCount.size < 2) throw FlowError("smith needs a metal and an item: $usage")
-        val radius = StepRadius.parse(afterCount.drop(2), after = "item", usage)
-        return listOf(afterCount[0], afterCount[1], StepAmount.value(count, ALL), radius.toString())
-    }
+    override fun summary(settings: StepSettings): String =
+        "smith ${StepAmount.prefix(settings)}${settings[METAL] ?: "?"} ${settings[ITEM] ?: "?"}${StepRadius.suffix(settings)}"
 
-    override fun line(values: List<String>): String =
-        "smith ${StepAmount.prefix(values[AMOUNT])}${values[METAL]} ${values[ITEM]}${StepRadius.suffix(values[RADIUS])}"
-
-    override fun resolve(values: List<String>, context: FlowContext): ResolvedStep {
-        val metal = metal(values[METAL]) ?: throw FlowError("'${values[METAL]}' is not a metal to smith")
-        val table = itemsOf(metal).firstOrNull { it.name.equals(values[ITEM], ignoreCase = true) }
-            ?: throw FlowError("There is no ${values[METAL]} ${values[ITEM]} to smith")
-        return SmithStep(metal, table, StepRadius.check(values[RADIUS]), context.workSpot, StepAmount.count(values[AMOUNT]))
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+        val metalName = settings[METAL] ?: throw FlowError("smith needs a metal")
+        val itemName = settings[ITEM] ?: throw FlowError("smith needs an item")
+        val metal = metal(metalName) ?: throw FlowError("'$metalName' is not a metal to smith")
+        val table = itemsOf(metal).firstOrNull { it.name.equals(itemName, ignoreCase = true) }
+            ?: throw FlowError("There is no $metalName $itemName to smith")
+        return SmithStep(metal, table, StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
     }
 
     private fun metal(name: String): BarType? = METALS.firstOrNull { it.name.equals(name, ignoreCase = true) }
 
     private fun item(table: SmithingTable, metal: BarType) = table.items.firstOrNull { it.barType == metal }
-
-    private const val METAL = 0
-    private const val ITEM = 1
-    private const val AMOUNT = 2
-    private const val RADIUS = 3
 }
 
 /**

@@ -8,6 +8,10 @@ import game.idle.content.audit.ContentRegistries
 import game.idle.content.audit.LunaContentFacts
 import game.idle.content.audit.LunaRegistries
 import game.idle.content.audit.zoneOfRegion
+import game.idle.flow.FlowCheck
+import game.idle.flow.FlowError
+import game.idle.flow.StepSettings
+import game.idle.idleState
 import game.idle.movement.navigateToReach
 import io.luna.game.action.Action
 import io.luna.game.model.Entity
@@ -35,6 +39,7 @@ class LunaHarnessApi(
     private val world: World,
     private val gameThread: GameThread,
     private val headless: HeadlessPlayers,
+    private val flows: FlowCheck,
     private val contentRegistries: ContentRegistries = LunaRegistries,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : HarnessApi {
@@ -93,6 +98,28 @@ class LunaHarnessApi(
         val facts = gameThread.run { LunaContentFacts(world, contentRegistries).collect() }
         val areas = ContentAudit(facts, zoneOfRegion(Zone.entries)).areas()
         return ContentAuditView(ContentAuditReport(areas, LocalDate.now(clock)).files())
+    }
+
+    override fun flow(name: String): FlowView = gameThread.run { flowView(online(name)) }
+
+    /** The autopilot owns a running flow's state, so a running flow is never replaced under it. */
+    override fun replaceFlow(name: String, steps: List<StepSettings>): FlowView = gameThread.run {
+        val player = online(name)
+        if (player.isBot) throw HarnessException(409, "${player.username} is a bot and has no flow")
+        if (player.idleState.running) throw HarnessException(409, "${player.username}'s flow is running: click Stop first")
+        try {
+            flows.check(steps)
+        } catch (e: FlowError) {
+            throw HarnessException(400, e.message)
+        }
+        player.idleState = player.idleState.withFlow(steps)
+        flowView(player)
+    }
+
+    private fun flowView(player: Player): FlowView {
+        val state = player.idleState
+        val steps = state.steps.map { FlowStepView(it.kind, it.values, flows.resolver.types.summary(it)) }
+        return FlowView(player.username, state.running, state.stepIndex, steps)
     }
 
     private fun perform(player: Player, action: PlayerAction): ActionView =

@@ -2,6 +2,8 @@ package game.idle.autopilot.mining
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.StepField
+import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.location.Tile
 import game.skill.mining.Ore
@@ -15,7 +17,9 @@ class MineStepTypeTest {
 
     private val walkedTo = WorkSpot.At(Tile(3285, 3365))
 
-    private fun choices(index: Int) = MineStepType.fields[index].choices(listOf("", "", ""))
+    private fun mine(vararg values: Pair<String, String>) = StepSettings("mine", mapOf(*values))
+
+    private fun choices(index: Int) = (MineStepType.fields[index] as StepField.Choice).choices(mine())
 
     /** Luna's ores name themselves from the item definitions, which need the cache. */
     @BeforeEach
@@ -24,49 +28,40 @@ class MineStepTypeTest {
     }
 
     @Test
-    fun `a mine line names its ore, until the inventory is full, within the default radius`() {
-        assertEquals(listOf("copper", "full", "10"), MineStepType.parse(listOf("copper")))
+    fun `a mine step reads as its ore, its defaults left out, anything else written`() {
+        assertEquals("mine copper", MineStepType.summary(mine("ore" to "copper", "within" to "10")))
+        assertEquals("mine 1 tin within 5", MineStepType.summary(mine("ore" to "tin", "amount" to "1", "within" to "5")))
     }
 
     @Test
-    fun `a mine line may start with a count and end with a radius`() {
-        assertEquals(listOf("tin", "5", "15"), MineStepType.parse(listOf("5", "tin", "within", "15")))
-    }
-
-    @Test
-    fun `defaults are left out of the line, anything else is written`() {
-        assertEquals("mine copper", MineStepType.line(listOf("copper", "full", "10")))
-        assertEquals("mine 1 tin within 5", MineStepType.line(listOf("tin", "1", "5")))
-    }
-
-    @Test
-    fun `mine without an ore`() {
-        assertRejected("mine needs an ore: mine [<n>] <ore> [within <r>]") { MineStepType.parse(listOf("5")) }
+    fun `a mine step without an ore reads with a question mark and is rejected`() {
+        assertEquals("mine ?", MineStepType.summary(mine()))
+        assertRejected("mine needs an ore") { MineStepType.resolve(mine(), FlowContext()) }
     }
 
     @Test
     fun `a mine step works around the work spot the steps before it set, whatever the case of the ore`() {
-        val step = MineStepType.resolve(listOf("Iron", "5", "15"), FlowContext(workSpot = walkedTo))
+        val step = MineStepType.resolve(mine("ore" to "Iron", "amount" to "5", "within" to "15"), FlowContext(workSpot = walkedTo))
 
         assertEquals(MineStep(Ore.IRON, 15, walkedTo, amount = 5), step)
     }
 
     @Test
     fun `a mine step with no walk before it works around the run tile, until the inventory is full`() {
-        assertEquals(MineStep(Ore.TIN, 10, WorkSpot.RunTile, amount = null), MineStepType.resolve(listOf("tin", "full", "10"), FlowContext()))
+        assertEquals(MineStep(Ore.TIN, 10, WorkSpot.RunTile, amount = null), MineStepType.resolve(mine("ore" to "tin"), FlowContext()))
     }
 
     @Test
     fun `an ore without rocks is rejected`() {
         assertRejected("'rune_essence' is not an ore with rocks to mine") {
-            MineStepType.resolve(listOf("rune_essence", "full", "10"), FlowContext())
+            MineStepType.resolve(mine("ore" to "rune_essence"), FlowContext())
         }
     }
 
     @Test
     fun `the builder offers the ores with rocks, easiest first, amounts and a few radii`() {
         assertEquals(listOf("clay", "tin", "copper", "iron", "silver", "coal", "gold", "mithril", "adamant", "rune"), choices(0))
-        assertEquals(listOf("full", "1", "5", "10"), choices(1))
+        assertEquals(listOf("", "1", "5", "10"), choices(1))
         assertEquals(listOf("5", "10", "15", "20", "30"), choices(2))
     }
 

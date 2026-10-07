@@ -8,10 +8,14 @@ import java.nio.file.Paths
 /** Settings from `data/idle/autopilot.jsonc`. Every field has a default so Gson can use the no-arg constructor. */
 data class AutopilotConfig(
     val decisionDelayTicks: Int = 2,
+    val stepSlots: Int = 4,
+    val savedFlowSlots: Int = 2,
 ) {
 
     fun validated(): AutopilotConfig {
         require(decisionDelayTicks > 0) { "decision_delay_ticks must be positive, got $decisionDelayTicks" }
+        require(stepSlots > 0) { "step_slots must be positive, got $stepSlots" }
+        require(savedFlowSlots > 0) { "saved_flow_slots must be positive, got $savedFlowSlots" }
         return this
     }
 

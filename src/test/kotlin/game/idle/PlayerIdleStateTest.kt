@@ -1,5 +1,6 @@
 package game.idle
 
+import game.idle.flow.StepSettings
 import game.idle.location.Tile
 import game.testworld.TestWorld
 import io.luna.game.model.Position
@@ -23,7 +24,7 @@ class PlayerIdleStateTest {
     @Test
     fun `the idle state a player is given is the one read back`() {
         val player = TestWorld.login("idler", Position(3200, 3200))
-        val state = IdleState(flow = listOf("bank @draynor"), stepIndex = 1, running = true)
+        val state = IdleState(steps = listOf(StepSettings("bank", mapOf("bank" to "draynor"))), stepIndex = 1, running = true)
 
         player.idleState = state
 

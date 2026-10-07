@@ -1,8 +1,8 @@
 package game.idle.ui
 
 import game.idle.flow.FakeStepType
-import game.idle.flow.FlowStep
 import game.idle.flow.StepField
+import game.idle.flow.StepSettings
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -12,28 +12,32 @@ class FlowDraftTest {
     private val pick = FakeStepType(
         "pick",
         listOf(
-            StepField.Choice("item") { values ->
-                when (values[1]) {
+            StepField.Choice("item", "item") { settings ->
+                when (settings["kind"]) {
                     "fruit" -> listOf("apple", "tomato")
                     "veg" -> listOf("leek", "tomato")
                     else -> emptyList()
                 }
             },
-            StepField.Choice("kind") { listOf("fruit", "veg") },
+            StepField.Choice("kind", "kind") { listOf("fruit", "veg") },
         ),
     )
     private val rest = FakeStepType("rest")
-    private val wait = FakeStepType("wait", listOf(StepField.Choice("time") { emptyList() }))
-    private val walk = FakeStepType("walk", listOf(StepField.MapTile("to"), StepField.Choice("pace") { listOf("slow", "fast") }))
+    private val wait = FakeStepType("wait", listOf(StepField.Choice("time", "time") { emptyList() }))
+    private val walk = FakeStepType("walk", listOf(StepField.MapTile("to", "to"), StepField.Choice("pace", "pace") { listOf("slow", "fast") }))
     private val run = FakeStepType(
         "run",
         listOf(
-            StepField.Choice("pace", default = "fast") { listOf("slow", "fast") },
-            StepField.Choice("shoes", default = "boots") { listOf("bare", "sandals") },
+            StepField.Choice("pace", "pace", default = "fast") { listOf("slow", "fast") },
+            StepField.Choice("shoes", "shoes", default = "boots") { listOf("bare", "sandals") },
         ),
     )
     private val types = listOf(pick, rest)
     private val draft = FlowDraft.first(types)
+
+    /** The draft's field values in the builder's order, "" for none. */
+    private val FlowDraft.values: List<String>
+        get() = type.fields.indices.map(::value)
 
     @Test
     fun `the first draft is the first kind with each field at its first choice`() {
@@ -42,8 +46,13 @@ class FlowDraftTest {
     }
 
     @Test
-    fun `the line is what the kind of step writes for the values`() {
-        assertEquals("pick apple fruit", draft.line())
+    fun `the settings are the kind's with each field's value under its key`() {
+        assertEquals(StepSettings("pick", mapOf("item" to "apple", "kind" to "fruit")), draft.settings)
+    }
+
+    @Test
+    fun `a field the kind of step does not have has no value`() {
+        assertEquals("", draft.value(2))
     }
 
     @Test
@@ -91,7 +100,7 @@ class FlowDraftTest {
 
     @Test
     fun `editing loads the step's kind and values as they are`() {
-        val editing = draft.editing(FlowStep(pick, listOf("rock", "veg")))
+        val editing = draft.editing(pick, StepSettings("pick", mapOf("item" to "rock", "kind" to "veg")))
 
         assertEquals(pick, editing.type)
         assertEquals(listOf("rock", "veg"), editing.values)
@@ -99,7 +108,7 @@ class FlowDraftTest {
 
     @Test
     fun `editing another kind keeps what this kind had`() {
-        val back = draft.nextValue(0).editing(FlowStep(rest, emptyList())).nextType(types)
+        val back = draft.nextValue(0).editing(rest, StepSettings("rest")).nextType(types)
 
         assertEquals(listOf("tomato", "fruit"), back.values)
     }

@@ -14,16 +14,22 @@ import game.idle.autopilot.smelting.SmeltStepType
 import game.idle.autopilot.smithing.SmithStepType
 import game.idle.autopilot.walk.WalkStepType
 import game.idle.autopilot.woodcutting.ChopStepType
-import game.idle.flow.FlowGrammar
+import game.idle.flow.StepTypes
 import game.idle.location.BankCatalog
 
 /** Every kind of step a flow can use, in the order the flow builder cycles through them. */
 class IdleSteps(banks: BankCatalog, recipes: RecipeCatalog, fightTargets: FightTargetCatalog) {
 
-    val grammar = FlowGrammar(
+    val types = StepTypes(
         listOf(
             ChopStepType, MineStepType, FishStepType, LightStepType, CookStepType, MakeStepType(recipes), SmeltStepType,
             SmithStepType, FightStepType(fightTargets), WalkStepType, DropStepType, BankStepType(banks),
         ),
     )
+
+    companion object {
+        /** The steps over the data files; a bad file fails the boot. */
+        fun load(): IdleSteps =
+            IdleSteps(BankCatalog.load(BankCatalog.PATH), RecipeCatalog.load(RecipeCatalog.PATH), FightTargetCatalog.load(FightTargetCatalog.PATH))
+    }
 }

@@ -7,10 +7,11 @@ import game.idle.autopilot.FakeActivity
 import game.idle.autopilot.FakeTickScheduler
 import game.idle.autopilot.IdleSteps
 import game.idle.autopilot.LunaAutopilotPlayer
-import game.idle.flow.FlowResolver
-import game.idle.idleState
 import game.idle.autopilot.fighting.FightTargetCatalog
 import game.idle.autopilot.making.RecipeCatalog
+import game.idle.flow.FlowResolver
+import game.idle.flow.StepSettings
+import game.idle.idleState
 import game.idle.location.BankCatalog
 import game.idle.location.Tile
 import game.testworld.TestWorld
@@ -25,8 +26,9 @@ import org.junit.jupiter.api.Test
 class LunaFlowUiTest {
 
     private val autopilot = Autopilot<LunaAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
-    private val resolver = FlowResolver(IdleSteps(BankCatalog(emptyList()), RecipeCatalog(emptyList()), FightTargetCatalog(emptyList())).grammar)
-    private val ui = LunaFlowUi(FlowBuilder(autopilot, resolver))
+    private val types = IdleSteps(BankCatalog(emptyList()), RecipeCatalog(emptyList()), FightTargetCatalog(emptyList())).types
+    private val idleUi = IdleUi(types::summary)
+    private val ui = LunaFlowUi(FlowBuilder(autopilot, FlowResolver(types), maxSteps = 4), idleUi)
 
     private fun cycleKind(player: Player, times: Int) = repeat(times) { ui.click(player, FlowWidgets.DRAFT_KIND) }
 
@@ -124,11 +126,11 @@ class LunaFlowUiTest {
     @Test
     fun `a tab run starts the flow and shows it on the tab`() {
         val player = login()
-        player.idleState = IdleState(flow = listOf("chop normal"))
+        player.idleState = IdleState(steps = listOf(StepSettings("chop", mapOf("tree" to "normal"))))
 
         ui.click(player, FlowWidgets.TAB_RUN)
 
-        assertTrue(autopilot.isRunning(LunaAutopilotPlayer(player)))
+        assertTrue(autopilot.isRunning(LunaAutopilotPlayer(player, idleUi)))
         assertEquals("Autopilot: running", texts(player)[FlowWidgets.TAB_STATUS_1])
         assertEquals(listOf("Running step 1: chop normal"), TestWorld.chatbox(player))
     }

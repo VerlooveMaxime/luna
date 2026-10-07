@@ -1,15 +1,15 @@
 package game.idle.flow
 
-/** Checks flow lines against the data, each step knowing what the steps before it set up. */
-class FlowResolver(val grammar: FlowGrammar) {
+/** Checks a flow's steps against the data, each step knowing what the steps before it set up. */
+class FlowResolver(val types: StepTypes) {
 
-    /** Throws [FlowError] naming the first line that is wrong. */
-    fun resolve(lines: List<String>): List<ResolvedStep> {
+    /** Throws [FlowError] naming the first step that is wrong. */
+    fun resolve(steps: List<StepSettings>): List<ResolvedStep> {
         var context = FlowContext()
-        return lines.mapIndexed { index, line ->
+        return steps.mapIndexed { index, settings ->
             val step = try {
-                val parsed = grammar.parse(line)
-                parsed.type.resolve(parsed.values, context)
+                val type = types.find(settings.kind) ?: throw FlowError("'${settings.kind}' is not a kind of step")
+                type.resolve(settings, context)
             } catch (e: FlowError) {
                 throw FlowError("Step ${index + 1}: ${e.message}")
             }

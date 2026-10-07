@@ -7,36 +7,35 @@ import org.junit.jupiter.api.assertThrows
 
 class StepAmountTest {
 
+    private fun amount(text: String) = StepSettings("chop", mapOf("amount" to text))
+
     @Test
-    fun `a line starting with a number has that count`() {
-        assertEquals(5 to listOf("oak"), StepAmount.split(listOf("5", "oak")))
+    fun `a step with an amount has that count`() {
+        assertEquals(5, StepAmount.read(amount("5")))
     }
 
     @Test
-    fun `a line starting with a word has no count`() {
-        assertEquals(null to listOf("oak"), StepAmount.split(listOf("oak")))
-    }
-
-    @Test
-    fun `an empty line has no count`() {
-        assertEquals(null to emptyList<String>(), StepAmount.split(emptyList()))
+    fun `a step without an amount does as much as it can`() {
+        assertNull(StepAmount.read(StepSettings("chop")))
     }
 
     @Test
     fun `a count is 1 to 1000`() {
-        assertEquals("A step's count is 1 to 1000, not 0", assertThrows<FlowError> { StepAmount.split(listOf("0")) }.message)
-        assertEquals("A step's count is 1 to 1000, not 1001", assertThrows<FlowError> { StepAmount.split(listOf("1001")) }.message)
+        assertEquals("A step's count is 1 to 1000, not '0'", assertThrows<FlowError> { StepAmount.read(amount("0")) }.message)
+        assertEquals("A step's count is 1 to 1000, not '1001'", assertThrows<FlowError> { StepAmount.read(amount("1001")) }.message)
+        assertEquals("A step's count is 1 to 1000, not 'lots'", assertThrows<FlowError> { StepAmount.read(amount("lots")) }.message)
     }
 
     @Test
-    fun `a field value is a count or the step's word for as much as it can`() {
-        assertEquals(listOf("5", "full"), listOf(StepAmount.value(5, "full"), StepAmount.value(null, "full")))
-        assertEquals(5, StepAmount.count("5"))
-        assertNull(StepAmount.count("full"))
+    fun `a summary writes a count before the resource and nothing for as much as it can`() {
+        assertEquals(listOf("5 ", ""), listOf(StepAmount.prefix(amount("5")), StepAmount.prefix(StepSettings("chop"))))
     }
 
     @Test
-    fun `a line writes a count before the resource and nothing for as much as it can`() {
-        assertEquals(listOf("5 ", ""), listOf(StepAmount.prefix("5"), StepAmount.prefix("full")))
+    fun `the builder offers no count first, shown as the step's own word, then a few counts`() {
+        val field = StepAmount.field(unbounded = "full")
+
+        assertEquals(listOf("", "1", "5", "10"), field.choices(StepSettings("chop")))
+        assertEquals(listOf("full", "5"), listOf(field.display(""), field.display("5")))
     }
 }

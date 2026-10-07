@@ -3,61 +3,67 @@ package game.idle.flow
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
-/** A line of a flow the player could not have meant; the message is shown as is. */
+/** A step of a flow the player could not have meant; the message is shown as is. */
 class FlowError(override val message: String) : RuntimeException(message)
 
 /**
- * One kind of flow step, everything about it in one place: how its line reads, which fields the flow builder shows
- * for it, and what it resolves to. The runner, parser, resolver and builder only know this interface, so a new kind
- * of step is a new implementation added to the grammar ([FlowGrammar]).
+ * One step of a flow as the player set it up: its kind and its settings by name, as text. This is what a save
+ * keeps, so it stays Gson-friendly (every field has a default) and a setting a step has no value for reads as its
+ * default: settings added later need no conversion of older saves. An empty value is never kept.
+ */
+data class StepSettings(val kind: String = "", val values: Map<String, String> = emptyMap()) {
+
+    operator fun get(key: String): String? = values[key]
+
+    /** These settings with [key] set to [value], or without it when [value] is empty. */
+    fun with(key: String, value: String): StepSettings =
+        copy(values = if (value.isEmpty()) values - key else values + (key to value))
+}
+
+/**
+ * One kind of flow step, everything about it in one place: which settings the flow builder shows for it, how it reads
+ * in a few words, and what it resolves to. The runner, resolver and builder only know this interface, so a new kind of
+ * step is a new implementation added to the registry (`IdleSteps`).
  */
 interface StepType {
 
-    /** The first word of the step's line. */
-    val keyword: String
+    /** The name a saved step gives its kind. */
+    val kind: String
 
     /** What the builder's kind field shows. */
     val label: String
 
-    /** The step's grammar, as the help text lists it. */
-    val usage: String
-
-    /** The builder's fields, in the order of [FlowStep.values]. */
+    /** The builder's fields, in the order it shows them. */
     val fields: List<StepField>
 
-    /** The field values of a line from the words after the keyword, lower-cased; throws [FlowError]. */
-    fun parse(words: List<String>): List<String>
+    /** The step in a few words, for the builder's rows and the status lines. */
+    fun summary(settings: StepSettings): String
 
-    /** The line [parse] reads back as [values]. */
-    fun line(values: List<String>): String
-
-    /** Checks [values] against the data and what the steps before it set up; throws [FlowError]. */
-    fun resolve(values: List<String>, context: FlowContext): ResolvedStep
+    /** Checks [settings] against the data and what the steps before it set up; throws [FlowError]. */
+    fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep
 }
 
-/** A field of a step in the builder. */
+/** A setting of a step in the builder, kept under [key]. */
 sealed interface StepField {
+
+    val key: String
 
     val label: String
 
     /**
-     * A field that cycles through [choices] on click; they may depend on the values of the step's other fields. A new
-     * step starts at [default] when it is offered, else at the first choice.
+     * A setting that cycles through [choices] on click; they may depend on the step's other settings. A new step starts
+     * at [default] when it is offered, else at the first choice. [display] is how the builder shows a value.
      */
     class Choice(
+        override val key: String,
         override val label: String,
         val default: String? = null,
-        val choices: (values: List<String>) -> List<String>,
+        val display: (String) -> String = { it },
+        val choices: (settings: StepSettings) -> List<String>,
     ) : StepField
 
     /** A map tile, written as [Tile.text]; the builder fills it in with the player's own tile. */
-    class MapTile(override val label: String) : StepField
-}
-
-/** One line of a flow as typed, before what it names is checked against the data. */
-data class FlowStep(val type: StepType, val values: List<String>) {
-
-    fun line(): String = type.line(values)
+    class MapTile(override val key: String, override val label: String) : StepField
 }
 
 /** Where an action step works: around the tile the player pressed Run on, or where a walk step before it went. */

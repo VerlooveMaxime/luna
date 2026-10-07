@@ -5,6 +5,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepField
+import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.location.Bank
 import game.idle.location.BankCatalog
@@ -12,41 +13,33 @@ import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
 /**
- * `bank nearest` or `bank @<bank>`: walks to that bank and deposits everything but the player's tools. The nearest
- * bank is picked when the step starts, from where the player stands.
+ * Bank: walks to the nearest bank or a chosen one and deposits everything but the player's tools. The nearest bank
+ * is picked when the step starts, from where the player stands.
  */
 class BankStepType(private val catalog: BankCatalog) : StepType {
 
     private val ids: List<String> = catalog.banks.map { it.id }
 
-    override val keyword = "bank"
+    override val kind = "bank"
 
     override val label = "bank"
 
-    override val usage = "bank nearest|@<bank>"
+    override val fields = listOf(StepField.Choice(BANK, "bank") { listOf(NEAREST) + ids })
 
-    override val fields = listOf(StepField.Choice("bank") { listOf(NEAREST) + ids })
+    override fun summary(settings: StepSettings): String = "bank ${settings[BANK] ?: NEAREST}"
 
-    override fun parse(words: List<String>): List<String> {
-        val word = words.singleOrNull()
-        return when {
-            words == listOf("deposit", "all") -> throw FlowError("'bank deposit all' is now 'bank nearest' or 'bank @<bank>'")
-            word == NEAREST -> listOf(NEAREST)
-            word != null && word.startsWith("@") && word.length > 1 -> listOf(word.substring(1))
-            else -> throw FlowError("bank takes 'nearest' or a bank: bank nearest, bank @<bank>")
-        }
-    }
-
-    override fun line(values: List<String>): String = if (values[0] == NEAREST) "bank nearest" else "bank @${values[0]}"
-
-    override fun resolve(values: List<String>, context: FlowContext): ResolvedStep {
-        if (values[0] == NEAREST) return BankStep(catalog.banks)
-        val bank = catalog.find(values[0].lowercase())
-            ?: throw FlowError("Unknown bank '${values[0]}'. Banks: ${ids.sorted().joinToString(", ")}")
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+        val id = settings[BANK] ?: NEAREST
+        if (id == NEAREST) return BankStep(catalog.banks)
+        val bank = catalog.find(id.lowercase())
+            ?: throw FlowError("Unknown bank '$id'. Banks: ${ids.sorted().joinToString(", ")}")
         return BankStep(listOf(bank))
     }
 
-    private companion object {
+    companion object {
+        const val BANK = "bank"
+
+        /** The bank setting's word for the nearest bank, also what a bank step without one uses. */
         const val NEAREST = "nearest"
     }
 }

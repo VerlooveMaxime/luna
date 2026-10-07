@@ -3,11 +3,11 @@ package game.idle.autopilot
 import game.idle.autopilot.bank.BankStepType
 import game.idle.autopilot.cooking.CookStepType
 import game.idle.autopilot.drop.DropStepType
+import game.idle.autopilot.fighting.FightStepType
+import game.idle.autopilot.fighting.FightTargetCatalog
 import game.idle.autopilot.firemaking.LightStepType
 import game.idle.autopilot.fishing.FishStepType
 import game.idle.autopilot.making.MakeStepType
-import game.idle.autopilot.fighting.FightStepType
-import game.idle.autopilot.fighting.FightTargetCatalog
 import game.idle.autopilot.making.RecipeCatalog
 import game.idle.autopilot.mining.MineStepType
 import game.idle.autopilot.smelting.SmeltStepType
@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test
 
 class IdleStepsTest {
 
-    private val types = IdleSteps(BankCatalog(emptyList()), RecipeCatalog(emptyList()), FightTargetCatalog(emptyList())).grammar.types
+    private val types = IdleSteps(BankCatalog(emptyList()), RecipeCatalog(emptyList()), FightTargetCatalog(emptyList())).types.all
 
     @Test
     fun `the builder cycles through gathering, processing, fighting, then walking, dropping and banking`() {
@@ -32,5 +32,10 @@ class IdleStepsTest {
         assertEquals(listOf(WalkStepType, DropStepType), types.subList(9, 11))
         assertInstanceOf(BankStepType::class.java, types[11])
         assertEquals(12, types.size)
+    }
+
+    @Test
+    fun `the steps load over the data files`() {
+        assertEquals(types.map { it.kind }, IdleSteps.load().types.all.map { it.kind })
     }
 }

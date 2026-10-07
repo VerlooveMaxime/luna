@@ -6,49 +6,39 @@ import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
+import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
 /**
- * `make [<n>] <product>`: makes n of a product from [RecipeCatalog], or, without n, as many as the ingredients the
- * player carries allow. It works from the inventory, wherever the player stands.
+ * Make: makes a count of a product from [RecipeCatalog], or, without one, as many as the ingredients the player
+ * carries allow. It works from the inventory, wherever the player stands.
  */
 class MakeStepType(private val catalog: RecipeCatalog) : StepType {
 
     private val names: List<String> = catalog.recipes.map { it.name }
 
-    override val keyword = "make"
+    override val kind = "make"
 
     override val label = "make"
 
-    override val usage = "make [<n>] <product>"
-
     override val fields = listOf(
-        StepField.Choice("product") { names },
-        StepField.Choice("amount") { listOf(ALL) + StepAmount.COUNTS },
+        StepField.Choice(PRODUCT, "product") { names },
+        StepAmount.field(unbounded = "all"),
     )
 
-    override fun parse(words: List<String>): List<String> {
-        val (count, rest) = StepAmount.split(words)
-        if (rest.isEmpty()) throw FlowError("make needs a product: $usage")
-        return listOf(rest.joinToString(" "), StepAmount.value(count, ALL))
-    }
+    override fun summary(settings: StepSettings): String = "make ${StepAmount.prefix(settings)}${settings[PRODUCT] ?: "?"}"
 
-    override fun line(values: List<String>): String = "make ${StepAmount.prefix(values[AMOUNT])}${values[PRODUCT]}"
-
-    override fun resolve(values: List<String>, context: FlowContext): ResolvedStep {
-        val name = values[PRODUCT].lowercase()
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+        val name = settings[PRODUCT]?.lowercase() ?: throw FlowError("make needs a product")
         val recipe = catalog.find(name)
             ?: throw FlowError("Nothing called '$name' can be made yet. Products: ${names.sorted().joinToString(", ")}")
-        return MakeStep(recipe, StepAmount.count(values[AMOUNT]))
+        return MakeStep(recipe, StepAmount.read(settings))
     }
 
-    private companion object {
-        /** The amount field's word for "as many as the ingredients allow". */
-        const val ALL = "all"
-        const val PRODUCT = 0
-        const val AMOUNT = 1
+    companion object {
+        const val PRODUCT = "product"
     }
 }
 

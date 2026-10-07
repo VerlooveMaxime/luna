@@ -5,38 +5,38 @@ import game.idle.flow.FlowError
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepField
+import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
-/** `walk <x> <y> [<floor>]`: walks to a tile, which becomes the work spot of the action steps after it. */
+/** Walk: walks to a tile, which becomes the work spot of the action steps after it. */
 object WalkStepType : StepType {
 
-    override val keyword = "walk"
+    const val TILE = "tile"
+
+    override val kind = "walk"
 
     override val label = "walk"
 
-    override val usage = "walk <x> <y>"
+    override val fields = listOf(StepField.MapTile(TILE, "to (click: pick on map)"))
 
-    override val fields = listOf(StepField.MapTile("to (click: pick on map)"))
+    override fun summary(settings: StepSettings): String = "walk ${settings[TILE] ?: "?"}"
 
-    override fun parse(words: List<String>): List<String> = listOf(tile(words).text())
-
-    override fun line(values: List<String>): String = "walk ${values[0]}"
-
-    /** The value is checked again: the builder writes it, not the parser. */
-    override fun resolve(values: List<String>, context: FlowContext): ResolvedStep =
-        WalkStep(tile(values[0].split(" ").filter { it.isNotEmpty() }))
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+        val text = settings[TILE] ?: throw FlowError("walk needs a tile")
+        return WalkStep(tile(text.split(" ").filter { it.isNotEmpty() }))
+    }
 
     private fun tile(words: List<String>): Tile {
         val numbers = words.mapNotNull { it.toIntOrNull() }
         if (words.size !in 2..3 || numbers.size != words.size) {
-            throw FlowError("walk needs a tile: walk <x> <y>, or walk <x> <y> <floor>")
+            throw FlowError("walk needs a tile: x y, or x y floor, not '${words.joinToString(" ")}'")
         }
         val (x, y) = numbers
         val z = numbers.getOrElse(2) { 0 }
-        if (x < 0 || y < 0) throw FlowError("A tile has no negative coordinates: walk $x $y")
+        if (x < 0 || y < 0) throw FlowError("A tile has no negative coordinates: $x $y")
         if (z !in 0..3) throw FlowError("The floor is 0 to 3, not $z")
         return Tile(x, y, z)
     }

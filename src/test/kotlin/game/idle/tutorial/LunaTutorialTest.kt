@@ -1,6 +1,7 @@
 package game.idle.tutorial
 
 import game.harness.RecordedMessage
+import game.idle.flow.StepSettings
 import game.idle.idleState
 import game.idle.tutorial.TutorialScript.Companion.BRONZE_AXE
 import game.idle.tutorial.TutorialScript.Companion.BURNT_FISH
@@ -27,6 +28,7 @@ import game.idle.tutorial.TutorialStep.TALK_ABOUT_LOOP
 import game.idle.tutorial.TutorialStep.TALK_TO_GUIDE
 import game.idle.tutorial.TutorialStep.WATCH_THE_AUTOPILOT
 import game.idle.ui.FlowWidgets
+import game.idle.ui.IdleUi
 import game.player.login.firstLogin
 import game.skill.firemaking.LightAction
 import game.skill.smithing.BarType
@@ -68,7 +70,9 @@ class LunaTutorialTest {
     @AfterEach
     fun resetWorld() = TestWorld.reset()
 
-    private fun tutorial() = LunaTutorial(TutorialScript(data), data, TestWorld.world)
+    private val idleUi = IdleUi { it.kind }
+
+    private fun tutorial() = LunaTutorial(TutorialScript(data), data, TestWorld.world, idleUi)
 
     private fun newCharacter(): Player = TestWorld.login("tutee", elsewhere)
 
@@ -273,7 +277,7 @@ class LunaTutorialTest {
     fun `a lesson moves on once the player's autopilot reaches its goal`() {
         val player = loggedIn(returning(BUILD_FIRST_FLOW))
 
-        player.idleState = player.idleState.copy(flow = listOf("chop 1 normal", " Light 1"), running = true)
+        player.idleState = player.idleState.copy(steps = listOf(step("chop", "1"), step("light", "1")), running = true)
         TestWorld.tick()
 
         assertEquals(WATCH_THE_AUTOPILOT, player.tutorialStep)
@@ -283,7 +287,7 @@ class LunaTutorialTest {
     fun `a lesson waits while the autopilot is short of its goal`() {
         val player = loggedIn(returning(BUILD_FIRST_FLOW))
 
-        player.idleState = player.idleState.copy(flow = listOf("chop normal", "light 1"), running = true)
+        player.idleState = player.idleState.copy(steps = listOf(step("chop", null), step("light", "1")), running = true)
         TestWorld.tick()
 
         assertEquals(BUILD_FIRST_FLOW, player.tutorialStep)
@@ -1398,6 +1402,8 @@ class LunaTutorialTest {
     fun `data without the tutorial's chat messages is refused`() {
         val withoutMessages = data.copy(messages = emptyMap())
 
-        assertThrows<IllegalArgumentException> { LunaTutorial(TutorialScript(withoutMessages), withoutMessages, TestWorld.world) }
+        assertThrows<IllegalArgumentException> { LunaTutorial(TutorialScript(withoutMessages), withoutMessages, TestWorld.world, idleUi) }
     }
+
+    private fun step(kind: String, amount: String?) = StepSettings(kind, amount?.let { mapOf("amount" to it) } ?: emptyMap())
 }

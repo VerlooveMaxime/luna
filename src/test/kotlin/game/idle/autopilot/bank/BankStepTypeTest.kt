@@ -2,6 +2,8 @@ package game.idle.autopilot.bank
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.StepField
+import game.idle.flow.StepSettings
 import game.idle.location.Bank
 import game.idle.location.BankCatalog
 import game.idle.location.Tile
@@ -17,50 +19,37 @@ class BankStepTypeTest {
     private val upstairs = Bank("gnome", "Gnome bank", Tile(3100, 3250, 1))
     private val bank = BankStepType(BankCatalog(listOf(varrock, draynor)))
 
-    @Test
-    fun `bank nearest`() {
-        assertEquals(listOf("nearest"), bank.parse(listOf("nearest")))
-        assertEquals("bank nearest", bank.line(listOf("nearest")))
-    }
+    private fun settings(bankId: String? = null) = StepSettings("bank", bankId?.let { mapOf("bank" to it) } ?: emptyMap())
 
     @Test
-    fun `bank at a named bank`() {
-        assertEquals(listOf("draynor"), bank.parse(listOf("@draynor")))
-        assertEquals("bank @draynor", bank.line(listOf("draynor")))
-    }
-
-    @Test
-    fun `the old deposit all line points at the new ones`() {
-        assertRejected("'bank deposit all' is now 'bank nearest' or 'bank @<bank>'") { bank.parse(listOf("deposit", "all")) }
-    }
-
-    @Test
-    fun `anything else is rejected`() {
-        val message = "bank takes 'nearest' or a bank: bank nearest, bank @<bank>"
-        assertRejected(message) { bank.parse(emptyList()) }
-        assertRejected(message) { bank.parse(listOf("draynor")) }
-        assertRejected(message) { bank.parse(listOf("@")) }
-        assertRejected(message) { bank.parse(listOf("@draynor", "now")) }
+    fun `a bank step reads as its bank, nearest when it names none`() {
+        assertEquals("bank draynor", bank.summary(settings("draynor")))
+        assertEquals("bank nearest", bank.summary(settings()))
     }
 
     @Test
     fun `bank nearest picks among every bank`() {
-        assertEquals(BankStep(listOf(varrock, draynor)), bank.resolve(listOf("nearest"), FlowContext()))
+        assertEquals(BankStep(listOf(varrock, draynor)), bank.resolve(settings("nearest"), FlowContext()))
+    }
+
+    @Test
+    fun `a bank step that names no bank goes to the nearest`() {
+        assertEquals(BankStep(listOf(varrock, draynor)), bank.resolve(settings(), FlowContext()))
     }
 
     @Test
     fun `a named bank is the only one, whatever the case`() {
-        assertEquals(BankStep(listOf(draynor)), bank.resolve(listOf("Draynor"), FlowContext()))
+        assertEquals(BankStep(listOf(draynor)), bank.resolve(settings("Draynor"), FlowContext()))
     }
 
     @Test
     fun `an unknown bank lists the known ones`() {
-        assertRejected("Unknown bank 'lumbridge'. Banks: draynor, varrock_west") { bank.resolve(listOf("lumbridge"), FlowContext()) }
+        assertRejected("Unknown bank 'lumbridge'. Banks: draynor, varrock_west") { bank.resolve(settings("lumbridge"), FlowContext()) }
     }
 
     @Test
     fun `the builder offers nearest, then every bank`() {
-        assertEquals(listOf("nearest", "varrock_west", "draynor"), bank.fields[0].choices(listOf("")))
+        assertEquals(listOf("nearest", "varrock_west", "draynor"), (bank.fields[0] as StepField.Choice).choices(settings()))
     }
 
     @Test

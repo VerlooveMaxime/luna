@@ -2,56 +2,56 @@ package game.idle.autopilot.walk
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.StepField
+import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.location.Tile
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class WalkStepTypeTest {
 
-    private val needsTile = "walk needs a tile: walk <x> <y>, or walk <x> <y> <floor>"
+    private fun walk(tile: String? = null) = StepSettings("walk", tile?.let { mapOf("tile" to it) } ?: emptyMap())
+
+    private fun resolve(tile: String) = WalkStepType.resolve(walk(tile), FlowContext())
 
     @Test
-    fun `a walk line names its tile`() {
-        assertEquals(listOf("3086 3233"), WalkStepType.parse(listOf("3086", "3233")))
-        assertEquals("walk 3086 3233", WalkStepType.line(listOf("3086 3233")))
+    fun `a walk step reads as its tile`() {
+        assertEquals("walk 3086 3233", WalkStepType.summary(walk("3086 3233")))
     }
 
     @Test
-    fun `a ground floor written out is left out again`() {
-        assertEquals(listOf("3086 3233"), WalkStepType.parse(listOf("3086", "3233", "0")))
+    fun `a walk step without a tile reads with a question mark and is rejected`() {
+        assertEquals("walk ?", WalkStepType.summary(walk()))
+        assertRejected("walk needs a tile") { WalkStepType.resolve(walk(), FlowContext()) }
     }
 
     @Test
-    fun `an upper floor is kept`() {
-        assertEquals(listOf("3086 3233 1"), WalkStepType.parse(listOf("3086", "3233", "1")))
+    fun `a walk step goes to its tile, on the ground floor unless one is given`() {
+        assertEquals(WalkStep(Tile(3086, 3233)), resolve("3086 3233"))
+        assertEquals(WalkStep(Tile(3086, 3233, 1)), resolve(" 3086  3233 1 "))
     }
 
     @Test
-    fun `a walk line needs two or three numbers`() {
-        assertRejected(needsTile) { WalkStepType.parse(emptyList()) }
-        assertRejected(needsTile) { WalkStepType.parse(listOf("3086")) }
-        assertRejected(needsTile) { WalkStepType.parse(listOf("3086", "north")) }
-        assertRejected(needsTile) { WalkStepType.parse(listOf("1", "2", "3", "4")) }
+    fun `a tile is two or three numbers`() {
+        assertRejected("walk needs a tile: x y, or x y floor, not '3086'") { resolve("3086") }
+        assertRejected("walk needs a tile: x y, or x y floor, not '3086 north'") { resolve("3086 north") }
+        assertRejected("walk needs a tile: x y, or x y floor, not '1 2 3 4'") { resolve("1 2 3 4") }
     }
 
     @Test
     fun `a tile lies on the map`() {
-        assertRejected("A tile has no negative coordinates: walk -1 5") { WalkStepType.parse(listOf("-1", "5")) }
-        assertRejected("A tile has no negative coordinates: walk 5 -1") { WalkStepType.parse(listOf("5", "-1")) }
-        assertRejected("The floor is 0 to 3, not 4") { WalkStepType.parse(listOf("5", "5", "4")) }
-        assertRejected("The floor is 0 to 3, not -1") { WalkStepType.parse(listOf("5", "5", "-1")) }
+        assertRejected("A tile has no negative coordinates: -1 5") { resolve("-1 5") }
+        assertRejected("A tile has no negative coordinates: 5 -1") { resolve("5 -1") }
+        assertRejected("The floor is 0 to 3, not 4") { resolve("5 5 4") }
+        assertRejected("The floor is 0 to 3, not -1") { resolve("5 5 -1") }
     }
 
     @Test
-    fun `a walk step goes to its tile`() {
-        assertEquals(WalkStep(Tile(3086, 3233, 1)), WalkStepType.resolve(listOf("3086 3233 1"), FlowContext()))
-    }
-
-    @Test
-    fun `a blank tile from the builder is rejected`() {
-        assertRejected(needsTile) { WalkStepType.resolve(listOf(""), FlowContext()) }
+    fun `the builder picks the tile on the map`() {
+        assertTrue(WalkStepType.fields.single() is StepField.MapTile)
     }
 
     @Test

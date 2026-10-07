@@ -7,6 +7,7 @@ import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepRadius
+import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
@@ -32,43 +33,30 @@ enum class FishingMethod(toolOf: () -> Tool, val spotIds: Set<Int>) {
     val word: String = name.lowercase()
 }
 
-/** `fish [<n>] <fish> [within <r>]`: n catches or, without n, until the inventory is full. */
+/** Fish: one fishing method at spots within a radius of the work spot, a count of catches or, without one, until full. */
 object FishStepType : StepType {
 
-    /** The amount field's word for "until the inventory is full". */
-    const val FULL = "full"
+    const val FISH = "fish"
 
-    override val keyword = "fish"
+    override val kind = "fish"
 
     override val label = "fish"
 
-    override val usage = "fish [<n>] <fish> [within <r>]"
-
     override val fields = listOf(
-        StepField.Choice("fish") { FishingMethod.entries.map { it.word } },
-        StepField.Choice("amount") { listOf(FULL) + StepAmount.COUNTS },
+        StepField.Choice(FISH, "fish") { FishingMethod.entries.map { it.word } },
+        StepAmount.field(unbounded = "full"),
         StepRadius.field(),
     )
 
-    override fun parse(words: List<String>): List<String> {
-        val (count, rest) = StepAmount.split(words)
-        val fish = rest.firstOrNull() ?: throw FlowError("fish needs a fish: $usage")
-        val radius = StepRadius.parse(rest.drop(1), after = "fish", usage)
-        return listOf(fish, StepAmount.value(count, FULL), radius.toString())
+    override fun summary(settings: StepSettings): String =
+        "fish ${StepAmount.prefix(settings)}${settings[FISH] ?: "?"}${StepRadius.suffix(settings)}"
+
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+        val name = settings[FISH] ?: throw FlowError("fish needs a fish")
+        val method = FishingMethod.entries.firstOrNull { it.word == name.lowercase() }
+            ?: throw FlowError("'$name' is not a fish you can catch yet. Fish: ${FishingMethod.entries.joinToString(", ") { it.word }}")
+        return FishStep(method, StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
     }
-
-    override fun line(values: List<String>): String =
-        "fish ${StepAmount.prefix(values[AMOUNT])}${values[FISH]}${StepRadius.suffix(values[RADIUS])}"
-
-    override fun resolve(values: List<String>, context: FlowContext): ResolvedStep {
-        val method = FishingMethod.entries.firstOrNull { it.word == values[FISH].lowercase() }
-            ?: throw FlowError("'${values[FISH]}' is not a fish you can catch yet. Fish: ${FishingMethod.entries.joinToString(", ") { it.word }}")
-        return FishStep(method, StepRadius.check(values[RADIUS]), context.workSpot, StepAmount.count(values[AMOUNT]))
-    }
-
-    private const val FISH = 0
-    private const val AMOUNT = 1
-    private const val RADIUS = 2
 }
 
 /** A fish step resolved. Later steps know it gathers its catches. */

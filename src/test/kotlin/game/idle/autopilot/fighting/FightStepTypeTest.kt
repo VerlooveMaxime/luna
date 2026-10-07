@@ -2,9 +2,12 @@ package game.idle.autopilot.fighting
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.StepField
+import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.location.Tile
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -14,130 +17,78 @@ class FightStepTypeTest {
     private val cows = FightTarget("cow", setOf(81))
     private val type = FightStepType(FightTargetCatalog(listOf(rats, cows)))
     private val walkedTo = WorkSpot.At(Tile(3105, 9517))
-    private val usage = "fight [<n>] <npc> [within <r>] [eat below <p>%]"
+
+    private fun fight(vararg values: Pair<String, String>) = StepSettings("fight", mapOf(*values))
+
+    private fun field(index: Int) = type.fields[index] as StepField.Choice
 
     @Test
-    fun `a fight line names its npc, fights nonstop within the default radius and eats below half`() {
-        assertEquals(listOf("cow", "nonstop", "10", "50%"), type.parse(listOf("cow")))
+    fun `a fight step reads as its npc, its defaults left out`() {
+        assertEquals("fight cow", type.summary(fight("npc" to "cow", "within" to "10", "eatBelow" to "50")))
     }
 
     @Test
-    fun `an npc's name may take several words`() {
-        assertEquals("giant rat", type.parse(listOf("giant", "rat"))[0])
+    fun `a fight step writes every setting that is not the default`() {
+        val settings = fight("npc" to "giant rat", "amount" to "3", "within" to "5", "eatBelow" to "75")
+
+        assertEquals("fight 3 giant rat within 5 eat below 75%", type.summary(settings))
     }
 
     @Test
-    fun `a fight line may start with a count`() {
-        assertEquals("3", type.parse(listOf("3", "cow"))[1])
-    }
-
-    @Test
-    fun `a fight line may give a radius`() {
-        assertEquals("5", type.parse(listOf("giant", "rat", "within", "5"))[2])
-    }
-
-    @Test
-    fun `a fight line may say when to eat`() {
-        assertEquals("75%", type.parse(listOf("giant", "rat", "eat", "below", "75%"))[3])
-    }
-
-    @Test
-    fun `a fight line may give a radius and when to eat`() {
-        assertEquals(listOf("cow", "1", "5", "25%"), type.parse("1 cow within 5 eat below 25%".split(" ")))
-    }
-
-    @Test
-    fun `fight without an npc`() {
-        assertRejected("fight needs an npc: $usage") { type.parse(listOf("2")) }
-    }
-
-    @Test
-    fun `fight with only a radius has no npc`() {
-        assertRejected("fight needs an npc: $usage") { type.parse(listOf("within", "5")) }
-    }
-
-    @Test
-    fun `a radius after when to eat is rejected`() {
-        assertRejected("Unexpected 'eat below 50% within 5' in the fight step: $usage") { type.parse("cow eat below 50% within 5".split(" ")) }
-    }
-
-    @Test
-    fun `eat must be followed by below`() {
-        assertRejected("Unexpected 'eat at 50%' in the fight step: $usage") { type.parse("cow eat at 50%".split(" ")) }
-    }
-
-    @Test
-    fun `when to eat starts with eat`() {
-        assertRejected("Unexpected 'drink below 50%' in the fight step: $usage") { EatBelow.parse("drink below 50%".split(" "), usage) }
-    }
-
-    @Test
-    fun `when to eat is a share with a percent sign`() {
-        assertRejected("eat below takes a share of your hitpoints from 1% to 99%, not '50'") { type.parse("cow eat below 50".split(" ")) }
-    }
-
-    @Test
-    fun `when to eat is a number`() {
-        assertRejected("eat below takes a share of your hitpoints from 1% to 99%, not 'half%'") { type.parse("cow eat below half%".split(" ")) }
-    }
-
-    @Test
-    fun `when to eat is at least 1 percent`() {
-        assertRejected("eat below takes a share of your hitpoints from 1% to 99%, not '0%'") { type.parse("cow eat below 0%".split(" ")) }
-    }
-
-    @Test
-    fun `when to eat is below 100 percent`() {
-        assertRejected("eat below takes a share of your hitpoints from 1% to 99%, not '100%'") { type.parse("cow eat below 100%".split(" ")) }
-    }
-
-    @Test
-    fun `a line leaves out the defaults`() {
-        assertEquals("fight cow", type.line(listOf("cow", "nonstop", "10", "50%")))
-    }
-
-    @Test
-    fun `a line writes every value that is not the default`() {
-        assertEquals("fight 3 giant rat within 5 eat below 75%", type.line(listOf("giant rat", "3", "5", "75%")))
+    fun `a fight step without an npc reads with a question mark and is rejected`() {
+        assertEquals("fight ?", type.summary(fight()))
+        assertRejected("fight needs an npc") { type.resolve(fight(), FlowContext()) }
     }
 
     @Test
     fun `a fight step fights around the work spot, whatever the case`() {
-        val step = type.resolve(listOf("Giant Rat", "3", "15", "75%"), FlowContext(workSpot = walkedTo))
+        val step = type.resolve(fight("npc" to "Giant Rat", "amount" to "3", "within" to "15", "eatBelow" to "75"), FlowContext(workSpot = walkedTo))
 
         assertEquals(FightStep(rats, 15, walkedTo, amount = 3, eatBelow = 75), step)
     }
 
     @Test
-    fun `a nonstop fight has no amount`() {
-        assertEquals(null, (type.resolve(listOf("cow", "nonstop", "10", "50%"), FlowContext()) as FightStep).amount)
+    fun `a fight step without an amount fights nonstop and eats below half`() {
+        val step = type.resolve(fight("npc" to "cow"), FlowContext()) as FightStep
+
+        assertNull(step.amount)
+        assertEquals(50, step.eatBelow)
+    }
+
+    @Test
+    fun `when to eat is a share of hitpoints from 1 to 99 percent`() {
+        assertRejected("eat below takes a share of your hitpoints from 1 to 99 percent, not 'half'") { type.resolve(fight("npc" to "cow", "eatBelow" to "half"), FlowContext()) }
+        assertRejected("eat below takes a share of your hitpoints from 1 to 99 percent, not '0'") { type.resolve(fight("npc" to "cow", "eatBelow" to "0"), FlowContext()) }
+        assertRejected("eat below takes a share of your hitpoints from 1 to 99 percent, not '100'") { type.resolve(fight("npc" to "cow", "eatBelow" to "100"), FlowContext()) }
     }
 
     @Test
     fun `an npc nobody can fight yet lists the ones they can`() {
         assertRejected("'goblin' is not something you can fight yet. Fight: cow, giant rat") {
-            type.resolve(listOf("goblin", "nonstop", "10", "50%"), FlowContext())
+            type.resolve(fight("npc" to "goblin"), FlowContext())
         }
     }
 
     @Test
     fun `the builder offers the npcs of the catalog`() {
-        assertEquals(listOf("giant rat", "cow"), type.fields[0].choices(emptyList()))
+        assertEquals(listOf("giant rat", "cow"), field(0).choices(fight()))
     }
 
     @Test
     fun `the builder offers nonstop and a few amounts`() {
-        assertEquals(listOf("nonstop", "1", "5", "10"), type.fields[1].choices(emptyList()))
+        assertEquals(listOf("", "1", "5", "10"), field(1).choices(fight()))
+        assertEquals("nonstop", field(1).display(""))
     }
 
     @Test
-    fun `the builder offers three shares to eat below`() {
-        assertEquals(listOf("25%", "50%", "75%"), type.fields[3].choices(emptyList()))
+    fun `the builder offers three shares to eat below, shown as percentages`() {
+        assertEquals(listOf("25", "50", "75"), field(3).choices(fight()))
+        assertEquals("75%", field(3).display("75"))
     }
 
     @Test
     fun `a new fight step eats below half`() {
-        assertEquals("50%", type.fields[3].default)
+        assertEquals("50", field(3).default)
     }
 
     @Test

@@ -1,14 +1,10 @@
 package game.idle.autopilot
 
 import api.predef.*
-import game.idle.flow.FlowCommand
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.FlowRunner
 import game.idle.idleState
-import game.idle.autopilot.making.RecipeCatalog
-import game.idle.autopilot.fighting.FightTargetCatalog
-import game.idle.location.BankCatalog
 import game.idle.ui.FlowBuilder
 import game.idle.ui.FlowWidgets
 import game.idle.ui.IdleUi
@@ -20,40 +16,35 @@ import io.luna.game.event.impl.LogoutEvent
 
 val config = AutopilotConfig.load(AutopilotConfig.PATH)
 
-// Loaded at boot so a typo in the data file stops the server instead of surfacing at the first bank step.
-val banks = BankCatalog.load(BankCatalog.PATH)
-val recipes = RecipeCatalog.load(RecipeCatalog.PATH)
-val fightTargets = FightTargetCatalog.load(FightTargetCatalog.PATH)
-val resolver = FlowResolver(IdleSteps(banks, recipes, fightTargets).grammar)
-logger.info(
-    "Loaded {} idle banks, {} recipes and {} fight targets.",
-    banks.banks.size, recipes.recipes.size, fightTargets.targets.size,
-)
+// Loaded at boot so a typo in a data file stops the server instead of surfacing at the first step that uses it.
+val steps = IdleSteps.load()
+val resolver = FlowResolver(steps.types)
+val ui = IdleUi(steps.types::summary)
+logger.info("Loaded {} kinds of idle step.", steps.types.all.size)
 
 val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world)) { autopilotPlayer ->
     val state = autopilotPlayer.idleState
     val resolved = try {
-        resolver.resolve(state.flow)
+        resolver.resolve(state.steps)
     } catch (e: FlowError) {
         null
     }
     resolved?.let { AutopilotDriver(FlowRunner(it, state.stepIndex, autopilotPlayer), config.decisionDelayTicks) }
 }
 
-val flowCommand = FlowCommand(autopilot, resolver)
-val flowUi = LunaFlowUi(FlowBuilder(autopilot, resolver))
+val flowUi = LunaFlowUi(FlowBuilder(autopilot, resolver, config.stepSlots), ui)
 
 on(LoginEvent::class)
     .filter { !plr.isBot }
     .then {
-        IdleUi.installTab(plr, plr.idleState)
-        autopilot.onLogin(LunaAutopilotPlayer(plr))
+        ui.installTab(plr, plr.idleState)
+        autopilot.onLogin(LunaAutopilotPlayer(plr, ui))
     }
 
 on(LogoutEvent::class)
     .filter { !plr.isBot }
     .then {
-        autopilot.onLogout(LunaAutopilotPlayer(plr))
+        autopilot.onLogout(LunaAutopilotPlayer(plr, ui))
         flowUi.forget(plr)
     }
 
@@ -63,12 +54,4 @@ on(ButtonClickEvent::class)
 
 on(MapPickEvent::class) {
     flowUi.picked(plr, tile)
-}
-
-cmd("idle") {
-    flowCommand.idle(LunaAutopilotPlayer(plr), args.toList())
-}
-
-cmd("flow") {
-    flowCommand.flow(LunaAutopilotPlayer(plr), args.toList())
 }

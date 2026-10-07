@@ -90,6 +90,24 @@ class RequestBody(private val json: JsonObject) {
 
     fun string(name: String): String = stringOrNull(name) ?: throw missing(name, "a string")
 
+    /** An array of JSON objects; a missing array is required, an empty one is fine. */
+    fun objects(name: String): List<RequestBody> {
+        val element = json.get(name)?.takeIf { !it.isJsonNull } ?: throw missing(name, "an array of objects")
+        if (!element.isJsonArray || element.asJsonArray.any { !it.isJsonObject }) {
+            throw HarnessException(400, "field '$name' must be an array of objects")
+        }
+        return element.asJsonArray.map { RequestBody(it.asJsonObject) }
+    }
+
+    /** An object of single values read as text (`5` and `"5"` alike); a missing object is empty. */
+    fun strings(name: String): Map<String, String> {
+        val element = json.get(name)?.takeIf { !it.isJsonNull } ?: return emptyMap()
+        if (!element.isJsonObject || element.asJsonObject.entrySet().any { !it.value.isJsonPrimitive }) {
+            throw HarnessException(400, "field '$name' must be an object of single values")
+        }
+        return element.asJsonObject.entrySet().associate { (key, value) -> key to value.asString }
+    }
+
     fun intOrNull(name: String): Int? {
         val primitive = primitiveOrNull(name) ?: return null
         if (!primitive.isNumber || primitive.asDouble != primitive.asInt.toDouble()) {

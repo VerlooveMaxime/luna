@@ -1,6 +1,7 @@
 package game.idle.ui
 
 import game.idle.IdleState
+import game.idle.flow.StepSettings
 import game.testworld.TestWorld
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
@@ -12,7 +13,8 @@ import org.junit.jupiter.api.Test
 
 class IdleUiTest {
 
-    private val running = IdleState(flow = listOf("chop oak @draynor", "drop"), stepIndex = 1, running = true)
+    private val running = IdleState(steps = listOf(StepSettings("chop"), StepSettings("drop")), stepIndex = 1, running = true)
+    private val idleUi = IdleUi { it.kind }
 
     @AfterEach
     fun resetWorld() = TestWorld.reset()
@@ -33,7 +35,7 @@ class IdleUiTest {
     fun `installing the tab fills slot 7 and sends the status lines`() {
         val player = login()
 
-        IdleUi.installTab(player, IdleState())
+        idleUi.installTab(player, IdleState())
 
         val tab = TestWorld.messages(player).single { it.type == "TabInterfaceMessageWriter" }
         assertEquals(FlowWidgets.TAB, tab.fields["id"])
@@ -44,7 +46,7 @@ class IdleUiTest {
     fun `a refresh sends the overlay and the tab lines`() {
         val player = login()
 
-        IdleUi.refresh(player, running)
+        idleUi.refresh(player, running)
 
         val overlay = TestWorld.messages(player).single { it.type == "StatusOverlayMessageWriter" }
         assertEquals("@gre@Autopilot@whi@ step 2/2|@yel@drop", overlay.fields["text"])
@@ -57,7 +59,7 @@ class IdleUiTest {
         val player = login()
         player.overlays.open(FlowBuilderInterface { emptyMap() })
 
-        IdleUi.refresh(player, running)
+        idleUi.refresh(player, running)
 
         assertEquals("@gre@2. drop", texts(player)[FlowWidgets.rowText(1)])
         assertEquals("@gre@Running step 2/2", texts(player)[FlowWidgets.STATUS])

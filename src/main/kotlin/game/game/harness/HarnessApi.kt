@@ -1,5 +1,7 @@
 package game.harness
 
+import game.idle.flow.StepSettings
+
 /** What the HTTP endpoints can ask of the game. [LunaHarnessApi] is the real one; tests use fakes. */
 interface HarnessApi {
 
@@ -23,6 +25,12 @@ interface HarnessApi {
 
     /** Audits the whole world's content: what its spawned npcs and placed objects lack. Holds the game for a moment. */
     fun contentAudit(): ContentAuditView
+
+    /** The player's flow as structured steps, each with how it reads. */
+    fun flow(name: String): FlowView
+
+    /** Replaces the player's flow with [steps], checked like the flow builder checks it; refused while it runs. */
+    fun replaceFlow(name: String, steps: List<StepSettings>): FlowView
 }
 
 /** Something an agent asks a player to do, carried out by the same client packet a real click would send. */

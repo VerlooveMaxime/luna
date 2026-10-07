@@ -45,7 +45,7 @@ class Autopilot<P : AutopilotPlayer>(
      */
     fun onLogin(player: P) {
         if (player.idleState.running && !start(player)) {
-            player.tell("Autopilot: could not resume your flow. Check it with ::flow list.")
+            player.tell("Autopilot: could not resume your flow. Check it in the flow builder.")
         }
     }
 

@@ -7,6 +7,7 @@ import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepRadius
+import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
@@ -15,63 +16,34 @@ import game.skill.woodcutting.cutTree.Tree
 import game.skill.woodcutting.cutTree.TreeStump
 import io.luna.game.model.mob.Player
 
-/**
- * `chop [<n>] <tree> [within <r>]`: one kind of tree within r tiles of the work spot, n logs or, without n, until the
- * inventory is full.
- */
+/** Chop: one kind of tree within a radius of the work spot, a count of logs or, without one, until the inventory is full. */
 object ChopStepType : StepType {
 
-    /** The amount field's word for "until the inventory is full". */
-    const val FULL = "full"
+    const val TREE = "tree"
 
     /** The kinds Luna has standing trees for, easiest first (teak and mahogany have none yet). */
     val CUTTABLE: List<Tree> = Tree.entries.filter { !TreeStump.ALIVE_TREE_MAP.get(it).isEmpty() }.sortedBy { it.level }
 
-    override val keyword = "chop"
+    override val kind = "chop"
 
     override val label = "chop"
 
-    override val usage = "chop [<n>] <tree> [within <r>]"
-
     override val fields = listOf(
-        StepField.Choice("tree") { CUTTABLE.map { it.name.lowercase() } },
-        StepField.Choice("amount") { listOf(FULL) + StepAmount.COUNTS },
+        StepField.Choice(TREE, "tree") { CUTTABLE.map { it.name.lowercase() } },
+        StepAmount.field(unbounded = "full"),
         StepRadius.field(),
     )
 
-    override fun parse(words: List<String>): List<String> {
-        val (count, afterCount) = StepAmount.split(words)
-        val (tree, radius) = treeAndRadius(afterCount)
-        return listOf(tree, StepAmount.value(count, FULL), radius.toString())
-    }
+    override fun summary(settings: StepSettings): String =
+        "chop ${StepAmount.prefix(settings)}${settings[TREE] ?: "?"}${StepRadius.suffix(settings)}"
 
-    private fun treeAndRadius(words: List<String>): Pair<String, Int> {
-        val tree = words.firstOrNull() ?: throw FlowError("chop needs a tree: $usage")
-        if (',' in tree) throw FlowError("One kind of tree per chop step: $usage")
-        val rest = words.drop(1)
-        if (rest.firstOrNull()?.startsWith("@") == true) {
-            throw FlowError(
-                "chop no longer takes a location: put a 'walk' step before it, or leave it out to chop around " +
-                    "where you press Run",
-            )
-        }
-        return tree to StepRadius.parse(rest, after = "tree", usage)
-    }
-
-    override fun line(values: List<String>): String =
-        "chop ${StepAmount.prefix(values[AMOUNT])}${values[TREE]}${StepRadius.suffix(values[RADIUS])}"
-
-    override fun resolve(values: List<String>, context: FlowContext): ResolvedStep {
-        val name = values[TREE]
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+        val name = settings[TREE] ?: throw FlowError("chop needs a tree")
         val tree = Tree.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
             ?: throw FlowError("'$name' is not a kind of tree")
         if (tree !in CUTTABLE) throw FlowError("There are no $name trees to cut in this world yet")
-        return ChopStep(tree, StepRadius.check(values[RADIUS]), context.workSpot, StepAmount.count(values[AMOUNT]))
+        return ChopStep(tree, StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
     }
-
-    private const val TREE = 0
-    private const val AMOUNT = 1
-    private const val RADIUS = 2
 }
 
 /**

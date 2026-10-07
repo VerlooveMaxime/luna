@@ -1,5 +1,6 @@
 package game.idle
 
+import game.idle.flow.StepSettings
 import game.idle.location.Tile
 import io.luna.util.GsonUtils
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -9,22 +10,25 @@ import org.junit.jupiter.api.Test
 class IdleStateTest {
 
     private val runTile = Tile(3200, 3200)
-    private val state = IdleState(flow = listOf("chop normal"), stepIndex = 1, running = true, runTile = runTile, stage = 3, resets = 2)
+    private val chop = StepSettings("chop", mapOf("tree" to "normal"))
+    private val state = IdleState(steps = listOf(chop), stepIndex = 1, running = true, runTile = runTile, stage = 3, resets = 2)
 
     @Test
     fun `new state has no flow and is not running`() {
         val fresh = IdleState()
 
-        assertEquals(emptyList<String>(), fresh.flow)
+        assertEquals(emptyList<StepSettings>(), fresh.steps)
         assertFalse(fresh.running)
         assertEquals(listOf(0, 0, 0), listOf(fresh.stepIndex, fresh.stage, fresh.resets))
     }
 
     @Test
     fun `a new flow starts at step zero, stopped, with no run tile`() {
-        val changed = state.withFlow(listOf("loop"))
+        val drop = StepSettings("drop")
 
-        assertEquals(IdleState(flow = listOf("loop"), stepIndex = 0, running = false, stage = 3, resets = 2), changed)
+        val changed = state.withFlow(listOf(drop))
+
+        assertEquals(IdleState(steps = listOf(drop), stepIndex = 0, running = false, stage = 3, resets = 2), changed)
     }
 
     @Test
@@ -61,6 +65,23 @@ class IdleStateTest {
         val json = GsonUtils.GSON.toJson(state)
 
         assertEquals(state, GsonUtils.GSON.fromJson(json, IdleState::class.java))
+    }
+
+    @Test
+    fun `steps and saved flows are saved and read back`() {
+        val saving = state.copy(savedFlows = listOf(SavedFlow(1, "Oaks", listOf(chop))), savedSlot = 1)
+
+        assertEquals(saving, GsonUtils.GSON.fromJson(GsonUtils.GSON.toJson(saving), IdleState::class.java))
+    }
+
+    @Test
+    fun `a save from before structured steps loads with an empty flow and keeps the rest`() {
+        val saved = GsonUtils.GSON.fromJson(
+            """{ "flow": ["chop oak", "drop"], "step_index": 1, "stage": 2, "tutorial_step": 5 }""",
+            IdleState::class.java,
+        )
+
+        assertEquals(IdleState(stepIndex = 1, stage = 2, tutorialStep = 5), saved)
     }
 
     @Test

@@ -1,5 +1,6 @@
 package game.harness
 
+import game.idle.flow.StepSettings
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -139,9 +140,9 @@ class HarnessRoutesTest {
 
     @Test
     fun `command passes the text`() {
-        post("/player/agent_a/command", """{"text": "::idle"}""")
+        post("/player/agent_a/command", """{"text": "::move 3200 3200"}""")
 
-        assertEquals("agent_a" to PlayerAction.Command("::idle"), lastAction())
+        assertEquals("agent_a" to PlayerAction.Command("::move 3200 3200"), lastAction())
     }
 
     @Test
@@ -184,5 +185,29 @@ class HarnessRoutesTest {
         val response = post("/player/agent_a/walk", """{"x": 3200}""")
 
         assertEquals(HarnessResponse(400, ErrorView("field 'y' is required and must be an integer")), response)
+    }
+
+    @Test
+    fun `flow reads the name from the path`() {
+        assertEquals(HarnessResponse(200, api.flowView), get("/player/agent_a/flow"))
+        assertEquals(listOf("flow agent_a"), api.calls)
+    }
+
+    @Test
+    fun `a flow is posted as steps of a kind and settings, values read as text, empty ones left out`() {
+        val body = """{"steps": [{"kind": "chop", "values": {"tree": "oak", "amount": 5, "within": ""}}, {"kind": "drop"}]}"""
+
+        val response = post("/player/agent_a/flow", body)
+
+        val steps = listOf(StepSettings("chop", mapOf("tree" to "oak", "amount" to "5")), StepSettings("drop"))
+        assertEquals(HarnessResponse(200, api.flowView), response)
+        assertEquals(listOf("agent_a" to steps), api.replacedFlows)
+    }
+
+    @Test
+    fun `a posted step without a kind answers 400`() {
+        val response = post("/player/agent_a/flow", """{"steps": [{"values": {}}]}""")
+
+        assertEquals(HarnessResponse(400, ErrorView("field 'kind' is required and must be a string")), response)
     }
 }

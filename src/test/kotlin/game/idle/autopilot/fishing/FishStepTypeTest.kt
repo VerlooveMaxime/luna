@@ -2,6 +2,8 @@ package game.idle.autopilot.fishing
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.StepField
+import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.location.Tile
 import game.testworld.TestWorld
@@ -14,6 +16,10 @@ class FishStepTypeTest {
 
     private val walkedTo = WorkSpot.At(Tile(3086, 3228))
 
+    private fun fish(vararg values: Pair<String, String>) = StepSettings("fish", mapOf(*values))
+
+    private fun choices(index: Int) = (FishStepType.fields[index] as StepField.Choice).choices(fish())
+
     /** Luna's fish name themselves from the item definitions, which need the cache. */
     @BeforeEach
     fun `item definitions are loaded`() {
@@ -21,43 +27,34 @@ class FishStepTypeTest {
     }
 
     @Test
-    fun `a fish line names its fish, until the inventory is full, within the default radius`() {
-        assertEquals(listOf("shrimp", "full", "10"), FishStepType.parse(listOf("shrimp")))
-        assertEquals("fish shrimp", FishStepType.line(listOf("shrimp", "full", "10")))
+    fun `a fish step reads as its fish, its defaults left out, anything else written`() {
+        assertEquals("fish shrimp", FishStepType.summary(fish("fish" to "shrimp", "within" to "10")))
+        assertEquals("fish 1 shrimp within 5", FishStepType.summary(fish("fish" to "shrimp", "amount" to "1", "within" to "5")))
     }
 
     @Test
-    fun `a fish line may start with a count and end with a radius`() {
-        assertEquals(listOf("shrimp", "1", "5"), FishStepType.parse(listOf("1", "shrimp", "within", "5")))
-        assertEquals("fish 1 shrimp within 5", FishStepType.line(listOf("shrimp", "1", "5")))
-    }
-
-    @Test
-    fun `fish without a fish`() {
-        assertRejected("fish needs a fish: fish [<n>] <fish> [within <r>]") { FishStepType.parse(listOf("2")) }
-    }
-
-    @Test
-    fun `anything else after the fish is rejected`() {
-        assertRejected("Unexpected 'now' after the fish: fish [<n>] <fish> [within <r>]") { FishStepType.parse(listOf("shrimp", "now")) }
+    fun `a fish step without a fish reads with a question mark and is rejected`() {
+        assertEquals("fish ?", FishStepType.summary(fish()))
+        assertRejected("fish needs a fish") { FishStepType.resolve(fish(), FlowContext()) }
     }
 
     @Test
     fun `a fish step fishes around the work spot, whatever the case`() {
-        val step = FishStepType.resolve(listOf("Shrimp", "1", "15"), FlowContext(workSpot = walkedTo))
+        val step = FishStepType.resolve(fish("fish" to "Shrimp", "amount" to "1", "within" to "15"), FlowContext(workSpot = walkedTo))
 
         assertEquals(FishStep(FishingMethod.SHRIMP, 15, walkedTo, amount = 1), step)
     }
 
     @Test
     fun `a fish not caught yet lists the ones that are`() {
-        assertRejected("'shark' is not a fish you can catch yet. Fish: shrimp") { FishStepType.resolve(listOf("shark", "full", "10"), FlowContext()) }
+        assertRejected("'shark' is not a fish you can catch yet. Fish: shrimp") { FishStepType.resolve(fish("fish" to "shark"), FlowContext()) }
     }
 
     @Test
     fun `the builder offers the fish, amounts and a few radii`() {
-        assertEquals(listOf("shrimp"), FishStepType.fields[0].choices(emptyList()))
-        assertEquals(listOf("full", "1", "5", "10"), FishStepType.fields[1].choices(emptyList()))
+        assertEquals(listOf("shrimp"), choices(0))
+        assertEquals(listOf("", "1", "5", "10"), choices(1))
+        assertEquals(listOf("5", "10", "15", "20", "30"), choices(2))
     }
 
     @Test

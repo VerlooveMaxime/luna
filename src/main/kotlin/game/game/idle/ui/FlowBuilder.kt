@@ -5,6 +5,7 @@ import game.idle.autopilot.AutopilotPlayer
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.StepField
+import game.idle.flow.StepSettings
 import game.idle.location.Tile
 
 /** What the game has to do after a click, besides showing the new texts. */
@@ -20,17 +21,24 @@ sealed interface ClickResult {
 
 /**
  * The flow builder behind the IdleRS widgets: keeps each player's draft step and last message, edits the saved
- * flow, and runs or stops it through the [Autopilot]. Every edit is validated with the same [FlowResolver] as
- * `::flow add`, so the builder cannot save a flow the commands would refuse.
+ * flow, and runs or stops it through the [Autopilot]. Every edit is validated with the [FlowResolver] the autopilot
+ * runs flows with, and a flow holds at most [maxSteps] steps.
  */
-class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, private val resolver: FlowResolver) {
+class FlowBuilder<P : AutopilotPlayer>(
+    private val autopilot: Autopilot<P>,
+    private val resolver: FlowResolver,
+    private val maxSteps: Int,
+) {
 
-    private val types = resolver.grammar.types
+    private val types = resolver.types.all
+
+    private val view = BuilderView(resolver.types::summary)
 
     init {
         require(types.all { it.fields.size <= FlowWidgets.DRAFT_FIELDS.size }) {
             "The builder shows ${FlowWidgets.DRAFT_FIELDS.size} fields per step at most"
         }
+        require(maxSteps in 1..FlowWidgets.ROWS) { "The builder shows ${FlowWidgets.ROWS} steps at most, not $maxSteps" }
     }
 
     private val drafts = mutableMapOf<String, FlowDraft>()
@@ -48,7 +56,7 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
     fun editing(player: P): Int? = editing[player.username]
 
     fun texts(player: P): Map<Int, String> =
-        BuilderView.texts(player.idleState, draft(player), message(player), editing(player))
+        view.texts(player.idleState, draft(player), message(player), editing(player))
 
     fun forget(player: P) {
         drafts.remove(player.username)
@@ -78,7 +86,7 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
             BuilderAction.NewStep -> newStep(player)
             is BuilderAction.MoveUp -> edit(player) { moved(it, action.row, action.row - 1) }
             is BuilderAction.MoveDown -> edit(player) { moved(it, action.row, action.row + 1) }
-            is BuilderAction.Delete -> edit(player) { lines -> lines.filterIndexed { row, _ -> row != action.row } }
+            is BuilderAction.Delete -> edit(player) { steps -> steps.filterIndexed { row, _ -> row != action.row } }
             BuilderAction.CycleKind -> redraft(player) { it.nextType(types) }
             is BuilderAction.CycleField -> field(player, action.index)
             BuilderAction.Add -> add(player)
@@ -97,7 +105,7 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
         val draft = draft(player)
         return when (draft.type.fields.getOrNull(index)) {
             null, is StepField.Choice -> redraft(player) { it.nextValue(index) }
-            is StepField.MapTile -> pickTile(player, index, draft.values[index])
+            is StepField.MapTile -> pickTile(player, index, draft.value(index))
         }
     }
 
@@ -115,13 +123,9 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
 
     /** Loads the step on [row] into the draft; saving then replaces that row. */
     private fun load(player: P, row: Int): ClickResult {
-        val line = player.idleState.flow.getOrNull(row) ?: return say(player, "")
-        val step = try {
-            resolver.grammar.parse(line)
-        } catch (e: FlowError) {
-            return say(player, e.message)
-        }
-        drafts[player.username] = draft(player).editing(step)
+        val step = player.idleState.steps.getOrNull(row) ?: return say(player, "")
+        val type = resolver.types.find(step.kind) ?: return say(player, "Step ${row + 1} is of a kind that no longer exists.")
+        drafts[player.username] = draft(player).editing(type, step)
         editing[player.username] = row
         return say(player, "Editing step ${row + 1}. Change the fields, then save.")
     }
@@ -132,42 +136,42 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
     }
 
     /** Moving or deleting rows renumbers them, so an edit in progress is dropped. */
-    private fun edit(player: P, change: (List<String>) -> List<String>): ClickResult {
+    private fun edit(player: P, change: (List<StepSettings>) -> List<StepSettings>): ClickResult {
         if (autopilot.isRunning(player)) return say(player, "Stop the flow before editing it.")
         editing.remove(player.username)
-        val lines = change(player.idleState.flow)
-        if (lines != player.idleState.flow) player.idleState = player.idleState.withFlow(lines)
-        return say(player, problem(lines) ?: "")
+        val steps = change(player.idleState.steps)
+        if (steps != player.idleState.steps) player.idleState = player.idleState.withFlow(steps)
+        return say(player, problem(steps) ?: "")
     }
 
-    private fun moved(lines: List<String>, from: Int, to: Int): List<String> {
-        val moving = lines.getOrNull(from) ?: return lines
-        val other = lines.getOrNull(to) ?: return lines
-        return lines.toMutableList().also { it[from] = other; it[to] = moving }
+    private fun moved(steps: List<StepSettings>, from: Int, to: Int): List<StepSettings> {
+        val moving = steps.getOrNull(from) ?: return steps
+        val other = steps.getOrNull(to) ?: return steps
+        return steps.toMutableList().also { it[from] = other; it[to] = moving }
     }
 
     /** Appends the draft, or replaces the row being edited (appends when that row is gone). */
     private fun add(player: P): ClickResult {
         if (autopilot.isRunning(player)) return say(player, "Stop the flow before editing it.")
-        val flow = player.idleState.flow
+        val flow = player.idleState.steps
         val row = editing[player.username]?.takeIf { it < flow.size }
-        if (row == null && flow.size >= FlowWidgets.ROWS) return say(player, "The flow is full (${FlowWidgets.ROWS} steps).")
-        val line = draft(player).line()
-        val lines = if (row == null) flow + line else flow.toMutableList().also { it[row] = line }
-        problem(lines)?.let { return say(player, it) }
-        player.idleState = player.idleState.withFlow(lines)
+        if (row == null && flow.size >= maxSteps) return say(player, "The flow is full ($maxSteps steps).")
+        val step = draft(player).settings
+        val steps = if (row == null) flow + step else flow.toMutableList().also { it[row] = step }
+        problem(steps)?.let { return say(player, it) }
+        player.idleState = player.idleState.withFlow(steps)
         editing.remove(player.username)
         val verb = if (row == null) "added" else "saved"
-        return say(player, "Step ${(row ?: lines.lastIndex) + 1} $verb: $line")
+        return say(player, "Step ${(row ?: steps.lastIndex) + 1} $verb: ${resolver.types.summary(step)}")
     }
 
     private fun run(player: P): ClickResult {
-        val flow = player.idleState.flow
+        val flow = player.idleState.steps
         if (flow.isEmpty()) return say(player, "The flow is empty. Add a step first.")
         problem(flow)?.let { return say(player, it) }
         player.idleState = player.idleState.fromStart()
         autopilot.start(player)
-        return say(player, "Running step 1: ${flow[0]}")
+        return say(player, "Running step 1: ${resolver.types.summary(flow[0])}")
     }
 
     private fun stop(player: P): ClickResult {
@@ -182,10 +186,10 @@ class FlowBuilder<P : AutopilotPlayer>(private val autopilot: Autopilot<P>, priv
         return say(player, "Flow cleared.")
     }
 
-    /** The resolver's complaint about [lines], or null when they make a runnable flow. */
-    private fun problem(lines: List<String>): String? =
+    /** The resolver's complaint about [steps], or null when they make a runnable flow. */
+    private fun problem(steps: List<StepSettings>): String? =
         try {
-            resolver.resolve(lines)
+            resolver.resolve(steps)
             null
         } catch (e: FlowError) {
             e.message

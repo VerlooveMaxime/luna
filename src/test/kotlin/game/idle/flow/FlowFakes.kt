@@ -12,28 +12,29 @@ data class FakeStep(val name: String, val gathers: Set<Int> = emptySet()) : Reso
 }
 
 /**
- * `<keyword> [<word>]`: the optional word is the step's one value. Resolving records the context it was given,
- * refuses the word "bad", and gathers item 1 when the word is "gather".
+ * A kind of step with one optional setting, [WORD]. Resolving records the context it was given, refuses the word
+ * "bad", and gathers item 1 when the word is "gather".
  */
-class FakeStepType(override val keyword: String, override val fields: List<StepField> = emptyList()) : StepType {
+class FakeStepType(override val kind: String, override val fields: List<StepField> = emptyList()) : StepType {
 
     val contexts = mutableListOf<FlowContext>()
 
-    override val label = "$keyword label"
+    override val label = "$kind label"
 
-    override val usage = "$keyword [<word>]"
+    override fun summary(settings: StepSettings): String = listOfNotNull(kind, settings[WORD]).joinToString(" ")
 
-    override fun parse(words: List<String>): List<String> {
-        if (words.size > 1) throw FlowError("$keyword takes one word at most")
-        return words
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+        contexts += context
+        if (settings[WORD] == "bad") throw FlowError("'bad' is refused")
+        return FakeStep(summary(settings), gathers = if (settings[WORD] == "gather") setOf(1) else emptySet())
     }
 
-    override fun line(values: List<String>): String = (listOf(keyword) + values).joinToString(" ")
+    companion object {
+        const val WORD = "word"
 
-    override fun resolve(values: List<String>, context: FlowContext): ResolvedStep {
-        contexts += context
-        if (values == listOf("bad")) throw FlowError("'bad' is refused")
-        return FakeStep(line(values), gathers = if (values == listOf("gather")) setOf(1) else emptySet())
+        /** A step of [kind] with [word] as its setting, or none. */
+        fun step(kind: String, word: String? = null): StepSettings =
+            StepSettings(kind, word?.let { mapOf(WORD to it) } ?: emptyMap())
     }
 }
 

@@ -1,5 +1,6 @@
 package game.idle.tutorial
 
+import game.idle.flow.StepSettings
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -14,10 +15,10 @@ class LessonGoalTest {
     private val idle = FlowProgress(running = false, steps = emptyList(), laps = 0)
 
     @Test
-    fun `a flow line reads as its keyword and count`() {
-        assertEquals(StepSummary("chop", 1), StepSummary.of("  Chop 1   normal within 5"))
-        assertEquals(StepSummary("chop", null), StepSummary.of("chop normal"))
-        assertEquals(StepSummary("light", null), StepSummary.of("light"))
+    fun `a flow step reads as its kind and count`() {
+        assertEquals(StepSummary("chop", 1), StepSummary.of(StepSettings("chop", mapOf("tree" to "normal", "amount" to "1"))))
+        assertEquals(StepSummary("chop", null), StepSummary.of(StepSettings("chop", mapOf("tree" to "normal"))))
+        assertEquals(StepSummary("light", null), StepSummary.of(StepSettings("light")))
     }
 
     @Test

@@ -11,7 +11,8 @@ import io.luna.game.model.World
 import io.luna.game.model.mob.Player
 import io.luna.game.task.Task
 
-class LunaAutopilotPlayer(val player: Player) : AutopilotPlayer, FlowPlayer {
+/** A Luna player as the autopilot sees it; [ui] shows every change of their idle state. */
+class LunaAutopilotPlayer(val player: Player, private val ui: IdleUi) : AutopilotPlayer, FlowPlayer {
 
     override val username: String
         get() = player.username
@@ -21,7 +22,7 @@ class LunaAutopilotPlayer(val player: Player) : AutopilotPlayer, FlowPlayer {
         get() = player.idleState
         set(value) {
             player.idleState = value
-            IdleUi.refresh(player, value)
+            ui.refresh(player, value)
         }
 
     override val tile: Tile

@@ -1,5 +1,7 @@
 package game.idle.tutorial
 
+import game.idle.flow.StepAmount
+import game.idle.flow.StepSettings
 import game.idle.ui.TileEdge
 import io.luna.game.model.Position
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
@@ -55,15 +57,11 @@ sealed interface StepGoal {
     }
 }
 
-/** A step of a flow as a lesson sees it: its keyword and its count, null when it has none (`chop 1 oak` is chop, 1). */
+/** A step of a flow as a lesson sees it: its kind and its count, null when it has none (chop 1 oak is chop, 1). */
 data class StepSummary(val keyword: String, val count: Int?) {
 
     companion object {
-        /** A flow line, `<keyword> [<count>] ...`. */
-        fun of(line: String): StepSummary {
-            val words = words(line)
-            return StepSummary(words[0], words.getOrNull(1)?.toIntOrNull())
-        }
+        fun of(step: StepSettings): StepSummary = StepSummary(step.kind, step[StepAmount.KEY]?.toIntOrNull())
     }
 }
 

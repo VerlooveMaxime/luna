@@ -259,6 +259,53 @@ class HarnessRouterTest {
     }
 
     @Test
+    fun `body objects reads an array of objects`() {
+        val objects = call(body = """{"steps": [{"kind": "chop"}, {"kind": "drop"}]}""").body().objects("steps")
+
+        assertEquals(listOf("chop", "drop"), objects.map { it.string("kind") })
+    }
+
+    @Test
+    fun `body objects rejects a missing or null array`() {
+        val missing = assertThrows<HarnessException> { call(body = "{}").body().objects("steps") }
+        val nothing = assertThrows<HarnessException> { call(body = """{"steps": null}""").body().objects("steps") }
+
+        assertEquals("field 'steps' is required and must be an array of objects", missing.message)
+        assertEquals(missing.message, nothing.message)
+    }
+
+    @Test
+    fun `body objects rejects a single value or an array of anything but objects`() {
+        val single = assertThrows<HarnessException> { call(body = """{"steps": "chop"}""").body().objects("steps") }
+        val values = assertThrows<HarnessException> { call(body = """{"steps": ["chop"]}""").body().objects("steps") }
+
+        assertEquals("field 'steps' must be an array of objects", single.message)
+        assertEquals(single.message, values.message)
+    }
+
+    @Test
+    fun `body strings reads an object's single values as text`() {
+        val strings = call(body = """{"values": {"tree": "oak", "amount": 5, "far": false}}""").body().strings("values")
+
+        assertEquals(mapOf("tree" to "oak", "amount" to "5", "far" to "false"), strings)
+    }
+
+    @Test
+    fun `body strings of a missing or null object is empty`() {
+        assertEquals(emptyMap<String, String>(), call(body = "{}").body().strings("values"))
+        assertEquals(emptyMap<String, String>(), call(body = """{"values": null}""").body().strings("values"))
+    }
+
+    @Test
+    fun `body strings rejects a single value or nested values`() {
+        val single = assertThrows<HarnessException> { call(body = """{"values": "oak"}""").body().strings("values") }
+        val nested = assertThrows<HarnessException> { call(body = """{"values": {"tree": ["oak"]}}""").body().strings("values") }
+
+        assertEquals("field 'values' must be an object of single values", single.message)
+        assertEquals(single.message, nested.message)
+    }
+
+    @Test
     fun `parse query of nothing is empty`() {
         assertEquals(emptyMap<String, String>(), parseQuery(null))
     }

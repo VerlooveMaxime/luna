@@ -100,3 +100,7 @@ data class ActionView(val player: String, val action: String, val detail: String
 
 /** The content audit report, file name to text, as `.memory/artifacts/content-audit/` keeps it. */
 data class ContentAuditView(val files: Map<String, String>)
+
+data class FlowStepView(val kind: String, val values: Map<String, String>, val summary: String)
+
+data class FlowView(val player: String, val running: Boolean, val stepIndex: Int, val steps: List<FlowStepView>)

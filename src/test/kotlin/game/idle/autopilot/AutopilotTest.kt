@@ -1,6 +1,7 @@
 package game.idle.autopilot
 
 import game.idle.IdleState
+import game.idle.flow.StepSettings
 import game.idle.location.Tile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -12,12 +13,12 @@ class AutopilotTest {
     private val scheduler = FakeTickScheduler()
     private val activity = FakeActivity()
     private val autopilot = Autopilot<FakeAutopilotPlayer>(scheduler) { player ->
-        if ("broken" in player.idleState.flow) null else AutopilotDriver(activity, decisionDelayTicks = 1)
+        if (BROKEN in player.idleState.steps) null else AutopilotDriver(activity, decisionDelayTicks = 1)
     }
 
-    private val idle = FakeAutopilotPlayer("maxime", IdleState(flow = listOf("loop")))
-    private val chopping = FakeAutopilotPlayer("maxime", IdleState(flow = listOf("loop"), running = true))
-    private val broken = FakeAutopilotPlayer("maxime", IdleState(flow = listOf("broken"), running = true))
+    private val idle = FakeAutopilotPlayer("maxime", IdleState(steps = listOf(LOOP)))
+    private val chopping = FakeAutopilotPlayer("maxime", IdleState(steps = listOf(LOOP), running = true))
+    private val broken = FakeAutopilotPlayer("maxime", IdleState(steps = listOf(BROKEN), running = true))
 
     @Test
     fun `starting saves the switch and runs the autopilot`() {
@@ -67,7 +68,7 @@ class AutopilotTest {
 
     @Test
     fun `a flow resuming keeps its run tile`() {
-        val resuming = FakeAutopilotPlayer("maxime", IdleState(flow = listOf("loop"), runTile = Tile(1, 2)))
+        val resuming = FakeAutopilotPlayer("maxime", IdleState(steps = listOf(LOOP), runTile = Tile(1, 2)))
 
         autopilot.start(resuming)
 
@@ -124,7 +125,7 @@ class AutopilotTest {
 
         assertEquals(0, scheduler.activeCount)
         assertFalse(broken.idleState.running)
-        assertEquals(listOf("Autopilot: could not resume your flow. Check it with ::flow list."), broken.told)
+        assertEquals(listOf("Autopilot: could not resume your flow. Check it in the flow builder."), broken.told)
     }
 
     @Test
@@ -180,8 +181,13 @@ class AutopilotTest {
     fun `each player gets an autopilot of their own`() {
         autopilot.onLogin(chopping)
 
-        autopilot.onLogin(FakeAutopilotPlayer("zezima", IdleState(flow = listOf("loop"), running = true)))
+        autopilot.onLogin(FakeAutopilotPlayer("zezima", IdleState(steps = listOf(LOOP), running = true)))
 
         assertEquals(2, scheduler.activeCount)
+    }
+
+    private companion object {
+        val LOOP = StepSettings("loop")
+        val BROKEN = StepSettings("broken")
     }
 }

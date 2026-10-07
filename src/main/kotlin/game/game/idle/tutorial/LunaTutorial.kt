@@ -79,7 +79,12 @@ class TutorialController(private val player: Player, private val tutorial: LunaT
  * first two shrimp cooked, lets players through the doors and up or down the ladders at their steps, and keeps the
  * island's line in the quest journal's stages.
  */
-class LunaTutorial(private val script: TutorialScript, private val data: TutorialData, private val world: World) {
+class LunaTutorial(
+    private val script: TutorialScript,
+    private val data: TutorialData,
+    private val world: World,
+    private val idleUi: IdleUi,
+) {
 
     init {
         val missing = MESSAGES.filter { it !in data.messages }
@@ -135,7 +140,7 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
     /** A step with a goal moves on once the player does what it asks: their autopilot, what they carry, running. */
     fun checkGoal(player: Player) {
         val state = player.idleState
-        val flow = FlowProgress(state.running, state.flow.map(StepSummary::of), state.laps)
+        val flow = FlowProgress(state.running, state.steps.map(StepSummary::of), state.laps)
         val carried = (0 until player.inventory.capacity()).mapNotNull { player.inventory[it]?.id }.toSet()
         val step = player.tutorialStep
         advance(player, script.goalProgress(step, PlayerProgress(flow, carried, player.isRunning)) ?: script.oreProgress(step, carried))
@@ -358,7 +363,7 @@ class LunaTutorial(private val script: TutorialScript, private val data: Tutoria
     /** The Idle tab sits in the unused slot 7, which Luna's own tab reset leaves empty. */
     private fun showTab(player: Player, tab: TabIndex, visible: Boolean) = when {
         !visible -> player.tabs.clear(tab)
-        tab == TabIndex.UNUSED -> IdleUi.installTab(player, player.idleState)
+        tab == TabIndex.UNUSED -> idleUi.installTab(player, player.idleState)
         else -> player.tabs.reset(tab)
     }
 
