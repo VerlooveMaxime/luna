@@ -9,6 +9,7 @@ import game.idle.autopilot.IdleSteps
 import game.idle.autopilot.LunaAutopilotPlayer
 import game.idle.flow.FlowResolver
 import game.idle.idleState
+import game.idle.autopilot.fighting.FightTargetCatalog
 import game.idle.autopilot.making.RecipeCatalog
 import game.idle.location.BankCatalog
 import game.idle.location.Tile
@@ -24,7 +25,7 @@ import org.junit.jupiter.api.Test
 class LunaFlowUiTest {
 
     private val autopilot = Autopilot<LunaAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
-    private val resolver = FlowResolver(IdleSteps(BankCatalog(emptyList()), RecipeCatalog(emptyList())).grammar)
+    private val resolver = FlowResolver(IdleSteps(BankCatalog(emptyList()), RecipeCatalog(emptyList()), FightTargetCatalog(emptyList())).grammar)
     private val ui = LunaFlowUi(FlowBuilder(autopilot, resolver))
 
     private fun cycleKind(player: Player, times: Int) = repeat(times) { ui.click(player, FlowWidgets.DRAFT_KIND) }
@@ -81,7 +82,7 @@ class LunaFlowUiTest {
     fun `clicking a walk step's tile asks the client to open the map on it`() {
         val player = login()
         ui.click(player, FlowWidgets.TAB_OPEN_BUILDER)
-        cycleKind(player, times = 8)
+        cycleKind(player, times = 9)
 
         ui.click(player, FlowWidgets.DRAFT_FIELDS[0])
 
@@ -94,7 +95,7 @@ class LunaFlowUiTest {
     fun `a tile picked on the map shows in the builder`() {
         val player = login()
         ui.click(player, FlowWidgets.TAB_OPEN_BUILDER)
-        cycleKind(player, times = 8)
+        cycleKind(player, times = 9)
         ui.click(player, FlowWidgets.DRAFT_FIELDS[0])
 
         ui.picked(player, Tile(3086, 3233))

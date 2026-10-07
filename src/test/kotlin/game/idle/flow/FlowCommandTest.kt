@@ -7,6 +7,7 @@ import game.idle.autopilot.FakeActivity
 import game.idle.autopilot.FakeAutopilotPlayer
 import game.idle.autopilot.FakeTickScheduler
 import game.idle.autopilot.IdleSteps
+import game.idle.autopilot.fighting.FightTargetCatalog
 import game.idle.autopilot.making.RecipeCatalog
 import game.idle.location.Bank
 import game.idle.location.BankCatalog
@@ -22,7 +23,7 @@ class FlowCommandTest {
     private val scheduler = FakeTickScheduler()
     private val autopilot = Autopilot<FakeAutopilotPlayer>(scheduler) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
     private val banks = BankCatalog(listOf(Bank("varrock_west", "Varrock west bank", Tile(3186, 3440))))
-    private val command = FlowCommand(autopilot, FlowResolver(IdleSteps(banks, RecipeCatalog(emptyList())).grammar))
+    private val command = FlowCommand(autopilot, FlowResolver(IdleSteps(banks, RecipeCatalog(emptyList()), FightTargetCatalog(emptyList())).grammar))
 
     private val player = FakeAutopilotPlayer("maxime")
 
@@ -154,7 +155,7 @@ class FlowCommandTest {
                 "::flow add <step> | list | clear | run | resume | stop. Steps: chop [<n>] <tree> [within <r>], " +
                     "mine [<n>] <ore> [within <r>], fish [<n>] <fish> [within <r>], light [<n>], cook [<n>] [within <r>], " +
                     "make [<n>] <product>, smelt [<n>] <bar> [within <r>], smith [<n>] <metal> <item> [within <r>], " +
-                    "walk <x> <y>, drop, bank nearest|@<bank>",
+                    "fight [<n>] <npc> [within <r>] [eat below <p>%], walk <x> <y>, drop, bank nearest|@<bank>",
             ),
             player.told,
         )

@@ -10,6 +10,28 @@ class AutopilotDriverTest {
     private val driver = AutopilotDriver(activity, decisionDelayTicks = 2)
 
     @Test
+    fun `the activity's reason to stop is the driver's`() {
+        activity.stop = "out of food"
+
+        assertEquals("out of food", driver.stopReason())
+    }
+
+    @Test
+    fun `an activity with no reason to stop leaves the driver going`() {
+        assertEquals(null, driver.stopReason())
+    }
+
+    @Test
+    fun `an activity never stops the autopilot unless it says why`() {
+        val plain = object : AutopilotActivity {
+            override fun isBusy() = false
+            override fun act() = Unit
+        }
+
+        assertEquals(null, plain.stopReason())
+    }
+
+    @Test
     fun `nothing happens before the player has been idle for the delay`() {
         driver.tick()
 

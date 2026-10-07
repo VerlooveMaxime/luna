@@ -6,6 +6,8 @@ import game.idle.autopilot.drop.DropStepType
 import game.idle.autopilot.firemaking.LightStepType
 import game.idle.autopilot.fishing.FishStepType
 import game.idle.autopilot.making.MakeStepType
+import game.idle.autopilot.fighting.FightStepType
+import game.idle.autopilot.fighting.FightTargetCatalog
 import game.idle.autopilot.making.RecipeCatalog
 import game.idle.autopilot.mining.MineStepType
 import game.idle.autopilot.smelting.SmeltStepType
@@ -19,14 +21,16 @@ import org.junit.jupiter.api.Test
 
 class IdleStepsTest {
 
-    private val types = IdleSteps(BankCatalog(emptyList()), RecipeCatalog(emptyList())).grammar.types
+    private val types = IdleSteps(BankCatalog(emptyList()), RecipeCatalog(emptyList()), FightTargetCatalog(emptyList())).grammar.types
 
     @Test
-    fun `the builder cycles through gathering, processing, then walking, dropping and banking`() {
+    fun `the builder cycles through gathering, processing, fighting, then walking, dropping and banking`() {
         assertEquals(listOf(ChopStepType, MineStepType, FishStepType, LightStepType, CookStepType), types.take(5))
         assertInstanceOf(MakeStepType::class.java, types[5])
-        assertEquals(listOf(SmeltStepType, SmithStepType, WalkStepType, DropStepType), types.subList(6, 10))
-        assertInstanceOf(BankStepType::class.java, types[10])
-        assertEquals(11, types.size)
+        assertEquals(listOf(SmeltStepType, SmithStepType), types.subList(6, 8))
+        assertInstanceOf(FightStepType::class.java, types[8])
+        assertEquals(listOf(WalkStepType, DropStepType), types.subList(9, 11))
+        assertInstanceOf(BankStepType::class.java, types[11])
+        assertEquals(12, types.size)
     }
 }

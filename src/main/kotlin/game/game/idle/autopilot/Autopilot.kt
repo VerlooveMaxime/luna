@@ -66,8 +66,16 @@ class Autopilot<P : AutopilotPlayer>(
             return false
         }
         player.idleState = player.idleState.started(player.tile)
-        running[player.username] = scheduler.everyTick(driver::tick)
+        running[player.username] = scheduler.everyTick { tick(player, driver) }
         return true
+    }
+
+    /** A step that ends the flow (out of food, say) stops it and tells the player why. */
+    private fun tick(player: P, driver: AutopilotDriver) {
+        driver.tick()
+        val reason = driver.stopReason() ?: return
+        stop(player)
+        player.tell(reason)
     }
 
     fun stop(player: P) {

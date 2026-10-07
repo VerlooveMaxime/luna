@@ -39,6 +39,32 @@ class FlowRunnerTest {
     }
 
     @Test
+    fun `the current step's reason to stop is the flow's`() {
+        val runner = runner("fight")
+        runner.act()
+
+        player.started.single().stop = "out of food"
+
+        assertEquals("out of food", runner.stopReason())
+    }
+
+    @Test
+    fun `a step never stops the flow unless it says why`() {
+        val plain = object : StepActivity {
+            override fun isBusy() = false
+            override fun isDone() = false
+            override fun act() = Unit
+        }
+
+        assertEquals(null, plain.stopReason())
+    }
+
+    @Test
+    fun `a flow that has not started a step has no reason to stop`() {
+        assertEquals(null, runner("fight").stopReason())
+    }
+
+    @Test
     fun `a step that says it is done hands over to the next`() {
         val runner = runner("chop", "bank")
         runner.act()

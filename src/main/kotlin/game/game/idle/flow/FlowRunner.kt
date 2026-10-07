@@ -35,6 +35,8 @@ class FlowRunner(
 
     override fun isBusy(): Boolean = current?.isBusy() ?: false
 
+    override fun stopReason(): String? = current?.stopReason()
+
     override fun act() {
         if (steps.isEmpty()) return
         val activity = current ?: startStep()

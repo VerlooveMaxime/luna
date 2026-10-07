@@ -29,6 +29,36 @@ class AutopilotTest {
     }
 
     @Test
+    fun `an activity's reason to stop stops the autopilot`() {
+        autopilot.start(idle)
+        activity.stop = "Autopilot: stopped, out of food."
+
+        scheduler.tick()
+
+        assertFalse(autopilot.isRunning(idle))
+    }
+
+    @Test
+    fun `an activity's reason to stop is told to the player`() {
+        autopilot.start(idle)
+        activity.stop = "Autopilot: stopped, out of food."
+
+        scheduler.tick()
+
+        assertEquals(listOf("Autopilot: stopped, out of food."), idle.told)
+    }
+
+    @Test
+    fun `an activity's reason to stop saves the flow as stopped`() {
+        autopilot.start(idle)
+        activity.stop = "Autopilot: stopped, out of food."
+
+        scheduler.tick()
+
+        assertFalse(idle.idleState.running)
+    }
+
+    @Test
     fun `a flow started without a run tile takes the player's tile`() {
         autopilot.start(idle)
 

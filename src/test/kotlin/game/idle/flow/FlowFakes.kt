@@ -62,9 +62,12 @@ class FakeStepActivity(private val name: String, val log: MutableList<String>) :
 
     var busy = false
     var done = false
+    var stop: String? = null
     private var acts = 0
 
     override fun isBusy(): Boolean = busy
+
+    override fun stopReason(): String? = stop
 
     override fun isDone(): Boolean = done
 

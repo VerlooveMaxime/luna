@@ -6,6 +6,9 @@ interface AutopilotActivity {
     fun isBusy(): Boolean
 
     fun act()
+
+    /** Why the whole autopilot must stop now, or null to carry on. */
+    fun stopReason(): String? = null
 }
 
 /**
@@ -19,6 +22,8 @@ class AutopilotDriver(private val activity: AutopilotActivity, private val decis
     init {
         require(decisionDelayTicks > 0) { "decisionDelayTicks must be positive, got $decisionDelayTicks" }
     }
+
+    fun stopReason(): String? = activity.stopReason()
 
     fun tick() {
         if (activity.isBusy()) {

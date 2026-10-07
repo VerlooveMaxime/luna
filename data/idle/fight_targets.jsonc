@@ -1,0 +1,16 @@
+{
+  // What a flow's fight step can fight: `fight [<n>] <name>` attacks npcs of these ids around the work spot, one
+  // at a time, as a player would. Names in lower case; FightTargetsDataTest checks each id against the cache (an
+  // attackable npc of that name). Each row is checked live before it goes in.
+  //
+  //   name  what flows call it
+  //   npcs  the npc ids it stands for
+  "targets": [
+    // Lumbridge's chickens, and Tutorial Island's (951).
+    { "name": "chicken", "npcs": [41, 951] },
+    // Lumbridge's cows.
+    { "name": "cow", "npcs": [81, 397] },
+    // Tutorial Island's rat pen (950) and the mainland's giant rats.
+    { "name": "giant rat", "npcs": [86, 87, 446, 748, 950, 2722, 2723] }
+  ]
+}
