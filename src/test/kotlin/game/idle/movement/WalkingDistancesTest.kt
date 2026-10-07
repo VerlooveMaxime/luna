@@ -69,6 +69,30 @@ class WalkingDistancesTest {
     }
 
     @Test
+    fun `the first goal a walk reaches is the one fewest steps away, not the nearest in a straight line`() {
+        val behindFence = Position(13, 10, 0)
+        val inTheOpen = Position(10, 15, 0)
+
+        val reached = WalkingDistances.firstReached(origin, setOf(behindFence, inTheOpen), maxSteps = 10, ::fenced)
+
+        assertEquals(inTheOpen, reached)
+    }
+
+    @Test
+    fun `a goal more steps away than the limit is not reached, even inside the limit in a straight line`() {
+        val reached = WalkingDistances.firstReached(origin, setOf(Position(13, 10, 0)), maxSteps = 5, ::fenced)
+
+        assertNull(reached)
+    }
+
+    @Test
+    fun `a goal at the step limit is reached`() {
+        val reached = WalkingDistances.firstReached(origin, setOf(Position(13, 10, 0)), maxSteps = 6, ::fenced)
+
+        assertEquals(Position(13, 10, 0), reached)
+    }
+
+    @Test
     fun `bounds around a centre span the radius on both sides`() {
         assertEquals(TileBounds(7, 7, 13, 13, 0), bounds)
     }

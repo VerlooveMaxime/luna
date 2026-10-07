@@ -10,11 +10,14 @@ import game.idle.flow.StepType
 import game.idle.location.Bank
 import game.idle.location.BankCatalog
 import game.idle.location.Tile
+import game.idle.movement.WalkingDistances
+import io.luna.game.model.Direction
+import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
 
 /**
  * Bank: walks to the nearest bank or a chosen one and deposits everything but the player's tools. The nearest bank
- * is picked when the step starts, from where the player stands.
+ * is picked by walking distance when the step starts, from where the player stands.
  */
 class BankStepType(private val catalog: BankCatalog) : StepType {
 
@@ -44,15 +47,41 @@ class BankStepType(private val catalog: BankCatalog) : StepType {
     }
 }
 
+/** The collision answers picking the nearest bank needs. [LunaBankTerrain] is the in-game one. */
+interface BankTerrain {
+
+    fun canStep(from: Position, direction: Direction): Boolean
+
+    /** The tiles [bank]'s booth can be used from; none when no booth stands on its tile. */
+    fun usableFrom(bank: Bank): List<Position>
+}
+
 /** A bank step resolved: it uses the nearest of [candidates] when it starts. */
 data class BankStep(val candidates: List<Bank>) : ResolvedStep {
 
-    /** The candidate closest to [from] in a straight line on its floor, null when none is on that floor. */
-    fun nearest(from: Tile): Bank? =
-        candidates.filter { it.booth.z == from.z }.minByOrNull { squared(it.booth.x - from.x) + squared(it.booth.y - from.y) }
+    /**
+     * The candidate on [from]'s floor that a walk reaches first: a booth across a river can be near in a straight
+     * line and far on foot. With none within [MAX_WALK] steps, the one nearest in a straight line, as a walk may
+     * still get there. Null when no candidate is on that floor; a lone one is taken without a search.
+     */
+    fun nearest(from: Position, terrain: BankTerrain): Bank? {
+        val onFloor = candidates.filter { it.booth.z == from.z }
+        if (onFloor.size < 2) return onFloor.firstOrNull()
+        val bankByTile = onFloor.flatMap { bank -> terrain.usableFrom(bank).map { tile -> tile to bank } }.toMap()
+        val reached = WalkingDistances.firstReached(from, bankByTile.keys, MAX_WALK, terrain::canStep)
+        return reached?.let(bankByTile::getValue) ?: onFloor.minBy { squared(it.booth.x - from.x) + squared(it.booth.y - from.y) }
+    }
 
     override fun activity(player: Player, runTile: Tile): StepActivity =
-        BankActivity(LunaBanker(player, nearest(Tile.of(player.position))?.let { it.booth.toPosition() }))
+        BankActivity(LunaBanker(player, nearest(player.position, LunaBankTerrain(player.world))?.booth?.toPosition()))
 
     private fun squared(value: Int): Int = value * value
+
+    companion object {
+        /**
+         * About two minutes on foot, enough for every bank near the spots flows use; a search that finds nothing
+         * this close costs the game thread up to about 200 ms.
+         */
+        const val MAX_WALK = 200
+    }
 }

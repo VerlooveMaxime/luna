@@ -8,6 +8,7 @@ import game.skill.fishing.catchFish.Tool
 import game.skill.woodcutting.cutTree.Axe
 import io.luna.game.event.impl.ObjectClickEvent.ObjectSecondClickEvent
 import io.luna.game.model.Position
+import io.luna.game.model.World
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
 import io.luna.game.model.`object`.GameObject
@@ -66,9 +67,7 @@ class LunaBanker(private val player: Player, private val boothTile: Position?) :
         player.sendMessage(message)
     }
 
-    // Objects found through their chunk are always ACTIVE, so only the id needs checking.
-    private fun booth(): GameObject? =
-        boothTile?.let { tile -> world.locator.findObjectsOnTile(tile) { it.id in Banking.bankingObjects }.firstOrNull() }
+    private fun booth(): GameObject? = boothTile?.let { boothOn(world, it) }
 
     private fun depositableSlots(): List<Int> =
         (0 until player.inventory.capacity()).filter { slot ->
@@ -80,3 +79,7 @@ class LunaBanker(private val player: Player, private val boothTile: Position?) :
         val TOOL_IDS: Set<Int> = Axe.entries.map { it.id }.toSet() + Firemaking.TINDERBOX + Tool.entries.map { it.id }
     }
 }
+
+// Objects found through their chunk are always ACTIVE, so only the id needs checking.
+internal fun boothOn(world: World, tile: Position): GameObject? =
+    world.locator.findObjectsOnTile(tile) { it.id in Banking.bankingObjects }.firstOrNull()

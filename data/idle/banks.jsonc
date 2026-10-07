@@ -1,6 +1,7 @@
 {
-  // Banks a flow's bank step can use: `bank @<id>`, or `bank nearest`, which takes the one closest to the player in a
-  // straight line on the player's floor when the step starts.
+  // Banks a flow's bank step can use: `bank @<id>`, or `bank nearest`, which takes the one on the player's floor that
+  // a walk from the player reaches first when the step starts (the closest in a straight line when none is within
+  // 200 steps).
   //
   //   id     unique, what flows refer to
   //   name   shown to the player

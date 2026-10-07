@@ -43,10 +43,32 @@ class WalkingDistances private constructor(private val steps: Map<Position, Int>
         fun from(origin: Position, bounds: TileBounds, canStep: (Position, Direction) -> Boolean): WalkingDistances {
             require(origin in bounds) { "Origin $origin lies outside $bounds" }
             val steps = mutableMapOf(origin to 0)
+            walk(origin, bounds, Int.MAX_VALUE, canStep, steps) { false }
+            return WalkingDistances(steps)
+        }
+
+        /**
+         * The first of [goals] a walk from [origin] gets to in at most [maxSteps] steps, or null when none is that
+         * close. The search ends at that goal, so a near one costs far less than [from] over the whole range.
+         */
+        fun firstReached(origin: Position, goals: Set<Position>, maxSteps: Int, canStep: (Position, Direction) -> Boolean): Position? =
+            walk(origin, TileBounds.around(origin, maxSteps), maxSteps, canStep, mutableMapOf(origin to 0)) { it in goals }
+
+        /** Breadth-first from [origin], recording each tile's steps; the first tile [wanted] answers yes to, or null. */
+        private fun walk(
+            origin: Position,
+            bounds: TileBounds,
+            maxSteps: Int,
+            canStep: (Position, Direction) -> Boolean,
+            steps: MutableMap<Position, Int>,
+            wanted: (Position) -> Boolean,
+        ): Position? {
             val queue = ArrayDeque(listOf(origin))
             while (queue.isNotEmpty()) {
                 val tile = queue.removeFirst()
+                if (wanted(tile)) return tile
                 val next = steps.getValue(tile) + 1
+                if (next > maxSteps) continue
                 for (direction in Direction.ALL_EXCEPT_NONE) {
                     val neighbour = tile.translate(1, direction)
                     if (neighbour in bounds && neighbour !in steps && canStep(tile, direction)) {
@@ -55,7 +77,7 @@ class WalkingDistances private constructor(private val steps: Map<Position, Int>
                     }
                 }
             }
-            return WalkingDistances(steps)
+            return null
         }
     }
 }
