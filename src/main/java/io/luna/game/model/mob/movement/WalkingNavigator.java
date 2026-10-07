@@ -375,7 +375,8 @@ public class WalkingNavigator {
      * Computes and queues a path to a destination.
      * <p>
      * The path is computed using the supplied pathfinder, then applied to the mob's walking queue on the game
-     * executor.
+     * executor, unless the request it was computed for has ended meanwhile (cancelled, replaced, or interrupted by a
+     * walk the player clicked): a stale path would override whatever moved the mob since.
      *
      * @param destination The destination to walk to.
      * @param pathfinder The pathfinder implementation to use.
@@ -383,8 +384,13 @@ public class WalkingNavigator {
      * @return A future that completes once the path has been computed and queued.
      */
     CompletableFuture<Void> walk(Locatable destination, GamePathfinder<Position> pathfinder, boolean async) {
+        NavigationRequest request = active;
         CompletableFuture<Void> result = findPath(mob.getPosition(), destination.abs(), pathfinder, async)
-                .thenAcceptAsync(path -> mob.getWalking().replacePath(path), mob.getService().getGameExecutor());
+                .thenAcceptAsync(path -> {
+                    if (request == active && isActive()) {
+                        mob.getWalking().replacePath(path);
+                    }
+                }, mob.getService().getGameExecutor());
         return handleExceptions(destination, result);
     }
 
