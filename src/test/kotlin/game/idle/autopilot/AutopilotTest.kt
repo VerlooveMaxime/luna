@@ -105,6 +105,41 @@ class AutopilotTest {
     }
 
     @Test
+    fun `stopping a running flow ends the walk it was taking the player on`() {
+        autopilot.start(idle)
+
+        autopilot.stop(idle)
+
+        assertEquals(1, idle.walksEnded)
+    }
+
+    @Test
+    fun `stopping when no flow runs leaves the player's walk alone`() {
+        autopilot.stop(idle)
+
+        assertEquals(0, idle.walksEnded)
+    }
+
+    @Test
+    fun `an activity's reason to stop leaves its walk going`() {
+        autopilot.start(idle)
+        activity.stop = "Autopilot: stopped, out of food."
+
+        scheduler.tick()
+
+        assertEquals(0, idle.walksEnded)
+    }
+
+    @Test
+    fun `starting again ends the walk of the flow it replaces`() {
+        autopilot.start(idle)
+
+        autopilot.start(idle)
+
+        assertEquals(1, idle.walksEnded)
+    }
+
+    @Test
     fun `stopping a player without an autopilot is harmless`() {
         autopilot.stop(idle)
 

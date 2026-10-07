@@ -6,6 +6,8 @@ import game.idle.location.Tile
 class FakeAutopilotPlayer(override val username: String, state: IdleState = IdleState()) : AutopilotPlayer {
 
     val told = mutableListOf<String>()
+    var walksEnded = 0
+        private set
     var stateReads = 0
         private set
 
@@ -19,5 +21,9 @@ class FakeAutopilotPlayer(override val username: String, state: IdleState = Idle
 
     override fun tell(message: String) {
         told += message
+    }
+
+    override fun endWalk() {
+        walksEnded++
     }
 }

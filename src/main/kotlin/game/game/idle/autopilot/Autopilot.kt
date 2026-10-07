@@ -14,6 +14,9 @@ interface AutopilotPlayer {
     val tile: Tile
 
     fun tell(message: String)
+
+    /** Ends the walk the autopilot is taking the player on, if any; a walk the player clicked goes on. */
+    fun endWalk()
 }
 
 /** Runs an action every game tick until the returned handle is cancelled. */
@@ -70,16 +73,29 @@ class Autopilot<P : AutopilotPlayer>(
         return true
     }
 
-    /** A step that ends the flow (out of food, say) stops it and tells the player why. */
+    /**
+     * A step that ends the flow (out of food, say) stops it and tells the player why. A walk it started goes on: the
+     * fight step stops once it has run from what attacked the player, maybe before the run is over.
+     */
     private fun tick(player: P, driver: AutopilotDriver) {
         driver.tick()
         val reason = driver.stopReason() ?: return
-        stop(player)
+        halt(player)
         player.tell(reason)
     }
 
+    /** Stops the flow and the walk it was taking the player on (to a bank, say), which would carry them far off. */
     fun stop(player: P) {
-        running.remove(player.username)?.cancel()
+        if (halt(player)) {
+            player.endWalk()
+        }
+    }
+
+    /** Stops the flow; true when one was running. */
+    private fun halt(player: P): Boolean {
+        val tick = running.remove(player.username)
+        tick?.cancel()
         player.idleState = player.idleState.stopped()
+        return tick != null
     }
 }

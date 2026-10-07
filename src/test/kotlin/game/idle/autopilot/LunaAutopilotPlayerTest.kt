@@ -46,9 +46,11 @@ import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.util.ArrayDeque
 
 class LunaAutopilotPlayerTest {
 
@@ -181,6 +183,59 @@ class LunaAutopilotPlayerTest {
         autopilot.saveStep(1)
 
         assertEquals(IdleState(steps = listOf(chopOak), stepIndex = 1, running = true), autopilot.player.idleState)
+    }
+
+    private val farTile = Position(3220, 3200)
+
+    @Test
+    fun `ending the walk stops a walk the autopilot started`() {
+        val autopilot = autopilotPlayer()
+        autopilot.player.navigator.navigate(farTile, false)
+        TestWorld.tick()
+        val stoppedAt = autopilot.player.position
+
+        autopilot.endWalk()
+        TestWorld.tick(times = 3)
+
+        assertEquals(stoppedAt, autopilot.player.position)
+    }
+
+    @Test
+    fun `ending the walk leaves a walk the player clicked alone`() {
+        val autopilot = autopilotPlayer()
+        autopilot.player.walking.replacePath(ArrayDeque(listOf(Position(3200, 3205))))
+
+        autopilot.endWalk()
+
+        assertFalse(autopilot.player.walking.isEmpty)
+    }
+
+    /** Walks far off at its first decision, the way a bank or walk step heads for its target. */
+    private class WalkingFarOff(private val player: Player, private val tile: Position) : AutopilotActivity {
+
+        override fun isBusy(): Boolean = !player.walking.isEmpty || player.navigator.isActive
+
+        override fun act() {
+            player.navigator.navigate(tile, false)
+        }
+    }
+
+    @Test
+    fun `stopping a running flow leaves the player where they stand`() {
+        val autopilotPlayer = autopilotPlayer()
+        val player = autopilotPlayer.player
+        player.idleState = IdleState(steps = listOf(chopOak))
+        val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(TestWorld.world)) {
+            AutopilotDriver(WalkingFarOff(player, farTile), decisionDelayTicks = 1)
+        }
+        autopilot.start(autopilotPlayer)
+        TestWorld.tick(times = 3)
+        val stoppedAt = player.position
+
+        autopilot.stop(autopilotPlayer)
+        TestWorld.tick(times = 3)
+
+        assertEquals(stoppedAt, player.position)
     }
 
     @Test

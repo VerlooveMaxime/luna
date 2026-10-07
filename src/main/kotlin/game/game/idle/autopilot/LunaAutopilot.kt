@@ -32,6 +32,14 @@ class LunaAutopilotPlayer(val player: Player, private val ui: IdleUi) : Autopilo
         player.sendMessage(message)
     }
 
+    /** Every walk of the autopilot goes through Luna's navigator, and a walk the player clicks never does. */
+    override fun endWalk() {
+        if (player.navigator.isActive) {
+            player.navigator.cancel()
+            player.walking.clear()
+        }
+    }
+
     override fun saveStep(index: Int) {
         idleState = idleState.atStep(index)
     }
