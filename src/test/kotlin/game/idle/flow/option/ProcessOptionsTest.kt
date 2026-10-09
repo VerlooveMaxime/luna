@@ -30,7 +30,7 @@ class ProcessOptionsTest {
 
     @Test
     fun `from the bank every row is offered, with the bank's count of its first input`() {
-        assertEquals("120 in bank …", bar(fromBank)?.note)
+        assertEquals("120 in bank ...", bar(fromBank)?.note)
     }
 
     @Test

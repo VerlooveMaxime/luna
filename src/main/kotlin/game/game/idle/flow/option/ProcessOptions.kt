@@ -34,7 +34,7 @@ object ProcessOptions {
         )
     }
 
-    /** The bank's count of the first input, with "…" when more inputs are needed. */
+    /** The bank's count of the first input, with "..." when more inputs are needed (the client takes ISO-8859-1). */
     private fun bankNote(facts: OptionFacts, inputs: List<Int>): String =
-        facts.bankNote(inputs.first()) + if (inputs.size > 1) " …" else ""
+        facts.bankNote(inputs.first()) + if (inputs.size > 1) " ..." else ""
 }
