@@ -11,7 +11,9 @@ data class FightTarget(val name: String, val npcs: Set<Int>, val label: String, 
 
 /**
  * Every npc a fight step can fight: the cache's attackable npcs, one target per name (Maxime, 2026-10-07), so the data
- * lives in one place. Npcs whose combat stats are still placeholders fight oddly until the combat import covers them.
+ * lives in one place. Npcs at combat level 0 are left out (Maxime, 2026-10-09): minigame and quest pieces such as
+ * Castle Wars barricades; a name keeps its other levels. Npcs whose combat stats are still placeholders fight oddly
+ * until the combat import covers them.
  */
 class FightTargetCatalog(val targets: List<FightTarget>) {
 
@@ -21,10 +23,10 @@ class FightTargetCatalog(val targets: List<FightTarget>) {
 
     companion object {
 
-        /** One target per lower-case name over the attackable [npcs]. */
+        /** One target per lower-case name over the attackable [npcs] above combat level 0. */
         fun of(npcs: List<NpcKind>): FightTargetCatalog =
             FightTargetCatalog(
-                npcs.filter { it.attackable }.groupBy { it.name.lowercase() }.map { (name, kinds) ->
+                npcs.filter { it.attackable && it.combatLevel > 0 }.groupBy { it.name.lowercase() }.map { (name, kinds) ->
                     val levels = kinds.map { it.combatLevel }
                     FightTarget(name, kinds.map { it.id }.toSet(), kinds.first().name, levels.min()..levels.max())
                 },

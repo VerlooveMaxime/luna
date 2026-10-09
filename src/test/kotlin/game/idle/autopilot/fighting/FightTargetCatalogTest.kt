@@ -33,6 +33,20 @@ class FightTargetCatalogTest {
     }
 
     @Test
+    fun `an npc at combat level 0 is no target`() {
+        val catalog = FightTargetCatalog.of(listOf(npc(1532, "Barricade", 0)))
+
+        assertEquals(emptyList<FightTarget>(), catalog.targets)
+    }
+
+    @Test
+    fun `a name keeps its npcs above level 0`() {
+        val catalog = FightTargetCatalog.of(listOf(npc(2, "Rat", 0), npc(47, "Rat", 1)))
+
+        assertEquals(listOf(FightTarget("rat", setOf(47), "Rat", 1..1)), catalog.targets)
+    }
+
+    @Test
     fun `a target is found by its lower-case name`() {
         val catalog = FightTargetCatalog.of(listOf(npc(81, "Cow", 2)))
 
@@ -58,5 +72,13 @@ class FightTargetCatalogTest {
         TestWorld.context
 
         assertNull(FightTargetCatalog.fromCache().find("hans"))
+    }
+
+    @Test
+    fun `the cache's catalog leaves out level-0 minigame pieces and keeps the levels of mixed names`() {
+        TestWorld.context
+        val catalog = FightTargetCatalog.fromCache()
+
+        assertEquals(listOf(null, 84..103), listOf(catalog.find("barricade"), catalog.find("mummy")?.levels))
     }
 }
