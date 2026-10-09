@@ -17,6 +17,19 @@ class PrepareFoodActionItem(plr: Player,
                             amount: Int) :
     InventoryAction(plr, true, 1, amount) {
 
+    companion object {
+
+        /**
+         * The curry leaf, of which uncooked curry takes [CURRY_LEAVES].
+         */
+        const val CURRY_LEAF = 5970
+
+        /**
+         * How many curry leaves an uncooked curry takes.
+         */
+        const val CURRY_LEAVES = 3
+    }
+
     override fun executeIf(start: Boolean): Boolean =
         when {
             mob.cooking.level < food.lvl -> {
@@ -50,6 +63,9 @@ class PrepareFoodActionItem(plr: Player,
         if (currentRemove != null) {
             // Replace items with empty counterparts. Empty buckets, jugs, pots, etc.
             for (item in currentRemove) {
+                if (food.keepsContainer && item.id == food.baseIngredient) {
+                    continue
+                }
                 val replaceId = computeReplacedItems(item.id)
                 if (replaceId != null) {
                     addItems += Item(replaceId, item.amount)
@@ -65,8 +81,8 @@ class PrepareFoodActionItem(plr: Player,
         // Making uncooked curry requires 3 leaves.
         food == IncompleteFood.UNCOOKED_CURRY -> {
             removeIds.map {
-                if (it == 5970) {
-                    Item(it, 3)
+                if (it == CURRY_LEAF) {
+                    Item(it, CURRY_LEAVES)
                 } else {
                     Item(it)
                 }
@@ -91,6 +107,7 @@ class PrepareFoodActionItem(plr: Player,
         return when (id) {
             1933 -> 1931 // Pot of flour
             1927 -> 1925 // Bucket of milk
+            4239 -> 1923 // Nettle tea
             else -> null
         }
     }

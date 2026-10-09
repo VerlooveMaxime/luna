@@ -3,11 +3,17 @@ package game.skill.cooking.prepareFood
 import game.obj.resource.fillable.WaterResource
 
 /**
- * An enum representing all food that can be prepared before cooking.
+ * An enum representing all food that can be prepared before cooking. [keepsContainer] is set where the food stays in
+ * the container of its base ingredient (a bowl), which is then not given back.
  *
  * @author lare96
  */
-enum class IncompleteFood(val id: Int, val lvl: Int, val exp: Double, val baseIngredient: Int, val otherIngredients: List<Int>) {
+enum class IncompleteFood(val id: Int,
+                          val lvl: Int,
+                          val exp: Double,
+                          val baseIngredient: Int,
+                          val otherIngredients: List<Int>,
+                          val keepsContainer: Boolean = false) {
 
     // Various dough types
     BREAD_DOUGH(id = 2307,
@@ -133,12 +139,14 @@ enum class IncompleteFood(val id: Int, val lvl: Int, val exp: Double, val baseIn
                                 lvl = 25,
                                 exp = 2.0,
                                 baseIngredient = 1921,
-                                otherIngredients = listOf(1942)),
+                                otherIngredients = listOf(1942),
+                                keepsContainer = true),
     INCOMPLETE_STEW_WITH_MEAT(id = 1999,
                               lvl = 25,
                               exp = 2.0,
                               baseIngredient = 1921,
-                              otherIngredients = listOf(2140, 2142)),
+                              otherIngredients = listOf(2140, 2142),
+                              keepsContainer = true),
     UNCOOKED_STEW_FROM_POTATO(id = 2001,
                               lvl = 25,
                               exp = 0.0,
@@ -160,12 +168,14 @@ enum class IncompleteFood(val id: Int, val lvl: Int, val exp: Double, val baseIn
                  lvl = 20,
                  exp = 0.0,
                  baseIngredient = 1921,
-                 otherIngredients = listOf(4241)),
+                 otherIngredients = listOf(4241),
+                 keepsContainer = true),
     MILKY_NETTLE_TEA(id = 4240,
                      lvl = 20,
                      exp = 0.0,
                      baseIngredient = 4239,
-                     otherIngredients = listOf(1927)),
+                     otherIngredients = listOf(1927),
+                     keepsContainer = true),
     CUP_OF_NETTLE_TEA(id = 4242,
                       lvl = 20,
                       exp = 52.0,
@@ -174,7 +184,7 @@ enum class IncompleteFood(val id: Int, val lvl: Int, val exp: Double, val baseIn
     CUP_OF_MILKY_NETTLE_TEA(id = 4243,
                             lvl = 20,
                             exp = 0.0,
-                            baseIngredient = 1980,
+                            baseIngredient = 4242,
                             otherIngredients = listOf(1927)),
 
     // Pizzas

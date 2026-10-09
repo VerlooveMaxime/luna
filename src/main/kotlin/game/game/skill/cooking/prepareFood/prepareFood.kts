@@ -36,8 +36,8 @@ fun openOther(plr: Player, food: IncompleteFood, removeIds: MutableSet<Int>) {
     })
 }
 
-// Loop through all incomplete foods and register listeners.
-IncompleteFood.ALL.values.forEach {
+// Loop through all incomplete foods and register listeners. Not ALL's values: two stews share a product id.
+IncompleteFood.entries.forEach {
     for (id in it.otherIngredients) {
         useItem(it.baseIngredient).onItem(id) {
             val itemSet = mutableSetOf(usedItemId, targetItemId)
