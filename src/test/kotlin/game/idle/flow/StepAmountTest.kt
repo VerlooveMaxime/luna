@@ -21,9 +21,9 @@ class StepAmountTest {
 
     @Test
     fun `a count is 1 to 1000`() {
-        assertEquals("A step's count is 1 to 1000, not '0'", assertThrows<FlowError> { StepAmount.read(amount("0")) }.message)
-        assertEquals("A step's count is 1 to 1000, not '1001'", assertThrows<FlowError> { StepAmount.read(amount("1001")) }.message)
-        assertEquals("A step's count is 1 to 1000, not 'lots'", assertThrows<FlowError> { StepAmount.read(amount("lots")) }.message)
+        assertEquals("the amount takes 1 to 1000, not '0'", assertThrows<FlowError> { StepAmount.read(amount("0")) }.message)
+        assertEquals("the amount takes 1 to 1000, not '1001'", assertThrows<FlowError> { StepAmount.read(amount("1001")) }.message)
+        assertEquals("the amount takes 1 to 1000, not 'lots'", assertThrows<FlowError> { StepAmount.read(amount("lots")) }.message)
     }
 
     @Test
@@ -32,11 +32,23 @@ class StepAmountTest {
     }
 
     @Test
-    fun `the builder offers no count first, shown as the step's own word, then a few counts`() {
-        val field = StepAmount.field(unbounded = "full")
+    fun `the configure screen types an amount from 1 to 1000, a button removing it`() {
+        assertEquals(
+            listOf("Kills (left): typed amount 1..1000, button 'No end'"),
+            described(listOf(StepAmount.field("Kills", unbounded = "no end", button = "No end"))),
+        )
+    }
 
-        assertEquals(listOf("", "1", "5", "10"), field.choices(StepSettings("chop")))
-        assertEquals(listOf("full", "5"), listOf(field.display(""), field.display("5")))
+    @Test
+    fun `the configure screen shows an amount per lap, or the step's own word without one`() {
+        val field = StepAmount.field("Amount", unbounded = "until the bag is full", button = "Full")
+
+        assertEquals(listOf("5 per lap", "until the bag is full"), listOf(field.shown("5"), field.shown(null)))
+    }
+
+    @Test
+    fun `a typed amount out of range is refused with its rule`() {
+        assertEquals("the amount takes 1 to 1000", StepAmount.field("Amount", unbounded = "all of them", button = "All").rule)
     }
 
     @Test

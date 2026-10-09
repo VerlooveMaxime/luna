@@ -5,6 +5,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
+import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -45,11 +46,23 @@ class LightStepTypeTest {
     }
 
     @Test
-    fun `the builder offers all or a few counts`() {
-        val field = LightStepType.fields[0] as StepField.Choice
+    fun `the configure screen notes where the logs come from and types the amount`() {
+        assertEquals(
+            listOf("Input (left): note", "Amount (left): typed amount 1..1000, button 'All'"),
+            described(LightStepType.fields(FakeNames())),
+        )
+    }
 
-        assertEquals(listOf("", "1", "5", "10"), field.choices(light()))
-        assertEquals("all", field.display(""))
+    @Test
+    fun `the configure screen's input note names the step that gets the logs`() {
+        val note = LightStepType.fields(FakeNames()).first() as StepField.Note
+
+        assertEquals("Logs from step 2", note.text(light(), FlowContext(gatheredBy = mapOf(logs to 2))))
+    }
+
+    @Test
+    fun `the configure screen shows the Firemaking level`() {
+        assertEquals(Skill.FIREMAKING, LightStepType.skill(light()))
     }
 
     @Test

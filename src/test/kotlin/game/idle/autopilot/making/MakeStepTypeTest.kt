@@ -2,9 +2,9 @@ package game.idle.autopilot.making
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
-import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
+import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -18,8 +18,6 @@ class MakeStepTypeTest {
     private val make = MakeStepType(RecipeCatalog(listOf(dough, unf)))
 
     private fun settings(vararg values: Pair<String, String>) = StepSettings("make", mapOf(*values))
-
-    private fun choices(index: Int) = (make.fields[index] as StepField.Choice).choices(settings())
 
     @Test
     fun `a make step reads as its product, its count written when it has one`() {
@@ -47,9 +45,19 @@ class MakeStepTypeTest {
     }
 
     @Test
-    fun `the builder offers the products and the amounts`() {
-        assertEquals(listOf("bread dough", "guam potion (unf)"), choices(0))
-        assertEquals(listOf("", "1", "5", "10"), choices(1))
+    fun `the configure screen searches the product and types the amount`() {
+        assertEquals(
+            listOf(
+                "Product (left): search product, 'What would you like to make?'",
+                "Amount (left): typed amount 1..1000, button 'All'",
+            ),
+            described(make.fields(FakeNames())),
+        )
+    }
+
+    @Test
+    fun `the configure screen shows the level of the recipe's skill`() {
+        assertEquals(Skill.COOKING, make.skill(settings("product" to "bread dough")))
     }
 
     @Test

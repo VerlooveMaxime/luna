@@ -127,6 +127,9 @@ object HarnessPackets {
                 .putShort(from, ByteOrder.LITTLE),
         )
 
+    /** The "Enter amount" prompt's answer, as the 377 client sends it. */
+    fun amount(value: Int): GameMessage = GameMessage(75, MessageType.FIXED, ByteMessage.raw().putInt(value))
+
     fun continueDialogue(): GameMessage = GameMessage(226, MessageType.FIXED, ByteMessage.raw().putShort(0))
 
     fun closeInterface(): GameMessage = GameMessage(110, MessageType.FIXED, ByteMessage.raw())

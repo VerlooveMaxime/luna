@@ -27,7 +27,9 @@ class BuilderOverviewTest {
     private object Chop : StepType {
         override val kind = "chop"
         override val label = "chop"
-        override val fields = emptyList<StepField>()
+        override val description = "Cuts trees."
+
+        override fun fields(names: GameNames): List<StepField> = emptyList()
 
         override fun summary(settings: StepSettings): String = "chop"
 
@@ -358,10 +360,14 @@ class BuilderOverviewTest {
     }
 
     @Test
-    fun `a page shows its layer and hides the other`() {
+    fun `a page shows its layer and hides the others`() {
         assertEquals(
-            listOf(WidgetUpdate.Visible(BuilderWidgets.OVERVIEW, visible = false), WidgetUpdate.Visible(BuilderWidgets.KINDS, visible = true)),
-            overview.page(BuilderPage.KINDS),
+            listOf(
+                WidgetUpdate.Visible(BuilderWidgets.OVERVIEW, visible = false),
+                WidgetUpdate.Visible(BuilderWidgets.KINDS, visible = false),
+                WidgetUpdate.Visible(BuilderWidgets.CONFIGURE, visible = true),
+            ),
+            overview.page(BuilderPage.CONFIGURE),
         )
     }
 }

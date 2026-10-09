@@ -5,6 +5,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
+import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import game.idle.location.Bank
 import game.idle.location.BankCatalog
@@ -48,8 +49,11 @@ class BankStepTypeTest {
     }
 
     @Test
-    fun `the builder offers nearest, then every bank`() {
-        assertEquals(listOf("nearest", "varrock_west", "draynor"), (bank.fields[0] as StepField.Choice).choices(settings()))
+    fun `the configure screen searches the bank and notes what it deposits`() {
+        val fields = bank.fields(FakeNames())
+
+        assertEquals(listOf("Bank (left): search bank, 'Which bank?'", "Deposit (left): note"), described(fields))
+        assertEquals("Everything but tools", (fields[1] as StepField.Note).text(settings(), FlowContext()))
     }
 
     @Test

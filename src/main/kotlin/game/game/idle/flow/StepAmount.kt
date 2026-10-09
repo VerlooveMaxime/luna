@@ -10,18 +10,20 @@ object StepAmount {
 
     const val MAX = 1000
 
-    /** The counts the builder's amount field offers after the step's own word for "as much as it can". */
-    val COUNTS = listOf("1", "5", "10")
+    const val RULE = "the amount takes 1 to $MAX"
 
-    /** The builder's amount field; no count shows as [unbounded], the step's word for "as much as it can". */
-    fun field(unbounded: String): StepField.Choice =
-        StepField.Choice(KEY, "amount", display = { it.ifEmpty { unbounded } }) { listOf("") + COUNTS }
+    /**
+     * The configure screen's amount under [label]: "5 per lap", or [unbounded], the step's words for as much as it can,
+     * which the button worded [button] sets.
+     */
+    fun field(label: String, unbounded: String, button: String): StepField.Typed =
+        StepField.Typed(KEY, label, 1..MAX, RULE, shown = { it?.let { count -> "$count per lap" } ?: unbounded }, unbounded = button)
 
     /** The count [settings] hold, null for none; throws [FlowError] when it is not a count from 1 to [MAX]. */
     fun read(settings: StepSettings): Int? {
         val text = settings[KEY] ?: return null
         val count = text.toIntOrNull()
-        if (count == null || count !in 1..MAX) throw FlowError("A step's count is 1 to $MAX, not '$text'")
+        if (count == null || count !in 1..MAX) throw FlowError("$RULE, not '$text'")
         return count
     }
 

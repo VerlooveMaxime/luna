@@ -30,6 +30,8 @@ class BankStepType(private val catalog: BankCatalog) : StepType {
 
     override val label = "bank"
 
+    override val description = "Deposits everything but tools at a bank."
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.BANK
 
     override fun target(names: GameNames): StepTarget = StepTarget(BANK, BankOptions(catalog), default = NEAREST)
@@ -37,7 +39,11 @@ class BankStepType(private val catalog: BankCatalog) : StepType {
     /** It deposits all but tools (axes, pickaxes, the hammer, the tinderbox, fishing tools and bait). */
     override fun details(settings: StepSettings, context: FlowContext): List<String> = listOf("keeps tools")
 
-    override val fields = listOf(StepField.Choice(BANK, "bank") { listOf(NEAREST) + ids })
+    override fun fields(names: GameNames): List<StepField> =
+        listOf(
+            StepField.Search("Bank", target(names), "Which bank?"),
+            StepField.Note("Deposit") { _, _ -> "Everything but tools" },
+        )
 
     override fun summary(settings: StepSettings): String = "bank ${settings[BANK] ?: NEAREST}"
 

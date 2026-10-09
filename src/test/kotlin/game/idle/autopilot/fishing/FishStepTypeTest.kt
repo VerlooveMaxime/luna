@@ -2,10 +2,11 @@ package game.idle.autopilot.fishing
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
-import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.described
+import game.idle.flow.option.FakeNames
 import game.idle.flow.option.LunaGameNames
 import game.idle.location.Tile
 import game.skill.fishing.catchFish.FishingSpot
@@ -22,8 +23,6 @@ class FishStepTypeTest {
     private val walkedTo = WorkSpot.At(Tile(3086, 3228))
 
     private fun fish(vararg values: Pair<String, String>) = StepSettings("fish", mapOf(*values))
-
-    private fun choices(index: Int) = (FishStepType.fields[index] as StepField.Choice).choices(fish())
 
     /** Luna's fish name themselves from the item definitions, which need the cache. */
     @BeforeEach
@@ -65,10 +64,20 @@ class FishStepTypeTest {
     }
 
     @Test
-    fun `the builder offers the fish, amounts and a few radii`() {
-        assertEquals(WORDS.split(", "), choices(0))
-        assertEquals(listOf("", "1", "5", "10"), choices(1))
-        assertEquals(listOf("5", "10", "15", "20", "30"), choices(2))
+    fun `the configure screen searches the catch, types the amount and the radius`() {
+        assertEquals(
+            listOf(
+                "Catch (left): search fish, 'What would you like to fish?'",
+                "Amount (left): typed amount 1..1000, button 'Full'",
+                "Within (right): typed within 1..32",
+            ),
+            described(FishStepType.fields(FakeNames())),
+        )
+    }
+
+    @Test
+    fun `the configure screen shows the Fishing level`() {
+        assertEquals(Skill.FISHING, FishStepType.skill(StepSettings()))
     }
 
     @Test

@@ -28,6 +28,7 @@ import io.luna.game.model.mob.Npc
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.attr.Attribute
 import io.luna.game.model.mob.movement.NavigationResult
+import io.luna.game.model.mob.overlay.NumberInput
 import io.luna.game.model.`object`.GameObject
 import io.luna.net.msg.GameMessage
 import java.lang.management.ManagementFactory
@@ -156,6 +157,10 @@ class LunaHarnessApi(
             PlayerAction.SearchClose -> {
                 val serial = prompt(player, ChatboxPrompt::class.java, "chatbox prompt").serial
                 send(player, "search close", HarnessPackets.searchClosed(serial))
+            }
+            is PlayerAction.Amount -> {
+                if (!player.overlays.has(NumberInput::class.java)) throw HarnessException(409, "${player.username} has no amount prompt open")
+                send(player, "amount", HarnessPackets.amount(action.value))
             }
             PlayerAction.ContinueDialogue -> send(player, "continue dialogue", HarnessPackets.continueDialogue())
             PlayerAction.CloseInterface -> send(player, "close interface", HarnessPackets.closeInterface())

@@ -31,18 +31,23 @@ object SmeltStepType : StepType {
 
     override val label = "smelt"
 
+    override val description = "Smelts ores into bars at a furnace."
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.SMITHING)
+
+    override fun skill(settings: StepSettings): Int = Skill.SMITHING
 
     override fun target(names: GameNames): StepTarget = StepTarget(BAR, BarOptions(names))
 
     override fun details(settings: StepSettings, context: FlowContext): List<String> =
         listOf(StepAmount.detail(settings, unbounded = "all of them"))
 
-    override val fields = listOf(
-        StepField.Choice(BAR, "bar") { BarType.entries.sortedBy { it.level }.map { it.name.lowercase() } },
-        StepAmount.field(unbounded = "all"),
-        StepRadius.field(),
-    )
+    override fun fields(names: GameNames): List<StepField> =
+        listOf(
+            StepField.Search("Bar", target(names), "Which bar would you like to smelt?"),
+            StepAmount.field("Amount", unbounded = "all of them", button = "All"),
+            StepRadius.field(),
+        )
 
     override fun summary(settings: StepSettings): String =
         "smelt ${StepAmount.prefix(settings)}${settings[BAR] ?: "?"}${StepRadius.suffix(settings)}"

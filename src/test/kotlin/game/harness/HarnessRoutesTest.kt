@@ -196,6 +196,13 @@ class HarnessRoutesTest {
     }
 
     @Test
+    fun `an amount passes the number typed`() {
+        post("/player/agent_a/amount", """{"value": 25}""")
+
+        assertEquals("agent_a" to PlayerAction.Amount(25), lastAction())
+    }
+
+    @Test
     fun `arrange passes the layer and both places`() {
         post("/player/agent_a/arrange", """{"widget": 30711, "from": 0, "to": 2}""")
 

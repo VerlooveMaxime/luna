@@ -6,6 +6,7 @@ import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import game.idle.location.Tile
 import game.testworld.TestWorld
@@ -57,9 +58,23 @@ class CookStepTypeTest {
     }
 
     @Test
-    fun `the builder offers all or a few counts, and a few radii`() {
-        assertEquals(listOf("", "1", "5", "10"), (CookStepType.fields[0] as StepField.Choice).choices(cook()))
-        assertEquals(listOf("5", "10", "15", "20", "30"), (CookStepType.fields[1] as StepField.Choice).choices(cook()))
+    fun `the configure screen notes where the raw food comes from, types the amount and the radius`() {
+        assertEquals(
+            listOf("Input (left): note", "Amount (left): typed amount 1..1000, button 'All'", "Within (right): typed within 1..32"),
+            described(CookStepType.fields(FakeNames())),
+        )
+    }
+
+    @Test
+    fun `the configure screen's input note names the step that gets the raw food`() {
+        val note = CookStepType.fields(FakeNames()).first() as StepField.Note
+
+        assertEquals("Raw food from step 1", note.text(cook(), FlowContext(gatheredBy = mapOf(317 to 1))))
+    }
+
+    @Test
+    fun `the configure screen shows the Cooking level`() {
+        assertEquals(Skill.COOKING, CookStepType.skill(cook()))
     }
 
     @Test

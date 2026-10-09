@@ -2,15 +2,14 @@ package game.idle.autopilot.walk
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
-import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import game.idle.location.Tile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -53,8 +52,13 @@ class WalkStepTypeTest {
     }
 
     @Test
-    fun `the builder picks the tile on the map`() {
-        assertTrue(WalkStepType.fields.single() is StepField.MapTile)
+    fun `the configure screen shows no level for a walk`() {
+        assertNull(WalkStepType.skill(StepSettings("walk")))
+    }
+
+    @Test
+    fun `the configure screen picks the tile on the map`() {
+        assertEquals(listOf("Tile (left): map tile"), described(WalkStepType.fields(FakeNames())))
     }
 
     @Test

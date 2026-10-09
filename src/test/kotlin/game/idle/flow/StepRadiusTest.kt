@@ -34,11 +34,18 @@ class StepRadiusTest {
     }
 
     @Test
-    fun `the builder offers a few radii, starting at the default`() {
-        val field = StepRadius.field()
+    fun `the configure screen types the radius on the right, from 1 to 32 tiles`() {
+        assertEquals(listOf("Within (right): typed within 1..32"), described(listOf(StepRadius.field())))
+    }
 
-        assertEquals(listOf("5", "10", "15", "20", "30"), field.choices(StepSettings("chop")))
-        assertEquals("10", field.default)
+    @Test
+    fun `the configure screen shows the radius in tiles, the default without one`() {
+        assertEquals(listOf("5 tiles", "10 tiles"), listOf(StepRadius.field().shown("5"), StepRadius.field().shown(null)))
+    }
+
+    @Test
+    fun `a typed radius out of range is refused with its rule`() {
+        assertEquals("within takes 1 to 32 tiles", StepRadius.field().rule)
     }
 
     private fun assertRejected(message: String, action: () -> Unit) {

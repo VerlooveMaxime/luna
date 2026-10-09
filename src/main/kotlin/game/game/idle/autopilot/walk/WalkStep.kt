@@ -9,6 +9,7 @@ import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.GameNames
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
@@ -21,12 +22,14 @@ object WalkStepType : StepType {
 
     override val label = "walk"
 
+    override val description = "Walks to a tile picked on the world map."
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Media("mapmarker", 0)
 
     override fun details(settings: StepSettings, context: FlowContext): List<String> =
         listOf(settings[TILE]?.let { "to ${it.replace(" ", ", ")}" } ?: "not set yet")
 
-    override val fields = listOf(StepField.MapTile(TILE, "to (click: pick on map)"))
+    override fun fields(names: GameNames): List<StepField> = listOf(StepField.MapTile(TILE, "Tile"))
 
     override fun summary(settings: StepSettings): String = "walk ${settings[TILE] ?: "?"}"
 

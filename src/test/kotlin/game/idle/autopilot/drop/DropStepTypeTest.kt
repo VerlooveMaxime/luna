@@ -2,8 +2,10 @@ package game.idle.autopilot.drop
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
+import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -15,9 +17,16 @@ class DropStepTypeTest {
     private val drop = StepSettings("drop")
 
     @Test
-    fun `drop has no settings and reads as drop`() {
-        assertEquals(emptyList<Any>(), DropStepType.fields)
+    fun `drop reads as drop`() {
         assertEquals("drop", DropStepType.summary(drop))
+    }
+
+    @Test
+    fun `the configure screen notes that drop takes what was gathered`() {
+        val note = DropStepType.fields(FakeNames()).single() as StepField.Note
+
+        assertEquals(listOf("Drop (left): note"), described(listOf(note)))
+        assertEquals("What was gathered", note.text(drop, FlowContext()))
     }
 
     @Test

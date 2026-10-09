@@ -2,10 +2,11 @@ package game.idle.autopilot.smelting
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
-import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.described
+import game.idle.flow.option.FakeNames
 import game.idle.flow.option.LunaGameNames
 import game.idle.location.Tile
 import game.skill.smithing.BarType
@@ -21,8 +22,6 @@ class SmeltStepTypeTest {
     private val walkedTo = WorkSpot.At(Tile(3226, 3256))
 
     private fun smelt(vararg values: Pair<String, String>) = StepSettings("smelt", mapOf(*values))
-
-    private fun choices(index: Int) = (SmeltStepType.fields[index] as StepField.Choice).choices(smelt())
 
     /** Luna's bars name their ores from the item definitions, which need the cache. */
     @BeforeEach
@@ -62,10 +61,20 @@ class SmeltStepTypeTest {
     }
 
     @Test
-    fun `the builder offers the bars, easiest first, amounts and a few radii`() {
-        assertEquals(listOf("bronze", "iron", "silver", "steel", "gold", "mithril", "adamant", "rune"), choices(0))
-        assertEquals(listOf("", "1", "5", "10"), choices(1))
-        assertEquals(listOf("5", "10", "15", "20", "30"), choices(2))
+    fun `the configure screen searches the bar, types the amount and the radius`() {
+        assertEquals(
+            listOf(
+                "Bar (left): search bar, 'Which bar would you like to smelt?'",
+                "Amount (left): typed amount 1..1000, button 'All'",
+                "Within (right): typed within 1..32",
+            ),
+            described(SmeltStepType.fields(FakeNames())),
+        )
+    }
+
+    @Test
+    fun `the configure screen shows the Smithing level`() {
+        assertEquals(Skill.SMITHING, SmeltStepType.skill(StepSettings()))
     }
 
     @Test

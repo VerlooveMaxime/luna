@@ -2,10 +2,10 @@ package game.idle.autopilot.fighting
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
-import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import game.idle.location.Tile
 import io.luna.game.model.mob.Skill
@@ -22,8 +22,6 @@ class FightStepTypeTest {
     private val walkedTo = WorkSpot.At(Tile(3105, 9517))
 
     private fun fight(vararg values: Pair<String, String>) = StepSettings("fight", mapOf(*values))
-
-    private fun field(index: Int) = type.fields[index] as StepField.Choice
 
     @Test
     fun `a fight step reads as its npc, its defaults left out`() {
@@ -73,32 +71,26 @@ class FightStepTypeTest {
     }
 
     @Test
-    fun `the builder offers the npcs of the catalog, weakest first`() {
-        assertEquals(listOf("cow", "giant rat"), field(0).choices(fight()))
+    fun `the configure screen searches the npc, types the kills, eat below and the radius`() {
+        assertEquals(
+            listOf(
+                "Npc (left): search npc, 'What would you like to fight?'",
+                "Kills (left): typed amount 1..1000, button 'No end'",
+                "Eat below (left): typed eatBelow 1..99",
+                "Within (right): typed within 1..32",
+            ),
+            described(type.fields(FakeNames())),
+        )
     }
 
     @Test
-    fun `the builder offers npcs of one level by name`() {
-        val type = FightStepType(FightTargetCatalog(listOf(rats, cows.copy(levels = 3..3))))
-
-        assertEquals(listOf("cow", "giant rat"), (type.fields[0] as StepField.Choice).choices(fight()))
+    fun `the configure screen shows eat below as a share of hitpoints, half without one`() {
+        assertEquals(listOf("75% hitpoints", "50% hitpoints"), listOf(EatBelow.field().shown("75"), EatBelow.field().shown(null)))
     }
 
     @Test
-    fun `the builder offers nonstop and a few amounts`() {
-        assertEquals(listOf("", "1", "5", "10"), field(1).choices(fight()))
-        assertEquals("nonstop", field(1).display(""))
-    }
-
-    @Test
-    fun `the builder offers three shares to eat below, shown as percentages`() {
-        assertEquals(listOf("25", "50", "75"), field(3).choices(fight()))
-        assertEquals("75%", field(3).display("75"))
-    }
-
-    @Test
-    fun `a new fight step eats below half`() {
-        assertEquals("50", field(3).default)
+    fun `a typed eat below out of range is refused with its rule`() {
+        assertEquals("eat below takes 1 to 99 percent", EatBelow.field().rule)
     }
 
     @Test

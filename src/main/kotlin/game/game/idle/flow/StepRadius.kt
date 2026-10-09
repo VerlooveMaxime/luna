@@ -9,17 +9,18 @@ object StepRadius {
 
     const val DEFAULT = 10
 
-    /** The radii the builder cycles through; a step may hold any from 1 to [Area.MAX_RADIUS]. */
-    val CHOICES = listOf(5, 10, 15, 20, 30).map { it.toString() }
+    const val RULE = "within takes 1 to ${Area.MAX_RADIUS} tiles"
 
-    fun field(): StepField.Choice = StepField.Choice(KEY, "within (tiles)", default = DEFAULT.toString()) { CHOICES }
+    /** The configure screen's Within, on the right where the work spot's settings go (Maxime, 2026-10-09). */
+    fun field(): StepField.Typed =
+        StepField.Typed(KEY, "Within", 1..Area.MAX_RADIUS, RULE, shown = { "${it ?: DEFAULT} tiles" }, column = FieldColumn.RIGHT)
 
     /** The radius [settings] hold, [DEFAULT] without one; throws [FlowError] when it is out of range. */
     fun read(settings: StepSettings): Int {
         val text = settings[KEY] ?: return DEFAULT
         val radius = text.toIntOrNull()
         if (radius == null || radius !in 1..Area.MAX_RADIUS) {
-            throw FlowError("within takes 1 to ${Area.MAX_RADIUS} tiles, not '$text'")
+            throw FlowError("$RULE, not '$text'")
         }
         return radius
     }

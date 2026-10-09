@@ -5,12 +5,14 @@ import game.idle.flow.FlowError
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
+import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepInput
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.GameNames
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.cooking.cookFood.Food
@@ -27,12 +29,21 @@ object CookStepType : StepType {
 
     override val label = "cook"
 
+    override val description = "Cooks the raw food earlier steps get, on a range or fire."
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.COOKING)
+
+    override fun skill(settings: StepSettings): Int = Skill.COOKING
 
     override fun details(settings: StepSettings, context: FlowContext): List<String> =
         listOf(StepInput.detail("Raw food", context, Food.RAW_TO_FOOD.keys), StepAmount.detail(settings, unbounded = "all of them"))
 
-    override val fields = listOf(StepAmount.field(unbounded = "all"), StepRadius.field())
+    override fun fields(names: GameNames): List<StepField> =
+        listOf(
+            StepField.Note("Input") { _, context -> StepInput.detail("Raw food", context, Food.RAW_TO_FOOD.keys) },
+            StepAmount.field("Amount", unbounded = "all of them", button = "All"),
+            StepRadius.field(),
+        )
 
     override fun summary(settings: StepSettings): String =
         "cook ${StepAmount.prefix(settings)}".trimEnd() + StepRadius.suffix(settings)

@@ -32,18 +32,23 @@ object ChopStepType : StepType {
 
     override val label = "chop"
 
+    override val description = "Cuts one kind of tree around the work spot."
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.WOODCUTTING)
+
+    override fun skill(settings: StepSettings): Int = Skill.WOODCUTTING
 
     override fun target(names: GameNames): StepTarget = StepTarget(TREE, TreeOptions(names))
 
     override fun details(settings: StepSettings, context: FlowContext): List<String> =
         listOf(StepAmount.detail(settings, unbounded = "until the bag is full"))
 
-    override val fields = listOf(
-        StepField.Choice(TREE, "tree") { CUTTABLE.map { it.name.lowercase() } },
-        StepAmount.field(unbounded = "full"),
-        StepRadius.field(),
-    )
+    override fun fields(names: GameNames): List<StepField> =
+        listOf(
+            StepField.Search("Tree", target(names), "Which tree would you like to cut?"),
+            StepAmount.field("Amount", unbounded = "until the bag is full", button = "Full"),
+            StepRadius.field(),
+        )
 
     override fun summary(settings: StepSettings): String =
         "chop ${StepAmount.prefix(settings)}${settings[TREE] ?: "?"}${StepRadius.suffix(settings)}"

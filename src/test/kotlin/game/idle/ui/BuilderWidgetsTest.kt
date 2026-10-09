@@ -81,8 +81,53 @@ class BuilderWidgetsTest {
     }
 
     @Test
-    fun `the builder owns nothing between its fixed ids and its slots`() {
-        assertFalse(listOf(BuilderWidgets.FIRST_ID - 1, BuilderWidgets.ID_LIMIT, BuilderWidgets.SLOT_BASE - 1).any(BuilderWidgets::owns))
+    fun `the builder owns nothing below its first id`() {
+        assertFalse(BuilderWidgets.owns(BuilderWidgets.FIRST_ID - 1))
+    }
+
+    @Test
+    fun `the fixed ids run up to the slots`() {
+        assertEquals(BuilderWidgets.SLOT_BASE, BuilderWidgets.ID_LIMIT)
+    }
+
+    @Test
+    fun `configure row widgets follow each other within their row`() {
+        assertEquals(
+            listOf(30843, 30844, 30845, 30846, 30847, 30848, 30849, 30850, 30851, 30852, 30853, 30854),
+            listOf(
+                BuilderWidgets.row(1), BuilderWidgets.rowLabel(1), BuilderWidgets.rowField(1), BuilderWidgets.rowFace(1),
+                BuilderWidgets.rowFrame(1), BuilderWidgets.rowPicture(1), BuilderWidgets.rowText(1), BuilderWidgets.rowPlainText(1),
+                BuilderWidgets.rowButton(1), BuilderWidgets.rowButtonFace(1), BuilderWidgets.rowButtonText(1), BuilderWidgets.rowNote(1),
+            ),
+        )
+    }
+
+    @Test
+    fun `configure rows and warnings stay among the fixed ids`() {
+        assertEquals(
+            listOf(30810, 30812, 30960),
+            listOf(BuilderWidgets.warning(0), BuilderWidgets.warning(BuilderWidgets.WARNING_LINES - 1), BuilderWidgets.row(BuilderWidgets.ROWS)),
+        )
+    }
+
+    @Test
+    fun `a field's face names its row`() {
+        assertEquals(7, BuilderWidgets.fieldOf(BuilderWidgets.rowFace(7)))
+    }
+
+    @Test
+    fun `another part of a row names no field`() {
+        assertNull(BuilderWidgets.fieldOf(BuilderWidgets.rowText(7)))
+    }
+
+    @Test
+    fun `a row button's face names its row`() {
+        assertEquals(9, BuilderWidgets.buttonOf(BuilderWidgets.rowButtonFace(9)))
+    }
+
+    @Test
+    fun `a field's face names no button`() {
+        assertNull(BuilderWidgets.buttonOf(BuilderWidgets.rowFace(9)))
     }
 
     @Test

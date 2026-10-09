@@ -55,18 +55,23 @@ object FishStepType : StepType {
 
     override val label = "fish"
 
+    override val description = "Fishes one catch at the spots around the work spot."
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.FISHING)
+
+    override fun skill(settings: StepSettings): Int = Skill.FISHING
 
     override fun target(names: GameNames): StepTarget = StepTarget(FISH, FishOptions(names))
 
     override fun details(settings: StepSettings, context: FlowContext): List<String> =
         listOf(StepAmount.detail(settings, unbounded = "until the bag is full"))
 
-    override val fields = listOf(
-        StepField.Choice(FISH, "fish") { FishingMethod.ALL.map { it.word } },
-        StepAmount.field(unbounded = "full"),
-        StepRadius.field(),
-    )
+    override fun fields(names: GameNames): List<StepField> =
+        listOf(
+            StepField.Search("Catch", target(names), "What would you like to fish?"),
+            StepAmount.field("Amount", unbounded = "until the bag is full", button = "Full"),
+            StepRadius.field(),
+        )
 
     override fun summary(settings: StepSettings): String =
         "fish ${StepAmount.prefix(settings)}${settings[FISH] ?: "?"}${StepRadius.suffix(settings)}"

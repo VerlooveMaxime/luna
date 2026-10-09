@@ -5,9 +5,20 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowResolver
 import game.idle.flow.StepSettings
 import game.idle.flow.option.GameNames
+import game.idle.flow.option.StepOption
 
-/** The builder's screens the server shows one at a time (S06a: the overview and the kind picker). */
-enum class BuilderPage { OVERVIEW, KINDS }
+/** The builder's screens the server shows one at a time: the overview, the kind picker and a step's configure screen. */
+enum class BuilderPage { OVERVIEW, KINDS, CONFIGURE }
+
+/** The pictures a step shows: its target's [picture] with the kind's icon in the [corner], or the kind's icon alone. */
+data class StepPictures(val picture: WidgetPicture, val corner: WidgetPicture) {
+
+    companion object {
+        /** [icon] is the kind's, [picked] the option the step's target picked, null for none. */
+        fun of(icon: WidgetPicture, picked: StepOption?): StepPictures =
+            picked?.let { StepPictures(WidgetPicture.of(it.icon), icon) } ?: StepPictures(icon, WidgetPicture.None)
+    }
+}
 
 /** One step slot of the overview as the player sees it. */
 sealed interface SlotView {
@@ -82,6 +93,7 @@ class BuilderOverview(private val resolver: FlowResolver, private val names: Gam
         listOf(
             WidgetUpdate.Visible(BuilderWidgets.OVERVIEW, visible = page == BuilderPage.OVERVIEW),
             WidgetUpdate.Visible(BuilderWidgets.KINDS, visible = page == BuilderPage.KINDS),
+            WidgetUpdate.Visible(BuilderWidgets.CONFIGURE, visible = page == BuilderPage.CONFIGURE),
         )
 
     private fun step(state: IdleState, slot: Int, settings: StepSettings, problem: String?, before: FlowContext): SlotView.Step {
@@ -94,10 +106,11 @@ class BuilderOverview(private val resolver: FlowResolver, private val names: Gam
         val targetLine = target?.let { (picked?.label ?: settings[it.key])?.let(::fitted) ?: NOT_SET }
         val details = (listOfNotNull(targetLine) + type?.details(settings, before).orEmpty().map(::fitted))
         val reasonLines = reason?.let { font.wrap("! $it", BuilderWidgets.LINE_ROOM, REASON_LINES).map { line -> "@red@$line" } }.orEmpty()
+        val pictures = StepPictures.of(icon, picked)
         return SlotView.Step(
             number = slot + 1,
-            picture = picked?.let { WidgetPicture.of(it.icon) } ?: icon,
-            corner = if (picked != null) icon else WidgetPicture.None,
+            picture = pictures.picture,
+            corner = pictures.corner,
             kind = capitalised(type?.label ?: settings.kind),
             lines = details.take(BuilderWidgets.SLOT_LINES - reasonLines.size) + reasonLines,
             frame = when {
@@ -149,7 +162,6 @@ class BuilderOverview(private val resolver: FlowResolver, private val names: Gam
 
     private fun usable(text: String, can: Boolean): String = if (can) text else "@gry@$text"
 
-    private fun capitalised(word: String): String = word.take(1).uppercase() + word.drop(1)
 
     private companion object {
         const val NOT_SET = "@gry@not set yet"
@@ -158,3 +170,6 @@ class BuilderOverview(private val resolver: FlowResolver, private val names: Gam
         const val REASON_LINES = BuilderWidgets.SLOT_LINES - 1
     }
 }
+
+/** [word] with a capital first letter, as the builder shows a kind's name. */
+internal fun capitalised(word: String): String = word.take(1).uppercase() + word.drop(1)

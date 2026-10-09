@@ -2,10 +2,10 @@ package game.idle.autopilot.woodcutting
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
-import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.OptionIcon
 import game.idle.location.Tile
@@ -20,8 +20,6 @@ class ChopStepTypeTest {
     private val walkedTo = WorkSpot.At(Tile(3086, 3233))
 
     private fun chop(vararg values: Pair<String, String>) = StepSettings("chop", mapOf(*values))
-
-    private fun choices(index: Int) = (ChopStepType.fields[index] as StepField.Choice).choices(chop())
 
     @Test
     fun `a chop step reads as its tree, its defaults left out`() {
@@ -62,15 +60,20 @@ class ChopStepTypeTest {
     }
 
     @Test
-    fun `the builder offers the trees there are, easiest first, amounts and a few radii`() {
-        assertEquals(listOf("normal", "oak", "willow", "maple", "yew", "magic"), choices(0))
-        assertEquals(listOf("", "1", "5", "10"), choices(1))
-        assertEquals(listOf("5", "10", "15", "20", "30"), choices(2))
+    fun `the configure screen searches the tree, types the amount and the radius`() {
+        assertEquals(
+            listOf(
+                "Tree (left): search tree, 'Which tree would you like to cut?'",
+                "Amount (left): typed amount 1..1000, button 'Full'",
+                "Within (right): typed within 1..32",
+            ),
+            described(ChopStepType.fields(FakeNames())),
+        )
     }
 
     @Test
-    fun `no amount shows as full in the builder`() {
-        assertEquals("full", (ChopStepType.fields[1] as StepField.Choice).display(""))
+    fun `the configure screen shows the Woodcutting level`() {
+        assertEquals(Skill.WOODCUTTING, ChopStepType.skill(StepSettings()))
     }
 
     @Test

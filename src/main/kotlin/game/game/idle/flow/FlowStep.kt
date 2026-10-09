@@ -32,17 +32,23 @@ interface StepType {
     /** The name a saved step gives its kind. */
     val kind: String
 
-    /** What the builder's kind field shows. */
+    /** What the builder shows as the kind's name. */
     val label: String
 
-    /** The builder's fields, in the order it shows them. */
-    val fields: List<StepField>
+    /** What the kind does, under its name on the builder's configure screen. */
+    val description: String
 
-    /** The step in a few words, for the builder's rows and the status lines. */
+    /** The settings the configure screen shows, in the order it shows them, options named with [names]. */
+    fun fields(names: GameNames): List<StepField>
+
+    /** The step in a few words, for the status lines. */
     fun summary(settings: StepSettings): String
 
     /** What the builder's slot shows for this kind, which may follow the settings (make shows its recipe's skill). */
     fun icon(settings: StepSettings): StepIcon
+
+    /** The skill whose level the configure screen shows next to the kind's name, null for none. */
+    fun skill(settings: StepSettings): Int? = null
 
     /** The setting the step mainly picks and the options it offers, named with [names]; null for a kind with none. */
     fun target(names: GameNames): StepTarget? = null
@@ -54,27 +60,45 @@ interface StepType {
     fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep
 }
 
-/** A setting of a step in the builder, kept under [key]. */
-sealed interface StepField {
+/** The configure screen's two columns: the mockup's settings on the left, where the step works on the right. */
+enum class FieldColumn { LEFT, RIGHT }
 
-    val key: String
+/** A setting of a step on the builder's configure screen, on a row under [label]. */
+sealed interface StepField {
 
     val label: String
 
+    val column: FieldColumn
+
+    /** The step's [target], picked in the chatbox search headed [title]. */
+    class Search(override val label: String, val target: StepTarget, val title: String) : StepField {
+        override val column = FieldColumn.LEFT
+    }
+
     /**
-     * A setting that cycles through [choices] on click; they may depend on the step's other settings. A new step starts
-     * at [default] when it is offered, else at the first choice. [display] is how the builder shows a value.
+     * A whole number from [range] typed on the client's "Enter amount" prompt, kept under [key]; [rule] is what the
+     * chat box says of a number out of range. [shown] words the value kept, null for none. [unbounded] is the word on
+     * the button that removes the value, null when the setting has no such button.
      */
-    class Choice(
-        override val key: String,
+    class Typed(
+        val key: String,
         override val label: String,
-        val default: String? = null,
-        val display: (String) -> String = { it },
-        val choices: (settings: StepSettings) -> List<String>,
+        val range: IntRange,
+        val rule: String,
+        val shown: (String?) -> String,
+        val unbounded: String? = null,
+        override val column: FieldColumn = FieldColumn.LEFT,
     ) : StepField
 
-    /** A map tile, written as [Tile.text]; the builder fills it in with the player's own tile. */
-    class MapTile(override val key: String, override val label: String) : StepField
+    /** A tile picked on the world map, kept under [key] as [Tile.text]. */
+    class MapTile(val key: String, override val label: String) : StepField {
+        override val column = FieldColumn.LEFT
+    }
+
+    /** What the step works out by itself, worded by [text] from its settings and what the steps before it set up. */
+    class Note(override val label: String, val text: (StepSettings, FlowContext) -> String) : StepField {
+        override val column = FieldColumn.LEFT
+    }
 }
 
 /** Where an action step works: around the tile the player pressed Run on, or where a walk step before it went. */

@@ -1,5 +1,7 @@
 package game.idle.flow
 
+import game.idle.flow.option.GameNames
+import game.idle.flow.option.StepTarget
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
@@ -12,18 +14,32 @@ data class FakeStep(val name: String, val gathers: Set<Int> = emptySet()) : Reso
 }
 
 /**
- * A kind of step with one optional setting, [WORD]. Resolving records the context it was given, refuses the word
- * "bad", and gathers item 1 when the word is "gather".
+ * A kind of step with one optional setting, [WORD], the configure screen's [fields], and optionally a [skill] and a
+ * [target]. Resolving records the context it was given, refuses the word "bad", and gathers item 1 when the word is
+ * "gather".
  */
-class FakeStepType(override val kind: String, override val fields: List<StepField> = emptyList()) : StepType {
+class FakeStepType(
+    override val kind: String,
+    private val fields: List<StepField> = emptyList(),
+    private val skill: Int? = null,
+    private val target: StepTarget? = null,
+) : StepType {
 
     val contexts = mutableListOf<FlowContext>()
 
     override val label = "$kind label"
 
+    override val description = "Does $kind things."
+
+    override fun fields(names: GameNames): List<StepField> = fields
+
     override fun summary(settings: StepSettings): String = listOfNotNull(kind, settings[WORD]).joinToString(" ")
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Media(kind, 0)
+
+    override fun skill(settings: StepSettings): Int? = skill
+
+    override fun target(names: GameNames): StepTarget? = target
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         contexts += context
@@ -82,3 +98,15 @@ class FakeStepActivity(private val name: String, val log: MutableList<String>) :
         log += "$name:$acts"
     }
 }
+
+/** A kind's configure fields in words, so a test compares them at a glance. */
+fun described(fields: List<StepField>): List<String> =
+    fields.map { field ->
+        val words = when (field) {
+            is StepField.Search -> "search ${field.target.key}, '${field.title}'"
+            is StepField.Typed -> "typed ${field.key} ${field.range}" + (field.unbounded?.let { ", button '$it'" } ?: "")
+            is StepField.MapTile -> "map ${field.key}"
+            is StepField.Note -> "note"
+        }
+        "${field.label} (${field.column.name.lowercase()}): $words"
+    }

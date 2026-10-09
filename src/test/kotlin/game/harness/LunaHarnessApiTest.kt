@@ -25,6 +25,7 @@ import io.luna.game.event.impl.CloseInterfaceEvent
 import io.luna.game.event.impl.CommandEvent
 import io.luna.game.event.impl.ItemClickEvent.ItemFirstClickEvent
 import io.luna.game.event.impl.NpcClickEvent.NpcFirstClickEvent
+import io.luna.game.event.impl.NumberInputEvent
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
@@ -32,6 +33,7 @@ import io.luna.game.model.item.Equipment
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
+import io.luna.game.model.mob.overlay.NumberInput
 import io.luna.game.model.mob.overlay.StandardInterface
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -767,6 +769,26 @@ class LunaHarnessApiTest {
         agent()
 
         assertEquals(409, status { api().act("agent_a", PlayerAction.SearchClose) })
+    }
+
+    @Test
+    fun `an amount reaches the game as the client's answer to the open prompt on the next tick`() {
+        agent().overlays.open(object : NumberInput() {
+            override fun input(player: Player, value: Int) = Unit
+        })
+        val amounts = record(NumberInputEvent::class.java) { "${it.number}" }
+
+        api().act("agent_a", PlayerAction.Amount(25))
+        TestWorld.tick()
+
+        assertEquals(listOf("25"), amounts)
+    }
+
+    @Test
+    fun `an amount with no amount prompt open is refused`() {
+        agent()
+
+        assertEquals(409, status { api().act("agent_a", PlayerAction.Amount(25)) })
     }
 
     @Test

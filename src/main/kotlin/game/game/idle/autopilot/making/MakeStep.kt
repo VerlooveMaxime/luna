@@ -22,22 +22,24 @@ import io.luna.game.model.mob.Skill
  */
 class MakeStepType(private val catalog: RecipeCatalog) : StepType {
 
-    private val names: List<String> = catalog.recipes.map { it.name }
-
     override val kind = "make"
 
     override val label = "make"
 
-    override val fields = listOf(
-        StepField.Choice(PRODUCT, "product") { names },
-        StepAmount.field(unbounded = "all"),
-    )
+    override val description = "Uses one item on another: dough, potions, shafts."
+
+    override fun fields(names: GameNames): List<StepField> =
+        listOf(
+            StepField.Search("Product", target(names), "What would you like to make?"),
+            StepAmount.field("Amount", unbounded = "all of them", button = "All"),
+        )
 
     override fun summary(settings: StepSettings): String = "make ${StepAmount.prefix(settings)}${settings[PRODUCT] ?: "?"}"
 
     /** The recipe's skill, Crafting until one is picked (S01). */
-    override fun icon(settings: StepSettings): StepIcon =
-        StepIcon.Skill(settings[PRODUCT]?.let { catalog.find(it.lowercase()) }?.skill ?: Skill.CRAFTING)
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(skill(settings))
+
+    override fun skill(settings: StepSettings): Int = settings[PRODUCT]?.let { catalog.find(it.lowercase()) }?.skill ?: Skill.CRAFTING
 
     override fun target(names: GameNames): StepTarget = StepTarget(PRODUCT, MakeOptions(catalog))
 

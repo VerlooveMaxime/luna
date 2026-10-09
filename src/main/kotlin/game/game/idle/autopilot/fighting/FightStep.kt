@@ -25,17 +25,18 @@ object EatBelow {
 
     const val DEFAULT = 50
 
-    val CHOICES = listOf(25, 50, 75).map { it.toString() }
+    const val RULE = "eat below takes 1 to 99 percent"
 
-    fun field(): StepField.Choice =
-        StepField.Choice(KEY, "eat below", default = DEFAULT.toString(), display = { "$it%" }) { CHOICES }
+    /** The configure screen's Eat below, typed as a percentage. */
+    fun field(): StepField.Typed =
+        StepField.Typed(KEY, "Eat below", 1..99, RULE, shown = { "${it ?: DEFAULT}% hitpoints" })
 
     /** The share [settings] hold, [DEFAULT] without one; throws [FlowError] when it is not 1 to 99. */
     fun read(settings: StepSettings): Int {
         val text = settings[KEY] ?: return DEFAULT
         val percent = text.toIntOrNull()
         if (percent == null || percent !in 1..99) {
-            throw FlowError("eat below takes 1 to 99 percent, not '$text'")
+            throw FlowError("$RULE, not '$text'")
         }
         return percent
     }
@@ -55,13 +56,11 @@ object EatBelow {
  */
 class FightStepType(private val catalog: FightTargetCatalog) : StepType {
 
-    /** The v1 builder cycles through every target, weakest first, until the search replaces it (S06). */
-    private val names: List<String> =
-        catalog.targets.sortedWith(compareBy({ it.levels.first }, { it.name })).map { it.name }
-
     override val kind = "fight"
 
     override val label = "fight"
+
+    override val description = "Fights one kind of npc, eats, flees when out of food."
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.ATTACK)
 
@@ -70,12 +69,13 @@ class FightStepType(private val catalog: FightTargetCatalog) : StepType {
     override fun details(settings: StepSettings, context: FlowContext): List<String> =
         listOf(StepAmount.detail(settings, unbounded = "no end", counted = "kills"), EatBelow.detail(settings))
 
-    override val fields = listOf(
-        StepField.Choice(NPC, "npc") { names },
-        StepAmount.field(unbounded = "nonstop"),
-        StepRadius.field(),
-        EatBelow.field(),
-    )
+    override fun fields(names: GameNames): List<StepField> =
+        listOf(
+            StepField.Search("Npc", target(names), "What would you like to fight?"),
+            StepAmount.field("Kills", unbounded = "no end", button = "No end"),
+            EatBelow.field(),
+            StepRadius.field(),
+        )
 
     override fun summary(settings: StepSettings): String =
         "fight ${StepAmount.prefix(settings)}${settings[NPC] ?: "?"}${StepRadius.suffix(settings)}${EatBelow.suffix(settings)}"

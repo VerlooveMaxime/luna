@@ -12,12 +12,12 @@ import io.netty.buffer.ByteBuf
 /**
  * Ids of the flow builder's screens the IdleRS client defines in code (`idlers.BuilderWidgets` in `luna-client`, the
  * layout lives there): one root with a layer per screen, the overview's step slots from [SLOT_BASE], as many as the
- * player has, then the padlock. Both files must agree on every id.
+ * player has, then the padlock; the configure screen's rows from [ROW_BASE]. Both files must agree on every id.
  */
 object BuilderWidgets {
 
     const val FIRST_ID = 30700
-    const val ID_LIMIT = 30800
+    const val ID_LIMIT = 31000
 
     const val ROOT = 30700
     const val CLOSE = 30704
@@ -41,6 +41,31 @@ object BuilderWidgets {
     private const val KIND_BASE = 30736
     private const val KIND_STRIDE = 4
 
+    const val CONFIGURE = 30800
+    const val HEADER_PICTURE = 30801
+    /** The layer of the header's corner box and picture, which hides as one. */
+    const val HEADER_CORNER_LAYER = 30802
+    const val HEADER_CORNER = 30804
+    const val HEADER_NAME = 30805
+    const val HEADER_DESCRIPTION = 30806
+    const val WARNING_LINES = 3
+    private const val WARNING_BASE = 30810
+    const val DELETE = 30813
+    const val BACK = 30814
+    const val SAVE = 30815
+
+    /** The configure screen's rows: five a column, the left column's first. */
+    const val ROWS_PER_COLUMN = 5
+    const val ROWS = 2 * ROWS_PER_COLUMN
+    private const val ROW_BASE = 30830
+    private const val ROW_STRIDE = 13
+
+    /** Room for a field's text, a note and a warning line, as the client lays them out. */
+    const val FIELD_ROOM = 104
+    const val NOTE_ROOM = 160
+    const val WARNING_ROOM = 492
+    const val DESCRIPTION_ROOM = 450
+
     const val SLOT_BASE = 31000
     private const val SLOT_STRIDE = 16
     const val SLOT_LINES = 4
@@ -57,6 +82,10 @@ object BuilderWidgets {
     /** A lit toggle's frame, and an unlit one's, which is the panel's colour: a box cannot be hidden. */
     const val LIT = 0xff981f
     const val UNLIT = 0x332d25
+
+    /** A configure field's frame, and the one being typed (Maxime, 2026-10-09: the mockup's yellow). */
+    const val FIELD_EDGE = 0x5c5243
+    const val TYPING = 0xffff00
 
     /** The layer of a kind button: the client hides only layers (packet 82 is read by its layer drawing alone). */
     fun kindButton(kind: Int): Int = KIND_BASE + kind * KIND_STRIDE
@@ -90,7 +119,45 @@ object BuilderWidgets {
 
     fun slotAdd(slot: Int): Int = slot(slot) + 13
 
-    fun owns(widgetId: Int): Boolean = widgetId in FIRST_ID until ID_LIMIT || widgetId >= SLOT_BASE
+    fun warning(line: Int): Int = WARNING_BASE + line
+
+    /** The layer of configure row [row], hidden when the step has no setting for it. */
+    fun row(row: Int): Int = ROW_BASE + row * ROW_STRIDE
+
+    fun rowLabel(row: Int): Int = row(row) + 1
+
+    /** The layer of the row's field box, hidden on a note row. */
+    fun rowField(row: Int): Int = row(row) + 2
+
+    fun rowFace(row: Int): Int = row(row) + 3
+
+    fun rowFrame(row: Int): Int = row(row) + 4
+
+    fun rowPicture(row: Int): Int = row(row) + 5
+
+    /** The field's text right of its picture, for a search. */
+    fun rowText(row: Int): Int = row(row) + 6
+
+    /** The field's text without a picture, for a typed number or a tile. */
+    fun rowPlainText(row: Int): Int = row(row) + 7
+
+    /** The layer of the button right of the field (the amount's "Full", "All", "No end"). */
+    fun rowButton(row: Int): Int = row(row) + 8
+
+    fun rowButtonFace(row: Int): Int = row(row) + 9
+
+    fun rowButtonText(row: Int): Int = row(row) + 10
+
+    fun rowNote(row: Int): Int = row(row) + 11
+
+    /** The configure row whose field face [widgetId] is, or null. */
+    fun fieldOf(widgetId: Int): Int? = (0 until ROWS).firstOrNull { rowFace(it) == widgetId }
+
+    /** The configure row whose button face [widgetId] is, or null. */
+    fun buttonOf(widgetId: Int): Int? = (0 until ROWS).firstOrNull { rowButtonFace(it) == widgetId }
+
+    /** The fixed ids run up to the slots, so every id from [FIRST_ID] on is the builder's. */
+    fun owns(widgetId: Int): Boolean = widgetId >= FIRST_ID
 
     /** The slot whose face [widgetId] is, or null. */
     fun slotOf(widgetId: Int): Int? =

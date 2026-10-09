@@ -68,6 +68,9 @@ sealed interface PlayerAction {
     /** Escape on the open chatbox prompt. */
     data object SearchClose : PlayerAction
 
+    /** [value] typed on the open "Enter amount" prompt, then Enter. */
+    data class Amount(val value: Int) : PlayerAction
+
     /** Tile [from] of the code-defined layer [widget] dragged onto tile [to], as the client sends a dragged tile. */
     data class Arrange(val widget: Int, val from: Int, val to: Int) : PlayerAction
 

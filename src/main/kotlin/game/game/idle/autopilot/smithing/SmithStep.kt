@@ -11,69 +11,61 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.GameNames
+import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.smithing.BarType
+import game.skill.smithing.smithBar.SmithingItem
 import game.skill.smithing.smithBar.SmithingTable
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
 /**
  * Smith: smiths a count of an item or, without one, as many as the bars carried make, at an anvil within a radius of
- * the work spot.
+ * the work spot. The item is kept by its id, its metal and table row following from it (S06b, Maxime 2026-10-09).
  */
 object SmithStepType : StepType {
 
-    const val METAL = "metal"
-
     const val ITEM = "item"
-
-    /** The bars Luna smiths items from, easiest first. */
-    val METALS: List<BarType> by lazy {
-        BarType.entries.filter { SmithingTable.BAR_TO_ITEM.containsKey(it) }.sortedBy { it.level }
-    }
 
     override val kind = "smith"
 
     override val label = "smith"
 
+    override val description = "Smiths bars into items at an anvil."
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.SMITHING)
 
-    /** Metal and item are two settings until S07 makes them one item, so they show as text. */
+    override fun skill(settings: StepSettings): Int = Skill.SMITHING
+
+    override fun target(names: GameNames): StepTarget = StepTarget(ITEM, SmithItemOptions(names))
+
     override fun details(settings: StepSettings, context: FlowContext): List<String> =
+        listOf(StepAmount.detail(settings, unbounded = "all of them"))
+
+    override fun fields(names: GameNames): List<StepField> =
         listOf(
-            listOfNotNull(settings[METAL], settings[ITEM]).joinToString(" ").ifEmpty { "not set yet" },
-            StepAmount.detail(settings, unbounded = "all of them"),
+            StepField.Search("Item", target(names), "What would you like to smith?"),
+            StepAmount.field("Amount", unbounded = "all of them", button = "All"),
+            StepRadius.field(),
         )
 
-    override val fields = listOf(
-        StepField.Choice(METAL, "metal") { METALS.map { it.name.lowercase() } },
-        StepField.Choice(ITEM, "item") { settings ->
-            itemsOf(settings[METAL]?.let(::metal) ?: METALS.first()).map { it.name.lowercase() }
-        },
-        StepAmount.field(unbounded = "all"),
-        StepRadius.field(),
-    )
-
-    /** The items [metal] makes, easiest first. */
-    fun itemsOf(metal: BarType): List<SmithingTable> =
-        SmithingTable.entries.filter { item(it, metal) != null }.sortedBy { item(it, metal)?.level }
-
-    override fun summary(settings: StepSettings): String =
-        "smith ${StepAmount.prefix(settings)}${settings[METAL] ?: "?"} ${settings[ITEM] ?: "?"}${StepRadius.suffix(settings)}"
-
-    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
-        val metalName = settings[METAL] ?: throw FlowError("smith needs a metal")
-        val itemName = settings[ITEM] ?: throw FlowError("smith needs an item")
-        val metal = metal(metalName) ?: throw FlowError("'$metalName' is not a metal to smith")
-        val table = itemsOf(metal).firstOrNull { it.name.equals(itemName, ignoreCase = true) }
-            ?: throw FlowError("There is no $metalName $itemName to smith")
-        return SmithStep(metal, table, StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
+    override fun summary(settings: StepSettings): String {
+        val item = settings[ITEM]
+        val name = item?.toIntOrNull()?.let(::smithed)?.let { (_, smithed) -> smithed.item.itemDef.name.lowercase() } ?: item ?: "?"
+        return "smith ${StepAmount.prefix(settings)}$name${StepRadius.suffix(settings)}"
     }
 
-    private fun metal(name: String): BarType? = METALS.firstOrNull { it.name.equals(name, ignoreCase = true) }
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+        val item = settings[ITEM] ?: throw FlowError("smith needs an item")
+        val (table, smithed) = item.toIntOrNull()?.let(::smithed) ?: throw FlowError("'$item' is not an item to smith")
+        return SmithStep(smithed.barType, table, StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
+    }
 
-    private fun item(table: SmithingTable, metal: BarType) = table.items.firstOrNull { it.barType == metal }
+    /** The table row and the item of it whose id is [id], null when no row smiths it. */
+    private fun smithed(id: Int): Pair<SmithingTable, SmithingItem>? =
+        SmithingTable.entries.firstNotNullOfOrNull { table -> table.items.firstOrNull { it.item.id == id }?.let { table to it } }
 }
 
 /**
