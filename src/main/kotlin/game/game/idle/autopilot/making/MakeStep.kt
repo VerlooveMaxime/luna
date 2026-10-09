@@ -6,10 +6,12 @@ import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.Skill
 
 /**
  * Make: makes a count of a product from [RecipeCatalog], or, without one, as many as the ingredients the player
@@ -30,6 +32,10 @@ class MakeStepType(private val catalog: RecipeCatalog) : StepType {
     )
 
     override fun summary(settings: StepSettings): String = "make ${StepAmount.prefix(settings)}${settings[PRODUCT] ?: "?"}"
+
+    /** The recipe's skill, Crafting until one is picked (S01). */
+    override fun icon(settings: StepSettings): StepIcon =
+        StepIcon.Skill(settings[PRODUCT]?.let { catalog.find(it.lowercase()) }?.skill ?: Skill.CRAFTING)
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val name = settings[PRODUCT]?.lowercase() ?: throw FlowError("make needs a product")

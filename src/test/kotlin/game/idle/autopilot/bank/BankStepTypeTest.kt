@@ -3,6 +3,7 @@ package game.idle.autopilot.bank
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.location.Bank
 import game.idle.location.BankCatalog
@@ -61,5 +62,10 @@ class BankStepTypeTest {
         val error = assertThrows<FlowError> { action() }
 
         assertEquals(message, error.message)
+    }
+
+    @Test
+    fun `a bank step shows the minimap's bank icon`() {
+        assertEquals(StepIcon.Media("mapfunction", 5), bank.icon(settings()))
     }
 }

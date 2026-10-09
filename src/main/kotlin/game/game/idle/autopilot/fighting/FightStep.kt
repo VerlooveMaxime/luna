@@ -6,6 +6,7 @@ import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
@@ -13,6 +14,7 @@ import game.idle.flow.WorkSpot
 import game.idle.location.Area
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.Skill
 
 /** When the fight step eats: a share of the player's full hitpoints, so a flow keeps working after a reset brings them back to 10. */
 object EatBelow {
@@ -55,6 +57,8 @@ class FightStepType(private val catalog: FightTargetCatalog) : StepType {
     override val kind = "fight"
 
     override val label = "fight"
+
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.ATTACK)
 
     override val fields = listOf(
         StepField.Choice(NPC, "npc") { names },

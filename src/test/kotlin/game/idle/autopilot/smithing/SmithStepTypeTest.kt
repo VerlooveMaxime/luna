@@ -3,12 +3,14 @@ package game.idle.autopilot.smithing
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.location.Tile
 import game.skill.smithing.BarType
 import game.skill.smithing.smithBar.SmithingTable
 import game.testworld.TestWorld
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -116,5 +118,10 @@ class SmithStepTypeTest {
 
     private fun assertRejected(message: String, action: () -> Unit) {
         assertEquals(message, assertThrows<FlowError> { action() }.message)
+    }
+
+    @Test
+    fun `a smith step shows the Smithing icon`() {
+        assertEquals(StepIcon.Skill(Skill.SMITHING), SmithStepType.icon(StepSettings("smith")))
     }
 }

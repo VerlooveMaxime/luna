@@ -3,10 +3,12 @@ package game.idle.autopilot.woodcutting
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -80,5 +82,10 @@ class ChopStepTypeTest {
         val error = assertThrows<FlowError> { action() }
 
         assertEquals(message, error.message)
+    }
+
+    @Test
+    fun `a chop step shows the Woodcutting icon`() {
+        assertEquals(StepIcon.Skill(Skill.WOODCUTTING), ChopStepType.icon(StepSettings("chop")))
     }
 }

@@ -3,11 +3,13 @@ package game.idle.autopilot.smelting
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.location.Tile
 import game.skill.smithing.BarType
 import game.testworld.TestWorld
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -68,5 +70,10 @@ class SmeltStepTypeTest {
     @Test
     fun `the steps after a smelt step know it makes its bar`() {
         assertEquals(FlowContext(walkedTo, setOf(436, 2349)), SmeltStep(BarType.BRONZE, 10, walkedTo).after(FlowContext(walkedTo, setOf(436))))
+    }
+
+    @Test
+    fun `a smelt step shows the Smithing icon`() {
+        assertEquals(StepIcon.Skill(Skill.SMITHING), SmeltStepType.icon(StepSettings("smelt")))
     }
 }

@@ -5,11 +5,13 @@ import game.idle.flow.FlowError
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.location.Tile
 import game.skill.firemaking.Log
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.Skill
 
 /** Light: lights a count of the logs the steps before it gathered or, without one, all of them. */
 object LightStepType : StepType {
@@ -17,6 +19,8 @@ object LightStepType : StepType {
     override val kind = "light"
 
     override val label = "light"
+
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.FIREMAKING)
 
     override val fields = listOf(StepAmount.field(unbounded = "all"))
 

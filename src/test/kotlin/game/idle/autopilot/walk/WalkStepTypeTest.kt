@@ -3,6 +3,7 @@ package game.idle.autopilot.walk
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.location.Tile
@@ -65,5 +66,10 @@ class WalkStepTypeTest {
         val error = assertThrows<FlowError> { action() }
 
         assertEquals(message, error.message)
+    }
+
+    @Test
+    fun `a walk step shows the minimap's red flag`() {
+        assertEquals(StepIcon.Media("mapmarker", 0), WalkStepType.icon(StepSettings("walk")))
     }
 }

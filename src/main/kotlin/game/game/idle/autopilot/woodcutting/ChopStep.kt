@@ -6,6 +6,7 @@ import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
@@ -15,6 +16,7 @@ import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
 import game.skill.woodcutting.cutTree.TreeStump
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.Skill
 
 /** Chop: one kind of tree within a radius of the work spot, a count of logs or, without one, until the inventory is full. */
 object ChopStepType : StepType {
@@ -27,6 +29,8 @@ object ChopStepType : StepType {
     override val kind = "chop"
 
     override val label = "chop"
+
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.WOODCUTTING)
 
     override val fields = listOf(
         StepField.Choice(TREE, "tree") { CUTTABLE.map { it.name.lowercase() } },

@@ -5,6 +5,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.location.Tile
@@ -16,6 +17,8 @@ object DropStepType : StepType {
     override val kind = "drop"
 
     override val label = "drop"
+
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.Media("sideicons", 3)
 
     override val fields = emptyList<StepField>()
 

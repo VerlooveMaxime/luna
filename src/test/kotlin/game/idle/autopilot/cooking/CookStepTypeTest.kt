@@ -3,10 +3,12 @@ package game.idle.autopilot.cooking
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.location.Tile
 import game.testworld.TestWorld
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -63,5 +65,10 @@ class CookStepTypeTest {
         val context = FlowContext(walkedTo, gathered = setOf(rawShrimps))
 
         assertEquals(context, CookStep(setOf(rawShrimps), 10, walkedTo).after(context))
+    }
+
+    @Test
+    fun `a cook step shows the Cooking icon`() {
+        assertEquals(StepIcon.Skill(Skill.COOKING), CookStepType.icon(StepSettings("cook")))
     }
 }

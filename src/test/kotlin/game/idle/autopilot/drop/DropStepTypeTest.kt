@@ -2,6 +2,7 @@ package game.idle.autopilot.drop
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -34,5 +35,10 @@ class DropStepTypeTest {
         val context = FlowContext(gathered = setOf(1511))
 
         assertEquals(context, DropStep(setOf(1511)).after(context))
+    }
+
+    @Test
+    fun `a drop step shows the inventory tab's backpack`() {
+        assertEquals(StepIcon.Media("sideicons", 3), DropStepType.icon(drop))
     }
 }

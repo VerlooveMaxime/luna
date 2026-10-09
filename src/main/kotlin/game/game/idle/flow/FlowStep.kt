@@ -39,6 +39,9 @@ interface StepType {
     /** The step in a few words, for the builder's rows and the status lines. */
     fun summary(settings: StepSettings): String
 
+    /** What the builder's slot shows for this kind, which may follow the settings (make shows its recipe's skill). */
+    fun icon(settings: StepSettings): StepIcon
+
     /** Checks [settings] against the data and what the steps before it set up; throws [FlowError]. */
     fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep
 }

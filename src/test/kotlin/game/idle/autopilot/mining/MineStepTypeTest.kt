@@ -3,11 +3,13 @@ package game.idle.autopilot.mining
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.location.Tile
 import game.skill.mining.Ore
 import game.testworld.TestWorld
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -75,5 +77,10 @@ class MineStepTypeTest {
     private fun assertRejected(message: String, action: () -> Unit) {
         val error = assertThrows<FlowError> { action() }
         assertEquals(message, error.message)
+    }
+
+    @Test
+    fun `a mine step shows the Mining icon`() {
+        assertEquals(StepIcon.Skill(Skill.MINING), MineStepType.icon(StepSettings("mine")))
     }
 }

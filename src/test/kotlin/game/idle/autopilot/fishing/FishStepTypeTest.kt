@@ -3,12 +3,14 @@ package game.idle.autopilot.fishing
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.location.Tile
 import game.skill.fishing.catchFish.FishingSpot
 import game.skill.fishing.catchFish.Tool
 import game.testworld.TestWorld
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -113,5 +115,10 @@ class FishStepTypeTest {
 
     private companion object {
         const val WORDS = "shrimp, sardine, mackerel, trout, tuna, lobster, monkfish, shark"
+    }
+
+    @Test
+    fun `a fish step shows the Fishing icon`() {
+        assertEquals(StepIcon.Skill(Skill.FISHING), FishStepType.icon(StepSettings("fish")))
     }
 }

@@ -23,6 +23,8 @@ class FakeStepType(override val kind: String, override val fields: List<StepFiel
 
     override fun summary(settings: StepSettings): String = listOfNotNull(kind, settings[WORD]).joinToString(" ")
 
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.Media(kind, 0)
+
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         contexts += context
         if (settings[WORD] == "bad") throw FlowError("'bad' is refused")

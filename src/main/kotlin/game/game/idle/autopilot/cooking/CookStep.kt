@@ -5,6 +5,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
+import game.idle.flow.StepIcon
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
@@ -13,6 +14,7 @@ import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.cooking.cookFood.Food
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.Skill
 
 /**
  * Cook: cooks a count of the raw food the steps before it gathered or, without one, all of it, on a fire or range
@@ -23,6 +25,8 @@ object CookStepType : StepType {
     override val kind = "cook"
 
     override val label = "cook"
+
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.COOKING)
 
     override val fields = listOf(StepAmount.field(unbounded = "all"), StepRadius.field())
 

@@ -2,6 +2,7 @@ package game.harness
 
 import game.idle.ui.HintArrowMessageWriter
 import game.idle.ui.MapPickMessageWriter
+import game.idle.ui.PictureMessageWriter
 import game.idle.ui.StatusOverlayMessageWriter
 import game.idle.ui.StickyChatboxMessageWriter
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
@@ -34,6 +35,7 @@ object EncodedMessageDecoder {
         50 to Layout("WalkableInterfaceMessageWriter") { mapOf("id" to it.short()) },
         StatusOverlayMessageWriter.OPCODE to Layout("StatusOverlayMessageWriter") { mapOf("text" to it.string()) },
         MapPickMessageWriter.OPCODE to Layout("MapPickMessageWriter") { mapOf("x" to it.short(), "y" to it.short()) },
+        PictureMessageWriter.OPCODE to Layout("PictureMessageWriter", ::picture),
         StickyChatboxMessageWriter.OPCODE to Layout("StickyChatboxMessageWriter") {
             mapOf("id" to it.short(ByteOrder.LITTLE))
         },
@@ -75,6 +77,19 @@ object EncodedMessageDecoder {
         } else {
             mapOf("type" to type, "index" to 0, "x" to first, "y" to second, "height" to third)
         }
+    }
+
+    /** A sprite carries its name and a byte index, an item or npc a short id, nothing nothing. */
+    private fun picture(payload: Payload): Map<String, Any> {
+        val widgetId = payload.short()
+        val source = payload.byte()
+        val (name, id) =
+            when (source) {
+                PictureMessageWriter.MEDIA -> payload.string() to payload.byte()
+                PictureMessageWriter.NONE -> "" to 0
+                else -> "" to payload.short()
+            }
+        return mapOf("widgetId" to widgetId, "source" to source, "name" to name, "id" to id)
     }
 
     private fun undecoded(message: GameMessage) =

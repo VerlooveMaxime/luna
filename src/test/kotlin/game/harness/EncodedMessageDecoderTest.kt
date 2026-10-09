@@ -2,9 +2,11 @@ package game.harness
 
 import game.idle.ui.HintArrowMessageWriter
 import game.idle.ui.MapPickMessageWriter
+import game.idle.ui.PictureMessageWriter
 import game.idle.ui.StatusOverlayMessageWriter
 import game.idle.ui.StickyChatboxMessageWriter
 import game.idle.ui.TileEdge
+import game.idle.ui.WidgetPicture
 import io.luna.game.model.Position
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
 import io.luna.net.codec.ByteMessage
@@ -87,6 +89,26 @@ class EncodedMessageDecoderTest {
     @Test
     fun `a map pick request decodes as the writer records it`() {
         assertDecodesAsRecorded(MapPickMessageWriter(3086, 3233))
+    }
+
+    @Test
+    fun `an emptied picture decodes as the writer records it`() {
+        assertDecodesAsRecorded(PictureMessageWriter(30430, WidgetPicture.None))
+    }
+
+    @Test
+    fun `a sprite picture decodes as the writer records it`() {
+        assertDecodesAsRecorded(PictureMessageWriter(30430, WidgetPicture.Media("staticons", 17)))
+    }
+
+    @Test
+    fun `an item picture decodes as the writer records it`() {
+        assertDecodesAsRecorded(PictureMessageWriter(30491, WidgetPicture.Item(1059)))
+    }
+
+    @Test
+    fun `an npc picture decodes as the writer records it`() {
+        assertDecodesAsRecorded(PictureMessageWriter(30581, WidgetPicture.NpcBody(81)))
     }
 
     @Test

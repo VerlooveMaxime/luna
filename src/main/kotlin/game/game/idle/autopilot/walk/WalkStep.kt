@@ -5,6 +5,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
@@ -19,6 +20,8 @@ object WalkStepType : StepType {
     override val kind = "walk"
 
     override val label = "walk"
+
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.Media("mapmarker", 0)
 
     override val fields = listOf(StepField.MapTile(TILE, "to (click: pick on map)"))
 

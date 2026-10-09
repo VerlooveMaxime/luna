@@ -3,7 +3,9 @@ package game.idle.autopilot.firemaking
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -46,5 +48,10 @@ class LightStepTypeTest {
 
         assertEquals(listOf("", "1", "5", "10"), field.choices(light()))
         assertEquals("all", field.display(""))
+    }
+
+    @Test
+    fun `a light step shows the Firemaking icon`() {
+        assertEquals(StepIcon.Skill(Skill.FIREMAKING), LightStepType.icon(StepSettings("light")))
     }
 }

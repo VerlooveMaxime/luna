@@ -6,6 +6,7 @@ import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
@@ -14,6 +15,7 @@ import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.mining.Ore
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.Skill
 
 /** Mine: one kind of ore from rocks within a radius of the work spot, a count of ores or, without one, until full. */
 object MineStepType : StepType {
@@ -28,6 +30,8 @@ object MineStepType : StepType {
     override val kind = "mine"
 
     override val label = "mine"
+
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.MINING)
 
     override val fields = listOf(
         StepField.Choice(ORE, "ore") { MINEABLE.map { it.name.lowercase() } },

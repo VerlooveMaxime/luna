@@ -6,6 +6,7 @@ import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
@@ -14,6 +15,7 @@ import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.smithing.BarType
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.Skill
 
 /**
  * Smelt: smelts a count of bars or, without one, every bar the ores carried make, at a furnace within a radius of the
@@ -26,6 +28,8 @@ object SmeltStepType : StepType {
     override val kind = "smelt"
 
     override val label = "smelt"
+
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.SMITHING)
 
     override val fields = listOf(
         StepField.Choice(BAR, "bar") { BarType.entries.sortedBy { it.level }.map { it.name.lowercase() } },

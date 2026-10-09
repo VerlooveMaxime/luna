@@ -5,6 +5,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.location.Bank
@@ -26,6 +27,8 @@ class BankStepType(private val catalog: BankCatalog) : StepType {
     override val kind = "bank"
 
     override val label = "bank"
+
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.Media("mapfunction", 5)
 
     override val fields = listOf(StepField.Choice(BANK, "bank") { listOf(NEAREST) + ids })
 

@@ -3,7 +3,9 @@ package game.idle.autopilot.making
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -63,5 +65,20 @@ class MakeStepTypeTest {
 
     private fun assertRejected(message: String, action: () -> Unit) {
         assertEquals(message, assertThrows<FlowError> { action() }.message)
+    }
+
+    @Test
+    fun `a make step shows its recipe's skill`() {
+        assertEquals(StepIcon.Skill(Skill.COOKING), make.icon(settings("product" to "bread dough")))
+    }
+
+    @Test
+    fun `a make step shows Crafting until a product is picked`() {
+        assertEquals(StepIcon.Skill(Skill.CRAFTING), make.icon(settings()))
+    }
+
+    @Test
+    fun `a make step shows Crafting for a product nothing makes`() {
+        assertEquals(StepIcon.Skill(Skill.CRAFTING), make.icon(settings("product" to "gold")))
     }
 }

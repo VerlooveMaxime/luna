@@ -6,6 +6,7 @@ import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
@@ -15,6 +16,7 @@ import game.idle.location.Tile
 import game.skill.fishing.catchFish.FishingSpot
 import game.skill.fishing.catchFish.Tool
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.Skill
 
 /**
  * How a fish step fishes: one of Luna's tools at the spots Luna's [FishingSpot] table fishes with it, each spot clicked
@@ -50,6 +52,8 @@ object FishStepType : StepType {
     override val kind = "fish"
 
     override val label = "fish"
+
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.FISHING)
 
     override val fields = listOf(
         StepField.Choice(FISH, "fish") { FishingMethod.ALL.map { it.word } },

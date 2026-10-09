@@ -3,9 +3,11 @@ package game.idle.autopilot.fighting
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.location.Tile
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -107,5 +109,10 @@ class FightStepTypeTest {
 
     private fun assertRejected(message: String, action: () -> Unit) {
         assertEquals(message, assertThrows<FlowError> { action() }.message)
+    }
+
+    @Test
+    fun `a fight step shows the Attack icon`() {
+        assertEquals(StepIcon.Skill(Skill.ATTACK), type.icon(fight()))
     }
 }

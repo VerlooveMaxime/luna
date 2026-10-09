@@ -6,6 +6,7 @@ import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
+import game.idle.flow.StepIcon
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
@@ -15,6 +16,7 @@ import game.idle.location.Tile
 import game.skill.smithing.BarType
 import game.skill.smithing.smithBar.SmithingTable
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.Skill
 
 /**
  * Smith: smiths a count of an item or, without one, as many as the bars carried make, at an anvil within a radius of
@@ -34,6 +36,8 @@ object SmithStepType : StepType {
     override val kind = "smith"
 
     override val label = "smith"
+
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.SMITHING)
 
     override val fields = listOf(
         StepField.Choice(METAL, "metal") { METALS.map { it.name.lowercase() } },
