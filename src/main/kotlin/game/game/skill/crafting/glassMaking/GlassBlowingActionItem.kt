@@ -13,7 +13,16 @@ import io.luna.game.model.mob.block.Animation
  */
 class GlassBlowingActionItem(plr: Player, private val material: GlassMaterial, amount: Int) : InventoryAction(plr, true, 2, amount) {
 
-    override fun executeIf(start: Boolean): Boolean = true
+    override fun executeIf(start: Boolean): Boolean =
+        when {
+            mob.crafting.level < material.level -> {
+                mob.sendMessage("You need a Crafting level of ${material.level} to make this.")
+                false
+            }
+
+            else -> true
+        }
+
     override fun execute() {
         mob.animation(Animation(884))
         mob.crafting.addExperience(material.exp)
@@ -21,5 +30,5 @@ class GlassBlowingActionItem(plr: Player, private val material: GlassMaterial, a
     }
 
     override fun add() = listOf(Item(material.id))
-    override fun remove() = listOf(Item(1775))
+    override fun remove() = listOf(Item(GlassMaterial.MOLTEN_GLASS))
 }
