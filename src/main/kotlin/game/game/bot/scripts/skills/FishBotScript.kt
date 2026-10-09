@@ -6,10 +6,10 @@ import api.bot.skill.SkillingBotScript
 import api.bot.skill.SkillingTool
 import api.bot.zone.SubZone
 import api.predef.*
-import com.google.common.collect.ImmutableSetMultimap
 import com.google.gson.JsonObject
 import engine.bot.coordinator.skill.CookingScriptFactory
 import engine.bot.gear.BotItemTracker.Companion.itemTracker
+import game.skill.fishing.catchFish.FishingSpot
 import game.skill.fishing.catchFish.Tool
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Npc
@@ -23,8 +23,8 @@ import kotlin.time.Duration
  * The script fishes using a specific [selectedTool], searches for matching fishing spots in the active zone, handles
  * bait withdrawal when required, and interacts with the correct fishing option based on the spot definition.
  *
- * Fishing spots are resolved from both first-click and second-click spot maps, allowing the same tool to support NPCs
- * that require different interaction options.
+ * Fishing spots are resolved from both the first-click and second-click ids of [FishingSpot], allowing the same tool to
+ * support NPCs that require different interaction options.
  *
  * @author lare96
  */
@@ -48,31 +48,6 @@ class FishBotScript(
 ) : SkillingBotScript<Npc>(bot, duration, zones, bot.fishing) {
 
     companion object {
-
-        /**
-         * Maps each fishing tool to the NPC fishing spots that use it as their first-click action.
-         */ // todo finish, go up from 334 (start at 335)
-        val FIRST_CLICK_SPOTS: ImmutableSetMultimap<Tool, Int> =
-            ImmutableSetMultimap.builder<Tool, Int>()
-                .putAll(Tool.FISHING_ROD, 233, 234, 235, 236)
-                .putAll(Tool.FLY_FISHING_ROD, 309, 310, 311, 314, 315, 317, 318, 328, 329, 331)
-                .putAll(Tool.LOBSTER_POT, 312, 321, 324, 333)
-                .putAll(Tool.BIG_NET, 313, 322, 334)
-                .putAll(Tool.SMALL_NET, 316, 319, 320, 330, 327, 323, 325, 326, 332)
-                .putAll(Tool.MONKFISH_NET, 1174)
-                .build()
-
-        /**
-         * Maps each fishing tool to the NPC fishing spots that use it as their second-click action.
-         */
-        val SECOND_CLICK_SPOTS: ImmutableSetMultimap<Tool, Int> =
-            ImmutableSetMultimap.builder<Tool, Int>()
-                .putAll(
-                    Tool.FISHING_ROD, 309, 310, 311, 314, 315, 316, 331,
-                    317, 318, 319, 320, 330, 327, 323, 325, 326, 328, 329, 332, )
-                .putAll(Tool.HARPOON, 312, 321, 32, 324, 333)
-                .putAll(Tool.SHARK_HARPOON, 313, 322, 334)
-                .build()
 
         /**
          * Serializable data for restoring a Fishing script.
@@ -113,13 +88,7 @@ class FishBotScript(
      * target for the selected tool.
      */
     private val fishingSpotIds = lazyVal {
-        val ids = HashSet<Int>()
-
-        for (spotId in FIRST_CLICK_SPOTS[selectedTool] + SECOND_CLICK_SPOTS[selectedTool]) {
-            ids += spotId
-        }
-
-        ids
+        FishingSpot.firstClickIds(selectedTool) + FishingSpot.secondClickIds(selectedTool)
     }
 
     override fun requirements(): Boolean {
@@ -154,7 +123,7 @@ class FishBotScript(
     }
 
     override suspend fun interactionOption(target: Npc): Int {
-        if (target.id in SECOND_CLICK_SPOTS[selectedTool]) {
+        if (target.id in FishingSpot.secondClickIds(selectedTool)) {
             return 2
         }
 
