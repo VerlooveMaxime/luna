@@ -39,4 +39,17 @@ enum class GlassMaterial(val id: Int, val make1Id: Int, val level: Int, val exp:
     val make5Id = make1Id - 1
     val make10Id = make5Id - 1
     val makeXId = make10Id - 1
+
+    companion object {
+
+        /**
+         * The glassblowing pipe, used on [MOLTEN_GLASS] to open the glassblowing interface.
+         */
+        const val PIPE = 1785
+
+        /**
+         * The molten glass every material is blown from.
+         */
+        const val MOLTEN_GLASS = 1775
+    }
 }

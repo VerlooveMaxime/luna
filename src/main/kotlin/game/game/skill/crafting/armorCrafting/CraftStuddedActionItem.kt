@@ -19,6 +19,12 @@ class CraftStuddedActionItem(val plr: Player, val armor: HideArmor, val removeId
          * The steel studs identifier.
          */
         val STUDS = 2370
+
+        /**
+         * The studded armor made by using [STUDS] on each leather armor.
+         */
+        val LEATHER_TO_STUDDED = mapOf(HideArmor.LEATHER_BODY to HideArmor.STUDDED_BODY,
+                                       HideArmor.LEATHER_CHAPS to HideArmor.STUDDED_CHAPS)
     }
 
     override fun executeIf(start: Boolean): Boolean =

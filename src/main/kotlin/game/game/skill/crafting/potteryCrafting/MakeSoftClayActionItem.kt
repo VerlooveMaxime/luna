@@ -12,6 +12,19 @@ import io.luna.game.model.mob.Player
  */
 class MakeSoftClayActionItem(val plr: Player) : InventoryAction(plr, true, 1, 28) {
 
+    companion object {
+
+        /**
+         * The clay, used on any water container.
+         */
+        const val CLAY = 434
+
+        /**
+         * The soft clay made.
+         */
+        const val SOFT_CLAY = 1761
+    }
+
     /**
      * The unfilled identifier.
      */
@@ -30,7 +43,7 @@ class MakeSoftClayActionItem(val plr: Player) : InventoryAction(plr, true, 1, 28
         }
         val newUnfilledId = unfilledId!!
         unfilledId = null
-        return listOf(Item(newUnfilledId), Item(1761))
+        return listOf(Item(newUnfilledId), Item(SOFT_CLAY))
     }
 
     override fun remove(): List<Item> {
@@ -52,7 +65,7 @@ class MakeSoftClayActionItem(val plr: Player) : InventoryAction(plr, true, 1, 28
             val filled = entry.value
             val empty = entry.key
             if (plr.inventory.contains(filled)) {
-                val remove = listOf(Item(434), Item(filled))
+                val remove = listOf(Item(CLAY), Item(filled))
                 return Pair(empty, remove)
             }
         }

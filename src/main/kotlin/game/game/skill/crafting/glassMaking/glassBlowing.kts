@@ -16,7 +16,7 @@ fun addAction(plr: Player, material: GlassMaterial, amount: Int) {
 }
 
 // Use glassblowing pipe on molten glass to open interface.
-useItem(1785).onItem(1775) { plr.overlays.open(GlassBlowingInterface()) }
+useItem(GlassMaterial.PIPE).onItem(GlassMaterial.MOLTEN_GLASS) { plr.overlays.open(GlassBlowingInterface()) }
 
 // Register all glassblowing interface action listeners.
 GlassMaterial.values().forEach {

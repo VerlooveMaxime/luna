@@ -25,6 +25,11 @@ class FermentWineTask(val plr: Player) : Task(false, 1) {
          * How many ticks this wine has been fermenting for.
          */
         var DynamicItem.wineFermentCounter by Attr.int().persist("wine_ferment_counter")
+
+        /**
+         * The jug of wine an unfermented wine turns into.
+         */
+        const val JUG_OF_WINE = 1993
     }
 
     /**
@@ -35,7 +40,7 @@ class FermentWineTask(val plr: Player) : Task(false, 1) {
             if (++item.wineFermentCounter >= 20) {
                 plr.cooking.addExperience(IncompleteFood.UNFERMENTED_WINE.exp)
                 item.wineFermentCounter = 0
-                container[index] = Item(1993)
+                container[index] = Item(JUG_OF_WINE)
                 return true
             }
         }

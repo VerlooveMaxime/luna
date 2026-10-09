@@ -22,22 +22,12 @@ val emblem = SilverJewelleryTable.ZAMORAK_SYMBOL.jewelleryItem.item.id
 /**
  * The string id.
  */
-val BALL_OF_WOOL = 1759
+val BALL_OF_WOOL = JewelleryString.BALL_OF_WOOL
 
 /**
  * All unstrung items to strung items.
  */
-val STRING = mapOf(
-    1673 to 1692,
-    1675 to 1694,
-    1677 to 1696,
-    1679 to 1698,
-    1681 to 1700,
-    1683 to 1702,
-    6579 to 6581,
-    1714 to 1716,
-    1720 to 1722
-)
+val STRING = JewelleryString.UNSTRUNG_TO_STRUNG
 
 /**
  * Attempts to make a piece of gold jewellery.
