@@ -9,8 +9,8 @@ import game.skill.smithing.smithBar.SmithingTable
 import io.luna.game.model.mob.Skill
 
 /**
- * Everything a smith step can smith, of every metal, by the item's id (S07 turns the step's metal and item settings
- * into this one). From earlier steps only the items of the bars they get are offered.
+ * Everything a smith step can smith, of every metal, by the item's id, which its item setting keeps (since S06b). From
+ * earlier steps only the items of the bars they get are offered.
  */
 class SmithItemOptions(private val names: GameNames) : OptionSource {
 

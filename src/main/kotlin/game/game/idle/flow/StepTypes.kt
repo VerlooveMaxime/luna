@@ -1,6 +1,6 @@
 package game.idle.flow
 
-/** Every kind of step a flow can use, in the order the flow builder cycles through them, found by [StepType.kind]. */
+/** Every kind of step a flow can use, in the order the builder's kind picker shows them, found by [StepType.kind]. */
 class StepTypes(val all: List<StepType>) {
 
     init {

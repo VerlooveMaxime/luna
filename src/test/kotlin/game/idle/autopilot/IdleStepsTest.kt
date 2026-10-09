@@ -25,7 +25,7 @@ class IdleStepsTest {
     private val types = IdleSteps(BankCatalog(emptyList()), RecipeCatalog(emptyList()), FightTargetCatalog(emptyList())).types.all
 
     @Test
-    fun `the builder cycles through gathering, processing, fighting, then walking, dropping and banking`() {
+    fun `the kind picker shows gathering, processing, fighting, then walking, dropping and banking`() {
         assertEquals(listOf(ChopStepType, MineStepType, FishStepType, LightStepType, CookStepType), types.take(5))
         assertInstanceOf(MakeStepType::class.java, types[5])
         assertEquals(listOf(SmeltStepType, SmithStepType), types.subList(6, 8))

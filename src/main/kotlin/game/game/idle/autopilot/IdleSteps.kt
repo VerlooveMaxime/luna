@@ -19,7 +19,7 @@ import game.idle.flow.StepTypes
 import game.idle.flow.option.LunaGameNames
 import game.idle.location.BankCatalog
 
-/** Every kind of step a flow can use, in the order the flow builder cycles through them. */
+/** Every kind of step a flow can use, in the order the builder's kind picker shows them. */
 class IdleSteps(banks: BankCatalog, recipes: RecipeCatalog, fightTargets: FightTargetCatalog) {
 
     val types = StepTypes(

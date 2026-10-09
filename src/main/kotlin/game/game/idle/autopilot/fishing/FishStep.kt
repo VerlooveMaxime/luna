@@ -23,7 +23,7 @@ import io.luna.game.model.mob.Skill
 /**
  * How a fish step fishes: one of Luna's tools at the spots Luna's [FishingSpot] table fishes with it, each spot clicked
  * on the option that uses the tool. [ALL] reads Luna's [Tool] lazily: its fish name themselves from the item
- * definitions, which only a booted world has, and the builder lists methods before that.
+ * definitions, which only a booted world has.
  */
 data class FishingMethod(val tool: Tool) {
 
