@@ -1,5 +1,6 @@
 package game.idle.autopilot
 
+import game.idle.ui.FlowWidgets
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -59,5 +60,15 @@ class AutopilotConfigTest {
     @Test
     fun `no saved-flow slots is rejected`() {
         assertThrows<IllegalArgumentException> { AutopilotConfig(savedFlowSlots = 0).validated() }
+    }
+
+    @Test
+    fun `more saved-flow slots than the Idle tab has ids for are rejected`() {
+        assertThrows<IllegalArgumentException> { AutopilotConfig(savedFlowSlots = FlowWidgets.MOST_SAVED_SLOTS + 1).validated() }
+    }
+
+    @Test
+    fun `as many saved-flow slots as the Idle tab has ids for are accepted`() {
+        assertEquals(FlowWidgets.MOST_SAVED_SLOTS, AutopilotConfig(savedFlowSlots = FlowWidgets.MOST_SAVED_SLOTS).validated().savedFlowSlots)
     }
 }

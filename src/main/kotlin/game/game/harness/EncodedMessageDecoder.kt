@@ -1,6 +1,5 @@
 package game.harness
 
-import game.idle.ui.BuilderSlotsMessageWriter
 import game.idle.ui.HintArrowMessageWriter
 import game.idle.ui.MapPickMessageWriter
 import game.idle.ui.PictureEncoding
@@ -9,6 +8,7 @@ import game.idle.ui.PromptMode
 import game.idle.ui.SearchOpenMessageWriter
 import game.idle.ui.SearchRow
 import game.idle.ui.SearchRowsMessageWriter
+import game.idle.ui.SlotCountMessageWriter
 import game.idle.ui.StatusOverlayMessageWriter
 import game.idle.ui.StickyChatboxMessageWriter
 import game.idle.ui.WidgetColourMessageWriter
@@ -55,10 +55,7 @@ object EncodedMessageDecoder {
             )
         },
         SearchRowsMessageWriter.OPCODE to Layout("SearchRowsMessageWriter", ::searchRows),
-        BuilderSlotsMessageWriter.OPCODE to Layout("BuilderSlotsMessageWriter") {
-            it.byte()
-            mapOf("slots" to it.short())
-        },
+        SlotCountMessageWriter.OPCODE to Layout("SlotCountMessageWriter") { mapOf("kind" to it.byte(), "slots" to it.short()) },
         WidgetColourMessageWriter.OPCODE to Layout("WidgetColourMessageWriter") {
             val widgetId = it.short()
             mapOf("widgetId" to widgetId, "rgb" to WidgetColourMessageWriter.unpacked(it.short(transform = ValueType.ADD)))

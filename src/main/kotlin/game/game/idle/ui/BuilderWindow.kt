@@ -5,6 +5,7 @@ import api.attr.getValue
 import api.attr.setValue
 import game.idle.IdleState
 import game.idle.autopilot.LunaAutopilotPlayer
+import game.idle.flow.SavedFlows
 import game.idle.flow.option.LunaOptionFacts
 import game.idle.idleState
 import game.idle.location.Tile
@@ -48,7 +49,7 @@ class AmountInput(private val onAmount: (Player, Int) -> Unit) : NumberInput() {
 class BuilderWindow(private val overview: BuilderOverview, private val configure: BuilderConfigure, private val slots: Int) {
 
     fun open(player: Player) {
-        player.queue(BuilderSlotsMessageWriter(slots))
+        player.queue(SlotCountMessageWriter(SlotCountMessageWriter.STEP_SLOTS, slots))
         player.overlays.open(BuilderInterface { show(it, BuilderPage.OVERVIEW) })
     }
 
@@ -79,7 +80,7 @@ class BuilderWindow(private val overview: BuilderOverview, private val configure
 }
 
 /**
- * Routes a Luna player's clicks, drags, picks and typed amounts on the builder's screens and the Idle tab to the
+ * Routes a Luna player's clicks, drags, picks, typed amounts and names on the builder's screens and the Idle tab to the
  * [BuilderScreen] and shows the answer; searches measure their labels with the client's [font].
  */
 class LunaBuilderUi(
@@ -105,12 +106,14 @@ class LunaBuilderUi(
         when (answer) {
             BuilderAnswer.Ignored -> Unit
             BuilderAnswer.Close -> player.overlays.closeWindows()
-            BuilderAnswer.Open -> window.open(player)
+            BuilderAnswer.Open -> open(player)
             is BuilderAnswer.Show -> show(player, answer)
             is BuilderAnswer.Configure -> configure(player, answer.draft, answer.message)
             is BuilderAnswer.Search -> search(player, answer)
             is BuilderAnswer.Amount -> amount(player, answer.draft)
             is BuilderAnswer.PickTile -> pickTile(player, answer)
+            is BuilderAnswer.Replaced -> replaced(player, answer.message)
+            is BuilderAnswer.Name -> name(player, answer)
         }
 
     /** The window shows the page asked for, or the state as it now is; a click from a closed window only speaks. */
@@ -143,6 +146,23 @@ class LunaBuilderUi(
     private fun pickTile(player: Player, answer: BuilderAnswer.PickTile) {
         configure(player, answer.draft, message = "")
         player.queue(MapPickMessageWriter(answer.centre.x, answer.centre.y))
+    }
+
+    /** An open builder stays on the screen it shows, a step being configured included. */
+    private fun open(player: Player) {
+        if (!window.isOpen(player)) window.open(player)
+    }
+
+    /** The new current flow replaces the one an open builder showed, a step being configured with it. */
+    private fun replaced(player: Player, message: String) {
+        if (window.isOpen(player)) window.show(player, BuilderPage.OVERVIEW) else window.open(player)
+        tell(player, message)
+    }
+
+    private fun name(player: Player, answer: BuilderAnswer.Name) {
+        SearchPrompts.openName(player, answer.title, answer.text, SavedFlows.MAX_NAME) { plr, name ->
+            answer(plr, screen.named(autopilotPlayer(plr), answer.slot, name))
+        }
     }
 
     private fun tell(player: Player, message: String) {

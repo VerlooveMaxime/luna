@@ -4,6 +4,7 @@ import api.predef.*
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.FlowRunner
+import game.idle.flow.SavedFlows
 import game.idle.idleState
 import game.idle.flow.option.LunaGameNames
 import game.idle.ui.BuilderConfigure
@@ -13,6 +14,7 @@ import game.idle.ui.BuilderWidgets
 import game.idle.ui.BuilderWindow
 import game.idle.ui.ClientFont
 import game.idle.ui.FlowWidgets
+import game.idle.ui.IdleTab
 import game.idle.ui.IdleUi
 import game.idle.ui.LunaBuilderUi
 import game.idle.ui.MapPickEvent
@@ -27,12 +29,13 @@ val config = AutopilotConfig.load(AutopilotConfig.PATH)
 val steps = IdleSteps.load()
 val resolver = FlowResolver(steps.types)
 val font = ClientFont.fromCache(ctx.cache)
+val savedFlows = SavedFlows(config.savedFlowSlots)
 val builderWindow = BuilderWindow(
-    BuilderOverview(resolver, LunaGameNames, font),
+    BuilderOverview(resolver, LunaGameNames, font, savedFlows),
     BuilderConfigure(resolver, LunaGameNames, font),
     config.stepSlots,
 )
-val ui = IdleUi(steps.types::summary, builderWindow)
+val ui = IdleUi(steps.types::summary, IdleTab.fromCache(ctx.cache, config.savedFlowSlots), builderWindow)
 logger.info("Loaded {} kinds of idle step.", steps.types.all.size)
 
 val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world)) { autopilotPlayer ->
@@ -45,7 +48,7 @@ val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world)) { auto
     resolved?.let { AutopilotDriver(FlowRunner(it, state.stepIndex, autopilotPlayer), config.decisionDelayTicks) }
 }
 
-val builderUi = LunaBuilderUi(BuilderScreen(autopilot, resolver, LunaGameNames, config.stepSlots), builderWindow, ui, font)
+val builderUi = LunaBuilderUi(BuilderScreen(autopilot, resolver, LunaGameNames, config.stepSlots, savedFlows), builderWindow, ui, font)
 
 on(LoginEvent::class)
     .filter { !plr.isBot }

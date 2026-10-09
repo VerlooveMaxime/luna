@@ -120,4 +120,9 @@ class ClientFontTest {
     fun `text past the last line joins it, cut with two dots`() {
         assertEquals(listOf("ab cd", "ef.."), even.wrap("ab cd ef gh ij", 25, lines = 2))
     }
+
+    @Test
+    fun `a word holding a space is never broken`() {
+        assertEquals(listOf("aa", "b cc"), even.wrap(listOf("aa", "b cc"), 20, lines = 2))
+    }
 }

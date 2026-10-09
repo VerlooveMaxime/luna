@@ -37,6 +37,7 @@ import game.idle.idleState
 import game.idle.location.Bank
 import game.idle.location.Tile
 import game.idle.ui.IdleUi
+import game.idle.ui.idleTab
 import game.skill.fishing.catchFish.Tool
 import game.skill.mining.Ore
 import game.skill.smithing.BarType
@@ -68,7 +69,7 @@ class LunaAutopilotPlayerTest {
         }
     }
 
-    private val ui = IdleUi(StepTypes(listOf(FakeStepType("chop"), FakeStepType("drop")))::summary)
+    private val ui = IdleUi(StepTypes(listOf(FakeStepType("chop"), FakeStepType("drop")))::summary, idleTab())
 
     private val chopOak = step("chop", "oak")
 

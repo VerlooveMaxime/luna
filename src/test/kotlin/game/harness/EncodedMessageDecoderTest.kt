@@ -3,12 +3,12 @@ package game.harness
 import game.idle.ui.HintArrowMessageWriter
 import game.idle.ui.MapPickMessageWriter
 import game.idle.ui.PictureMessageWriter
-import game.idle.ui.BuilderSlotsMessageWriter
 import game.idle.ui.PromptMode
 import game.idle.ui.SearchOpenMessageWriter
 import game.idle.ui.WidgetColourMessageWriter
 import game.idle.ui.SearchRow
 import game.idle.ui.SearchRowsMessageWriter
+import game.idle.ui.SlotCountMessageWriter
 import game.idle.ui.StatusOverlayMessageWriter
 import game.idle.ui.StickyChatboxMessageWriter
 import game.idle.ui.TileEdge
@@ -123,8 +123,8 @@ class EncodedMessageDecoderTest {
     }
 
     @Test
-    fun `the builder's slot count decodes as the writer records it`() {
-        assertDecodesAsRecorded(BuilderSlotsMessageWriter(6))
+    fun `a slot count decodes as the writer records it`() {
+        assertDecodesAsRecorded(SlotCountMessageWriter(SlotCountMessageWriter.SAVED_FLOW_SLOTS, 6))
     }
 
     @Test

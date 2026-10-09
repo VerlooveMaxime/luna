@@ -7,12 +7,13 @@ import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class IdleUiTest {
 
     private val running = IdleState(steps = listOf(StepSettings("chop"), StepSettings("drop")), stepIndex = 1, running = true)
-    private val idleUi = IdleUi({ it.kind })
+    private val idleUi = IdleUi({ it.kind }, idleTab(slots = 3))
 
     @AfterEach
     fun resetWorld() = TestWorld.reset()
@@ -37,18 +38,29 @@ class IdleUiTest {
 
         val tab = TestWorld.messages(player).single { it.type == "TabInterfaceMessageWriter" }
         assertEquals(FlowWidgets.TAB, tab.fields["id"])
-        assertEquals("Autopilot: off", texts(player)[FlowWidgets.TAB_STATUS_1])
+        assertEquals("Autopilot: stopped", texts(player)[FlowWidgets.TAB_STATUS_1])
     }
 
     @Test
-    fun `a refresh sends the overlay and the tab lines`() {
+    fun `the client hears of the saved-flow slots before the tab, to build its rows`() {
+        val player = login()
+
+        idleUi.installTab(player, IdleState())
+
+        val count = TestWorld.messages(player).single { it.type == "SlotCountMessageWriter" }
+        assertEquals(mapOf("kind" to SlotCountMessageWriter.SAVED_FLOW_SLOTS, "slots" to 3), count.fields)
+        assertTrue(types(player).indexOf("SlotCountMessageWriter") < types(player).indexOf("TabInterfaceMessageWriter"))
+    }
+
+    @Test
+    fun `a refresh sends the overlay and the tab's widgets`() {
         val player = login()
 
         idleUi.refresh(player, running)
 
         val overlay = TestWorld.messages(player).single { it.type == "StatusOverlayMessageWriter" }
         assertEquals("@gre@Autopilot@whi@ step 2/2|@yel@drop", overlay.fields["text"])
-        assertEquals("Step 2/2", texts(player)[FlowWidgets.TAB_STATUS_2])
+        assertEquals("Autopilot: running step 2 of 2", texts(player)[FlowWidgets.TAB_STATUS_1])
     }
 
     @Test
@@ -57,16 +69,16 @@ class IdleUiTest {
 
         idleUi.refresh(player, running)
 
-        assertEquals(listOf("StatusOverlayMessageWriter") + List(3) { "WidgetTextMessageWriter" }, types(player))
+        assertEquals(setOf("StatusOverlayMessageWriter", "WidgetTextMessageWriter", "WidgetVisibilityMessageWriter"), types(player).toSet())
     }
 
     @Test
     fun `the same text is sent again, since the client may have rebuilt the widget blank`() {
         val player = login()
 
-        IdleUi.sendTexts(player, mapOf(FlowWidgets.TAB_STATUS_1 to "Welcome"))
-        IdleUi.sendTexts(player, mapOf(FlowWidgets.TAB_STATUS_1 to "Welcome"))
+        idleUi.refresh(player, running)
+        idleUi.refresh(player, running)
 
-        assertEquals(2, TestWorld.messages(player).count { it.type == "WidgetTextMessageWriter" })
+        assertEquals(2, TestWorld.messages(player).count { it.type == "WidgetTextMessageWriter" && it.fields["id"] == FlowWidgets.TAB_STATUS_1 })
     }
 }

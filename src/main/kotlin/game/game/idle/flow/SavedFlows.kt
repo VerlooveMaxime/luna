@@ -4,10 +4,12 @@ import game.idle.IdleState
 import game.idle.SavedFlow
 
 /**
- * The player's saved flows: [slots] named copies of a flow to switch between. Loading replaces the current flow and
- * leaves it stopped, so whoever loads a flow stops the autopilot first.
+ * The player's saved flows: [slots] named flows to switch between, the way into the builder (Maxime, 2026-10-10). The
+ * current flow belongs to one slot: the one it was loaded from or saved to, or the empty one it was started in as new,
+ * and keeps edits not saved yet. Loading, starting a new flow and emptying the current flow's slot replace the current
+ * flow and leave it stopped, so whoever does them stops the autopilot first.
  */
-class SavedFlows(private val slots: Int) {
+class SavedFlows(val slots: Int) {
 
     init {
         require(slots > 0) { "There must be at least one saved-flow slot" }
@@ -31,21 +33,40 @@ class SavedFlows(private val slots: Int) {
         return state.withFlow(saved.steps).copy(savedSlot = slot)
     }
 
-    /** [slot] emptied; the current flow keeps its steps but no longer counts as saved there. */
-    fun empty(state: IdleState, slot: Int): IdleState {
+    /** An empty current flow belonging to the empty [slot], saved there on its first save; throws [FlowError]. */
+    fun startNew(state: IdleState, slot: Int): IdleState {
         checkSlot(slot)
-        return state.copy(
-            savedFlows = state.savedFlows.filter { it.slot != slot },
-            savedSlot = state.savedSlot.takeIf { it != slot },
-        )
+        if (state.savedFlows.any { it.slot == slot }) throw FlowError("Saved-flow slot ${slot + 1} holds a flow")
+        return state.withFlow(emptyList()).copy(savedSlot = slot)
     }
 
-    /** Whether the current flow differs from the saved flow it came from; false when it came from none. */
-    fun changedSinceSaved(state: IdleState): Boolean {
-        val slot = state.savedSlot ?: return false
-        val saved = state.savedFlows.firstOrNull { it.slot == slot } ?: return false
-        return saved.steps != state.steps
+    /**
+     * [slot] emptied; emptying the current flow's slot empties the flow too, so no flow is left that no slot opens
+     * (Maxime, 2026-10-10).
+     */
+    fun empty(state: IdleState, slot: Int): IdleState {
+        checkSlot(slot)
+        val emptied = state.copy(savedFlows = state.savedFlows.filter { it.slot != slot })
+        return if (state.savedSlot == slot) emptied.withFlow(emptyList()).copy(savedSlot = null) else emptied
     }
+
+    /** The saved flow the current flow was last loaded from or saved to, null when none holds it. */
+    fun current(state: IdleState): SavedFlow? = state.savedSlot?.let { slot -> state.savedFlows.firstOrNull { it.slot == slot } }
+
+    /** Whether the current flow differs from the saved flow it came from; false when it came from none. */
+    fun changedSinceSaved(state: IdleState): Boolean = current(state)?.let { it.steps != state.steps } ?: false
+
+    /**
+     * The current flow as the player sees it named: "Willows", "Willows (changed)", "new flow" in a slot it is not saved
+     * in yet, or null when it belongs to no slot.
+     */
+    fun label(state: IdleState): String? {
+        val saved = current(state) ?: return state.savedSlot?.let { NEW_FLOW }
+        return if (saved.steps != state.steps) "${saved.name} (changed)" else saved.name
+    }
+
+    /** The first slot holding no flow, null when every slot holds one. */
+    fun firstEmpty(state: IdleState): Int? = (0 until slots).firstOrNull { slot -> state.savedFlows.none { it.slot == slot } }
 
     private fun checkSlot(slot: Int) {
         if (slot !in 0 until slots) throw FlowError("Saved-flow slot ${slot + 1} is locked")
@@ -53,6 +74,8 @@ class SavedFlows(private val slots: Int) {
 
     companion object {
         const val MAX_NAME = 20
+
+        private const val NEW_FLOW = "new flow"
 
         /** Printable characters, without `@`: the client reads `@red@` and the like as colour codes. */
         private val NAME_CHARACTERS: Set<Char> = (' '..'~').toSet() - '@'

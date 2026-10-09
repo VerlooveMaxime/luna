@@ -1,6 +1,7 @@
 package game.idle.ui
 
 import game.idle.IdleState
+import game.idle.SavedFlow
 import game.idle.autopilot.Autopilot
 import game.idle.autopilot.AutopilotDriver
 import game.idle.autopilot.FakeActivity
@@ -9,6 +10,7 @@ import game.idle.autopilot.FakeTickScheduler
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowResolver
+import game.idle.flow.SavedFlows
 import game.idle.flow.StepSettings
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
@@ -22,7 +24,7 @@ import org.junit.jupiter.api.Test
 class BuilderScreenTest {
 
     private val autopilot = Autopilot<FakeAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
-    private val screen = BuilderScreen(autopilot, FlowResolver(CONFIGURED_TYPES), FakeNames(), slots = 3)
+    private val screen = BuilderScreen(autopilot, FlowResolver(CONFIGURED_TYPES), FakeNames(), slots = 3, SavedFlows(2))
 
     private val chop = step("chop", "oak")
     private val drop = step("drop")
@@ -420,11 +422,6 @@ class BuilderScreenTest {
     }
 
     @Test
-    fun `the Idle tab's button opens the builder`() {
-        assertEquals(BuilderAnswer.Open, screen.tab(player(), FlowWidgets.TAB_OPEN_BUILDER))
-    }
-
-    @Test
     fun `the Idle tab's run and stop work as the builder's`() {
         val player = player(chop)
 
@@ -434,6 +431,215 @@ class BuilderScreenTest {
     @Test
     fun `the Idle tab's other widgets do nothing`() {
         assertEquals(BuilderAnswer.Ignored, screen.tab(player(), FlowWidgets.TAB_STATUS_1))
+    }
+
+    private val cows = SavedFlow(1, "Cows", listOf(drop, chop))
+
+    /** A player whose flow is [steps], belonging to [slot], with the saved flow Cows in slot 2. */
+    private fun keeping(vararg steps: StepSettings, slot: Int? = null) =
+        FakeAutopilotPlayer("maxime", IdleState(steps = steps.toList(), savedFlows = listOf(cows), savedSlot = slot))
+
+    @Test
+    fun `Load on another slot makes its flow the current one`() {
+        val player = keeping(chop)
+
+        screen.tab(player, FlowWidgets.rowLoad(1))
+
+        assertEquals(listOf(drop, chop), player.idleState.steps)
+        assertEquals(1, player.idleState.savedSlot)
+    }
+
+    @Test
+    fun `Load on another slot opens the builder on it and says which flow it loaded`() {
+        assertEquals(BuilderAnswer.Replaced("Autopilot: loaded 'Cows'."), screen.tab(keeping(chop), FlowWidgets.rowLoad(1)))
+    }
+
+    @Test
+    fun `Load on another slot stops a running flow first and says so`() {
+        val player = keeping(chop).also { autopilot.start(it) }
+
+        screen.tab(player, FlowWidgets.rowLoad(1))
+
+        assertFalse(autopilot.isRunning(player))
+        assertEquals(listOf("Autopilot: stopped."), player.told)
+    }
+
+    @Test
+    fun `Load on the current flow's slot opens the builder on it as it is`() {
+        val player = keeping(chop, slot = 1)
+
+        val answer = screen.tab(player, FlowWidgets.rowLoad(1))
+
+        assertEquals(BuilderAnswer.Open, answer)
+        assertEquals(listOf(chop), player.idleState.steps)
+    }
+
+    @Test
+    fun `Load on the running flow's slot leaves it running`() {
+        val player = keeping(chop, slot = 1).also { autopilot.start(it) }
+
+        screen.tab(player, FlowWidgets.rowLoad(1))
+
+        assertTrue(autopilot.isRunning(player))
+    }
+
+    @Test
+    fun `Load on an empty slot does nothing`() {
+        assertEquals(BuilderAnswer.Ignored, screen.tab(keeping(chop), FlowWidgets.rowLoad(0)))
+    }
+
+    @Test
+    fun `New on an empty slot starts an empty flow belonging to it`() {
+        val player = keeping(chop, slot = 1)
+
+        screen.tab(player, FlowWidgets.rowNew(0))
+
+        assertEquals(IdleState(savedFlows = listOf(cows), savedSlot = 0), player.idleState)
+    }
+
+    @Test
+    fun `New opens the builder on the new flow`() {
+        assertEquals(BuilderAnswer.Replaced(), screen.tab(keeping(chop), FlowWidgets.rowNew(0)))
+    }
+
+    @Test
+    fun `New stops a running flow first`() {
+        val player = keeping(chop).also { autopilot.start(it) }
+
+        screen.tab(player, FlowWidgets.rowNew(0))
+
+        assertFalse(autopilot.isRunning(player))
+    }
+
+    @Test
+    fun `New on the new flow's own slot opens it as it is`() {
+        val player = keeping(chop, slot = 0)
+
+        assertEquals(BuilderAnswer.Open, screen.tab(player, FlowWidgets.rowNew(0)))
+        assertEquals(listOf(chop), player.idleState.steps)
+    }
+
+    @Test
+    fun `New on a slot holding a flow does nothing`() {
+        assertEquals(BuilderAnswer.Ignored, screen.tab(keeping(chop), FlowWidgets.rowNew(1)))
+    }
+
+    @Test
+    fun `x empties another slot and says which flow went`() {
+        val player = keeping(chop)
+
+        val answer = screen.tab(player, FlowWidgets.rowDelete(1))
+
+        assertEquals(say("'Cows' deleted."), answer)
+        assertEquals(listOf<Any>(emptyList<SavedFlow>(), listOf(chop)), listOf(player.idleState.savedFlows, player.idleState.steps))
+    }
+
+    @Test
+    fun `x on another slot leaves a running flow running`() {
+        val player = keeping(chop).also { autopilot.start(it) }
+
+        screen.tab(player, FlowWidgets.rowDelete(1))
+
+        assertTrue(autopilot.isRunning(player))
+    }
+
+    @Test
+    fun `x on another slot keeps a flow belonging to its own slot`() {
+        val player = keeping(chop, slot = 0)
+
+        screen.tab(player, FlowWidgets.rowDelete(1))
+
+        assertEquals(listOf<Any?>(listOf(chop), 0), listOf(player.idleState.steps, player.idleState.savedSlot))
+    }
+
+    @Test
+    fun `x on the current flow's slot empties the flow too`() {
+        val player = keeping(drop, chop, slot = 1)
+
+        screen.tab(player, FlowWidgets.rowDelete(1))
+
+        assertEquals(IdleState(), player.idleState)
+    }
+
+    @Test
+    fun `x on the running flow's slot stops it first and says so`() {
+        val player = keeping(drop, chop, slot = 1).also { autopilot.start(it) }
+
+        screen.tab(player, FlowWidgets.rowDelete(1))
+
+        assertFalse(autopilot.isRunning(player))
+        assertEquals(listOf("Autopilot: stopped."), player.told)
+    }
+
+    @Test
+    fun `x on an empty slot does nothing`() {
+        assertEquals(BuilderAnswer.Ignored, screen.tab(keeping(chop), FlowWidgets.rowDelete(0)))
+    }
+
+    @Test
+    fun `a row past the player's saved-flow slots does nothing`() {
+        assertEquals(BuilderAnswer.Ignored, screen.tab(keeping(chop), FlowWidgets.rowLoad(2)))
+    }
+
+    @Test
+    fun `the builder's Save saves over the flow's own saved flow, from its name`() {
+        assertEquals(BuilderAnswer.Name(1, "Save over 'Cows' as:", "Cows"), click(keeping(chop, slot = 1), BuilderWidgets.SAVE_FLOW))
+    }
+
+    @Test
+    fun `the builder's Save names a new flow for its own slot`() {
+        val player = keeping(chop).also { screen.tab(it, FlowWidgets.rowNew(0)) }.apply { idleState = idleState.withFlow(listOf(chop)) }
+
+        assertEquals(BuilderAnswer.Name(0, "Name for this flow:", ""), click(player, BuilderWidgets.SAVE_FLOW))
+    }
+
+    @Test
+    fun `the builder's Save puts a flow of no slot in the first empty one`() {
+        assertEquals(BuilderAnswer.Name(0, "Name for this flow:", ""), click(keeping(chop), BuilderWidgets.SAVE_FLOW))
+    }
+
+    @Test
+    fun `the builder's Save of a flow of no slot, every slot taken, points to the tab`() {
+        val player = keeping(chop).apply { idleState = idleState.copy(savedFlows = idleState.savedFlows + SavedFlow(0, "Oaks", listOf(chop))) }
+
+        assertEquals(say("every saved-flow slot is taken. Save over one in the Idle tab."), click(player, BuilderWidgets.SAVE_FLOW))
+    }
+
+    @Test
+    fun `the builder's Save works while the flow runs`() {
+        val player = keeping(chop, slot = 1).also { autopilot.start(it) }
+
+        assertEquals(BuilderAnswer.Name(1, "Save over 'Cows' as:", "Cows"), click(player, BuilderWidgets.SAVE_FLOW))
+    }
+
+    @Test
+    fun `the builder's Save with an empty flow says so`() {
+        assertEquals(say("the flow is empty. Add a step first."), click(keeping(slot = 0), BuilderWidgets.SAVE_FLOW))
+    }
+
+    @Test
+    fun `a name saves the flow in its slot, which it then belongs to`() {
+        val player = keeping(chop)
+
+        screen.named(player, 0, "Willows")
+
+        assertEquals(listOf(SavedFlow(0, "Willows", listOf(chop)), cows), player.idleState.savedFlows)
+        assertEquals(0, player.idleState.savedSlot)
+    }
+
+    @Test
+    fun `a saved flow is named in the chat box without the spaces around it`() {
+        assertEquals(say("flow saved as 'Willows'."), screen.named(keeping(chop), 0, " Willows "))
+    }
+
+    @Test
+    fun `a name for a flow emptied since Save saves nothing`() {
+        assertEquals(say("the flow is empty. Add a step first."), screen.named(keeping(), 0, "Willows"))
+    }
+
+    @Test
+    fun `a name the rules refuse says the rule`() {
+        assertEquals(say("a flow's name is 1 to 20 characters."), screen.named(keeping(chop), 0, "x".repeat(21)))
     }
 
     @Test

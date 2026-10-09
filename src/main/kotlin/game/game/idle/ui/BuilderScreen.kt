@@ -2,7 +2,9 @@ package game.idle.ui
 
 import game.idle.autopilot.Autopilot
 import game.idle.autopilot.AutopilotPlayer
+import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
+import game.idle.flow.SavedFlows
 import game.idle.flow.StepField
 import game.idle.flow.StepSettings
 import game.idle.flow.option.GameNames
@@ -17,7 +19,7 @@ sealed interface BuilderAnswer {
 
     data object Close : BuilderAnswer
 
-    /** Opens the builder on its overview. */
+    /** Opens the builder on its overview; an open builder stays as it is. */
     data object Open : BuilderAnswer
 
     /**
@@ -40,19 +42,31 @@ sealed interface BuilderAnswer {
 
     /** Shows [draft] and opens the world map for a tile, centred on [centre]. */
     data class PickTile(val draft: StepDraft, val centre: Tile) : BuilderAnswer
+
+    /**
+     * The current flow was replaced, loaded or new: the builder opens, or an open one goes back to its overview, and
+     * [message] goes to the chat box.
+     */
+    data class Replaced(val message: String = "") : BuilderAnswer
+
+    /** Opens the name prompt for saving the flow in saved-flow [slot]: [title] over a line starting with [text]. */
+    data class Name(val slot: Int, val title: String, val text: String) : BuilderAnswer
 }
 
 /**
  * The clicks and drags of the builder's screens and the Idle tab (flow builder v2, S06), over the flow saved in the
  * player's state and the [Autopilot] that runs it; a flow has room for [slots] steps. A step is changed on its
  * configure screen as a [StepDraft], which joins the flow on Save. While the flow runs nothing is changed (Maxime,
- * 2026-10-09): a configure screen opens to look. Messages go to the chat box.
+ * 2026-10-09): a configure screen opens to look. The tab's [savedFlows] open the builder (Maxime, 2026-10-10): Load on
+ * the current flow's slot opens it as it is, Load on another slot and New replace it, stopping it first; the builder's
+ * Save saves it into its slot. Messages go to the chat box.
  */
 class BuilderScreen<P : AutopilotPlayer>(
     private val autopilot: Autopilot<P>,
     private val resolver: FlowResolver,
     private val names: GameNames,
     private val slots: Int,
+    private val savedFlows: SavedFlows,
 ) {
 
     private val types = resolver.types.all
@@ -64,6 +78,7 @@ class BuilderScreen<P : AutopilotPlayer>(
             BuilderWidgets.RUN -> run(player)
             BuilderWidgets.STOP -> stop(player)
             BuilderWidgets.CLEAR -> clear(player)
+            BuilderWidgets.SAVE_FLOW -> saveFromBuilder(player)
             BuilderWidgets.BASE_LEVELS -> levels(player, boosted = false)
             BuilderWidgets.BOOSTED_LEVELS -> levels(player, boosted = true)
             BuilderWidgets.KINDS_BACK -> BuilderAnswer.Show(BuilderPage.OVERVIEW)
@@ -73,14 +88,25 @@ class BuilderScreen<P : AutopilotPlayer>(
                 ?: BuilderAnswer.Ignored
         }
 
-    /** A click on the Idle tab: the builder, Run and Stop. */
+    /** A click on the Idle tab: Run, Stop and the saved flows' Load, New and x. */
     fun tab(player: P, widgetId: Int): BuilderAnswer =
         when (widgetId) {
-            FlowWidgets.TAB_OPEN_BUILDER -> BuilderAnswer.Open
             FlowWidgets.TAB_RUN -> run(player)
             FlowWidgets.TAB_STOP -> stop(player)
-            else -> BuilderAnswer.Ignored
+            else -> FlowWidgets.savedFlowClick(widgetId)?.let { savedFlow(player, it) } ?: BuilderAnswer.Ignored
         }
+
+    /** [name] entered on the name prompt that Save opened for saved-flow [slot]. */
+    fun named(player: P, slot: Int, name: String): BuilderAnswer {
+        if (player.idleState.steps.isEmpty()) return say(EMPTY_FLOW)
+        val saved = try {
+            savedFlows.save(player.idleState, slot, name)
+        } catch (e: FlowError) {
+            return say("${e.message.take(1).lowercase()}${e.message.drop(1)}.")
+        }
+        player.idleState = saved
+        return say("flow saved as '${name.trim()}'.")
+    }
 
     /** A slot dragged onto another: it moves there, the steps in between shifting by one; dropped past them it goes last. */
     fun arrange(player: P, from: Int, to: Int): BuilderAnswer {
@@ -113,9 +139,63 @@ class BuilderScreen<P : AutopilotPlayer>(
         return BuilderAnswer.Configure(draft.with(field.key, tile.text()))
     }
 
+    /** Load and x act on a slot holding a flow, New on an empty one; the current flow's own slot opens the builder. */
+    private fun savedFlow(player: P, click: SavedFlowClick): BuilderAnswer {
+        // A slot is never negative, so one comparison says whether the player has it.
+        if (click.slot >= savedFlows.slots) return BuilderAnswer.Ignored
+        val saved = player.idleState.savedFlows.firstOrNull { it.slot == click.slot }
+        val own = player.idleState.savedSlot == click.slot
+        return when (click.action) {
+            SavedFlowAction.LOAD -> saved?.let { if (own) BuilderAnswer.Open else load(player, click.slot, it.name) } ?: BuilderAnswer.Ignored
+            SavedFlowAction.NEW -> if (saved != null) BuilderAnswer.Ignored else if (own) BuilderAnswer.Open else startNew(player, click.slot)
+            SavedFlowAction.DELETE -> saved?.let { delete(player, click.slot, it.name) } ?: BuilderAnswer.Ignored
+        }
+    }
+
+    /**
+     * The builder's Save, into the slot the flow belongs to: over its saved flow, starting from its name (Maxime,
+     * 2026-10-09), or the new flow's empty slot. A flow belonging to no slot (set through the harness) takes the first
+     * empty one; with every slot taken the tab's rows say where (Maxime, 2026-10-10).
+     */
+    private fun saveFromBuilder(player: P): BuilderAnswer {
+        val state = player.idleState
+        if (state.steps.isEmpty()) return say(EMPTY_FLOW)
+        val slot = state.savedSlot ?: savedFlows.firstEmpty(state)
+            ?: return say("every saved-flow slot is taken. Save over one in the Idle tab.")
+        val old = savedFlows.current(state)?.name
+        return BuilderAnswer.Name(slot, old?.let { "Save over '$it' as:" } ?: "Name for this flow:", old.orEmpty())
+    }
+
+    /** Loading replaces the current flow, edits not saved included, and stops it first (Maxime, 2026-10-07 and 10-10). */
+    private fun load(player: P, slot: Int, name: String): BuilderAnswer {
+        stopForChange(player)
+        player.idleState = savedFlows.load(player.idleState, slot)
+        return BuilderAnswer.Replaced("$PREFIX loaded '$name'.")
+    }
+
+    private fun startNew(player: P, slot: Int): BuilderAnswer {
+        stopForChange(player)
+        player.idleState = savedFlows.startNew(player.idleState, slot)
+        return BuilderAnswer.Replaced()
+    }
+
+    /** Emptying the current flow's slot empties the flow too, so it stops first. */
+    private fun delete(player: P, slot: Int, name: String): BuilderAnswer {
+        if (player.idleState.savedSlot == slot) stopForChange(player)
+        player.idleState = savedFlows.empty(player.idleState, slot)
+        return say("'$name' deleted.")
+    }
+
+    /** A running flow about to be replaced or emptied stops, and the chat box says so before what replaced it. */
+    private fun stopForChange(player: P) {
+        if (!autopilot.isRunning(player)) return
+        autopilot.stop(player)
+        player.tell("$PREFIX stopped.")
+    }
+
     private fun run(player: P): BuilderAnswer {
         val steps = player.idleState.steps
-        if (steps.isEmpty()) return say("the flow is empty. Add a step first.")
+        if (steps.isEmpty()) return say(EMPTY_FLOW)
         val cannot = resolver.problems(steps).indexOfFirst { it != null }
         if (cannot >= 0) return BuilderAnswer.Show(message = Autopilot.cannotWork(cannot + 1))
         player.idleState = player.idleState.fromStart()
@@ -220,5 +300,6 @@ class BuilderScreen<P : AutopilotPlayer>(
     companion object {
         const val PREFIX = "Autopilot:"
         const val STOP_FIRST = "$PREFIX stop the flow before editing it."
+        private const val EMPTY_FLOW = "the flow is empty. Add a step first."
     }
 }

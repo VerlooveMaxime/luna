@@ -154,7 +154,7 @@ class BuilderWidgetsTest {
 
     @Test
     fun `the slot count goes in the IdleRS packet under its sub-opcode`() {
-        val message = encoded(BuilderSlotsMessageWriter(6))
+        val message = encoded(SlotCountMessageWriter(SlotCountMessageWriter.STEP_SLOTS, 6))
 
         assertEquals(listOf<Any>(108, MessageType.VAR, listOf(0, 0, 6)), listOf(message.opcode, message.type, bytes(message)))
     }

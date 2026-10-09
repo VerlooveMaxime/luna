@@ -2,7 +2,9 @@ package game.idle.tutorial
 
 import api.combat.player.PlayerCombatHandler.playerDefence
 import api.predef.*
+import game.idle.autopilot.AutopilotConfig
 import game.idle.autopilot.IdleSteps
+import game.idle.ui.IdleTab
 import game.idle.ui.IdleUi
 import io.luna.game.event.impl.FlashingTabClickEvent
 import io.luna.game.event.impl.LoginEvent
@@ -10,7 +12,8 @@ import io.luna.game.event.impl.SkillChangeEvent
 import io.luna.game.model.mob.combat.damage.CombatDamageRequest
 
 val tutorialData = TutorialData.load(TutorialData.PATH)
-val tutorial = LunaTutorial(TutorialScript(tutorialData), tutorialData, world, IdleUi(IdleSteps.load().types::summary))
+val idleTab = IdleTab.fromCache(ctx.cache, AutopilotConfig.load(AutopilotConfig.PATH).savedFlowSlots)
+val tutorial = LunaTutorial(TutorialScript(tutorialData), tutorialData, world, IdleUi(IdleSteps.load().types::summary, idleTab))
 
 on(LoginEvent::class)
     .filter { !plr.isBot }

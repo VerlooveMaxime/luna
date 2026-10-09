@@ -5,6 +5,7 @@ import game.idle.SavedFlow
 import game.idle.flow.FakeStepType.Companion.step
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -95,19 +96,48 @@ class SavedFlowsTest {
     }
 
     @Test
-    fun `emptying the slot the current flow came from leaves the flow but not the link`() {
-        val before = current.copy(savedFlows = listOf(SavedFlow(1, "Oaks", chopFlow)), savedSlot = 1)
+    fun `emptying the slot the current flow belongs to empties the flow too`() {
+        val before = current.copy(savedFlows = listOf(SavedFlow(1, "Oaks", chopFlow)), savedSlot = 1, laps = 3)
 
-        val state = saved.empty(before, slot = 1)
-
-        assertEquals(IdleState(steps = chopFlow), state)
+        assertEquals(IdleState(), saved.empty(before, slot = 1))
     }
 
     @Test
-    fun `emptying another slot keeps the link`() {
+    fun `emptying another slot keeps the flow and the slot it belongs to`() {
         val before = current.copy(savedFlows = listOf(SavedFlow(0, "Fish", fishFlow)), savedSlot = 1)
 
-        assertEquals(1, saved.empty(before, slot = 0).savedSlot)
+        assertEquals(listOf<Any?>(chopFlow, 1), saved.empty(before, slot = 0).let { listOf(it.steps, it.savedSlot) })
+    }
+
+    @Test
+    fun `emptying a slot of a flow belonging to none keeps the flow`() {
+        val before = current.copy(savedFlows = listOf(SavedFlow(0, "Fish", fishFlow)))
+
+        assertEquals(chopFlow, saved.empty(before, slot = 0).steps)
+    }
+
+    @Test
+    fun `a new flow is empty and belongs to its slot`() {
+        val before = current.copy(savedFlows = listOf(SavedFlow(0, "Fish", fishFlow)), savedSlot = 0, laps = 2)
+
+        assertEquals(IdleState(savedFlows = listOf(SavedFlow(0, "Fish", fishFlow)), savedSlot = 1), saved.startNew(before, slot = 1))
+    }
+
+    @Test
+    fun `a new flow needs an empty slot`() {
+        val before = current.copy(savedFlows = listOf(SavedFlow(0, "Fish", fishFlow)))
+
+        assertThrows<FlowError> { saved.startNew(before, slot = 0) }
+    }
+
+    @Test
+    fun `a new flow cannot start in a locked slot`() {
+        assertThrows<FlowError> { saved.startNew(current, slot = 2) }
+    }
+
+    @Test
+    fun `a new flow not saved yet is a new flow`() {
+        assertEquals("new flow", saved.label(saved.startNew(current, slot = 1)))
     }
 
     @Test
@@ -137,6 +167,47 @@ class SavedFlowsTest {
     @Test
     fun `a flow linked to a slot that holds nothing has not changed`() {
         assertFalse(saved.changedSinceSaved(current.copy(savedSlot = 1)))
+    }
+
+    @Test
+    fun `the current saved flow is the one in the slot the flow came from`() {
+        val state = current.copy(savedFlows = listOf(SavedFlow(0, "Fish", fishFlow), SavedFlow(1, "Oaks", fishFlow)), savedSlot = 1)
+
+        assertEquals("Oaks", saved.current(state)?.name)
+    }
+
+    @Test
+    fun `a flow saved nowhere has no current saved flow`() {
+        assertNull(saved.current(current.copy(savedFlows = listOf(SavedFlow(0, "Fish", fishFlow)))))
+    }
+
+    @Test
+    fun `a flow as it was saved goes by its name`() {
+        assertEquals("Oaks", saved.label(saved.save(current, slot = 0, name = "Oaks")))
+    }
+
+    @Test
+    fun `a flow edited since it was saved goes by its name and changed`() {
+        val state = saved.save(current, slot = 0, name = "Oaks").copy(steps = fishFlow)
+
+        assertEquals("Oaks (changed)", saved.label(state))
+    }
+
+    @Test
+    fun `a flow saved nowhere has no label`() {
+        assertNull(saved.label(current))
+    }
+
+    @Test
+    fun `the first empty slot is the lowest holding nothing`() {
+        assertEquals(1, saved.firstEmpty(current.copy(savedFlows = listOf(SavedFlow(0, "Fish", fishFlow)))))
+    }
+
+    @Test
+    fun `with every slot holding a flow none is empty`() {
+        val full = current.copy(savedFlows = listOf(SavedFlow(0, "Fish", fishFlow), SavedFlow(1, "Oaks", fishFlow)))
+
+        assertNull(saved.firstEmpty(full))
     }
 
     @Test

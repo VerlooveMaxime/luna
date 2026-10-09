@@ -20,6 +20,8 @@ object BuilderWidgets {
     const val ID_LIMIT = 31000
 
     const val ROOT = 30700
+    /** The title, which names the saved flow the builder holds (Maxime, 2026-10-10). */
+    const val TITLE = 30703
     const val CLOSE = 30704
 
     const val OVERVIEW = 30710
@@ -33,6 +35,8 @@ object BuilderWidgets {
     const val RUN = 30718
     const val STOP = 30719
     const val CLEAR = 30720
+    /** Saves the flow over the saved flow it came from, or into the first empty slot. */
+    const val SAVE_FLOW = 30721
 
     const val KINDS = 30730
     const val KINDS_TITLE = 30731
@@ -180,8 +184,9 @@ sealed interface WidgetUpdate {
 
     companion object {
         /**
-         * Sends [updates] to [player]. Every one goes out every time, as `IdleUi.sendTexts` explains: the client
-         * rebuilds our widgets blank each time the window closes.
+         * Sends [updates] to [player], every one every time. Texts do not go through `player.sendText`: Luna skips a
+         * text equal to the last one it sent for that id, but the client rebuilds our widgets blank each time the
+         * window closes (found live 2026-10-01).
          */
         fun send(player: Player, updates: List<WidgetUpdate>) =
             updates.forEach { update ->
@@ -220,16 +225,17 @@ class WidgetColourMessageWriter(private val widgetId: Int, colour: Int) : GameMe
 
 /**
  * The IdleRS packet (opcode [OPCODE], the last the 377 protocol leaves free from the server): a sub-opcode byte, then
- * its content, so more can follow under one opcode. [BUILDER_SLOTS]: how many step slots the builder shows, which the
- * client builds its slot widgets for.
+ * its content, so more can follow under one opcode. Sub-opcode [kind] [STEP_SLOTS] or [SAVED_FLOW_SLOTS]: how many
+ * step slots the builder shows, or saved-flow slots the Idle tab, which the client builds their widgets for.
  */
-class BuilderSlotsMessageWriter(private val slots: Int) : GameMessageWriter() {
+class SlotCountMessageWriter(private val kind: Int, private val slots: Int) : GameMessageWriter() {
 
     override fun write(player: Player?, buffer: ByteBuf): ByteMessage =
-        ByteMessage.message(OPCODE, MessageType.VAR, buffer).put(BUILDER_SLOTS).putShort(slots)
+        ByteMessage.message(OPCODE, MessageType.VAR, buffer).put(kind).putShort(slots)
 
     companion object {
         const val OPCODE = 108
-        const val BUILDER_SLOTS = 0
+        const val STEP_SLOTS = 0
+        const val SAVED_FLOW_SLOTS = 1
     }
 }

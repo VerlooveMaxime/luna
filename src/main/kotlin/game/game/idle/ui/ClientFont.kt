@@ -27,8 +27,11 @@ class ClientFont(private val advances: IntArray) {
      * [text] broken at its spaces into at most [lines] lines that fit [room] pixels; the last one is cut with ".." when
      * text is left over, and so is a word too wide for a line of its own.
      */
-    fun wrap(text: String, room: Int, lines: Int): List<String> {
-        val broken = text.split(" ").fold(listOf<String>()) { done, word ->
+    fun wrap(text: String, room: Int, lines: Int): List<String> = wrap(text.split(" "), room, lines)
+
+    /** [words] joined by spaces and broken between them as [wrap] breaks a text; a word may hold spaces it keeps. */
+    fun wrap(words: List<String>, room: Int, lines: Int): List<String> {
+        val broken = words.fold(listOf<String>()) { done, word ->
             val joined = done.lastOrNull()?.let { "$it $word" }
             if (joined != null && width(joined) <= room) done.dropLast(1) + joined else done + word
         }
@@ -39,6 +42,9 @@ class ClientFont(private val advances: IntArray) {
     companion object {
         /** The small plain font the search rows are drawn in. */
         const val SMALL = "p11_full"
+
+        /** The plain font of most interface text, such as the Idle tab's status lines. */
+        const val PLAIN = "p12_full"
 
         private const val CUT = ".."
 

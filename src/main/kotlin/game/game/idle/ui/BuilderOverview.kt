@@ -3,6 +3,7 @@ package game.idle.ui
 import game.idle.IdleState
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowResolver
+import game.idle.flow.SavedFlows
 import game.idle.flow.StepSettings
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepOption
@@ -44,12 +45,18 @@ sealed interface SlotView {
 
 /**
  * What the builder's overview and kind picker show for a player's [IdleState] (flow builder v2, S06a, the mockup's
- * screens): a slot per step slot, each step with its target, kind and details, framed green while it runs and red with
- * its reason when it cannot work (Maxime, 2026-10-09: what the resolver refuses, or the running step's block); then the
- * status line, the levels toggle and the buttons. Texts are fitted to the client's small font, [font]; a reason takes the
- * last lines, up to three, the details giving way to it.
+ * screens): the title naming the saved flow it holds, of [savedFlows]; a slot per step slot, each step with its target,
+ * kind and details, framed green while it runs and red with its reason when it cannot work (Maxime, 2026-10-09: what
+ * the resolver refuses, or the running step's block); then the status line, the levels toggle and the buttons. Texts
+ * are fitted to the client's small font, [font]; a reason takes the last lines, up to three, the details giving way to
+ * it.
  */
-class BuilderOverview(private val resolver: FlowResolver, private val names: GameNames, private val font: ClientFont) {
+class BuilderOverview(
+    private val resolver: FlowResolver,
+    private val names: GameNames,
+    private val font: ClientFont,
+    private val savedFlows: SavedFlows,
+) {
 
     private val types = resolver.types
 
@@ -64,6 +71,9 @@ class BuilderOverview(private val resolver: FlowResolver, private val names: Gam
             }
         }
     }
+
+    /** "Flow builder: Willows (changed)" for a saved flow, else "Flow builder" (Maxime, 2026-10-10). */
+    fun title(state: IdleState): String = savedFlows.label(state)?.let { "Flow builder: $it" } ?: "Flow builder"
 
     fun status(state: IdleState, slots: Int): String {
         val now = if (state.running) {
@@ -143,11 +153,13 @@ class BuilderOverview(private val resolver: FlowResolver, private val names: Gam
         val boosted = state.countBoostedLevels
         val editable = !state.running && state.steps.isNotEmpty()
         return listOf(
+            WidgetUpdate.Text(BuilderWidgets.TITLE, title(state)),
             WidgetUpdate.Text(BuilderWidgets.STATUS, status(state, slots)),
             WidgetUpdate.Text(BuilderWidgets.BASE_LEVELS, lit("Base", !boosted)),
             WidgetUpdate.Colour(BuilderWidgets.BASE_LEVELS_FRAME, frame(lit = !boosted)),
             WidgetUpdate.Text(BuilderWidgets.BOOSTED_LEVELS, lit("Boosted", boosted)),
             WidgetUpdate.Colour(BuilderWidgets.BOOSTED_LEVELS_FRAME, frame(lit = boosted)),
+            WidgetUpdate.Text(BuilderWidgets.SAVE_FLOW, usable("Save", state.steps.isNotEmpty())),
             WidgetUpdate.Text(BuilderWidgets.RUN, usable("Run", state.steps.isNotEmpty())),
             WidgetUpdate.Text(BuilderWidgets.STOP, usable("Stop", state.running)),
             WidgetUpdate.Text(BuilderWidgets.CLEAR, usable("Clear", editable)),

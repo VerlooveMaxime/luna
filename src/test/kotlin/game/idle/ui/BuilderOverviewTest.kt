@@ -1,12 +1,14 @@
 package game.idle.ui
 
 import game.idle.IdleState
+import game.idle.SavedFlow
 import game.idle.flow.FakeStepType
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.ResolvedStep
+import game.idle.flow.SavedFlows
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
@@ -49,7 +51,7 @@ class BuilderOverviewTest {
 
     private val font = ClientFont(IntArray(256) { 5 })
     private val types = StepTypes(listOf(Chop, FakeStepType("drop")))
-    private val overview = BuilderOverview(FlowResolver(types), FakeNames(items = mapOf(1521 to "Oak")), font)
+    private val overview = BuilderOverview(FlowResolver(types), FakeNames(items = mapOf(1521 to "Oak")), font, SavedFlows(2))
 
     private val oak = StepSettings("chop", mapOf("tree" to "oak"))
     private val drop = StepSettings("drop")
@@ -301,8 +303,8 @@ class BuilderOverviewTest {
         val sent = updates(IdleState())
 
         assertEquals(
-            listOf("@gry@Run", "@gry@Stop", "@gry@Clear"),
-            listOf(BuilderWidgets.RUN, BuilderWidgets.STOP, BuilderWidgets.CLEAR).map { (sent[it] as WidgetUpdate.Text).text },
+            listOf("@gry@Save", "@gry@Run", "@gry@Stop", "@gry@Clear"),
+            listOf(BuilderWidgets.SAVE_FLOW, BuilderWidgets.RUN, BuilderWidgets.STOP, BuilderWidgets.CLEAR).map { (sent[it] as WidgetUpdate.Text).text },
         )
     }
 
@@ -311,6 +313,25 @@ class BuilderOverviewTest {
         val sent = updates(IdleState(steps = listOf(oak)))
 
         assertEquals(listOf("Run", "Clear"), listOf(BuilderWidgets.RUN, BuilderWidgets.CLEAR).map { (sent[it] as WidgetUpdate.Text).text })
+    }
+
+    @Test
+    fun `a flow with steps can be saved, running or not`() {
+        val sent = updates(IdleState(steps = listOf(oak), running = true))
+
+        assertEquals(WidgetUpdate.Text(BuilderWidgets.SAVE_FLOW, "Save"), sent[BuilderWidgets.SAVE_FLOW])
+    }
+
+    @Test
+    fun `a flow never saved leaves the title plain`() {
+        assertEquals(WidgetUpdate.Text(BuilderWidgets.TITLE, "Flow builder"), updates(IdleState(steps = listOf(oak)))[BuilderWidgets.TITLE])
+    }
+
+    @Test
+    fun `the title names the saved flow the builder holds, changed or not`() {
+        val state = IdleState(steps = listOf(oak), savedFlows = listOf(SavedFlow(0, "Willows", emptyList())), savedSlot = 0)
+
+        assertEquals("Flow builder: Willows (changed)", overview.title(state))
     }
 
     @Test

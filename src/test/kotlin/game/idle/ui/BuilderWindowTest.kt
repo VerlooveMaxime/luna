@@ -1,6 +1,7 @@
 package game.idle.ui
 
 import game.idle.IdleState
+import game.idle.SavedFlow
 import game.idle.autopilot.Autopilot
 import game.idle.autopilot.AutopilotDriver
 import game.idle.autopilot.FakeActivity
@@ -8,6 +9,7 @@ import game.idle.autopilot.FakeTickScheduler
 import game.idle.autopilot.LunaAutopilotPlayer
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowResolver
+import game.idle.flow.SavedFlows
 import game.idle.flow.StepSettings
 import game.idle.flow.option.FakeNames
 import game.idle.idleState
@@ -26,10 +28,10 @@ class BuilderWindowTest {
 
     private val resolver = FlowResolver(CONFIGURED_TYPES)
     private val font = ClientFont(IntArray(256) { 5 })
-    private val window = BuilderWindow(BuilderOverview(resolver, FakeNames(), font), BuilderConfigure(resolver, FakeNames(), font), slots = 4)
-    private val idleUi = IdleUi({ it.kind }, window)
+    private val window = BuilderWindow(BuilderOverview(resolver, FakeNames(), font, SavedFlows(2)), BuilderConfigure(resolver, FakeNames(), font), slots = 4)
+    private val idleUi = IdleUi({ it.kind }, idleTab(), window)
     private val autopilot = Autopilot<LunaAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
-    private val ui = LunaBuilderUi(BuilderScreen(autopilot, resolver, FakeNames(), slots = 4), window, idleUi, font)
+    private val ui = LunaBuilderUi(BuilderScreen(autopilot, resolver, FakeNames(), slots = 4, SavedFlows(2)), window, idleUi, font)
 
     private val oak = step("chop", "oak")
 
@@ -64,8 +66,8 @@ class BuilderWindowTest {
     fun `opening tells the client the slot count first`() {
         val player = opened()
 
-        assertEquals(mapOf("slots" to 4), fields(player, "BuilderSlotsMessageWriter").single())
-        assertTrue(types(player).indexOf("BuilderSlotsMessageWriter") < types(player).indexOf("InterfaceMessageWriter"))
+        assertEquals(mapOf("kind" to SlotCountMessageWriter.STEP_SLOTS, "slots" to 4), fields(player, "SlotCountMessageWriter").single())
+        assertTrue(types(player).indexOf("SlotCountMessageWriter") < types(player).indexOf("InterfaceMessageWriter"))
     }
 
     @Test
@@ -291,20 +293,91 @@ class BuilderWindowTest {
     }
 
     @Test
-    fun `the Idle tab's button opens the builder`() {
-        val player = login()
-
-        ui.tab(player, FlowWidgets.TAB_OPEN_BUILDER)
-
-        assertTrue(window.isOpen(player))
-    }
-
-    @Test
     fun `the Idle tab's run answers in the chat box`() {
         val player = login()
 
         ui.tab(player, FlowWidgets.TAB_RUN)
 
         assertEquals(listOf("Autopilot: the flow is empty. Add a step first."), TestWorld.chatbox(player))
+    }
+
+    private val cows = SavedFlow(1, "Cows", listOf(step("drop")))
+
+    /** [player] keeping the saved flow Cows in slot 2. */
+    private fun keepingCows(player: Player): Player = player.also { it.idleState = it.idleState.copy(savedFlows = listOf(cows)) }
+
+    @Test
+    fun `the builder's Save opens the name prompt`() {
+        val player = opened(oak)
+
+        ui.click(player, BuilderWidgets.SAVE_FLOW)
+
+        val opened = fields(player, "SearchOpenMessageWriter").single()
+        assertEquals(listOf<Any>("NAME", "Name for this flow:", SavedFlows.MAX_NAME), listOf(opened.getValue("mode"), opened.getValue("title"), opened.getValue("mostCharacters")))
+    }
+
+    @Test
+    fun `a name entered on the prompt saves the flow and says so`() {
+        val player = opened(oak).also { ui.click(it, BuilderWidgets.SAVE_FLOW) }
+
+        SearchPrompts.name(player, checkNotNull(SearchPrompts.opened(player, NamePrompt::class.java)).serial, "Willows")
+
+        assertEquals(listOf(SavedFlow(0, "Willows", listOf(oak))), player.idleState.savedFlows)
+        assertEquals(listOf("Autopilot: flow saved as 'Willows'."), TestWorld.chatbox(player))
+    }
+
+    @Test
+    fun `a saved flow's name goes into the open builder's title`() {
+        val player = opened(oak).also { ui.click(it, BuilderWidgets.SAVE_FLOW) }
+
+        SearchPrompts.name(player, checkNotNull(SearchPrompts.opened(player, NamePrompt::class.java)).serial, "Willows")
+
+        assertEquals("Flow builder: Willows", texts(player)[BuilderWidgets.TITLE])
+    }
+
+    @Test
+    fun `Load with the builder open shows its overview and drops the step being configured`() {
+        val player = keepingCows(configuring(0, oak))
+
+        ui.tab(player, FlowWidgets.rowLoad(1))
+
+        assertNull(window.draft(player))
+        assertEquals(false, hidden(player)[BuilderWidgets.OVERVIEW])
+    }
+
+    @Test
+    fun `Load's lines go to the chat box in order`() {
+        val player = keepingCows(login(oak)).also { ui.tab(it, FlowWidgets.TAB_RUN) }
+
+        ui.tab(player, FlowWidgets.rowLoad(1))
+
+        assertEquals(listOf("Autopilot: stopped.", "Autopilot: loaded 'Cows'."), TestWorld.chatbox(player).takeLast(2))
+    }
+
+    @Test
+    fun `Load with the builder closed opens it`() {
+        val player = keepingCows(login(oak))
+
+        ui.tab(player, FlowWidgets.rowLoad(1))
+
+        assertTrue(window.isOpen(player))
+    }
+
+    @Test
+    fun `Load on the current flow's slot opens a closed builder`() {
+        val player = keepingCows(login(oak)).apply { idleState = idleState.copy(savedSlot = 1) }
+
+        ui.tab(player, FlowWidgets.rowLoad(1))
+
+        assertTrue(window.isOpen(player))
+    }
+
+    @Test
+    fun `Load on the current flow's slot leaves an open builder on the step being configured`() {
+        val player = keepingCows(configuring(0, oak)).apply { idleState = idleState.copy(savedSlot = 1) }
+
+        ui.tab(player, FlowWidgets.rowLoad(1))
+
+        assertEquals(StepDraft(0, oak, new = false), window.draft(player))
     }
 }

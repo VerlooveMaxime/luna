@@ -1,5 +1,6 @@
 package game.idle.autopilot
 
+import game.idle.ui.FlowWidgets
 import io.luna.util.GsonUtils
 import java.nio.file.Files
 import java.nio.file.Path
@@ -15,7 +16,9 @@ data class AutopilotConfig(
     fun validated(): AutopilotConfig {
         require(decisionDelayTicks > 0) { "decision_delay_ticks must be positive, got $decisionDelayTicks" }
         require(stepSlots > 0) { "step_slots must be positive, got $stepSlots" }
-        require(savedFlowSlots > 0) { "saved_flow_slots must be positive, got $savedFlowSlots" }
+        require(savedFlowSlots in 1..FlowWidgets.MOST_SAVED_SLOTS) {
+            "saved_flow_slots must be 1 to ${FlowWidgets.MOST_SAVED_SLOTS}, got $savedFlowSlots"
+        }
         return this
     }
 
