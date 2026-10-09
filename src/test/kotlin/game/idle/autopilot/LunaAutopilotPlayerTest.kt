@@ -37,6 +37,7 @@ import game.idle.idleState
 import game.idle.location.Bank
 import game.idle.location.Tile
 import game.idle.ui.IdleUi
+import game.skill.fishing.catchFish.Tool
 import game.skill.mining.Ore
 import game.skill.smithing.BarType
 import game.skill.smithing.smithBar.SmithingTable
@@ -264,7 +265,7 @@ class LunaAutopilotPlayerTest {
 
     @Test
     fun `a fish step runs as a fishing activity`() {
-        assertInstanceOf(FishingActivity::class.java, autopilotPlayer().activity(FishStep(FishingMethod.SHRIMP, 10, WorkSpot.RunTile)))
+        assertInstanceOf(FishingActivity::class.java, autopilotPlayer().activity(FishStep(FishingMethod(Tool.SMALL_NET), 10, WorkSpot.RunTile)))
     }
 
     @Test

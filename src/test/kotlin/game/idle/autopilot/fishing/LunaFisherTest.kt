@@ -1,11 +1,14 @@
 package game.idle.autopilot.fishing
 
+import api.predef.fishing
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.skill.fishing.catchFish.Tool
 import game.testworld.TestWorld
 import io.luna.game.event.impl.NpcClickEvent.NpcFirstClickEvent
+import io.luna.game.event.impl.NpcClickEvent.NpcSecondClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
 import io.luna.game.model.item.Item
@@ -32,7 +35,9 @@ class LunaFisherTest {
 
     private fun login(position: Position = anchor): Player = TestWorld.login("fisher", position)
 
-    private fun fisher(player: Player) = LunaFisher(player, FishingMethod.SHRIMP, area)
+    private val fishingBait = 313
+
+    private fun fisher(player: Player, tool: Tool = Tool.SMALL_NET) = LunaFisher(player, FishingMethod(tool), area)
 
     @Test
     fun `an idle player is not busy`() {
@@ -65,7 +70,7 @@ class LunaFisherTest {
         val view = fisher(player).look()
 
         assertEquals(
-            FishingView(hasTool = true, inventoryFull = false, atLocation = true, spots = listOf(
+            FishingView(hasTool = true, hasLevel = true, hasBait = true, inventoryFull = false, atLocation = true, spots = listOf(
                 SpotCandidate(spot.index, Position(3201, 3200), distance = 0, usableFromHere = true, approach = anchor),
             )),
             view,
@@ -95,6 +100,67 @@ class LunaFisherTest {
     @Test
     fun `without a net the view says so`() {
         assertFalse(fisher(login()).look().hasTool)
+    }
+
+    @Test
+    fun `below the tool's level the view says so`() {
+        val player = login()
+        player.fishing.level = 19
+
+        assertFalse(fisher(player, Tool.FLY_FISHING_ROD).look().hasLevel)
+    }
+
+    @Test
+    fun `at the tool's level the view has the level`() {
+        val player = login()
+        player.fishing.level = 20
+
+        assertTrue(fisher(player, Tool.FLY_FISHING_ROD).look().hasLevel)
+    }
+
+    @Test
+    fun `a rod without bait in the inventory has no bait`() {
+        assertFalse(fisher(login(), Tool.FISHING_ROD).look().hasBait)
+    }
+
+    @Test
+    fun `a rod with fishing bait in the inventory has bait`() {
+        val player = login()
+        player.inventory.add(Item(fishingBait, 5))
+
+        assertTrue(fisher(player, Tool.FISHING_ROD).look().hasBait)
+    }
+
+    @Test
+    fun `out of bait, an open window does not keep the player busy, so the step can say why it stopped`() {
+        val player = login()
+        player.overlays.open(StandardInterface(5292))
+
+        assertFalse(fisher(player, Tool.FISHING_ROD).isBusy())
+    }
+
+    @Test
+    fun `with bait, an open window keeps a rod fisher busy`() {
+        val player = login()
+        player.inventory.add(Item(fishingBait, 5))
+        player.overlays.open(StandardInterface(5292))
+
+        assertTrue(fisher(player, Tool.FISHING_ROD).isBusy())
+    }
+
+    @Test
+    fun `a rod fishes a sea spot through its second option`() {
+        val player = login()
+        TestWorld.spawnNpc(netSpot, Position(3201, 3200))
+        val clicked = mutableListOf<String>()
+        TestWorld.listen(NpcFirstClickEvent::class.java) { clicked += "first ${it.targetNpc.id}" }
+        TestWorld.listen(NpcSecondClickEvent::class.java) { clicked += "second ${it.targetNpc.id}" }
+
+        val rod = fisher(player, Tool.FISHING_ROD)
+        rod.fish(rod.look().spots.single())
+        TestWorld.tick()
+
+        assertEquals(listOf("second $netSpot"), clicked)
     }
 
     @Test

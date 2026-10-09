@@ -16,7 +16,7 @@ class FishingActivityTest {
         SpotCandidate(npcIndex = x, position = Position(x, y), distance, usable, approach = Position(x, y + 1))
 
     private fun view(spots: List<SpotCandidate> = listOf(near, far), full: Boolean = false, atLocation: Boolean = true) =
-        FishingView(hasTool = true, inventoryFull = full, atLocation = atLocation, spots = spots)
+        FishingView(hasTool = true, hasLevel = true, hasBait = true, inventoryFull = full, atLocation = atLocation, spots = spots)
 
     private val fisher = FakeFisher(view())
     private val activity = FishingActivity(fisher)
@@ -73,6 +73,56 @@ class FishingActivityTest {
 
         assertEquals(listOf("tell ${FishingBlockedReason.NO_TOOL.message}"), fisher.steps)
         assertFalse(activity.isDone())
+    }
+
+    @Test
+    fun `below the method's level the step blocks with a message`() {
+        fisher.view = view().copy(hasLevel = false)
+
+        activity.act()
+
+        assertEquals(listOf("tell ${FishingBlockedReason.LEVEL_TOO_LOW.message}"), fisher.steps)
+    }
+
+    @Test
+    fun `without bait the step blocks once with a message and waits`() {
+        fisher.view = view().copy(hasBait = false)
+
+        activity.act()
+        activity.act()
+
+        assertEquals(listOf("tell ${FishingBlockedReason.NO_BAIT.message}"), fisher.steps)
+        assertFalse(activity.isDone())
+    }
+
+    @Test
+    fun `bait running out after a cast blocks the step instead of ending it`() {
+        fisher.view = view(listOf(inReach))
+        activity.act()
+        fisher.view = view(listOf(inReach)).copy(hasBait = false)
+
+        activity.act()
+
+        assertEquals(listOf("fish 3100,3092", "tell ${FishingBlockedReason.NO_BAIT.message}"), fisher.steps)
+        assertFalse(activity.isDone())
+    }
+
+    @Test
+    fun `the tool is asked for before the level and the bait`() {
+        fisher.view = view().copy(hasTool = false, hasLevel = false, hasBait = false)
+
+        activity.act()
+
+        assertEquals(listOf("tell ${FishingBlockedReason.NO_TOOL.message}"), fisher.steps)
+    }
+
+    @Test
+    fun `the level is asked for before the bait`() {
+        fisher.view = view().copy(hasLevel = false, hasBait = false)
+
+        activity.act()
+
+        assertEquals(listOf("tell ${FishingBlockedReason.LEVEL_TOO_LOW.message}"), fisher.steps)
     }
 
     @Test

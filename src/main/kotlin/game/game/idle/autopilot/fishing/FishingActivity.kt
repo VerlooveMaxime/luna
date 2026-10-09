@@ -41,6 +41,8 @@ data class SpotCandidate(
 /** What the fish step knows about the player when it decides. */
 data class FishingView(
     val hasTool: Boolean,
+    val hasLevel: Boolean,
+    val hasBait: Boolean,
     val inventoryFull: Boolean,
     val atLocation: Boolean,
     val spots: List<SpotCandidate>,
@@ -64,6 +66,8 @@ sealed interface FishingDecision {
 
 enum class FishingBlockedReason(val message: String) {
     NO_TOOL("Autopilot: you need the right fishing tool for this spot."),
+    LEVEL_TOO_LOW("Autopilot: your Fishing level is too low for that fishing method."),
+    NO_BAIT("Autopilot: you need bait for this fishing method."),
     INVENTORY_FULL("Autopilot: your inventory is full. Put a 'drop' or 'bank nearest' step after the fish step."),
     NO_SPOT("Autopilot: there is no fishing spot you can reach here."),
 }
@@ -81,6 +85,8 @@ object FishingPlanner {
         val best = view.spots.minWithOrNull(preferredFirst)
         return when {
             !view.hasTool -> Blocked(FishingBlockedReason.NO_TOOL)
+            !view.hasLevel -> Blocked(FishingBlockedReason.LEVEL_TOO_LOW)
+            !view.hasBait -> Blocked(FishingBlockedReason.NO_BAIT)
             view.inventoryFull -> Blocked(FishingBlockedReason.INVENTORY_FULL)
             best == null && !view.atLocation -> WalkToLocation
             best == null -> Blocked(FishingBlockedReason.NO_SPOT)
