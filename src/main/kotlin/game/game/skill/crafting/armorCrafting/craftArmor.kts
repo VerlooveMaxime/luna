@@ -1,7 +1,9 @@
 package game.skill.crafting.armorCrafting
 
 import api.predef.*
+import game.skill.crafting.armorCrafting.CraftArmorActionItem.Companion.threadUsed
 import game.skill.crafting.hideTanning.Hide
+import io.luna.game.event.impl.LoginEvent
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.dialogue.MakeItemDialogue
 
@@ -39,4 +41,10 @@ fun craftArmor(plr: Player, hide: Hide) {
 // Handle all armor crafting.
 Hide.TAN_TO_HIDE.entries.forEach {
     useItem(CraftArmorActionItem.NEEDLE_ID).onItem(it.key) { craftArmor(plr, it.value) }
+}
+
+// A saved attribute that is not read during a session is dropped from the save at logout, so a part-used reel of
+// thread would be lost: read the count at login.
+on(LoginEvent::class) {
+    plr.threadUsed
 }

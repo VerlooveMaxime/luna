@@ -1,6 +1,8 @@
 package game.skill.crafting.armorCrafting
 
 import api.attr.Attr
+import api.attr.getValue
+import api.attr.setValue
 import api.predef.*
 import io.luna.game.action.impl.ItemContainerAction.InventoryAction
 import io.luna.game.model.item.Item
@@ -32,12 +34,17 @@ class CraftArmorActionItem(private val plr: Player,
          * The thread identifier.
          */
         val THREAD_ID = 1734
-    }
 
-    /**
-     * When a spool of thread will be consumed.
-     */
-    private var Player.threadLeft by Attr.int()
+        /**
+         * How many items a reel of thread makes before it is used up.
+         */
+        const val THREAD_USES = 5
+
+        /**
+         * How many items the reel of thread in use has made, saved like the game's own counter.
+         */
+        var Player.threadUsed by Attr.int().persist("thread_used")
+    }
 
     override fun executeIf(start: Boolean) =
         when {
@@ -57,21 +64,19 @@ class CraftArmorActionItem(private val plr: Player,
     override fun execute() {
         mob.animation(ANIM)
         mob.sendMessage("You make ${articleItemName(armor.armorItem.id)}.")
+        mob.crafting.addExperience(armor.exp)
+        // Counted once the item is made, so a batch that runs out of hides uses no thread.
+        mob.threadUsed = (mob.threadUsed + 1) % THREAD_USES
+        if (mob.threadUsed == 0) {
+            plr.sendMessage("You use up one of your reels of thread.")
+        }
     }
 
     override fun add(): List<Item> = listOf(armor.armorItem)
 
     override fun remove(): List<Item> {
         val rem = armor.hidesItem!!
-        return if (mob.threadLeft <= 0) {
-            // We have no thread left, remove one from inventory and reset counter.
-            mob.threadLeft = rand(4) + 1
-            plr.sendMessage("You use up one of your reels of thread.")
-            listOf(rem, Item(THREAD_ID))
-        } else {
-            // Decrement thread counter.
-            mob.threadLeft--
-            listOf(rem)
-        }
+        // A reel lasts THREAD_USES items and is used up with the last of them.
+        return if (mob.threadUsed + 1 >= THREAD_USES) listOf(rem, Item(THREAD_ID)) else listOf(rem)
     }
 }
