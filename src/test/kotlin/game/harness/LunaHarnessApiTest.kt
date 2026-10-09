@@ -11,6 +11,14 @@ import io.luna.game.action.Action
 import io.luna.game.action.ActionType
 import io.luna.game.event.Event
 import game.idle.ui.MapPickEvent
+import game.idle.flow.option.OptionIcon
+import game.idle.flow.option.StepOption
+import game.idle.ui.ClientFont
+import game.idle.ui.SearchClosedEvent
+import game.idle.ui.SearchNameEvent
+import game.idle.ui.SearchPageEvent
+import game.idle.ui.SearchPickEvent
+import game.idle.ui.SearchPrompts
 import io.luna.game.event.impl.ButtonClickEvent
 import io.luna.game.event.impl.CloseInterfaceEvent
 import io.luna.game.event.impl.CommandEvent
@@ -68,6 +76,18 @@ class LunaHarnessApiTest {
     )
 
     private fun agent(position: Position = spawn): Player = TestWorld.login("agent_a", position)
+
+    /** The agent with a search open, its second prompt (serial 1), so a packet with serial 0 would not match it. */
+    private fun searching(): Player = agent().also {
+        SearchPrompts.openName(it, "Name for this flow:", "", 20) { _, _ -> }
+        SearchPrompts.open(it, "Which tree?", listOf(StepOption("oak", "Oak", OptionIcon.Item(1521))), ClientFont(IntArray(256) { 5 })) { _, _ -> }
+    }
+
+    /** The agent with a name prompt open, its second prompt (serial 1). */
+    private fun naming(): Player = agent().also {
+        SearchPrompts.openName(it, "Name for this flow:", "", 20) { _, _ -> }
+        SearchPrompts.openName(it, "Name for this flow:", "", 20) { _, _ -> }
+    }
 
     private fun status(call: () -> Any): Int = assertThrows<HarnessException> { call() }.status
 
@@ -665,6 +685,87 @@ class LunaHarnessApiTest {
         TestWorld.tick()
 
         assertEquals(listOf("Tile(x=3086, y=3233, z=0)"), picks)
+    }
+
+    @Test
+    fun `a search page is queued like the client's`() {
+        searching()
+
+        val view = api().act("agent_a", PlayerAction.SearchPage(0, 6, "oak"))
+
+        assertEquals(ActionView("agent_a", "search page", "opcode 102 queued for the next tick"), view)
+    }
+
+    @Test
+    fun `a search page reaches the game with the open search's serial on the next tick`() {
+        searching()
+        val pages = record(SearchPageEvent::class.java) { "${it.serial} ${it.offset} ${it.count} ${it.query}" }
+
+        api().act("agent_a", PlayerAction.SearchPage(3, 6, "oak logs"))
+        TestWorld.tick()
+
+        assertEquals(listOf("1 3 6 oak logs"), pages)
+    }
+
+    @Test
+    fun `a search page with no search open is refused`() {
+        agent()
+
+        assertEquals(409, status { api().act("agent_a", PlayerAction.SearchPage(0, 6, "")) })
+    }
+
+    @Test
+    fun `a search pick reaches the game with the open search's serial on the next tick`() {
+        searching()
+        val picks = record(SearchPickEvent::class.java) { "${it.serial} ${it.index}" }
+
+        api().act("agent_a", PlayerAction.SearchPick(12))
+        TestWorld.tick()
+
+        assertEquals(listOf("1 12"), picks)
+    }
+
+    @Test
+    fun `a search pick on a name prompt is refused`() {
+        naming()
+
+        assertEquals(409, status { api().act("agent_a", PlayerAction.SearchPick(0)) })
+    }
+
+    @Test
+    fun `a name reaches the game with the open name prompt's serial on the next tick`() {
+        naming()
+        val names = record(SearchNameEvent::class.java) { "${it.serial} ${it.typed}" }
+
+        api().act("agent_a", PlayerAction.SearchName("Willow chop"))
+        TestWorld.tick()
+
+        assertEquals(listOf("1 Willow chop"), names)
+    }
+
+    @Test
+    fun `a name on a search is refused`() {
+        searching()
+
+        assertEquals(409, status { api().act("agent_a", PlayerAction.SearchName("Willow chop")) })
+    }
+
+    @Test
+    fun `a search close reaches the game with the open prompt's serial on the next tick`() {
+        naming()
+        val closes = record(SearchClosedEvent::class.java) { "${it.serial}" }
+
+        api().act("agent_a", PlayerAction.SearchClose)
+        TestWorld.tick()
+
+        assertEquals(listOf("1"), closes)
+    }
+
+    @Test
+    fun `a search close with no prompt open is refused`() {
+        agent()
+
+        assertEquals(409, status { api().act("agent_a", PlayerAction.SearchClose) })
     }
 
     @Test

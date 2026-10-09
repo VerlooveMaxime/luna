@@ -43,14 +43,23 @@ class SearchMessagesTest {
 
     @Test
     fun `the prompt opens with the search opcode and a short length`() {
-        val message = encoded(SearchOpenMessageWriter(4, "Which tree?", ""))
+        val message = encoded(SearchOpenMessageWriter(4, PromptMode.SEARCH, "Which tree?", "", "", 40))
 
         assertEquals(listOf<Any>(103, MessageType.VAR_SHORT), listOf(message.opcode, message.type))
     }
 
     @Test
-    fun `the prompt carries its serial, its title and its line for an empty list`() {
-        assertEquals(listOf(4) + text("Which tree?") + text("None"), bytes(encoded(SearchOpenMessageWriter(4, "Which tree?", "None"))))
+    fun `a search carries its serial, mode, title, line for an empty list, starting text and most characters`() {
+        val message = encoded(SearchOpenMessageWriter(4, PromptMode.SEARCH, "Which tree?", "None", "", 40))
+
+        assertEquals(listOf(4, 0) + text("Which tree?") + text("None") + text("") + listOf(40), bytes(message))
+    }
+
+    @Test
+    fun `a name prompt carries the name mode and the text its line starts with`() {
+        val message = encoded(SearchOpenMessageWriter(5, PromptMode.NAME, "Save over 'Cows' as:", "", "Cows", 20))
+
+        assertEquals(listOf(5, 1) + text("Save over 'Cows' as:") + text("") + text("Cows") + listOf(20), bytes(message))
     }
 
     @Test
@@ -121,5 +130,15 @@ class SearchMessagesTest {
         val event = SearchClosedMessageReader().decode(player, clientPacket(105, ByteMessage.raw().put(201)))
 
         assertEquals(201, event.serial)
+    }
+
+    @Test
+    fun `a name reads the prompt's serial and the typed line`() {
+        val player = TestWorld.login("namer", Position(3200, 3200))
+        val payload = ByteMessage.raw().put(202).putString(" Willow chop!")
+
+        val event = SearchNameMessageReader().decode(player, GameMessage(106, MessageType.VAR, payload))
+
+        assertEquals(listOf<Any>(202, " Willow chop!"), listOf(event.serial, event.typed))
     }
 }

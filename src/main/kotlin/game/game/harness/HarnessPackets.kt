@@ -106,6 +106,18 @@ object HarnessPackets {
     fun mapPick(x: Int, y: Int): GameMessage =
         GameMessage(MapPickMessageWriter.OPCODE, MessageType.FIXED, ByteMessage.raw().putShort(x).putShort(y))
 
+    /** The chatbox prompt's packets, as the IdleRS client's `IdleSearch` sends them; [serial] names the prompt. */
+    fun searchPage(serial: Int, offset: Int, count: Int, query: String): GameMessage =
+        GameMessage(102, MessageType.VAR, ByteMessage.raw().put(serial).putShort(offset).put(count).putString(query))
+
+    fun searchPick(serial: Int, index: Int): GameMessage =
+        GameMessage(103, MessageType.FIXED, ByteMessage.raw().put(serial).putShort(index))
+
+    fun searchClosed(serial: Int): GameMessage = GameMessage(105, MessageType.FIXED, ByteMessage.raw().put(serial))
+
+    fun searchName(serial: Int, text: String): GameMessage =
+        GameMessage(106, MessageType.VAR, ByteMessage.raw().put(serial).putString(text))
+
     fun continueDialogue(): GameMessage = GameMessage(226, MessageType.FIXED, ByteMessage.raw().putShort(0))
 
     fun closeInterface(): GameMessage = GameMessage(110, MessageType.FIXED, ByteMessage.raw())

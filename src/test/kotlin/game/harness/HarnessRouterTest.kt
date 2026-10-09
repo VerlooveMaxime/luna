@@ -245,6 +245,16 @@ class HarnessRouterTest {
     }
 
     @Test
+    fun `body string with a default uses it for a missing field`() {
+        assertEquals("", call(body = "{}").body().string("query", default = ""))
+    }
+
+    @Test
+    fun `body string with a default reads a present field`() {
+        assertEquals("oak", call(body = """{"query": "oak"}""").body().string("query", default = ""))
+    }
+
+    @Test
     fun `body string rejects a missing field`() {
         val thrown = assertThrows<HarnessException> { call(body = "{}").body().string("name") }
 

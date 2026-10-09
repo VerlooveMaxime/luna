@@ -9,15 +9,26 @@ import io.luna.net.msg.GameMessageReader
 import io.luna.net.msg.GameMessageWriter
 import io.netty.buffer.ByteBuf
 
+/** What a chatbox prompt asks for; the client reads its ordinal. */
+enum class PromptMode { SEARCH, NAME }
+
 /**
- * Opens the IdleRS client's chatbox search (opcode [OPCODE], unused by the 377 protocol both ways): the prompt's
- * [serial], its [title], and the line it shows when the list is empty. Its rows follow in a [SearchRowsMessageWriter].
+ * Opens the IdleRS client's chatbox prompt (opcode [OPCODE], unused by the 377 protocol both ways): the prompt's
+ * [serial], its [mode], its [title], the line a search shows when its list is empty, the [text] the typed line starts
+ * with and the most characters it takes. A search's rows follow in a [SearchRowsMessageWriter].
  */
-class SearchOpenMessageWriter(private val serial: Int, private val title: String, private val emptyLine: String) :
-    GameMessageWriter() {
+class SearchOpenMessageWriter(
+    private val serial: Int,
+    private val mode: PromptMode,
+    private val title: String,
+    private val emptyLine: String,
+    private val text: String,
+    private val mostCharacters: Int,
+) : GameMessageWriter() {
 
     override fun write(player: Player?, buffer: ByteBuf): ByteMessage =
-        ByteMessage.message(OPCODE, MessageType.VAR_SHORT, buffer).put(serial).putString(title).putString(emptyLine)
+        ByteMessage.message(OPCODE, MessageType.VAR_SHORT, buffer)
+            .put(serial).put(mode.ordinal).putString(title).putString(emptyLine).putString(text).put(mostCharacters)
 
     companion object {
         const val OPCODE = 103
@@ -72,6 +83,9 @@ class SearchPickEvent(player: Player, val serial: Int, val index: Int) : PlayerE
 /** The player closed the search prompt [serial] names without a pick. */
 class SearchClosedEvent(player: Player, val serial: Int) : PlayerEvent(player)
 
+/** The player pressed Enter on the name prompt [serial] names, its line [typed]. */
+class SearchNameEvent(player: Player, val serial: Int, val typed: String) : PlayerEvent(player)
+
 /**
  * Reads a page request (opcode 102, a byte length: serial byte, offset short, count byte, query string); registered
  * in `data/net/incoming_message_data.json`.
@@ -100,4 +114,13 @@ class SearchPickMessageReader : GameMessageReader<SearchPickEvent>() {
 class SearchClosedMessageReader : GameMessageReader<SearchClosedEvent>() {
 
     override fun decode(player: Player, msg: GameMessage): SearchClosedEvent = SearchClosedEvent(player, msg.payload.get(false))
+}
+
+/** Reads a name (opcode 106, a byte length: serial byte, typed string); registered in `data/net/incoming_message_data.json`. */
+class SearchNameMessageReader : GameMessageReader<SearchNameEvent>() {
+
+    override fun decode(player: Player, msg: GameMessage): SearchNameEvent {
+        val serial = msg.payload.get(false)
+        return SearchNameEvent(player, serial, msg.payload.string)
+    }
 }

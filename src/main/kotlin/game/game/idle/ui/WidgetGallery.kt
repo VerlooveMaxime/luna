@@ -1,5 +1,6 @@
 package game.idle.ui
 
+import game.idle.flow.SavedFlows
 import game.idle.flow.option.StepOption
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.overlay.AbstractOverlay
@@ -25,6 +26,7 @@ object GalleryWidgets {
     const val HIDEABLE = 30420
     const val HIDE = 30423
     const val SHOW = 30424
+    const val NAME = 30425
 
     const val ICON_SIZES = 3
     const val ICON_KINDS = 12
@@ -86,7 +88,8 @@ class GalleryInterface(private val fill: (Player) -> Unit) : AbstractOverlay(Ove
  * It shows the step icons of [kinds], item icons and npc bodies named by [npcName]; tiles and buttons answer in the chat box, Hide and
  * Show toggle a nested layer with packet 82, a tile dragged onto another moves there, and the search buttons open the
  * chatbox search over [searches], in the client's button order, its labels measured with the client's [font]; a pick
- * answers in the chat box.
+ * answers in the chat box. Name opens the name prompt, empty, then, once a name is given, on that name as a saved
+ * flow's slot would.
  */
 class WidgetGallery(
     private val kinds: List<GalleryKind>,
@@ -98,8 +101,12 @@ class WidgetGallery(
     /** Which kind each player's tiles show, by place; set when the gallery opens. */
     private val tileKinds = mutableMapOf<String, List<Int>>()
 
+    /** The last name each player gave; forgotten when the gallery opens. */
+    private val names = mutableMapOf<String, String>()
+
     fun open(player: Player) {
         tileKinds[player.username] = (0 until GalleryWidgets.TILES).toList()
+        names.remove(player.username)
         player.overlays.open(GalleryInterface(::fill))
     }
 
@@ -108,6 +115,7 @@ class WidgetGallery(
             GalleryWidgets.CLOSE -> player.overlays.closeWindows()
             GalleryWidgets.HIDE -> setNestedLayerHidden(player, hidden = true)
             GalleryWidgets.SHOW -> setNestedLayerHidden(player, hidden = false)
+            GalleryWidgets.NAME -> openName(player)
             else -> {
                 GalleryWidgets.tile(widgetId)?.let { player.sendMessage("Gallery: clicked tile ${tileKindAt(player, it) + 1}.") }
                 GalleryWidgets.searchOf(widgetId)?.let { openSearch(player, it) }
@@ -119,6 +127,15 @@ class WidgetGallery(
         val opened = searches.getOrNull(search) ?: return
         SearchPrompts.open(player, opened.title, opened.options(player), font) { picker, option ->
             picker.sendMessage("Gallery: picked ${option.label} (${option.value}).")
+        }
+    }
+
+    private fun openName(player: Player) {
+        val last = names[player.username]
+        val title = last?.let { "Save over '$it' as:" } ?: "Name for this flow:"
+        SearchPrompts.openName(player, title, last.orEmpty(), SavedFlows.MAX_NAME) { namer, name ->
+            names[namer.username] = name
+            namer.sendMessage("Gallery: named '$name'.")
         }
     }
 

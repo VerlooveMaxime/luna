@@ -1,6 +1,7 @@
 package game.harness
 
 import game.idle.flow.StepSettings
+import game.idle.ui.SearchPrompt
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -157,6 +158,41 @@ class HarnessRoutesTest {
         post("/player/agent_a/map/pick", """{"x": 3086, "y": 3233}""")
 
         assertEquals("agent_a" to PlayerAction.PickTile(3086, 3233), lastAction())
+    }
+
+    @Test
+    fun `a search page passes its offset, count and query`() {
+        post("/player/agent_a/search/page", """{"offset": 30, "count": 15, "query": "oak"}""")
+
+        assertEquals("agent_a" to PlayerAction.SearchPage(30, 15, "oak"), lastAction())
+    }
+
+    @Test
+    fun `a search page asks for the opening rows by default`() {
+        post("/player/agent_a/search/page", "{}")
+
+        assertEquals("agent_a" to PlayerAction.SearchPage(0, SearchPrompt.MAX_PAGE, ""), lastAction())
+    }
+
+    @Test
+    fun `a search pick passes the row's index`() {
+        post("/player/agent_a/search/pick", """{"index": 12}""")
+
+        assertEquals("agent_a" to PlayerAction.SearchPick(12), lastAction())
+    }
+
+    @Test
+    fun `a search name passes the typed text`() {
+        post("/player/agent_a/search/name", """{"text": "Willow chop"}""")
+
+        assertEquals("agent_a" to PlayerAction.SearchName("Willow chop"), lastAction())
+    }
+
+    @Test
+    fun `a search close needs no body`() {
+        post("/player/agent_a/search/close")
+
+        assertEquals("agent_a" to PlayerAction.SearchClose, lastAction())
     }
 
     @Test

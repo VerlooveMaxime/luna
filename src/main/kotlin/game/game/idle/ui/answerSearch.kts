@@ -7,3 +7,5 @@ on(SearchPageEvent::class) { SearchPrompts.page(plr, serial, offset, count, quer
 on(SearchPickEvent::class) { SearchPrompts.pick(plr, serial, index) }
 
 on(SearchClosedEvent::class) { SearchPrompts.close(plr, serial) }
+
+on(SearchNameEvent::class) { SearchPrompts.name(plr, serial, typed) }

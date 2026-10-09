@@ -462,7 +462,8 @@
   },
   {
     "opcode": 106,
-    "size": 0
+    "size": -1,
+    "payload": "game.idle.ui.SearchNameMessageReader"
   },
   {
     "opcode": 107,

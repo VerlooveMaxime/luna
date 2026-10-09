@@ -13,6 +13,10 @@ import game.idle.flow.FlowError
 import game.idle.flow.StepSettings
 import game.idle.idleState
 import game.idle.movement.navigateToReach
+import game.idle.ui.ChatboxPrompt
+import game.idle.ui.NamePrompt
+import game.idle.ui.SearchPrompt
+import game.idle.ui.SearchPrompts
 import io.luna.game.action.Action
 import io.luna.game.model.Entity
 import io.luna.game.model.EntityState
@@ -136,6 +140,22 @@ class LunaHarnessApi(
             is PlayerAction.Chat -> send(player, "chat", HarnessPackets.chat(action.text))
             is PlayerAction.Button -> send(player, "button", HarnessPackets.button(action.id))
             is PlayerAction.PickTile -> send(player, "pick tile", HarnessPackets.mapPick(action.x, action.y))
+            is PlayerAction.SearchPage -> {
+                val serial = prompt(player, SearchPrompt::class.java, "search").serial
+                send(player, "search page", HarnessPackets.searchPage(serial, action.offset, action.count, action.query))
+            }
+            is PlayerAction.SearchPick -> {
+                val serial = prompt(player, SearchPrompt::class.java, "search").serial
+                send(player, "search pick", HarnessPackets.searchPick(serial, action.index))
+            }
+            is PlayerAction.SearchName -> {
+                val serial = prompt(player, NamePrompt::class.java, "name prompt").serial
+                send(player, "search name", HarnessPackets.searchName(serial, action.text))
+            }
+            PlayerAction.SearchClose -> {
+                val serial = prompt(player, ChatboxPrompt::class.java, "chatbox prompt").serial
+                send(player, "search close", HarnessPackets.searchClosed(serial))
+            }
             PlayerAction.ContinueDialogue -> send(player, "continue dialogue", HarnessPackets.continueDialogue())
             PlayerAction.CloseInterface -> send(player, "close interface", HarnessPackets.closeInterface())
         }
@@ -205,6 +225,10 @@ class LunaHarnessApi(
             }
         }
     }
+
+    /** The prompt the client would answer: the one open on the server, so the packet carries its serial. */
+    private fun <T : ChatboxPrompt> prompt(player: Player, kind: Class<T>, what: String): T =
+        SearchPrompts.opened(player, kind) ?: throw HarnessException(409, "${player.username} has no $what open")
 
     private fun arrivalDetail(targetName: String, option: Int) = "walking to $targetName; option $option on arrival"
 

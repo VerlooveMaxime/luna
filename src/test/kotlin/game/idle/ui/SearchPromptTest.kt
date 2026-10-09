@@ -55,7 +55,10 @@ class SearchPromptTest {
     fun `the prompt names its serial, its title and its line for an empty list`() {
         val player = searching()
 
-        assertEquals(mapOf("serial" to 0, "title" to "Which tree?", "emptyLine" to "Nothing to cut"), fields(player, "SearchOpenMessageWriter"))
+        assertEquals(
+            mapOf("serial" to 0, "mode" to "SEARCH", "title" to "Which tree?", "emptyLine" to "Nothing to cut", "text" to "", "mostCharacters" to 40),
+            fields(player, "SearchOpenMessageWriter"),
+        )
     }
 
     @Test

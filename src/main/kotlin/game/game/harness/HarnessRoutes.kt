@@ -1,6 +1,7 @@
 package game.harness
 
 import game.idle.flow.StepSettings
+import game.idle.ui.SearchPrompt
 
 /** The endpoint table. `GET /` lists it, so an agent can discover the API from the server itself. */
 fun harnessRoutes(api: HarnessApi): List<Route> {
@@ -46,6 +47,16 @@ fun harnessRoutes(api: HarnessApi): List<Route> {
         action("chat") { body -> PlayerAction.Chat(body.string("text")) },
         action("button") { body -> PlayerAction.Button(body.int("id")) },
         action("map/pick") { body -> PlayerAction.PickTile(body.int("x"), body.int("y")) },
+        action("search/page") { body ->
+            PlayerAction.SearchPage(
+                body.int("offset", default = 0),
+                body.int("count", default = SearchPrompt.MAX_PAGE),
+                body.string("query", default = ""),
+            )
+        },
+        action("search/pick") { body -> PlayerAction.SearchPick(body.int("index")) },
+        action("search/name") { body -> PlayerAction.SearchName(body.string("text")) },
+        bodilessAction("search/close", PlayerAction.SearchClose),
         bodilessAction("continue", PlayerAction.ContinueDialogue),
         bodilessAction("close", PlayerAction.CloseInterface),
         Route("GET", "/content/audit") { api.contentAudit() },

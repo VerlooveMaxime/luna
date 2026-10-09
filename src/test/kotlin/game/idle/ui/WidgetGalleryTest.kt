@@ -1,6 +1,7 @@
 package game.idle.ui
 
 import game.harness.RecordedMessage
+import game.idle.flow.SavedFlows
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.StepOption
 import game.testworld.TestWorld
@@ -42,6 +43,18 @@ class WidgetGalleryTest {
         messages(player, "PictureMessageWriter").associate {
             it.fields.getValue("widgetId") as Int to listOf(it.fields.getValue("source"), it.fields.getValue("name"), it.fields.getValue("id"))
         }
+
+    /** The gallery open, a name given on its name prompt. */
+    private fun named(name: String): Player {
+        val player = openGallery()
+        gallery.click(player, GalleryWidgets.NAME)
+        SearchPrompts.name(player, checkNotNull(SearchPrompts.opened(player, NamePrompt::class.java)).serial, name)
+        return player
+    }
+
+    /** The last prompt opened: its mode, title and the text its line starts with. */
+    private fun opening(player: Player): List<Any> =
+        messages(player, "SearchOpenMessageWriter").last().fields.let { listOf(it.getValue("mode"), it.getValue("title"), it.getValue("text")) }
 
     @Test
     fun `opening fills the gallery before the screen shows`() {
@@ -272,5 +285,49 @@ class WidgetGalleryTest {
     @Test
     fun `another widget names no search`() {
         assertNull(GalleryWidgets.searchOf(GalleryWidgets.CLOSE))
+    }
+
+    @Test
+    fun `the name button opens the name prompt on an empty line`() {
+        val player = openGallery()
+
+        gallery.click(player, GalleryWidgets.NAME)
+
+        assertEquals(listOf<Any>("NAME", "Name for this flow:", ""), opening(player))
+    }
+
+    @Test
+    fun `the name prompt takes a saved flow's longest name`() {
+        val player = openGallery()
+
+        gallery.click(player, GalleryWidgets.NAME)
+
+        assertEquals(SavedFlows.MAX_NAME, messages(player, "SearchOpenMessageWriter").last().fields["mostCharacters"])
+    }
+
+    @Test
+    fun `a name given in the gallery answers in the chat box`() {
+        val player = named("Willow chop")
+
+        assertEquals(listOf("Gallery: named 'Willow chop'."), TestWorld.chatbox(player))
+    }
+
+    @Test
+    fun `once named, the name prompt opens on that name as a saved flow's slot would`() {
+        val player = named("Willow chop")
+
+        gallery.click(player, GalleryWidgets.NAME)
+
+        assertEquals(listOf<Any>("NAME", "Save over 'Willow chop' as:", "Willow chop"), opening(player))
+    }
+
+    @Test
+    fun `reopening the gallery forgets the name`() {
+        val player = named("Willow chop")
+        gallery.open(player)
+
+        gallery.click(player, GalleryWidgets.NAME)
+
+        assertEquals(listOf<Any>("NAME", "Name for this flow:", ""), opening(player))
     }
 }

@@ -4,6 +4,7 @@ import game.idle.ui.HintArrowMessageWriter
 import game.idle.ui.MapPickMessageWriter
 import game.idle.ui.PictureEncoding
 import game.idle.ui.PictureMessageWriter
+import game.idle.ui.PromptMode
 import game.idle.ui.SearchOpenMessageWriter
 import game.idle.ui.SearchRow
 import game.idle.ui.SearchRowsMessageWriter
@@ -42,7 +43,14 @@ object EncodedMessageDecoder {
         MapPickMessageWriter.OPCODE to Layout("MapPickMessageWriter") { mapOf("x" to it.short(), "y" to it.short()) },
         PictureMessageWriter.OPCODE to Layout("PictureMessageWriter", ::picture),
         SearchOpenMessageWriter.OPCODE to Layout("SearchOpenMessageWriter") {
-            mapOf("serial" to it.byte(), "title" to it.string(), "emptyLine" to it.string())
+            mapOf(
+                "serial" to it.byte(),
+                "mode" to PromptMode.entries[it.byte()].name,
+                "title" to it.string(),
+                "emptyLine" to it.string(),
+                "text" to it.string(),
+                "mostCharacters" to it.byte(),
+            )
         },
         SearchRowsMessageWriter.OPCODE to Layout("SearchRowsMessageWriter", ::searchRows),
         StickyChatboxMessageWriter.OPCODE to Layout("StickyChatboxMessageWriter") {

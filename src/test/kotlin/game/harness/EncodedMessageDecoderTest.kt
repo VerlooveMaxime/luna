@@ -3,6 +3,7 @@ package game.harness
 import game.idle.ui.HintArrowMessageWriter
 import game.idle.ui.MapPickMessageWriter
 import game.idle.ui.PictureMessageWriter
+import game.idle.ui.PromptMode
 import game.idle.ui.SearchOpenMessageWriter
 import game.idle.ui.SearchRow
 import game.idle.ui.SearchRowsMessageWriter
@@ -116,7 +117,12 @@ class EncodedMessageDecoderTest {
 
     @Test
     fun `an opened search decodes as the writer records it`() {
-        assertDecodesAsRecorded(SearchOpenMessageWriter(7, "Which tree?", "Nothing to cut"))
+        assertDecodesAsRecorded(SearchOpenMessageWriter(7, PromptMode.SEARCH, "Which tree?", "Nothing to cut", "", 40))
+    }
+
+    @Test
+    fun `an opened name prompt decodes as the writer records it`() {
+        assertDecodesAsRecorded(SearchOpenMessageWriter(8, PromptMode.NAME, "Save over 'Cows' as:", "", "Cows", 20))
     }
 
     @Test

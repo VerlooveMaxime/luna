@@ -90,6 +90,8 @@ class RequestBody(private val json: JsonObject) {
 
     fun string(name: String): String = stringOrNull(name) ?: throw missing(name, "a string")
 
+    fun string(name: String, default: String): String = stringOrNull(name) ?: default
+
     /** An array of JSON objects; a missing array is required, an empty one is fine. */
     fun objects(name: String): List<RequestBody> {
         val element = json.get(name)?.takeIf { !it.isJsonNull } ?: throw missing(name, "an array of objects")

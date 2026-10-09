@@ -56,6 +56,18 @@ sealed interface PlayerAction {
     /** A tile picked on the client's world map, as the flow builder asks for one. */
     data class PickTile(val x: Int, val y: Int) : PlayerAction
 
+    /** Rows of the open chatbox search, as the client asks for them when the player types or scrolls. */
+    data class SearchPage(val offset: Int, val count: Int, val query: String) : PlayerAction
+
+    /** A row of the open chatbox search clicked, by the index the server gave it. */
+    data class SearchPick(val index: Int) : PlayerAction
+
+    /** [text] typed on the open name prompt, then Enter. */
+    data class SearchName(val text: String) : PlayerAction
+
+    /** Escape on the open chatbox prompt. */
+    data object SearchClose : PlayerAction
+
     data object ContinueDialogue : PlayerAction
 
     data object CloseInterface : PlayerAction
