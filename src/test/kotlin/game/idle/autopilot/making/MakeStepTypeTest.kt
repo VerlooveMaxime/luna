@@ -10,8 +10,8 @@ import org.junit.jupiter.api.assertThrows
 
 class MakeStepTypeTest {
 
-    private val dough = Recipe(2307, "bread dough", 1933, 1929)
-    private val unf = Recipe(91, "guam potion (unf)", 227, 249)
+    private val dough = BREAD_DOUGH
+    private val unf = simpleRecipe(91, "Guam potion (unf)", 227, 249)
     private val make = MakeStepType(RecipeCatalog(listOf(dough, unf)))
 
     private fun settings(vararg values: Pair<String, String>) = StepSettings("make", mapOf(*values))
@@ -37,8 +37,8 @@ class MakeStepTypeTest {
     }
 
     @Test
-    fun `a product without a recipe lists the ones there are`() {
-        assertRejected("Nothing called 'cake' can be made yet. Products: bread dough, guam potion (unf)") {
+    fun `a product without a recipe is rejected`() {
+        assertRejected("Nothing called 'cake' can be made.") {
             make.resolve(settings("product" to "cake"), FlowContext())
         }
     }
@@ -52,6 +52,13 @@ class MakeStepTypeTest {
     @Test
     fun `the steps after a make step know it gathers its product`() {
         assertEquals(FlowContext(gathered = setOf(1511, 2307)), MakeStep(dough).after(FlowContext(gathered = setOf(1511))))
+    }
+
+    @Test
+    fun `the steps after a make step know every item it counts as made`() {
+        val wine = simpleRecipe(1995, "Unfermented wine", 1987, 1937).copy(made = setOf(1995, 1993))
+
+        assertEquals(FlowContext(gathered = setOf(1995, 1993)), MakeStep(wine).after(FlowContext()))
     }
 
     private fun assertRejected(message: String, action: () -> Unit) {

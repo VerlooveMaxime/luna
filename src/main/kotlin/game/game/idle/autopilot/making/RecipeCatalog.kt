@@ -1,14 +1,43 @@
 package game.idle.autopilot.making
 
-import io.luna.util.GsonUtils
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
+import io.luna.game.model.mob.overlay.AbstractOverlay
 
-/** Something the make step can make: [product] by using item [use] on item [on]. */
-data class Recipe(val product: Int, val name: String, val use: Int, val on: Int)
+/**
+ * One way to make a recipe: [use] used on [on], carrying [inputs] (item id to count, used up) and [tools] (kept).
+ */
+data class RecipeWay(val use: Int, val on: Int, val inputs: Map<Int, Int>, val tools: Set<Int> = emptySet())
 
-/** Every recipe flows can use, from [PATH]. Loaded once at boot; a bad file fails the boot. */
+/** What the game asks once the two items are used together. */
+sealed interface MakeWindow {
+
+    /** Luna's make window, which offers the product among its options. */
+    data object Choice : MakeWindow
+
+    /** A window of buttons ([type]); [button] makes ten of the product. */
+    data class Buttons(val type: Class<out AbstractOverlay>, val button: Int) : MakeWindow
+
+    /** Nothing: using the items makes the product. */
+    data object None : MakeWindow
+}
+
+/**
+ * Something the make step can make: [product] with [level] in [skill], by any of its [ways]. [label] is its name as
+ * shown, [made] the items that count as made (a wine counts until it has fermented and after).
+ */
+data class Recipe(
+    val product: Int,
+    val label: String,
+    val skill: Int,
+    val level: Int,
+    val ways: List<RecipeWay>,
+    val window: MakeWindow = MakeWindow.Choice,
+    val made: Set<Int> = setOf(product),
+) {
+    /** What flows call it. */
+    val name: String = label.lowercase()
+}
+
+/** Every recipe flows can use, by unique name ([LunaRecipes] builds them from Luna's tables). */
 class RecipeCatalog(val recipes: List<Recipe>) {
 
     private val byName: Map<String, Recipe> = recipes.associateBy { it.name }
@@ -19,31 +48,4 @@ class RecipeCatalog(val recipes: List<Recipe>) {
     }
 
     fun find(name: String): Recipe? = byName[name]
-
-    companion object {
-        val PATH: Path = Paths.get("data", "idle", "recipes.jsonc")
-
-        fun parse(jsonc: String): RecipeCatalog {
-            val file = GsonUtils.GSON.fromJson(jsonc, RecipesJson::class.java) ?: RecipesJson()
-            return RecipeCatalog(file.recipes.map { it.toRecipe() })
-        }
-
-        fun load(path: Path): RecipeCatalog = parse(Files.readString(path))
-    }
-}
-
-/* Raw Gson shapes: every field has a default, so a missing key becomes a message naming the recipe. */
-
-internal data class RecipesJson(val recipes: List<RecipeJson> = emptyList())
-
-internal data class RecipeJson(val product: Int = -1, val name: String = "", val use: Int = -1, val on: Int = -1) {
-
-    fun toRecipe(): Recipe {
-        require(name.isNotBlank()) { "A recipe has no name: $this" }
-        require(name == name.lowercase().trim()) { "Recipe '$name' must be named in lower case" }
-        require(product >= 0) { "Recipe '$name' has no product" }
-        require(use >= 0) { "Recipe '$name' has no item to use" }
-        require(on >= 0) { "Recipe '$name' has no item to use it on" }
-        return Recipe(product, name, use, on)
-    }
 }

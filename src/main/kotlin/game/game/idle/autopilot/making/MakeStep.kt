@@ -13,7 +13,8 @@ import io.luna.game.model.mob.Player
 
 /**
  * Make: makes a count of a product from [RecipeCatalog], or, without one, as many as the ingredients the player
- * carries allow. It works from the inventory, wherever the player stands.
+ * carries allow. It works from the inventory, wherever the player stands. The count is of items made, in whole sets:
+ * a log cut into arrow shafts makes 15 (Maxime, 2026-10-09).
  */
 class MakeStepType(private val catalog: RecipeCatalog) : StepType {
 
@@ -32,8 +33,7 @@ class MakeStepType(private val catalog: RecipeCatalog) : StepType {
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val name = settings[PRODUCT]?.lowercase() ?: throw FlowError("make needs a product")
-        val recipe = catalog.find(name)
-            ?: throw FlowError("Nothing called '$name' can be made yet. Products: ${names.sorted().joinToString(", ")}")
+        val recipe = catalog.find(name) ?: throw FlowError("Nothing called '$name' can be made.")
         return MakeStep(recipe, StepAmount.read(settings))
     }
 
@@ -46,7 +46,7 @@ class MakeStepType(private val catalog: RecipeCatalog) : StepType {
 data class MakeStep(val recipe: Recipe, val amount: Int? = null) : ResolvedStep {
 
     /** Later steps can cook, drop or bank what was made. */
-    override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + recipe.product)
+    override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + recipe.made)
 
     override fun activity(player: Player, runTile: Tile): StepActivity = MakeActivity(LunaMaker(player, recipe), recipe, amount)
 }

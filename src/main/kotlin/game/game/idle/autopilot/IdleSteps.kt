@@ -7,6 +7,7 @@ import game.idle.autopilot.fighting.FightStepType
 import game.idle.autopilot.fighting.FightTargetCatalog
 import game.idle.autopilot.firemaking.LightStepType
 import game.idle.autopilot.fishing.FishStepType
+import game.idle.autopilot.making.LunaRecipes
 import game.idle.autopilot.making.MakeStepType
 import game.idle.autopilot.making.RecipeCatalog
 import game.idle.autopilot.mining.MineStepType
@@ -15,6 +16,7 @@ import game.idle.autopilot.smithing.SmithStepType
 import game.idle.autopilot.walk.WalkStepType
 import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.flow.StepTypes
+import game.idle.flow.option.LunaGameNames
 import game.idle.location.BankCatalog
 
 /** Every kind of step a flow can use, in the order the flow builder cycles through them. */
@@ -28,8 +30,8 @@ class IdleSteps(banks: BankCatalog, recipes: RecipeCatalog, fightTargets: FightT
     )
 
     companion object {
-        /** The steps over the data files and the cache; a bad file fails the boot. */
+        /** The steps over the data files, the cache and Luna's tables; a bad file fails the boot. */
         fun load(): IdleSteps =
-            IdleSteps(BankCatalog.load(BankCatalog.PATH), RecipeCatalog.load(RecipeCatalog.PATH), FightTargetCatalog.fromCache())
+            IdleSteps(BankCatalog.load(BankCatalog.PATH), LunaRecipes(LunaGameNames).catalog(), FightTargetCatalog.fromCache())
     }
 }

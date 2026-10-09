@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 
 class MakeActivityTest {
 
-    private val dough = Recipe(2307, "bread dough", 1933, 1929)
+    private val dough = BREAD_DOUGH
     private val ingredients = MakeView(useSlot = 0, onSlot = 1, windowOpen = false, productOption = null)
     private val window = MakeView(useSlot = 0, onSlot = 1, windowOpen = true, productOption = 0)
     private val empty = MakeView(useSlot = null, onSlot = 1, windowOpen = false, productOption = null)

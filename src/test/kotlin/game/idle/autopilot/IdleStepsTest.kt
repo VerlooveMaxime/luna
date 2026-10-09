@@ -15,6 +15,7 @@ import game.idle.autopilot.smithing.SmithStepType
 import game.idle.autopilot.walk.WalkStepType
 import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.location.BankCatalog
+import game.testworld.TestWorld
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Test
@@ -34,8 +35,11 @@ class IdleStepsTest {
         assertEquals(12, types.size)
     }
 
+    /** Luna's make tables name their items from the cache, so loading needs the test world's definitions. */
     @Test
     fun `the steps load over the data files`() {
+        TestWorld.context
+
         assertEquals(types.map { it.kind }, IdleSteps.load().types.all.map { it.kind })
     }
 }
