@@ -442,11 +442,13 @@
   },
   {
     "opcode": 102,
-    "size": 0
+    "size": -1,
+    "payload": "game.idle.ui.SearchPageMessageReader"
   },
   {
     "opcode": 103,
-    "size": 0
+    "size": 3,
+    "payload": "game.idle.ui.SearchPickMessageReader"
   },
   {
     "opcode": 104,
@@ -455,7 +457,8 @@
   },
   {
     "opcode": 105,
-    "size": 0
+    "size": 1,
+    "payload": "game.idle.ui.SearchClosedMessageReader"
   },
   {
     "opcode": 106,

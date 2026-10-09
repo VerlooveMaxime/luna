@@ -2,9 +2,14 @@ package game.harness
 
 import game.idle.ui.HintArrowMessageWriter
 import game.idle.ui.MapPickMessageWriter
+import game.idle.ui.PictureEncoding
 import game.idle.ui.PictureMessageWriter
+import game.idle.ui.SearchOpenMessageWriter
+import game.idle.ui.SearchRow
+import game.idle.ui.SearchRowsMessageWriter
 import game.idle.ui.StatusOverlayMessageWriter
 import game.idle.ui.StickyChatboxMessageWriter
+import game.idle.ui.WidgetPicture
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
 import io.luna.net.codec.ByteMessage
 import io.luna.net.codec.ByteOrder
@@ -36,6 +41,10 @@ object EncodedMessageDecoder {
         StatusOverlayMessageWriter.OPCODE to Layout("StatusOverlayMessageWriter") { mapOf("text" to it.string()) },
         MapPickMessageWriter.OPCODE to Layout("MapPickMessageWriter") { mapOf("x" to it.short(), "y" to it.short()) },
         PictureMessageWriter.OPCODE to Layout("PictureMessageWriter", ::picture),
+        SearchOpenMessageWriter.OPCODE to Layout("SearchOpenMessageWriter") {
+            mapOf("serial" to it.byte(), "title" to it.string(), "emptyLine" to it.string())
+        },
+        SearchRowsMessageWriter.OPCODE to Layout("SearchRowsMessageWriter", ::searchRows),
         StickyChatboxMessageWriter.OPCODE to Layout("StickyChatboxMessageWriter") {
             mapOf("id" to it.short(ByteOrder.LITTLE))
         },
@@ -79,17 +88,36 @@ object EncodedMessageDecoder {
         }
     }
 
-    /** A sprite carries its name and a byte index, an item or npc a short id, nothing nothing. */
     private fun picture(payload: Payload): Map<String, Any> {
         val widgetId = payload.short()
-        val source = payload.byte()
-        val (name, id) =
-            when (source) {
-                PictureMessageWriter.MEDIA -> payload.string() to payload.byte()
-                PictureMessageWriter.NONE -> "" to 0
-                else -> "" to payload.short()
-            }
-        return mapOf("widgetId" to widgetId, "source" to source, "name" to name, "id" to id)
+        val picture = readPicture(payload)
+        val name = (picture as? WidgetPicture.Media)?.name.orEmpty()
+        return mapOf("widgetId" to widgetId, "source" to PictureEncoding.source(picture), "name" to name, "id" to PictureEncoding.id(picture))
+    }
+
+    /** A sprite carries its name and a byte index, an item or npc a short id, nothing nothing. */
+    private fun readPicture(payload: Payload): WidgetPicture =
+        when (payload.byte()) {
+            PictureEncoding.NONE -> WidgetPicture.None
+            PictureEncoding.MEDIA -> WidgetPicture.Media(payload.string(), payload.byte())
+            PictureEncoding.ITEM -> WidgetPicture.Item(payload.short())
+            else -> WidgetPicture.NpcBody(payload.short())
+        }
+
+    private fun searchRows(payload: Payload): Map<String, Any> {
+        val header = mapOf(
+            "serial" to payload.byte(),
+            "query" to payload.string(),
+            "total" to payload.short(),
+            "columns" to payload.byte(),
+            "offset" to payload.short(),
+        )
+        val rows = List(payload.short()) {
+            val index = payload.short()
+            val greyed = payload.byte() and SearchRowsMessageWriter.GREYED != 0
+            SearchRow(index, payload.string(), payload.string(), greyed, readPicture(payload))
+        }
+        return header + mapOf("count" to rows.size, "rows" to SearchRowsMessageWriter.describe(rows))
     }
 
     private fun undecoded(message: GameMessage) =

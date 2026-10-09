@@ -28,7 +28,7 @@ class BankStepType(private val catalog: BankCatalog) : StepType {
 
     override val label = "bank"
 
-    override fun icon(settings: StepSettings): StepIcon = StepIcon.Media("mapfunction", 5)
+    override fun icon(settings: StepSettings): StepIcon = StepIcon.BANK
 
     override val fields = listOf(StepField.Choice(BANK, "bank") { listOf(NEAREST) + ids })
 

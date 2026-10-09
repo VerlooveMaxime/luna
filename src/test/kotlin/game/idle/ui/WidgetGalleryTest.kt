@@ -1,6 +1,8 @@
 package game.idle.ui
 
 import game.harness.RecordedMessage
+import game.idle.flow.option.OptionIcon
+import game.idle.flow.option.StepOption
 import game.testworld.TestWorld
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
@@ -15,7 +17,12 @@ class WidgetGalleryTest {
 
     private val chop = GalleryKind("chop", WidgetPicture.Media("staticons", 17))
     private val bank = GalleryKind("bank", WidgetPicture.Media("mapfunction", 5))
-    private val gallery = WidgetGallery(listOf(chop, bank)) { "npc $it" }
+    private val font = ClientFont(IntArray(256) { 5 })
+    private val gallery = WidgetGallery(listOf(chop, bank), { "npc $it" }, emptyList(), font)
+
+    private val oak = StepOption("oak", "Oak", OptionIcon.Item(1521))
+    private val trees = GallerySearch("Which tree?") { listOf(oak) }
+    private val searching = WidgetGallery(listOf(chop, bank), { "npc $it" }, listOf(trees), font)
 
     @AfterEach
     fun resetWorld() = TestWorld.reset()
@@ -49,28 +56,28 @@ class WidgetGalleryTest {
     fun `every size of a kind's icon shows that kind's icon`() {
         val player = openGallery()
 
-        assertEquals(listOf<Any>(PictureMessageWriter.MEDIA, "mapfunction", 5), pictures(player)[GalleryWidgets.icon(2, 1)])
+        assertEquals(listOf<Any>(PictureEncoding.MEDIA, "mapfunction", 5), pictures(player)[GalleryWidgets.icon(2, 1)])
     }
 
     @Test
     fun `icons past the last kind are left empty`() {
         val player = openGallery()
 
-        assertEquals(listOf<Any>(PictureMessageWriter.NONE, "", 0), pictures(player)[GalleryWidgets.icon(0, 11)])
+        assertEquals(listOf<Any>(PictureEncoding.NONE, "", 0), pictures(player)[GalleryWidgets.icon(0, 11)])
     }
 
     @Test
     fun `the items show at both sizes`() {
         val player = openGallery()
 
-        assertEquals(listOf<Any>(PictureMessageWriter.ITEM, "", 1519), pictures(player)[GalleryWidgets.item(1, 1)])
+        assertEquals(listOf<Any>(PictureEncoding.ITEM, "", 1519), pictures(player)[GalleryWidgets.item(1, 1)])
     }
 
     @Test
     fun `the npcs show their bodies`() {
         val player = openGallery()
 
-        assertEquals(listOf<Any>(PictureMessageWriter.NPC_BODY, "", 50), pictures(player)[GalleryWidgets.npc(3)])
+        assertEquals(listOf<Any>(PictureEncoding.NPC_BODY, "", 50), pictures(player)[GalleryWidgets.npc(3)])
     }
 
     @Test
@@ -86,7 +93,7 @@ class WidgetGalleryTest {
 
         assertEquals("Tile 2", texts(player)[GalleryWidgets.tileLabel(1)])
         assertEquals("bank", texts(player)[GalleryWidgets.tileKind(1)])
-        assertEquals(listOf<Any>(PictureMessageWriter.MEDIA, "staticons", 17), pictures(player)[GalleryWidgets.tilePicture(0)])
+        assertEquals(listOf<Any>(PictureEncoding.MEDIA, "staticons", 17), pictures(player)[GalleryWidgets.tilePicture(0)])
     }
 
     @Test
@@ -95,7 +102,7 @@ class WidgetGalleryTest {
 
         assertEquals("Tile 5", texts(player)[GalleryWidgets.tileLabel(4)])
         assertEquals("", texts(player)[GalleryWidgets.tileKind(4)])
-        assertEquals(listOf<Any>(PictureMessageWriter.NONE, "", 0), pictures(player)[GalleryWidgets.tilePicture(4)])
+        assertEquals(listOf<Any>(PictureEncoding.NONE, "", 0), pictures(player)[GalleryWidgets.tilePicture(4)])
     }
 
     @Test
@@ -222,5 +229,48 @@ class WidgetGalleryTest {
     @Test
     fun `any other widget is no tile`() {
         assertNull(GalleryWidgets.tile(GalleryWidgets.tilePicture(0)))
+    }
+
+    @Test
+    fun `a search button opens its search`() {
+        val player = login().also { searching.open(it) }
+
+        searching.click(player, GalleryWidgets.search(0))
+
+        assertEquals("Which tree?", messages(player, "SearchOpenMessageWriter").last().fields["title"])
+    }
+
+    @Test
+    fun `a pick in a gallery search answers in the chat box`() {
+        val player = login().also { searching.open(it) }
+        searching.click(player, GalleryWidgets.search(0))
+
+        SearchPrompts.pick(player, checkNotNull(player.overlays.getOverlay(SearchPrompt::class.java)).serial, index = 0)
+
+        assertEquals(listOf("Gallery: picked Oak (oak)."), TestWorld.chatbox(player))
+    }
+
+    @Test
+    fun `a search button with no search behind it does nothing`() {
+        val player = login().also { searching.open(it) }
+
+        searching.click(player, GalleryWidgets.search(1))
+
+        assertNull(player.overlays.getOverlay(SearchPrompt::class.java))
+    }
+
+    @Test
+    fun `search buttons follow each other`() {
+        assertEquals(listOf(30591, 30596), listOf(GalleryWidgets.search(0), GalleryWidgets.search(GalleryWidgets.SEARCHES - 1)))
+    }
+
+    @Test
+    fun `a search button names its search`() {
+        assertEquals(3, GalleryWidgets.searchOf(GalleryWidgets.search(3)))
+    }
+
+    @Test
+    fun `another widget names no search`() {
+        assertNull(GalleryWidgets.searchOf(GalleryWidgets.CLOSE))
     }
 }

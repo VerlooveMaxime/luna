@@ -3,6 +3,9 @@ package game.harness
 import game.idle.ui.HintArrowMessageWriter
 import game.idle.ui.MapPickMessageWriter
 import game.idle.ui.PictureMessageWriter
+import game.idle.ui.SearchOpenMessageWriter
+import game.idle.ui.SearchRow
+import game.idle.ui.SearchRowsMessageWriter
 import game.idle.ui.StatusOverlayMessageWriter
 import game.idle.ui.StickyChatboxMessageWriter
 import game.idle.ui.TileEdge
@@ -109,6 +112,31 @@ class EncodedMessageDecoderTest {
     @Test
     fun `an npc picture decodes as the writer records it`() {
         assertDecodesAsRecorded(PictureMessageWriter(30581, WidgetPicture.NpcBody(81)))
+    }
+
+    @Test
+    fun `an opened search decodes as the writer records it`() {
+        assertDecodesAsRecorded(SearchOpenMessageWriter(7, "Which tree?", "Nothing to cut"))
+    }
+
+    @Test
+    fun `search rows of every picture kind decode as the writer records them`() {
+        assertDecodesAsRecorded(
+            SearchRowsMessageWriter(
+                9, "oak", 140, 2, 30,
+                listOf(
+                    SearchRow(0, "Nearest bank", "", false, WidgetPicture.Media("mapfunction", 5)),
+                    SearchRow(1, "Oak", "Woodcutting 15", false, WidgetPicture.Item(1521)),
+                    SearchRow(2, "Cow", "level 2", false, WidgetPicture.NpcBody(81)),
+                    SearchRow(3, "Yew", "needs Woodcutting 60", true, WidgetPicture.None),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `no search rows decode as the writer records them`() {
+        assertDecodesAsRecorded(SearchRowsMessageWriter(0, "", 0, 3, 0, emptyList()))
     }
 
     @Test

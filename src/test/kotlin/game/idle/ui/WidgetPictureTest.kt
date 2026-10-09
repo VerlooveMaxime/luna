@@ -2,6 +2,7 @@ package game.idle.ui
 
 import game.harness.encode
 import game.idle.flow.StepIcon
+import game.idle.flow.option.OptionIcon
 import io.luna.game.model.mob.Skill
 import io.luna.net.codec.MessageType
 import io.luna.net.msg.GameMessage
@@ -76,5 +77,39 @@ class WidgetPictureTest {
     fun `a media icon and an item icon keep what they name`() {
         assertEquals(WidgetPicture.Media("mapmarker", 0), WidgetPicture.of(StepIcon.Media("mapmarker", 0)))
         assertEquals(WidgetPicture.Item(1059), WidgetPicture.of(StepIcon.Item(1059)))
+    }
+
+    @Test
+    fun `the bank step's icon is the minimap's bank sign`() {
+        assertEquals(WidgetPicture.Media("mapfunction", 5), WidgetPicture.of(StepIcon.BANK))
+    }
+
+    @Test
+    fun `a search row's item shows its icon and its npc its body`() {
+        assertEquals(WidgetPicture.Item(1521), WidgetPicture.of(OptionIcon.Item(1521)))
+        assertEquals(WidgetPicture.NpcBody(86), WidgetPicture.of(OptionIcon.Npc(86)))
+    }
+
+    @Test
+    fun `a search row's skill shows the skills tab's sprite and a bank the bank sign`() {
+        assertEquals(WidgetPicture.Media("staticons", 12), WidgetPicture.of(OptionIcon.Skill(Skill.MINING)))
+        assertEquals(WidgetPicture.Media("mapfunction", 5), WidgetPicture.of(OptionIcon.Bank))
+    }
+
+    @Test
+    fun `an encoded picture takes a source byte and what it names`() {
+        assertEquals(
+            listOf(1, 1 + 4 + 1 + 1, 3, 3),
+            listOf(WidgetPicture.None, WidgetPicture.Media("keys", 0), WidgetPicture.Item(1), WidgetPicture.NpcBody(1)).map(PictureEncoding::size),
+        )
+    }
+
+    @Test
+    fun `a picture describes itself for the harness log`() {
+        assertEquals(
+            listOf("none", "media keys 0", "item 1059", "npc 81"),
+            listOf(WidgetPicture.None, WidgetPicture.Media("keys", 0), WidgetPicture.Item(1059), WidgetPicture.NpcBody(81))
+                .map(PictureEncoding::describe),
+        )
     }
 }

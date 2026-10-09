@@ -13,4 +13,9 @@ sealed interface StepIcon {
     data class Media(val name: String, val index: Int) : StepIcon
 
     data class Item(val id: Int) : StepIcon
+
+    companion object {
+        /** The bank step's icon: the minimap's bank sign. */
+        val BANK = Media("mapfunction", 5)
+    }
 }

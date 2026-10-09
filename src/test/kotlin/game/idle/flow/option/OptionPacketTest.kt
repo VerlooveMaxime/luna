@@ -1,32 +1,36 @@
 package game.idle.flow.option
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class OptionPacketTest {
 
-    private val packet = OptionPacket()
+    /** Every icon 3 bytes, as an item's is. */
+    private val packet = OptionPacket({ 3 })
 
     @Test
-    fun `a row counts its label and note as ended strings, an icon and a flags byte`() {
-        assertEquals(4 + 12 + 3 + 1, packet.size(row("Oak", note = "312 in bank")))
+    fun `a row counts its index, a flags byte, its label and note as ended strings and its icon`() {
+        assertEquals(2 + 1 + 4 + 12 + 3, packet.size(row("Oak", note = "312 in bank")))
     }
 
     @Test
     fun `a greyed row counts its reason instead of its note`() {
-        assertEquals(4 + 21 + 3 + 1, packet.size(row("Yew", blocked = "needs Woodcutting 60", note = "Woodcutting 60 extra")))
+        assertEquals(2 + 1 + 4 + 21 + 3, packet.size(row("Yew", blocked = "needs Woodcutting 60", note = "Woodcutting 60 extra")))
     }
 
     @Test
-    fun `rows within the budget fit one packet`() {
-        assertTrue(OptionPacket(budget = 18).fits(listOf(row("Oak"), row("Yew"))))
+    fun `an icon counts what its encoding takes`() {
+        assertEquals(2 + 1 + 4 + 1 + 14, OptionPacket({ 14 }).size(row("Oak")))
     }
 
     @Test
-    fun `rows over the budget do not fit`() {
-        assertFalse(OptionPacket(budget = 17).fits(listOf(row("Oak"), row("Yew"))))
+    fun `rows within the budget all fit`() {
+        assertEquals(listOf(row("Oak"), row("Yew")), OptionPacket({ 3 }, budget = 22).fit(listOf(row("Oak"), row("Yew"))))
+    }
+
+    @Test
+    fun `rows past the budget are left for the next page`() {
+        assertEquals(listOf(row("Oak")), OptionPacket({ 3 }, budget = 21).fit(listOf(row("Oak"), row("Yew"))))
     }
 
     @Test
@@ -35,28 +39,17 @@ class OptionPacketTest {
     }
 
     @Test
-    fun `a query keeps the rows whose label holds every typed word, whatever the case`() {
-        val rows = listOf(row("Bronze dagger"), row("Iron dagger"), row("Bronze axe"))
-
-        assertEquals(listOf("Bronze dagger"), packet.matches(rows, " DAGGER  bron").options.map { it.label })
+    fun `a search matches when every typed word is in the label, whatever the case`() {
+        assertEquals(listOf(true, false), listOf(row("Bronze dagger"), row("Bronze axe")).map { OptionSearch.matches(it, " DAGGER  bron") })
     }
 
     @Test
-    fun `a query answers in the search order`() {
-        val rows = listOf(row("Iron dagger", level = 15), row("Bronze dagger", level = 1))
-
-        assertEquals(listOf("Bronze dagger", "Iron dagger"), packet.matches(rows, "dagger").options.map { it.label })
+    fun `an empty search matches everything`() {
+        assertEquals(true, OptionSearch.matches(row("Oak"), ""))
     }
 
     @Test
-    fun `a query cuts what does not fit one packet and says so`() {
-        val matches = OptionPacket(budget = 18).matches(listOf(row("Oak"), row("Yew"), row("Ash")), "")
-
-        assertEquals(OptionMatches(listOf(row("Ash"), row("Oak")), cut = true), matches)
-    }
-
-    @Test
-    fun `a query that fits says nothing was cut`() {
-        assertFalse(packet.matches(listOf(row("Oak")), "oak").cut)
+    fun `typed words are lower case and spaces between them do not count`() {
+        assertEquals(listOf("oak", "logs"), OptionSearch.words("  Oak   LOGS "))
     }
 }

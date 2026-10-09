@@ -1,5 +1,6 @@
 package game.idle.ui
 
+import game.idle.flow.option.StepOption
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.overlay.AbstractOverlay
 import io.luna.game.model.mob.overlay.OverlayType
@@ -31,6 +32,7 @@ object GalleryWidgets {
     const val ITEM_KINDS = 2
     const val NPCS = 4
     const val TILES = 8
+    const val SEARCHES = 6
 
     fun icon(size: Int, kind: Int): Int = 30430 + size * 20 + kind
 
@@ -39,6 +41,8 @@ object GalleryWidgets {
     fun npc(npc: Int): Int = 30581 + npc
 
     fun npcName(npc: Int): Int = 30585 + npc
+
+    fun search(search: Int): Int = 30591 + search
 
     private fun tileBase(tile: Int): Int = 30500 + tile * 10
 
@@ -55,10 +59,16 @@ object GalleryWidgets {
 
     /** The tile whose face [widgetId] is, or null. */
     fun tile(widgetId: Int): Int? = (0 until TILES).firstOrNull { tileFace(it) == widgetId }
+
+    /** The search whose button [widgetId] is, or null. */
+    fun searchOf(widgetId: Int): Int? = (0 until SEARCHES).firstOrNull { search(it) == widgetId }
 }
 
 /** A kind of step as the gallery shows it: its name and its icon. */
 data class GalleryKind(val name: String, val icon: WidgetPicture)
+
+/** A chatbox search a gallery button opens: its prompt's title and the options it offers a player. */
+class GallerySearch(val title: String, val options: (Player) -> List<StepOption>)
 
 /** The gallery as a Luna window; like the builder, not a `StandardInterface`, which looks the id up in the cache. */
 class GalleryInterface(private val fill: (Player) -> Unit) : AbstractOverlay(OverlayType.WIDGET_STANDARD) {
@@ -74,9 +84,16 @@ class GalleryInterface(private val fill: (Player) -> Unit) : AbstractOverlay(Ove
 /**
  * The developer widget gallery (`::widgets`): every kind of code-defined widget on one screen, to check them live.
  * It shows the step icons of [kinds], item icons and npc bodies named by [npcName]; tiles and buttons answer in the chat box, Hide and
- * Show toggle a nested layer with packet 82, and a tile dragged onto another moves there.
+ * Show toggle a nested layer with packet 82, a tile dragged onto another moves there, and the search buttons open the
+ * chatbox search over [searches], in the client's button order, its labels measured with the client's [font]; a pick
+ * answers in the chat box.
  */
-class WidgetGallery(private val kinds: List<GalleryKind>, private val npcName: (Int) -> String) {
+class WidgetGallery(
+    private val kinds: List<GalleryKind>,
+    private val npcName: (Int) -> String,
+    private val searches: List<GallerySearch>,
+    private val font: ClientFont,
+) {
 
     /** Which kind each player's tiles show, by place; set when the gallery opens. */
     private val tileKinds = mutableMapOf<String, List<Int>>()
@@ -91,7 +108,17 @@ class WidgetGallery(private val kinds: List<GalleryKind>, private val npcName: (
             GalleryWidgets.CLOSE -> player.overlays.closeWindows()
             GalleryWidgets.HIDE -> setNestedLayerHidden(player, hidden = true)
             GalleryWidgets.SHOW -> setNestedLayerHidden(player, hidden = false)
-            else -> GalleryWidgets.tile(widgetId)?.let { player.sendMessage("Gallery: clicked tile ${tileKindAt(player, it) + 1}.") }
+            else -> {
+                GalleryWidgets.tile(widgetId)?.let { player.sendMessage("Gallery: clicked tile ${tileKindAt(player, it) + 1}.") }
+                GalleryWidgets.searchOf(widgetId)?.let { openSearch(player, it) }
+            }
+        }
+    }
+
+    private fun openSearch(player: Player, search: Int) {
+        val opened = searches.getOrNull(search) ?: return
+        SearchPrompts.open(player, opened.title, opened.options(player), font) { picker, option ->
+            picker.sendMessage("Gallery: picked ${option.label} (${option.value}).")
         }
     }
 
@@ -142,12 +169,12 @@ class WidgetGallery(private val kinds: List<GalleryKind>, private val npcName: (
     }
 
     companion object {
-        const val OPENED_TEXT = "This line was sent by the server when the gallery opened."
+        const val OPENED_TEXT = "Sent by the server when the gallery opened."
 
         /** Leather gloves (pick-up's icon, S01) and willow logs. */
         val ITEMS = listOf(1059, 1519)
 
-        /** Giant rat, cow, man and the King Black Dragon: four sizes of body in the same frame. */
+        /** Giant rat, cow, man and the King Black Dragon: four sizes of body, each filling the same frame. */
         val NPCS = listOf(86, 81, 1, 50)
     }
 }
