@@ -111,6 +111,26 @@ class LunaBankerTest {
     }
 
     @Test
+    fun `pickaxes and the hammer stay in the inventory, so mine and smith steps go on after a bank step`() {
+        val player = login()
+        player.inventory.add(Item(1265))
+        player.inventory.add(Item(2347))
+        player.inventory.add(Item(logs))
+
+        assertEquals(listOf(2), LunaBanker(player, boothTile).look().depositableSlots)
+    }
+
+    @Test
+    fun `fishing bait and feathers stay in the inventory, as the rods they feed do`() {
+        val player = login()
+        player.inventory.add(Item(313, 50))
+        player.inventory.add(Item(314, 50))
+        player.inventory.add(Item(logs))
+
+        assertEquals(listOf(2), LunaBanker(player, boothTile).look().depositableSlots)
+    }
+
+    @Test
     fun `the tinderbox and the fishing net stay in the inventory too`() {
         val player = login()
         player.inventory.add(Item(590))

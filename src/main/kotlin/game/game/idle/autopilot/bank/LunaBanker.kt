@@ -5,6 +5,8 @@ import game.idle.autopilot.LunaClicks
 import game.idle.movement.navigateToReach
 import game.skill.firemaking.Firemaking
 import game.skill.fishing.catchFish.Tool
+import game.skill.mining.Pickaxe
+import game.skill.smithing.Smithing
 import game.skill.woodcutting.cutTree.Axe
 import io.luna.game.event.impl.ObjectClickEvent.ObjectSecondClickEvent
 import io.luna.game.model.Position
@@ -16,8 +18,8 @@ import io.luna.game.model.`object`.GameObject
 /**
  * [Banker] for a logged-in player using the booth on [boothTile], none when null (no bank on the player's floor).
  * Opening goes through the booth's "Use-quickly" click like the client does; depositing calls the bank directly,
- * slot by slot, which is what the deposit widget click ends up doing. Tools (axes, the tinderbox, fishing tools)
- * stay in the inventory so the next steps can start.
+ * slot by slot, which is what the deposit widget click ends up doing. Tools (axes, pickaxes, the hammer, the tinderbox,
+ * fishing tools and their bait) stay in the inventory so the next steps can start.
  */
 class LunaBanker(private val player: Player, private val boothTile: Position?) : Banker {
 
@@ -76,7 +78,8 @@ class LunaBanker(private val player: Player, private val boothTile: Position?) :
         }
 
     private companion object {
-        val TOOL_IDS: Set<Int> = Axe.entries.map { it.id }.toSet() + Firemaking.TINDERBOX + Tool.entries.map { it.id }
+        val TOOL_IDS: Set<Int> = Axe.entries.map { it.id }.toSet() + Pickaxe.entries.map { it.id } + Smithing.HAMMER +
+            Firemaking.TINDERBOX + Tool.entries.map { it.id } + Tool.entries.mapNotNull { it.bait }
     }
 }
 
