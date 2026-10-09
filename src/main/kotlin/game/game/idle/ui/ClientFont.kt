@@ -16,9 +16,31 @@ class ClientFont(private val advances: IntArray) {
     /** The width of [text] in pixels; texts reach the client as ISO-8859-1, one glyph per byte. */
     fun width(text: String): Int = text.sumOf { advances[it.code and 0xff] }
 
+    /** [text] as it fits in [room] pixels: whole, or cut with ".." at its end. */
+    fun fit(text: String, room: Int): String {
+        if (width(text) <= room) return text
+        val kept = (text.length - 1 downTo 1).firstOrNull { width(text.take(it) + CUT) <= room } ?: 0
+        return text.take(kept).trimEnd() + CUT
+    }
+
+    /**
+     * [text] broken at its spaces into at most [lines] lines that fit [room] pixels; the last one is cut with ".." when
+     * text is left over, and so is a word too wide for a line of its own.
+     */
+    fun wrap(text: String, room: Int, lines: Int): List<String> {
+        val broken = text.split(" ").fold(listOf<String>()) { done, word ->
+            val joined = done.lastOrNull()?.let { "$it $word" }
+            if (joined != null && width(joined) <= room) done.dropLast(1) + joined else done + word
+        }
+        val kept = if (broken.size <= lines) broken else broken.take(lines - 1) + broken.drop(lines - 1).joinToString(" ")
+        return kept.map { fit(it, room) }
+    }
+
     companion object {
         /** The small plain font the search rows are drawn in. */
         const val SMALL = "p11_full"
+
+        private const val CUT = ".."
 
         private const val GLYPHS = 256
         private const val TITLE_ARCHIVE = 1

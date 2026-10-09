@@ -39,6 +39,13 @@ object SmithStepType : StepType {
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.SMITHING)
 
+    /** Metal and item are two settings until S07 makes them one item, so they show as text. */
+    override fun details(settings: StepSettings, context: FlowContext): List<String> =
+        listOf(
+            listOfNotNull(settings[METAL], settings[ITEM]).joinToString(" ").ifEmpty { "not set yet" },
+            StepAmount.detail(settings, unbounded = "all of them"),
+        )
+
     override val fields = listOf(
         StepField.Choice(METAL, "metal") { METALS.map { it.name.lowercase() } },
         StepField.Choice(ITEM, "item") { settings ->

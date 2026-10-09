@@ -79,14 +79,36 @@ class FightingActivityTest {
     }
 
     @Test
-    fun `at the work spot with nothing to fight the player is told once`() {
+    fun `a block is reported with its reason`() {
+        fighter.view = view(targets = emptyList())
+        val activity = activity()
+
+        activity.act()
+
+        assertEquals(FightBlockedReason.NO_TARGET.message, activity.blocked())
+    }
+
+    @Test
+    fun `a block clears on the next decision that is not one`() {
+        fighter.view = view(targets = emptyList())
+        val activity = activity()
+        activity.act()
+        fighter.view = view()
+
+        activity.act()
+
+        assertNull(activity.blocked())
+    }
+
+    @Test
+    fun `at the work spot with nothing to fight the step blocks`() {
         fighter.view = view(targets = emptyList())
         val activity = activity()
 
         activity.act()
         activity.act()
 
-        assertEquals(listOf("tell ${FightBlockedReason.NO_TARGET.message}"), fighter.steps)
+        assertEquals(FightBlockedReason.NO_TARGET.message, activity.blocked())
     }
 
     @Test

@@ -258,13 +258,4 @@ class LunaFisherTest {
 
         assertFalse(LunaClicks.isActing(player))
     }
-
-    @Test
-    fun `telling the player sends a chat box line`() {
-        val player = login()
-
-        fisher(player).tell("No net.")
-
-        assertEquals(listOf("No net."), TestWorld.chatbox(player))
-    }
 }

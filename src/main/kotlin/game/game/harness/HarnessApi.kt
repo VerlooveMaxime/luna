@@ -68,6 +68,9 @@ sealed interface PlayerAction {
     /** Escape on the open chatbox prompt. */
     data object SearchClose : PlayerAction
 
+    /** Tile [from] of the code-defined layer [widget] dragged onto tile [to], as the client sends a dragged tile. */
+    data class Arrange(val widget: Int, val from: Int, val to: Int) : PlayerAction
+
     data object ContinueDialogue : PlayerAction
 
     data object CloseInterface : PlayerAction

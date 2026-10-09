@@ -2,6 +2,7 @@ package game.idle.autopilot.firemaking
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -37,7 +38,7 @@ class LightActivityTest {
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(listOf("tell ${LightBlockedReason.NO_LOGS.message}"), lighter.steps)
+        assertEquals(LightBlockedReason.NO_LOGS.message, activity.blocked())
     }
 
     @Test
@@ -74,14 +75,43 @@ class LightActivityTest {
     }
 
     @Test
-    fun `nowhere to step blocks once with a message`() {
+    fun `nowhere to step aside blocks the step`() {
         lighter.view = ready.copy(tileFree = false)
         lighter.aside = false
 
         activity.act()
+
+        assertEquals(LightBlockedReason.NO_ROOM.message, activity.blocked())
+    }
+
+    @Test
+    fun `a block is reported with its reason`() {
+        lighter.view = ready.copy(hasTinderbox = false)
+
         activity.act()
 
-        assertEquals(listOf("step aside", "tell ${LightBlockedReason.NO_ROOM.message}", "step aside"), lighter.steps)
+        assertEquals(LightBlockedReason.NO_TINDERBOX.message, activity.blocked())
+    }
+
+    @Test
+    fun `nowhere to step reports a block too`() {
+        lighter.view = ready.copy(tileFree = false)
+        lighter.aside = false
+
+        activity.act()
+
+        assertEquals(LightBlockedReason.NO_ROOM.message, activity.blocked())
+    }
+
+    @Test
+    fun `a block clears on the next decision that is not one`() {
+        lighter.view = ready.copy(hasTinderbox = false)
+        activity.act()
+        lighter.view = ready
+
+        activity.act()
+
+        assertNull(activity.blocked())
     }
 
     @Test
@@ -91,7 +121,7 @@ class LightActivityTest {
         activity.act()
         activity.act()
 
-        assertEquals(listOf("tell ${LightBlockedReason.NO_TINDERBOX.message}"), lighter.steps)
+        assertEquals(LightBlockedReason.NO_TINDERBOX.message, activity.blocked())
         assertFalse(activity.isDone())
     }
 
@@ -101,7 +131,7 @@ class LightActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("tell ${LightBlockedReason.LEVEL_TOO_LOW.message}"), lighter.steps)
+        assertEquals(LightBlockedReason.LEVEL_TOO_LOW.message, activity.blocked())
     }
 
     @Test

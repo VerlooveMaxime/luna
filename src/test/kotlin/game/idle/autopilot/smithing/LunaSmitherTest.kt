@@ -299,13 +299,4 @@ class LunaSmitherTest {
 
         assertFalse(LunaClicks.isActing(player))
     }
-
-    @Test
-    fun `telling the player sends a chat box line`() {
-        val player = login()
-
-        smither(player).tell("No hammer.")
-
-        assertEquals(listOf("No hammer."), TestWorld.chatbox(player))
-    }
 }

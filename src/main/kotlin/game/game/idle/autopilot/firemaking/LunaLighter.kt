@@ -43,10 +43,6 @@ class LunaLighter(private val player: Player, private val logIds: Set<Int>) : Li
     override fun stepAside(): Boolean =
         ASIDE.any { direction -> free(player.position.translate(1, direction)) && player.navigator.step(direction) }
 
-    override fun tell(message: String) {
-        player.sendMessage(message)
-    }
-
     private fun lightable(id: Int?): Boolean {
         val log = LOGS[id] ?: return false
         return id in logIds && log.level <= player.firemaking.level

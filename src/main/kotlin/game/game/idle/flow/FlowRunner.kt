@@ -37,6 +37,9 @@ class FlowRunner(
 
     override fun stopReason(): String? = current?.stopReason()
 
+    /** The current step's block; none between two steps. */
+    override fun blocked(): String? = current?.blocked()
+
     override fun act() {
         if (steps.isEmpty()) return
         val activity = current ?: startStep()

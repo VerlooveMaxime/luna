@@ -6,6 +6,7 @@ import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.LunaGameNames
 import game.idle.location.Tile
 import game.skill.smithing.BarType
 import game.testworld.TestWorld
@@ -75,5 +76,22 @@ class SmeltStepTypeTest {
     @Test
     fun `a smelt step shows the Smithing icon`() {
         assertEquals(StepIcon.Skill(Skill.SMITHING), SmeltStepType.icon(StepSettings("smelt")))
+    }
+
+    @Test
+    fun `a smelt step's target is its bar among the bars there are`() {
+        val target = SmeltStepType.target(LunaGameNames)
+
+        assertEquals(listOf("bar", "Bronze bar"), listOf(target.key, target.picked(smelt("bar" to "bronze"))?.label))
+    }
+
+    @Test
+    fun `a smelt step's slot says how many bars a lap smelts`() {
+        assertEquals(listOf("5 per lap"), SmeltStepType.details(smelt("bar" to "bronze", "amount" to "5", "within" to "15"), FlowContext()))
+    }
+
+    @Test
+    fun `a smelt step without a count smelts all of them, within the default radius`() {
+        assertEquals(listOf("all of them"), SmeltStepType.details(smelt(), FlowContext()))
     }
 }

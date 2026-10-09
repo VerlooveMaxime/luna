@@ -25,8 +25,6 @@ interface Fisher {
 
     /** Stops the fishing in progress. */
     fun stop()
-
-    fun tell(message: String)
 }
 
 /** A fishing spot the player can walk to, ranked like trees: [distance] walking steps to [approach]. */
@@ -114,6 +112,8 @@ class FishingActivity(private val fisher: Fisher, private val amount: Int? = nul
 
     override fun isDone(): Boolean = done
 
+    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+
     override fun act() {
         if (catchesAtStart == null) catchesAtStart = fisher.catches()
         if (amountReached()) {
@@ -137,13 +137,15 @@ class FishingActivity(private val fisher: Fisher, private val amount: Int? = nul
     }
 
     private fun carryOut(decision: FishingDecision) = when (decision) {
+        // A block does nothing here (the autopilot tells it); as the last arm its empty body would leave JaCoCo a branch
+        // no test can reach, so it comes first.
+        is Blocked -> Unit
         is Fish -> {
             fished = true
             fisher.fish(decision.spot)
         }
         is WalkTo -> fisher.walkTo(decision.spot)
         WalkToLocation -> fisher.walkToLocation()
-        is Blocked -> if (decision != lastDecision) fisher.tell(decision.reason.message) else Unit
     }
 
     private fun decideSkippingRetries(view: FishingView): FishingDecision {

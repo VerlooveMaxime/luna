@@ -75,13 +75,26 @@ class Autopilot<P : AutopilotPlayer>(
 
     /**
      * A step that ends the flow (out of food, say) stops it and tells the player why. A walk it started goes on: the
-     * fight step stops once it has run from what attacked the player, maybe before the run is over.
+     * fight step stops once it has run from what attacked the player, maybe before the run is over. Otherwise the
+     * current step's block goes into the state, only when it changes, since every state change refreshes the UI; a
+     * step that starts being blocked says so in the chat box, pointing at its slot for the reason.
      */
     private fun tick(player: P, driver: AutopilotDriver) {
         driver.tick()
-        val reason = driver.stopReason() ?: return
+        val reason = driver.stopReason()
+        if (reason == null) {
+            noteBlocked(player, driver.blocked())
+            return
+        }
         halt(player)
         player.tell(reason)
+    }
+
+    private fun noteBlocked(player: P, blocked: String?) {
+        val state = player.idleState
+        if (state.blocked == blocked) return
+        if (state.blocked == null) player.tell(cannotWork(state.stepIndex + 1))
+        player.idleState = state.copy(blocked = blocked)
     }
 
     /** Stops the flow and the walk it was taking the player on (to a bank, say), which would carry them far off. */
@@ -97,5 +110,13 @@ class Autopilot<P : AutopilotPlayer>(
         tick?.cancel()
         player.idleState = player.idleState.stopped()
         return tick != null
+    }
+
+    companion object {
+        /**
+         * The chat line for step [number] when it cannot work, at Run or while running: the reason is on the step's
+         * slot, and in full it is often too long for a chat line (Maxime, 2026-10-09).
+         */
+        fun cannotWork(number: Int): String = "Autopilot: step $number cannot work yet. See its slot warning in the builder."
     }
 }

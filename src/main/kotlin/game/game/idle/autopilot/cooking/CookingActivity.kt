@@ -32,8 +32,6 @@ interface Cooker {
 
     /** Stops the cooking in progress. */
     fun stop()
-
-    fun tell(message: String)
 }
 
 /** What the cook step knows when it decides: [rawSlot] holds some of the step's raw food, if any is left. */
@@ -111,6 +109,8 @@ class CookingActivity(private val cooker: Cooker, private val amount: Int? = nul
 
     override fun isDone(): Boolean = done
 
+    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+
     override fun act() {
         val start = rawAtStart ?: cooker.raw().also { rawAtStart = it }
         if (amountReached()) {
@@ -129,12 +129,14 @@ class CookingActivity(private val cooker: Cooker, private val amount: Int? = nul
     }
 
     private fun carryOut(decision: CookingDecision) = when (decision) {
+        // A block does nothing here (the autopilot tells it); as the last arm its empty body would leave JaCoCo a branch
+        // no test can reach, so it comes first.
+        is Blocked -> Unit
         is UseOn -> cooker.useOn(decision.place, decision.slot)
         is WalkTo -> cooker.walkTo(decision.place)
         CookAll -> cooker.cookAll()
         WalkToLocation -> cooker.walkToLocation()
         Done -> done = true
-        is Blocked -> if (decision != lastDecision) cooker.tell(decision.reason.message) else Unit
     }
 
     private fun decideSkippingRetries(view: CookingView, cookedSome: Boolean): CookingDecision {

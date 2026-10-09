@@ -33,8 +33,6 @@ interface Smither {
 
     /** Stops the smithing in progress. */
     fun stop()
-
-    fun tell(message: String)
 }
 
 /** What the smith step knows when it decides: [barSlot] holds the bar, while there are enough for one item. */
@@ -125,6 +123,8 @@ class SmithingActivity(private val smither: Smither, private val level: Int, pri
 
     override fun isDone(): Boolean = done
 
+    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+
     override fun act() {
         val start = madeAtStart ?: smither.made().also { madeAtStart = it }
         if (amountReached()) {
@@ -145,12 +145,14 @@ class SmithingActivity(private val smither: Smither, private val level: Int, pri
     }
 
     private fun carryOut(decision: SmithingDecision) = when (decision) {
+        // A block does nothing here (the autopilot tells it); as the last arm its empty body would leave JaCoCo a branch
+        // no test can reach, so it comes first.
+        is Blocked -> Unit
         is UseOn -> smither.useOn(decision.anvil, decision.slot)
         is WalkTo -> smither.walkTo(decision.anvil)
         is Choose -> smither.choose(decision.times)
         WalkToLocation -> smither.walkToLocation()
         Done -> done = true
-        is Blocked -> if (decision != lastDecision) smither.tell(decision.reason.message) else Unit
     }
 
     private fun decideSkippingRetries(view: SmithingView, madeSome: Boolean, times: Int): SmithingDecision {

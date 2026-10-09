@@ -23,6 +23,9 @@ object WalkStepType : StepType {
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Media("mapmarker", 0)
 
+    override fun details(settings: StepSettings, context: FlowContext): List<String> =
+        listOf(settings[TILE]?.let { "to ${it.replace(" ", ", ")}" } ?: "not set yet")
+
     override val fields = listOf(StepField.MapTile(TILE, "to (click: pick on map)"))
 
     override fun summary(settings: StepSettings): String = "walk ${settings[TILE] ?: "?"}"

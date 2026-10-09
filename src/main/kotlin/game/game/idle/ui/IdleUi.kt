@@ -27,9 +27,9 @@ class FlowBuilderInterface(private val texts: () -> Map<Int, String>) : Abstract
 
 /**
  * Sends the IdleRS widgets to a Luna player: the tab at login, and every text that follows the idle state, each step
- * worded by [summary].
+ * worded by [summary]; the new [builder]'s screens follow it too.
  */
-class IdleUi(summary: (StepSettings) -> String) {
+class IdleUi(summary: (StepSettings) -> String, private val builder: BuilderWindow? = null) {
 
     private val view = BuilderView(summary)
 
@@ -45,6 +45,7 @@ class IdleUi(summary: (StepSettings) -> String) {
         player.queue(StatusOverlayMessageWriter(status.text(state)))
         sendTexts(player, view.tabTexts(state))
         if (player.overlays.has(FlowBuilderInterface::class.java)) sendTexts(player, view.stateTexts(state))
+        builder?.refresh(player, state)
     }
 
     companion object {

@@ -11,6 +11,8 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.GameNames
+import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
@@ -31,6 +33,11 @@ object ChopStepType : StepType {
     override val label = "chop"
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.WOODCUTTING)
+
+    override fun target(names: GameNames): StepTarget = StepTarget(TREE, TreeOptions(names))
+
+    override fun details(settings: StepSettings, context: FlowContext): List<String> =
+        listOf(StepAmount.detail(settings, unbounded = "until the bag is full"))
 
     override val fields = listOf(
         StepField.Choice(TREE, "tree") { CUTTABLE.map { it.name.lowercase() } },

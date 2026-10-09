@@ -6,6 +6,8 @@ import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.FakeNames
+import game.idle.flow.option.OptionIcon
 import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
 import io.luna.game.model.mob.Skill
@@ -87,5 +89,22 @@ class ChopStepTypeTest {
     @Test
     fun `a chop step shows the Woodcutting icon`() {
         assertEquals(StepIcon.Skill(Skill.WOODCUTTING), ChopStepType.icon(StepSettings("chop")))
+    }
+
+    @Test
+    fun `a chop step's target is its tree among the trees there are, shown with its logs`() {
+        val target = ChopStepType.target(FakeNames())
+
+        assertEquals(listOf<Any?>("tree", OptionIcon.Item(Tree.OAK.logId)), listOf(target.key, target.picked(chop("tree" to "oak"))?.icon))
+    }
+
+    @Test
+    fun `a chop step's slot says how many logs a lap cuts`() {
+        assertEquals(listOf("5 per lap"), ChopStepType.details(chop("tree" to "oak", "amount" to "5", "within" to "15"), FlowContext()))
+    }
+
+    @Test
+    fun `a chop step without a count cuts until the bag is full, within the default radius`() {
+        assertEquals(listOf("until the bag is full"), ChopStepType.details(chop(), FlowContext()))
     }
 }

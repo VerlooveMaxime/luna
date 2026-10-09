@@ -2,6 +2,7 @@ package game.idle.autopilot.smithing
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -76,13 +77,33 @@ class SmithingActivityTest {
     }
 
     @Test
+    fun `a block is reported with its reason`() {
+        smither.view = smithingView(listOf(inReach), barSlot = null)
+
+        activity.act()
+
+        assertEquals(SmithingBlockedReason.NOTHING_TO_SMITH.message, activity.blocked())
+    }
+
+    @Test
+    fun `a block clears on the next decision that is not one`() {
+        smither.view = smithingView(listOf(inReach), barSlot = null)
+        activity.act()
+        smither.view = smithingView(listOf(inReach))
+
+        activity.act()
+
+        assertNull(activity.blocked())
+    }
+
+    @Test
     fun `with no bars from the start the step waits and says why`() {
         smither.view = smithingView(listOf(inReach), barSlot = null)
 
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(listOf("tell ${SmithingBlockedReason.NOTHING_TO_SMITH.message}"), smither.steps)
+        assertEquals(SmithingBlockedReason.NOTHING_TO_SMITH.message, activity.blocked())
     }
 
     @Test
@@ -102,14 +123,16 @@ class SmithingActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("tell ${SmithingBlockedReason.NO_HAMMER.message}"), smither.steps)
+        assertEquals(SmithingBlockedReason.NO_HAMMER.message, activity.blocked())
     }
 
     @Test
     fun `an item above the player's level is refused`() {
-        SmithingActivity(smither, level = 15).act()
+        val highLevel = SmithingActivity(smither, level = 15)
 
-        assertEquals(listOf("tell ${SmithingBlockedReason.LEVEL_TOO_LOW.message}"), smither.steps)
+        highLevel.act()
+
+        assertEquals(SmithingBlockedReason.LEVEL_TOO_LOW.message, highLevel.blocked())
     }
 
     @Test
@@ -128,7 +151,7 @@ class SmithingActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("tell ${SmithingBlockedReason.NO_ANVIL.message}"), smither.steps)
+        assertEquals(SmithingBlockedReason.NO_ANVIL.message, activity.blocked())
     }
 
     @Test

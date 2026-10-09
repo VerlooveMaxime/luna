@@ -6,6 +6,7 @@ import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.FakeNames
 import game.idle.location.Tile
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -59,9 +60,9 @@ class FightStepTypeTest {
 
     @Test
     fun `when to eat is a share of hitpoints from 1 to 99 percent`() {
-        assertRejected("eat below takes a share of your hitpoints from 1 to 99 percent, not 'half'") { type.resolve(fight("npc" to "cow", "eatBelow" to "half"), FlowContext()) }
-        assertRejected("eat below takes a share of your hitpoints from 1 to 99 percent, not '0'") { type.resolve(fight("npc" to "cow", "eatBelow" to "0"), FlowContext()) }
-        assertRejected("eat below takes a share of your hitpoints from 1 to 99 percent, not '100'") { type.resolve(fight("npc" to "cow", "eatBelow" to "100"), FlowContext()) }
+        assertRejected("eat below takes 1 to 99 percent, not 'half'") { type.resolve(fight("npc" to "cow", "eatBelow" to "half"), FlowContext()) }
+        assertRejected("eat below takes 1 to 99 percent, not '0'") { type.resolve(fight("npc" to "cow", "eatBelow" to "0"), FlowContext()) }
+        assertRejected("eat below takes 1 to 99 percent, not '100'") { type.resolve(fight("npc" to "cow", "eatBelow" to "100"), FlowContext()) }
     }
 
     @Test
@@ -114,5 +115,35 @@ class FightStepTypeTest {
     @Test
     fun `a fight step shows the Attack icon`() {
         assertEquals(StepIcon.Skill(Skill.ATTACK), type.icon(fight()))
+    }
+
+    @Test
+    fun `a fight step's target is its npc among the fight targets`() {
+        val target = type.target(FakeNames())
+
+        assertEquals(listOf("npc", "Cow"), listOf(target.key, target.picked(fight("npc" to "cow"))?.label))
+    }
+
+    @Test
+    fun `a fight step's slot says its kills per lap and when it eats`() {
+        assertEquals(
+            listOf("5 kills per lap", "eat below 25%"),
+            type.details(fight("npc" to "cow", "amount" to "5", "eatBelow" to "25", "within" to "15"), FlowContext()),
+        )
+    }
+
+    @Test
+    fun `a fight step without a count fights with no end, eating below the default`() {
+        assertEquals(listOf("no end", "eat below 50%"), type.details(fight(), FlowContext()))
+    }
+
+    @Test
+    fun `eat below reads as the share it eats below`() {
+        assertEquals("eat below 75%", EatBelow.detail(fight("eatBelow" to "75")))
+    }
+
+    @Test
+    fun `eat below without a share reads as the default`() {
+        assertEquals("eat below 50%", EatBelow.detail(fight()))
     }
 }

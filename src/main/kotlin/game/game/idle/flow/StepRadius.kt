@@ -19,7 +19,7 @@ object StepRadius {
         val text = settings[KEY] ?: return DEFAULT
         val radius = text.toIntOrNull()
         if (radius == null || radius !in 1..Area.MAX_RADIUS) {
-            throw FlowError("within takes a number of tiles from 1 to ${Area.MAX_RADIUS}, not '$text'")
+            throw FlowError("within takes 1 to ${Area.MAX_RADIUS} tiles, not '$text'")
         }
         return radius
     }

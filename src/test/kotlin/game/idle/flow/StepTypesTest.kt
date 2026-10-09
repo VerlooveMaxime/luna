@@ -1,6 +1,8 @@
 package game.idle.flow
 
+import game.idle.flow.FlowContext
 import game.idle.flow.FakeStepType.Companion.step
+import game.idle.flow.option.FakeNames
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -41,5 +43,15 @@ class StepTypesTest {
     @Test
     fun `two kinds of step cannot share a name`() {
         assertThrows<IllegalArgumentException> { StepTypes(listOf(walk, FakeStepType("walk"))) }
+    }
+
+    @Test
+    fun `a kind of step has no target unless it picks one`() {
+        assertNull(rest.target(FakeNames()))
+    }
+
+    @Test
+    fun `a kind of step shows no details unless it has some`() {
+        assertEquals(emptyList<String>(), rest.details(step("rest"), FlowContext()))
     }
 }

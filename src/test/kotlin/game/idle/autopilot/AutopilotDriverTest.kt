@@ -32,6 +32,23 @@ class AutopilotDriverTest {
     }
 
     @Test
+    fun `the activity's block is the driver's`() {
+        activity.blocked = "Autopilot: you need an axe."
+
+        assertEquals("Autopilot: you need an axe.", driver.blocked())
+    }
+
+    @Test
+    fun `an activity is never blocked unless it says why`() {
+        val plain = object : AutopilotActivity {
+            override fun isBusy() = false
+            override fun act() = Unit
+        }
+
+        assertEquals(null, plain.blocked())
+    }
+
+    @Test
     fun `nothing happens before the player has been idle for the delay`() {
         driver.tick()
 

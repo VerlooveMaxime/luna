@@ -2,6 +2,7 @@ package game.idle.autopilot.making
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -44,13 +45,33 @@ class MakeActivityTest {
     }
 
     @Test
+    fun `a block is reported with its reason`() {
+        maker.view = window.copy(productOption = null)
+
+        activity.act()
+
+        assertEquals("Autopilot: this window does not make bread dough.", activity.blocked())
+    }
+
+    @Test
+    fun `a block clears on the next decision that is not one`() {
+        maker.view = window.copy(productOption = null)
+        activity.act()
+        maker.view = window
+
+        activity.act()
+
+        assertNull(activity.blocked())
+    }
+
+    @Test
     fun `a window that does not offer the product blocks once with a message`() {
         maker.view = window.copy(productOption = null)
 
         activity.act()
         activity.act()
 
-        assertEquals(listOf("tell Autopilot: this window does not make bread dough."), maker.steps)
+        assertEquals("Autopilot: this window does not make bread dough.", activity.blocked())
     }
 
     @Test
@@ -72,7 +93,7 @@ class MakeActivityTest {
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(listOf("tell Autopilot: you have nothing to make bread dough with."), maker.steps)
+        assertEquals("Autopilot: you have nothing to make bread dough with.", activity.blocked())
     }
 
     @Test
@@ -81,17 +102,25 @@ class MakeActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("tell Autopilot: you have nothing to make bread dough with."), maker.steps)
+        assertEquals("Autopilot: you have nothing to make bread dough with.", activity.blocked())
     }
 
     @Test
-    fun `combining twice with nothing made blocks once instead of trying forever`() {
+    fun `combining twice with nothing made stops trying`() {
         activity.act()
         activity.act()
         activity.act()
         activity.act()
 
-        assertEquals(listOf("use 0 on 1", "tell Autopilot: you cannot make bread dough yet."), maker.steps)
+        assertEquals(listOf("use 0 on 1"), maker.steps)
+    }
+
+    @Test
+    fun `combining twice with nothing made blocks the step`() {
+        activity.act()
+        activity.act()
+
+        assertEquals("Autopilot: you cannot make bread dough yet.", activity.blocked())
     }
 
     @Test

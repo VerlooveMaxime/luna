@@ -22,8 +22,6 @@ interface Banker {
     fun deposit(slots: List<Int>)
 
     fun close()
-
-    fun tell(message: String)
 }
 
 /** Carries out [BankPlanner] decisions; the step is over once the planner says [Done]. */
@@ -35,6 +33,8 @@ class BankActivity(private val banker: Banker) : StepActivity {
 
     override fun isDone(): Boolean = lastDecision == Done
 
+    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+
     override fun act() {
         val view = banker.look()
         val decision = BankPlanner.decide(view)
@@ -43,15 +43,13 @@ class BankActivity(private val banker: Banker) : StepActivity {
     }
 
     private fun carryOut(decision: BankDecision, view: BankView) = when (decision) {
+        // Nothing to do on a block (the autopilot tells it) or once done; as the last arm an empty body would leave
+        // JaCoCo a branch no test can reach, so these come first.
+        is Blocked -> Unit
+        Done -> Unit
         WalkToBooth -> banker.walkToBooth()
         Open -> banker.open()
         Deposit -> banker.deposit(view.depositableSlots)
         Close -> banker.close()
-        Done -> Unit
-        is Blocked -> tellOnce(decision)
-    }
-
-    private fun tellOnce(decision: Blocked) {
-        if (decision != lastDecision) banker.tell(decision.reason.message)
     }
 }

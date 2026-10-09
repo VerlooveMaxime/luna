@@ -72,4 +72,52 @@ class ClientFontTest {
 
         assertEquals(listOf(18, 189, 162), listOf("Oak", "Shrimps, anchovies (small fishing net)", "Witches experiment second form").map(font::width))
     }
+
+    /** Every glyph 5 pixels wide. */
+    private val even = ClientFont(IntArray(256) { 5 })
+
+    @Test
+    fun `a text that fits is kept whole`() {
+        assertEquals("abcd", even.fit("abcd", 20))
+    }
+
+    @Test
+    fun `a text too wide is cut with two dots at its end`() {
+        assertEquals("ab..", even.fit("abcdef", 20))
+    }
+
+    @Test
+    fun `a cut leaves no space before its dots`() {
+        assertEquals("ab..", even.fit("ab cdef", 25))
+    }
+
+    @Test
+    fun `a one-letter text too wide is only the dots`() {
+        assertEquals("..", even.fit("a", 4))
+    }
+
+    @Test
+    fun `a text where not even one letter fits before the dots is only the dots`() {
+        assertEquals("..", even.fit("abc", 9))
+    }
+
+    @Test
+    fun `words wrap at spaces into lines that fit`() {
+        assertEquals(listOf("ab cd", "ef"), even.wrap("ab cd ef", 25, lines = 2))
+    }
+
+    @Test
+    fun `a text that takes fewer lines than allowed is kept whole`() {
+        assertEquals(listOf("ab"), even.wrap("ab", 25, lines = 2))
+    }
+
+    @Test
+    fun `a word too wide for a line is cut`() {
+        assertEquals(listOf("ab.."), even.wrap("abcdefgh", 20, lines = 2))
+    }
+
+    @Test
+    fun `text past the last line joins it, cut with two dots`() {
+        assertEquals(listOf("ab cd", "ef.."), even.wrap("ab cd ef gh ij", 25, lines = 2))
+    }
 }

@@ -86,10 +86,6 @@ class LunaSmither(
         player.actions.interruptWeak()
     }
 
-    override fun tell(message: String) {
-        player.sendMessage(message)
-    }
-
     /** The slot of the bar while there are enough for one item. */
     private fun barSlot(): Int? =
         if (player.inventory.computeAmountForId(metal.id) >= table.bars) player.inventory.computeIndexForId(metal.id) else null

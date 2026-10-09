@@ -65,10 +65,6 @@ class LunaBanker(private val player: Player, private val boothTile: Position?) :
         player.overlays.closeWindows(false)
     }
 
-    override fun tell(message: String) {
-        player.sendMessage(message)
-    }
-
     private fun booth(): GameObject? = boothTile?.let { boothOn(world, it) }
 
     private fun depositableSlots(): List<Int> =

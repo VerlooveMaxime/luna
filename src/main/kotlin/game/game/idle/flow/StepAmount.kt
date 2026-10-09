@@ -25,6 +25,10 @@ object StepAmount {
         return count
     }
 
+    /** The builder's slot line: "5 per lap" ("5 kills per lap" with [counted] "kills"), or [unbounded] without a count. */
+    fun detail(settings: StepSettings, unbounded: String, counted: String = ""): String =
+        settings[KEY]?.let { count -> if (counted.isEmpty()) "$count per lap" else "$count $counted per lap" } ?: unbounded
+
     /** The count as a summary writes it before what the step works on: a number and a space, or nothing. */
     fun prefix(settings: StepSettings): String = settings[KEY]?.let { "$it " } ?: ""
 }

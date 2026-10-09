@@ -118,6 +118,15 @@ object HarnessPackets {
     fun searchName(serial: Int, text: String): GameMessage =
         GameMessage(106, MessageType.VAR, ByteMessage.raw().put(serial).putString(text))
 
+    /** Packet 123 in insert mode, as the IdleRS client sends a tile dropped on another (S04b). */
+    fun arrange(widget: Int, from: Int, to: Int): GameMessage =
+        GameMessage(
+            123,
+            MessageType.FIXED,
+            ByteMessage.raw().putShort(to, ByteOrder.LITTLE, ValueType.ADD).put(1, ValueType.ADD).putShort(widget, ValueType.ADD)
+                .putShort(from, ByteOrder.LITTLE),
+        )
+
     fun continueDialogue(): GameMessage = GameMessage(226, MessageType.FIXED, ByteMessage.raw().putShort(0))
 
     fun closeInterface(): GameMessage = GameMessage(110, MessageType.FIXED, ByteMessage.raw())

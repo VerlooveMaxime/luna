@@ -11,6 +11,9 @@ class FlowResolverTest {
     private val rest = FakeStepType("rest")
     private val resolver = FlowResolver(StepTypes(listOf(walk, rest)))
 
+    /** What a first step that gathers item 1 sets up. */
+    private val gatheredByStep1 = FlowContext(gathered = setOf(1), gatheredBy = mapOf(1 to 1))
+
     @Test
     fun `each step resolves through its kind of step`() {
         assertEquals(listOf(FakeStep("walk north"), FakeStep("rest")), resolver.resolve(listOf(step("walk", "north"), step("rest"))))
@@ -27,7 +30,7 @@ class FlowResolverTest {
     fun `each step relies on what the steps before it set up`() {
         resolver.resolve(listOf(step("walk", "gather"), step("rest"), step("rest")))
 
-        assertEquals(listOf(FlowContext(gathered = setOf(1)), FlowContext(gathered = setOf(1))), rest.contexts)
+        assertEquals(listOf(gatheredByStep1, gatheredByStep1), rest.contexts)
     }
 
     @Test
@@ -55,7 +58,7 @@ class FlowResolverTest {
     fun `the context before a step is what the steps before it set up`() {
         val steps = listOf(step("walk", "gather"), step("rest"), step("rest", "gather"))
 
-        assertEquals(FlowContext(gathered = setOf(1)), resolver.contextBefore(steps, 2))
+        assertEquals(gatheredByStep1, resolver.contextBefore(steps, 2))
     }
 
     @Test
@@ -68,5 +71,60 @@ class FlowResolverTest {
         val steps = listOf(step("walk", "bad"), step("fly"), step("rest"))
 
         assertEquals(FlowContext(), resolver.contextBefore(steps, 2))
+    }
+
+    @Test
+    fun `a step that can work has no problem`() {
+        assertEquals(listOf(null, null), resolver.problems(listOf(step("walk"), step("rest"))))
+    }
+
+    @Test
+    fun `a refused step's problem is its kind's message, without its number`() {
+        assertEquals(listOf("'bad' is refused"), resolver.problems(listOf(step("walk", "bad"))))
+    }
+
+    @Test
+    fun `a step of an unknown kind's problem says so`() {
+        assertEquals(listOf("'fly' is not a kind of step"), resolver.problems(listOf(step("fly"))))
+    }
+
+    @Test
+    fun `every step gets its own answer, past a refused one`() {
+        assertEquals(listOf("'fly' is not a kind of step", "'bad' is refused", null), resolver.problems(listOf(step("fly"), step("walk", "bad"), step("rest"))))
+    }
+
+    @Test
+    fun `a refused step adds nothing to what the steps after it rely on`() {
+        resolver.problems(listOf(step("walk", "bad"), step("rest")))
+
+        assertEquals(listOf(FlowContext()), rest.contexts)
+    }
+
+    @Test
+    fun `a step that works sets up what the steps after it rely on`() {
+        resolver.problems(listOf(step("walk", "gather"), step("rest")))
+
+        assertEquals(listOf(gatheredByStep1), rest.contexts)
+    }
+
+    @Test
+    fun `what a step gathers is known to come from it`() {
+        val steps = listOf(step("rest"), step("walk", "gather"), step("rest"))
+
+        assertEquals(mapOf(1 to 2), resolver.contextBefore(steps, 2).gatheredBy)
+    }
+
+    @Test
+    fun `an item gathered again stays with the step that first got it`() {
+        val steps = listOf(step("walk", "gather"), step("rest", "gather"), step("rest"))
+
+        assertEquals(mapOf(1 to 1), resolver.contextBefore(steps, 2).gatheredBy)
+    }
+
+    @Test
+    fun `a resolved flow tells each step where what it relies on comes from`() {
+        resolver.resolve(listOf(step("rest"), step("walk", "gather"), step("rest")))
+
+        assertEquals(mapOf(1 to 2), rest.contexts.last().gatheredBy)
     }
 }

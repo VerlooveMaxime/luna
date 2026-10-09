@@ -57,6 +57,7 @@ fun harnessRoutes(api: HarnessApi): List<Route> {
         action("search/pick") { body -> PlayerAction.SearchPick(body.int("index")) },
         action("search/name") { body -> PlayerAction.SearchName(body.string("text")) },
         bodilessAction("search/close", PlayerAction.SearchClose),
+        action("arrange") { body -> PlayerAction.Arrange(body.int("widget"), body.int("from"), body.int("to")) },
         bodilessAction("continue", PlayerAction.ContinueDialogue),
         bodilessAction("close", PlayerAction.CloseInterface),
         Route("GET", "/content/audit") { api.contentAudit() },

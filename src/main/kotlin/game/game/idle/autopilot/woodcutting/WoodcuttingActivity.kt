@@ -26,8 +26,6 @@ interface Woodcutter {
 
     /** Stops the chop in progress. */
     fun stop()
-
-    fun tell(message: String)
 }
 
 /**
@@ -54,6 +52,8 @@ class WoodcuttingActivity(
 
     override fun isDone(): Boolean = done
 
+    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+
     override fun act() {
         if (logsAtStart == null) logsAtStart = woodcutter.logs()
         if (amountReached()) {
@@ -77,19 +77,17 @@ class WoodcuttingActivity(
     }
 
     private fun carryOut(decision: WoodcuttingDecision) = when (decision) {
+        // A block does nothing here (the autopilot tells it); as the last arm its empty body would leave JaCoCo a branch
+        // no test can reach, so it comes first.
+        is Blocked -> Unit
         is Chop -> chop(decision.tree)
         is WalkTo -> woodcutter.walkTo(decision.tree)
         WalkToLocation -> woodcutter.walkToLocation()
-        is Blocked -> tellOnce(decision)
     }
 
     private fun chop(tree: TreeCandidate) {
         chopped = true
         woodcutter.chop(tree)
-    }
-
-    private fun tellOnce(decision: Blocked) {
-        if (decision != lastDecision) woodcutter.tell(decision.reason.message)
     }
 
     private fun decideSkippingRetries(view: WoodcuttingView): WoodcuttingDecision {

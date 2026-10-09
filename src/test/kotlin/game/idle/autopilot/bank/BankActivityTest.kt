@@ -2,6 +2,7 @@ package game.idle.autopilot.bank
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -16,7 +17,6 @@ class BankActivityTest {
         override fun open() { steps += "open" }
         override fun deposit(slots: List<Int>) { steps += "deposit $slots" }
         override fun close() { steps += "close" }
-        override fun tell(message: String) { steps += "tell $message" }
     }
 
     private val banker = FakeBanker(BankView(boothFound = true, boothUsableFromHere = false, bankOpen = false, depositableSlots = listOf(3, 5)))
@@ -48,12 +48,32 @@ class BankActivityTest {
     }
 
     @Test
-    fun `a missing booth is told once`() {
+    fun `a block is reported with its reason`() {
+        banker.view = banker.view.copy(boothFound = false)
+
+        activity.act()
+
+        assertEquals(BankBlockedReason.NO_BOOTH.message, activity.blocked())
+    }
+
+    @Test
+    fun `a block clears on the next decision that is not one`() {
+        banker.view = banker.view.copy(boothFound = false)
+        activity.act()
+        banker.view = banker.view.copy(boothFound = true)
+
+        activity.act()
+
+        assertNull(activity.blocked())
+    }
+
+    @Test
+    fun `a missing booth blocks the step`() {
         banker.view = banker.view.copy(boothFound = false)
 
         activity.act()
         activity.act()
 
-        assertEquals(listOf("tell ${BankBlockedReason.NO_BOOTH.message}"), banker.steps)
+        assertEquals(BankBlockedReason.NO_BOOTH.message, activity.blocked())
     }
 }

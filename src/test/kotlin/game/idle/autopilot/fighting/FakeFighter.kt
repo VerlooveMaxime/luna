@@ -41,8 +41,4 @@ class FakeFighter(var view: FightView) : Fighter {
     override fun stop() {
         steps += "stop"
     }
-
-    override fun tell(message: String) {
-        steps += "tell $message"
-    }
 }

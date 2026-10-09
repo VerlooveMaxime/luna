@@ -114,13 +114,4 @@ class LunaWalkerTest {
 
         assertFalse(OverlayType.WIDGET_STANDARD in player.overlays.overlayMap)
     }
-
-    @Test
-    fun `telling the player sends a chat box line`() {
-        val player = login()
-
-        LunaWalker(player, target).tell("On my way.")
-
-        assertEquals(listOf("On my way."), TestWorld.chatbox(player))
-    }
 }

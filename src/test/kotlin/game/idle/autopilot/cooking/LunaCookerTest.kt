@@ -249,13 +249,4 @@ class LunaCookerTest {
 
         assertFalse(LunaClicks.isActing(player))
     }
-
-    @Test
-    fun `telling the player sends a chat box line`() {
-        val player = login()
-
-        cooker(player).tell("No fire.")
-
-        assertEquals(listOf("No fire."), TestWorld.chatbox(player))
-    }
 }

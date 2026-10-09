@@ -3,6 +3,7 @@ package game.idle.autopilot.walk
 import game.idle.location.Tile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -64,18 +65,36 @@ class WalkActivityTest {
         activity.act()
 
         assertEquals(2, walker.walks)
-        assertEquals(emptyList<String>(), walker.told)
     }
 
     @Test
-    fun `a walk that ended where it started blocks once with a message`() {
+    fun `a walk that ended where it started stops walking`() {
         activity.act()
         activity.act()
         activity.act()
 
         assertEquals(1, walker.walks)
-        assertEquals(listOf(noWay), walker.told)
         assertFalse(activity.isDone())
+    }
+
+    @Test
+    fun `a block is reported with its reason`() {
+        activity.act()
+
+        activity.act()
+
+        assertEquals(noWay, activity.blocked())
+    }
+
+    @Test
+    fun `a block clears once the walk goes on`() {
+        activity.act()
+        activity.act()
+        walker.here = Tile(3060, 3060)
+
+        activity.act()
+
+        assertNull(activity.blocked())
     }
 
     @Test
@@ -87,18 +106,15 @@ class WalkActivityTest {
         activity.act()
         activity.act()
 
-        assertEquals(2, walker.walks)
-        assertEquals(listOf(noWay, noWay), walker.told)
+        assertEquals(listOf<Any?>(2, noWay), listOf(walker.walks, activity.blocked()))
     }
 
     @Test
-    fun `a target on another floor blocks once`() {
+    fun `a target on another floor blocks without walking`() {
         walker.here = Tile(3100, 3100, 1)
 
         activity.act()
-        activity.act()
 
-        assertEquals(0, walker.walks)
-        assertEquals(listOf("Autopilot: the walk step cannot change floors to reach 3100 3100."), walker.told)
+        assertEquals(listOf<Any?>(0, "Autopilot: the walk step cannot change floors to reach 3100 3100."), listOf(walker.walks, activity.blocked()))
     }
 }

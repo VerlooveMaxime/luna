@@ -70,7 +70,7 @@ class LunaTutorialTest {
     @AfterEach
     fun resetWorld() = TestWorld.reset()
 
-    private val idleUi = IdleUi { it.kind }
+    private val idleUi = IdleUi(summary = { it.kind })
 
     private fun tutorial() = LunaTutorial(TutorialScript(data), data, TestWorld.world, idleUi)
 

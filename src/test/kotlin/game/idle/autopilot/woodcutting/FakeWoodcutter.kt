@@ -28,8 +28,4 @@ class FakeWoodcutter(var view: WoodcuttingView) : Woodcutter {
     override fun stop() {
         steps += "stop"
     }
-
-    override fun tell(message: String) {
-        steps += "tell $message"
-    }
 }

@@ -11,6 +11,8 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.GameNames
+import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.fishing.catchFish.FishingSpot
@@ -54,6 +56,11 @@ object FishStepType : StepType {
     override val label = "fish"
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.FISHING)
+
+    override fun target(names: GameNames): StepTarget = StepTarget(FISH, FishOptions(names))
+
+    override fun details(settings: StepSettings, context: FlowContext): List<String> =
+        listOf(StepAmount.detail(settings, unbounded = "until the bag is full"))
 
     override val fields = listOf(
         StepField.Choice(FISH, "fish") { FishingMethod.ALL.map { it.word } },

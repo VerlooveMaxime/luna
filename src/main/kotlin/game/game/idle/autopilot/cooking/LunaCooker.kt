@@ -69,10 +69,6 @@ class LunaCooker(private val player: Player, private val rawIds: Set<Int>, priva
         player.actions.interruptWeak()
     }
 
-    override fun tell(message: String) {
-        player.sendMessage(message)
-    }
-
     private fun cookingWindowOpen(): Boolean = player.overlays.has(CookingInterface::class.java)
 
     // Objects found through their chunk are always ACTIVE, so only the id needs checking.

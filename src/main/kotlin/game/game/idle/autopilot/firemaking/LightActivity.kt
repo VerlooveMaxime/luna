@@ -17,8 +17,6 @@ interface Lighter {
 
     /** Steps onto a free tile next to the player; false when there is none. */
     fun stepAside(): Boolean
-
-    fun tell(message: String)
 }
 
 /**
@@ -77,6 +75,8 @@ class LightActivity(private val lighter: Lighter, private val amount: Int? = nul
 
     override fun isDone(): Boolean = done
 
+    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+
     override fun act() {
         val view = lighter.look()
         val start = logsAtStart ?: view.logs.also { logsAtStart = it }
@@ -90,13 +90,8 @@ class LightActivity(private val lighter: Lighter, private val amount: Int? = nul
     /** What was done: a step aside with nowhere to go blocks instead. */
     private fun carryOut(decision: LightDecision): LightDecision = when (decision) {
         is Light -> decision.also { lighter.light(it.slot) }
-        StepAside -> if (lighter.stepAside()) decision else tellOnce(Blocked(LightBlockedReason.NO_ROOM))
+        StepAside -> if (lighter.stepAside()) decision else Blocked(LightBlockedReason.NO_ROOM)
         Done -> decision.also { done = true }
-        is Blocked -> tellOnce(decision)
-    }
-
-    private fun tellOnce(decision: Blocked): Blocked {
-        if (decision != lastDecision) lighter.tell(decision.reason.message)
-        return decision
+        is Blocked -> decision
     }
 }

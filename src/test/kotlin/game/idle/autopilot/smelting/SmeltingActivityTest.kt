@@ -4,6 +4,7 @@ import game.skill.smithing.BarType
 import game.testworld.TestWorld
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -58,13 +59,33 @@ class SmeltingActivityTest {
     }
 
     @Test
+    fun `a block is reported with its reason`() {
+        smelter.view = smeltingView(listOf(inReach), oreSlot = null)
+
+        activity.act()
+
+        assertEquals(SmeltingBlockedReason.NOTHING_TO_SMELT.message, activity.blocked())
+    }
+
+    @Test
+    fun `a block clears on the next decision that is not one`() {
+        smelter.view = smeltingView(listOf(inReach), oreSlot = null)
+        activity.act()
+        smelter.view = smeltingView(listOf(inReach))
+
+        activity.act()
+
+        assertNull(activity.blocked())
+    }
+
+    @Test
     fun `with no ore from the start the step waits and says why`() {
         smelter.view = smeltingView(listOf(inReach), oreSlot = null)
 
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(listOf("tell ${SmeltingBlockedReason.NOTHING_TO_SMELT.message}"), smelter.steps)
+        assertEquals(SmeltingBlockedReason.NOTHING_TO_SMELT.message, activity.blocked())
     }
 
     @Test
@@ -84,7 +105,7 @@ class SmeltingActivityTest {
 
         steel.act()
 
-        assertEquals(listOf("tell ${SmeltingBlockedReason.LEVEL_TOO_LOW.message}"), smelter.steps)
+        assertEquals(SmeltingBlockedReason.LEVEL_TOO_LOW.message, steel.blocked())
     }
 
     @Test
@@ -103,7 +124,7 @@ class SmeltingActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("tell ${SmeltingBlockedReason.NO_FURNACE.message}"), smelter.steps)
+        assertEquals(SmeltingBlockedReason.NO_FURNACE.message, activity.blocked())
     }
 
     @Test

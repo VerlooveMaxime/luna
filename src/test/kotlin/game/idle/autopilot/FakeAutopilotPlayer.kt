@@ -10,11 +10,17 @@ class FakeAutopilotPlayer(override val username: String, state: IdleState = Idle
         private set
     var stateReads = 0
         private set
+    var stateWrites = 0
+        private set
 
     override var idleState: IdleState = state
         get() {
             stateReads++
             return field
+        }
+        set(value) {
+            stateWrites++
+            field = value
         }
 
     override var tile: Tile = Tile(3200, 3200)

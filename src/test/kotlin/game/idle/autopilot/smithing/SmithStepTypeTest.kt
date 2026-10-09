@@ -6,12 +6,14 @@ import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.FakeNames
 import game.idle.location.Tile
 import game.skill.smithing.BarType
 import game.skill.smithing.smithBar.SmithingTable
 import game.testworld.TestWorld
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -123,5 +125,20 @@ class SmithStepTypeTest {
     @Test
     fun `a smith step shows the Smithing icon`() {
         assertEquals(StepIcon.Skill(Skill.SMITHING), SmithStepType.icon(StepSettings("smith")))
+    }
+
+    @Test
+    fun `a smith step's slot says its metal and item, all of them`() {
+        assertEquals(listOf("bronze dagger", "all of them"), SmithStepType.details(smith("metal" to "bronze", "item" to "dagger"), FlowContext()))
+    }
+
+    @Test
+    fun `a smith step with nothing picked says it is not set yet`() {
+        assertEquals(listOf("not set yet", "5 per lap"), SmithStepType.details(smith("amount" to "5", "within" to "15"), FlowContext()))
+    }
+
+    @Test
+    fun `a smith step has no target until its metal and item become one setting`() {
+        assertNull(SmithStepType.target(FakeNames()))
     }
 }

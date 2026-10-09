@@ -4,6 +4,7 @@ import game.skill.mining.Ore
 import game.testworld.TestWorld
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -15,7 +16,8 @@ class MiningActivityTest {
     private val inReach = near.copy(distance = 0, usableFromHere = true)
 
     private val miner = FakeMiner(miningView(listOf(inReach)))
-    private val activity = MiningActivity(miner, Ore.COPPER)
+    /** Built on first use, once `@BeforeEach` has loaded the cache `Ore` needs; built with the test, it failed whenever this class ran first. */
+    private val activity by lazy { MiningActivity(miner, Ore.COPPER) }
 
     /** Luna's ores name themselves from the item definitions, which need the cache. */
     @BeforeEach
@@ -54,7 +56,7 @@ class MiningActivityTest {
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(listOf("tell ${MiningBlockedReason.INVENTORY_FULL.message}"), miner.steps)
+        assertEquals(MiningBlockedReason.INVENTORY_FULL.message, activity.blocked())
     }
 
     @Test
@@ -117,7 +119,27 @@ class MiningActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("walk to 3201,3200", "tell ${MiningBlockedReason.NO_ROCK.message}"), miner.steps)
+        assertEquals(listOf("walk to 3201,3200"), miner.steps)
+    }
+
+    @Test
+    fun `a block is reported with its reason`() {
+        miner.view = miningView(emptyList())
+
+        activity.act()
+
+        assertEquals(MiningBlockedReason.NO_ROCK.message, activity.blocked())
+    }
+
+    @Test
+    fun `a block clears on the next decision that is not one`() {
+        miner.view = miningView(emptyList())
+        activity.act()
+        miner.view = miningView(listOf(inReach))
+
+        activity.act()
+
+        assertNull(activity.blocked())
     }
 
     @Test
@@ -127,7 +149,7 @@ class MiningActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("tell ${MiningBlockedReason.NO_ROCK.message}"), miner.steps)
+        assertEquals(MiningBlockedReason.NO_ROCK.message, activity.blocked())
     }
 
     @Test

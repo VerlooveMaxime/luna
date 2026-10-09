@@ -20,9 +20,9 @@ class StepRadiusTest {
 
     @Test
     fun `a radius is a number of tiles from 1 to 32`() {
-        assertRejected("within takes a number of tiles from 1 to 32, not 'far'") { StepRadius.read(within("far")) }
-        assertRejected("within takes a number of tiles from 1 to 32, not '0'") { StepRadius.read(within("0")) }
-        assertRejected("within takes a number of tiles from 1 to 32, not '33'") { StepRadius.read(within("33")) }
+        assertRejected("within takes 1 to 32 tiles, not 'far'") { StepRadius.read(within("far")) }
+        assertRejected("within takes 1 to 32 tiles, not '0'") { StepRadius.read(within("0")) }
+        assertRejected("within takes 1 to 32 tiles, not '33'") { StepRadius.read(within("33")) }
     }
 
     @Test

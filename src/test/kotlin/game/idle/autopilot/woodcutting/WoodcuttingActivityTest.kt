@@ -2,6 +2,7 @@ package game.idle.autopilot.woodcutting
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -41,7 +42,7 @@ class WoodcuttingActivityTest {
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(listOf("tell ${BlockedReason.INVENTORY_FULL.message}"), woodcutter.steps)
+        assertEquals(BlockedReason.INVENTORY_FULL.message, activity.blocked())
     }
 
     @Test
@@ -52,7 +53,7 @@ class WoodcuttingActivityTest {
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(listOf("walk to 3171,3444", "tell ${BlockedReason.INVENTORY_FULL.message}"), woodcutter.steps)
+        assertEquals(listOf("walk to 3171,3444"), woodcutter.steps)
     }
 
     @Test
@@ -152,36 +153,23 @@ class WoodcuttingActivityTest {
     }
 
     @Test
-    fun `a blocked autopilot tells the player why`() {
+    fun `a block is reported with its reason`() {
         woodcutter.view = view(listOf(nearTree), hasUsableAxe = false)
 
         activity.act()
 
-        assertEquals(listOf("tell ${BlockedReason.NO_AXE.message}"), woodcutter.steps)
+        assertEquals(BlockedReason.NO_AXE.message, activity.blocked())
     }
 
     @Test
-    fun `the same reason is told only once`() {
-        woodcutter.view = view(listOf(nearTree), hasUsableAxe = false)
-
-        activity.act()
-        activity.act()
-
-        assertEquals(listOf("tell ${BlockedReason.NO_AXE.message}"), woodcutter.steps)
-    }
-
-    @Test
-    fun `the reason is told again once the autopilot has moved on in between`() {
+    fun `a block clears on the next decision that is not one`() {
         woodcutter.view = view(listOf(nearTreeInReach), hasUsableAxe = false)
         activity.act()
         woodcutter.view = view(listOf(nearTreeInReach), hasUsableAxe = true)
-        activity.act()
-        woodcutter.view = view(listOf(nearTreeInReach), hasUsableAxe = false)
 
         activity.act()
 
-        val noAxe = "tell ${BlockedReason.NO_AXE.message}"
-        assertEquals(listOf(noAxe, "chop 3171,3444", noAxe), woodcutter.steps)
+        assertNull(activity.blocked())
     }
 
     @Test
@@ -236,7 +224,7 @@ class WoodcuttingActivityTest {
         activity.act()
 
         assertEquals(
-            listOf("walk to 3171,3444", "walk to 3170,3454", "tell ${BlockedReason.NO_AXE.message}", "walk to 3170,3454"),
+            listOf("walk to 3171,3444", "walk to 3170,3454", "walk to 3170,3454"),
             woodcutter.steps,
         )
     }
@@ -248,6 +236,6 @@ class WoodcuttingActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("walk to 3171,3444", "tell ${BlockedReason.NO_TREE.message}"), woodcutter.steps)
+        assertEquals(BlockedReason.NO_TREE.message, activity.blocked())
     }
 }

@@ -103,10 +103,6 @@ class LunaFighter(private val player: Player, private val target: FightTarget, p
         player.actions.interruptWeak()
     }
 
-    override fun tell(message: String) {
-        player.sendMessage(message)
-    }
-
     /** Counts the watched npc once it is dead, then watches whatever npc of the target the player fights now. */
     private fun watchKills() {
         val dead = watched?.takeIf { !it.isAlive }

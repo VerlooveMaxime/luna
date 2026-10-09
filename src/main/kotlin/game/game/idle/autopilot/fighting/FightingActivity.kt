@@ -37,8 +37,6 @@ interface Fighter {
 
     /** Stops the fighting in progress. */
     fun stop()
-
-    fun tell(message: String)
 }
 
 data class Health(val hitpoints: Int, val full: Int) {
@@ -143,6 +141,8 @@ class FightingActivity(private val fighter: Fighter, private val eatBelow: Int, 
 
     override fun isDone(): Boolean = done
 
+    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+
     override fun stopReason(): String? = stopReason
 
     override fun act() {
@@ -161,6 +161,9 @@ class FightingActivity(private val fighter: Fighter, private val eatBelow: Int, 
     private fun amountReached(): Boolean = amount != null && fighter.kills() >= amount
 
     private fun carryOut(decision: FightDecision) = when (decision) {
+        // A block does nothing here (the autopilot tells it); as the last arm its empty body would leave JaCoCo a branch
+        // no test can reach, so it comes first.
+        is Blocked -> Unit
         is Attack -> {
             killsAtLastAttack = fighter.kills()
             fighter.attack(decision.target)
@@ -173,7 +176,6 @@ class FightingActivity(private val fighter: Fighter, private val eatBelow: Int, 
         is Flee -> flee(decision.health)
         is OutOfFood -> stopReason = FightingPlanner.outOfFood(decision.health)
         WalkToLocation -> fighter.walkToLocation()
-        is Blocked -> if (decision != lastDecision) fighter.tell(decision.reason.message) else Unit
     }
 
     private fun flee(health: Health) {

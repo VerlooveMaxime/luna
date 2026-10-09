@@ -19,6 +19,7 @@ import game.idle.ui.SearchNameEvent
 import game.idle.ui.SearchPageEvent
 import game.idle.ui.SearchPickEvent
 import game.idle.ui.SearchPrompts
+import io.luna.game.event.impl.ArrangeItemEvent
 import io.luna.game.event.impl.ButtonClickEvent
 import io.luna.game.event.impl.CloseInterfaceEvent
 import io.luna.game.event.impl.CommandEvent
@@ -766,6 +767,17 @@ class LunaHarnessApiTest {
         agent()
 
         assertEquals(409, status { api().act("agent_a", PlayerAction.SearchClose) })
+    }
+
+    @Test
+    fun `a drag reaches the game as the client's arrange packet on the next tick`() {
+        agent()
+        val moves = record(ArrangeItemEvent::class.java) { "${it.widgetId} ${it.fromIndex} ${it.toIndex} ${it.insertionMode}" }
+
+        api().act("agent_a", PlayerAction.Arrange(30711, 0, 2))
+        TestWorld.tick()
+
+        assertEquals(listOf("30711 0 2 1"), moves)
     }
 
     @Test

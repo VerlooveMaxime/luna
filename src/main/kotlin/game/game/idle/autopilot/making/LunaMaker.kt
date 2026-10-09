@@ -58,10 +58,6 @@ class LunaMaker(private val player: Player, private val recipe: Recipe) : Maker 
         player.actions.interruptWeak()
     }
 
-    override fun tell(message: String) {
-        player.sendMessage(message)
-    }
-
     /** Whether the player carries everything [way] takes. */
     private fun carried(way: RecipeWay): Boolean =
         way.inputs.all { (id, count) -> player.inventory.computeAmountForId(id) >= count } &&

@@ -27,8 +27,6 @@ interface Miner {
 
     /** Stops the mining in progress. */
     fun stop()
-
-    fun tell(message: String)
 }
 
 /**
@@ -50,6 +48,8 @@ class MiningActivity(private val miner: Miner, private val ore: Ore, private val
     override fun isBusy(): Boolean = miner.isBusy() && !amountReached()
 
     override fun isDone(): Boolean = done
+
+    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
 
     override fun act() {
         if (oresAtStart == null) oresAtStart = miner.ores()
@@ -75,19 +75,17 @@ class MiningActivity(private val miner: Miner, private val ore: Ore, private val
     }
 
     private fun carryOut(decision: MiningDecision) = when (decision) {
+        // A block does nothing here (the autopilot tells it); as the last arm its empty body would leave JaCoCo a branch
+        // no test can reach, so it comes first.
+        is Blocked -> Unit
         is Mine -> mine(decision.rock)
         is WalkTo -> miner.walkTo(decision.rock)
         WalkToLocation -> miner.walkToLocation()
-        is Blocked -> tellOnce(decision)
     }
 
     private fun mine(rock: RockCandidate) {
         mined = true
         miner.mine(rock)
-    }
-
-    private fun tellOnce(decision: Blocked) {
-        if (decision != lastDecision) miner.tell(decision.reason.message)
     }
 
     private fun decideSkippingRetries(view: MiningView): MiningDecision {

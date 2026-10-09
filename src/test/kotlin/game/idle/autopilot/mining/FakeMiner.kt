@@ -30,10 +30,6 @@ class FakeMiner(var view: MiningView) : Miner {
     override fun stop() {
         steps += "stop"
     }
-
-    override fun tell(message: String) {
-        steps += "tell $message"
-    }
 }
 
 fun rock(x: Int, y: Int, distance: Int, usableFromHere: Boolean = false) =

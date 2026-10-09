@@ -74,11 +74,12 @@ class BankStepTest {
     }
 
     @Test
-    fun `with no bank on the player's floor the step says so`() {
+    fun `with no bank on the player's floor the step blocks`() {
         val player = TestWorld.login("banker", Position(3195, 3200, 1))
+        val activity = BankStep(listOf(near)).activity(player, runTile)
 
-        BankStep(listOf(near)).activity(player, runTile).act()
+        activity.act()
 
-        assertEquals(listOf("Autopilot: there is no bank booth this step can use on this floor."), TestWorld.chatbox(player))
+        assertEquals("Autopilot: there is no bank booth this step can use on this floor.", activity.blocked())
     }
 }

@@ -10,6 +10,19 @@ fun interface OptionSource {
     fun options(context: OptionContext): List<StepOption>
 }
 
+/**
+ * The setting under [key] a step mainly picks, which the builder's slot shows by its option's label and picture, and
+ * the options [source] offers for it; [default] is what a step without the setting picks.
+ */
+data class StepTarget(val key: String, val source: OptionSource, val default: String? = null) {
+
+    /** The option [settings] picked, null when nothing is picked or the value is no option. */
+    fun picked(settings: StepSettings): StepOption? {
+        val value = settings[key] ?: default ?: return null
+        return source.options(OptionContext(input = InputSource.BANK)).firstOrNull { it.value == value }
+    }
+}
+
 /** Where a processing step takes what it works on: what the steps before it get, or the bank (Maxime, S01). */
 enum class InputSource { EARLIER_STEPS, BANK }
 

@@ -242,13 +242,4 @@ class LunaBankerTest {
 
         assertFalse(player.bank.isOpen)
     }
-
-    @Test
-    fun `telling the player sends a chat box line`() {
-        val player = login()
-
-        LunaBanker(player, boothTile).tell("Your inventory is empty.")
-
-        assertEquals(listOf("Your inventory is empty."), TestWorld.chatbox(player))
-    }
 }

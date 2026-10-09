@@ -28,8 +28,4 @@ class FakeFisher(var view: FishingView) : Fisher {
     override fun stop() {
         steps += "stop"
     }
-
-    override fun tell(message: String) {
-        steps += "tell $message"
-    }
 }

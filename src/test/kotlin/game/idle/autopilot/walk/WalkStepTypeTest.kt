@@ -6,8 +6,10 @@ import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.FakeNames
 import game.idle.location.Tile
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -71,5 +73,20 @@ class WalkStepTypeTest {
     @Test
     fun `a walk step shows the minimap's red flag`() {
         assertEquals(StepIcon.Media("mapmarker", 0), WalkStepType.icon(StepSettings("walk")))
+    }
+
+    @Test
+    fun `a walk step's slot says where it walks to`() {
+        assertEquals(listOf("to 3086, 3233"), WalkStepType.details(walk("3086 3233"), FlowContext()))
+    }
+
+    @Test
+    fun `a walk step without a tile says it is not set yet`() {
+        assertEquals(listOf("not set yet"), WalkStepType.details(walk(), FlowContext()))
+    }
+
+    @Test
+    fun `a walk step has no target`() {
+        assertNull(WalkStepType.target(FakeNames()))
     }
 }

@@ -6,6 +6,7 @@ import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepIcon
+import game.idle.flow.StepInput
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.location.Tile
@@ -22,13 +23,16 @@ object LightStepType : StepType {
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.FIREMAKING)
 
+    override fun details(settings: StepSettings, context: FlowContext): List<String> =
+        listOf(StepInput.detail("Logs", context, LOG_IDS), StepAmount.detail(settings, unbounded = "all of them"))
+
     override val fields = listOf(StepAmount.field(unbounded = "all"))
 
     override fun summary(settings: StepSettings): String = "light ${StepAmount.prefix(settings)}".trimEnd()
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val logs = context.gathered intersect LOG_IDS
-        if (logs.isEmpty()) throw FlowError("light comes after a chop step, so the flow knows which logs to light")
+        if (logs.isEmpty()) throw FlowError("light needs logs from a step before it")
         return LightStep(logs, StepAmount.read(settings))
     }
 

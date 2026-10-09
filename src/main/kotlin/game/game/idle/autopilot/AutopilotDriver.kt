@@ -9,6 +9,9 @@ interface AutopilotActivity {
 
     /** Why the whole autopilot must stop now, or null to carry on. */
     fun stopReason(): String? = null
+
+    /** Why the activity cannot go on for now, as a full "Autopilot: ..." line, or null while it can. */
+    fun blocked(): String? = null
 }
 
 /**
@@ -24,6 +27,8 @@ class AutopilotDriver(private val activity: AutopilotActivity, private val decis
     }
 
     fun stopReason(): String? = activity.stopReason()
+
+    fun blocked(): String? = activity.blocked()
 
     fun tick() {
         if (activity.isBusy()) {

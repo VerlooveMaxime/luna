@@ -1,5 +1,7 @@
 package game.idle.flow
 
+import game.idle.flow.option.GameNames
+import game.idle.flow.option.StepTarget
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
@@ -41,6 +43,12 @@ interface StepType {
 
     /** What the builder's slot shows for this kind, which may follow the settings (make shows its recipe's skill). */
     fun icon(settings: StepSettings): StepIcon
+
+    /** The setting the step mainly picks and the options it offers, named with [names]; null for a kind with none. */
+    fun target(names: GameNames): StepTarget? = null
+
+    /** The lines the builder's slot shows under the target (how much, from where), [context] what the steps before set up. */
+    fun details(settings: StepSettings, context: FlowContext): List<String> = emptyList()
 
     /** Checks [settings] against the data and what the steps before it set up; throws [FlowError]. */
     fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep
@@ -85,13 +93,31 @@ sealed interface WorkSpot {
 
 /**
  * What a step can rely on from the steps before it in the flow: where they work, the item ids they get, and the npcs
- * the last fight step fights (a pick-up step offers their drops).
+ * the last fight step fights (a pick-up step offers their drops). [gatheredBy] numbers the step (from 1) that first gets
+ * each gathered id; the resolver fills it in, so the builder can say where a step's input comes from.
  */
 data class FlowContext(
     val workSpot: WorkSpot = WorkSpot.RunTile,
     val gathered: Set<Int> = emptySet(),
     val fought: Set<Int> = emptySet(),
-)
+    val gatheredBy: Map<Int, Int> = emptyMap(),
+) {
+    /** The numbers of the steps that get any of [items], in flow order. */
+    fun stepsGathering(items: Set<Int>): List<Int> = gatheredBy.filterKeys { it in items }.values.distinct().sorted()
+}
+
+/** The builder's slot line saying which earlier steps a processing step takes [what] from: "Logs from step 2". */
+object StepInput {
+
+    fun detail(what: String, context: FlowContext, items: Set<Int>): String {
+        val steps = context.stepsGathering(items)
+        return when (steps.size) {
+            0 -> "No ${what.lowercase()} before it"
+            1 -> "$what from step ${steps.single()}"
+            else -> "$what from steps ${steps.joinToString(", ")}"
+        }
+    }
+}
 
 /** A step checked against the data: every name became the thing it names, so it can run. */
 interface ResolvedStep {

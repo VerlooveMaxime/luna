@@ -2,6 +2,7 @@ package game.idle
 
 import game.idle.flow.StepSettings
 import game.idle.location.Tile
+import io.luna.game.model.mob.attr.Attribute
 import io.luna.util.GsonUtils
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -94,6 +95,29 @@ class IdleStateTest {
         val saved = GsonUtils.GSON.fromJson("""{ "flow": [], "step_index": 2, "running": false }""", IdleState::class.java)
 
         assertEquals(IdleState.TUTORIAL_DONE, saved.tutorialStep)
+    }
+
+    @Test
+    fun `a block is never saved`() {
+        val json = Attribute.getGsonInstance().toJson(state.copy(blocked = "Autopilot: you need an axe."))
+
+        assertFalse(json.contains("blocked"))
+    }
+
+    @Test
+    fun `a state read back has no block`() {
+        val gson = Attribute.getGsonInstance()
+
+        assertEquals(state, gson.fromJson(gson.toJson(state.copy(blocked = "Autopilot: you need an axe.")), IdleState::class.java))
+    }
+
+    @Test
+    fun `starting, stopping, a new flow and a new step all clear the block`() {
+        val blocked = state.copy(blocked = "Autopilot: you need an axe.")
+
+        val cleared = listOf(blocked.started(runTile), blocked.stopped(), blocked.withFlow(emptyList()), blocked.atStep(0))
+
+        assertEquals(listOf<String?>(null, null, null, null), cleared.map { it.blocked })
     }
 
     @Test

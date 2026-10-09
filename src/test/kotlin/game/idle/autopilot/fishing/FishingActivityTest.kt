@@ -3,6 +3,7 @@ package game.idle.autopilot.fishing
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -61,7 +62,27 @@ class FishingActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("tell ${FishingBlockedReason.NO_SPOT.message}"), fisher.steps)
+        assertEquals(FishingBlockedReason.NO_SPOT.message, activity.blocked())
+    }
+
+    @Test
+    fun `a block is reported with its reason`() {
+        fisher.view = view().copy(hasTool = false)
+
+        activity.act()
+
+        assertEquals(FishingBlockedReason.NO_TOOL.message, activity.blocked())
+    }
+
+    @Test
+    fun `a block clears on the next decision that is not one`() {
+        fisher.view = view().copy(hasTool = false)
+        activity.act()
+        fisher.view = view()
+
+        activity.act()
+
+        assertNull(activity.blocked())
     }
 
     @Test
@@ -71,7 +92,7 @@ class FishingActivityTest {
         activity.act()
         activity.act()
 
-        assertEquals(listOf("tell ${FishingBlockedReason.NO_TOOL.message}"), fisher.steps)
+        assertEquals(FishingBlockedReason.NO_TOOL.message, activity.blocked())
         assertFalse(activity.isDone())
     }
 
@@ -81,7 +102,7 @@ class FishingActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("tell ${FishingBlockedReason.LEVEL_TOO_LOW.message}"), fisher.steps)
+        assertEquals(FishingBlockedReason.LEVEL_TOO_LOW.message, activity.blocked())
     }
 
     @Test
@@ -91,7 +112,7 @@ class FishingActivityTest {
         activity.act()
         activity.act()
 
-        assertEquals(listOf("tell ${FishingBlockedReason.NO_BAIT.message}"), fisher.steps)
+        assertEquals(FishingBlockedReason.NO_BAIT.message, activity.blocked())
         assertFalse(activity.isDone())
     }
 
@@ -103,7 +124,7 @@ class FishingActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("fish 3100,3092", "tell ${FishingBlockedReason.NO_BAIT.message}"), fisher.steps)
+        assertEquals(FishingBlockedReason.NO_BAIT.message, activity.blocked())
         assertFalse(activity.isDone())
     }
 
@@ -113,7 +134,7 @@ class FishingActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("tell ${FishingBlockedReason.NO_TOOL.message}"), fisher.steps)
+        assertEquals(FishingBlockedReason.NO_TOOL.message, activity.blocked())
     }
 
     @Test
@@ -122,7 +143,7 @@ class FishingActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("tell ${FishingBlockedReason.LEVEL_TOO_LOW.message}"), fisher.steps)
+        assertEquals(FishingBlockedReason.LEVEL_TOO_LOW.message, activity.blocked())
     }
 
     @Test
@@ -131,7 +152,7 @@ class FishingActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("tell ${FishingBlockedReason.INVENTORY_FULL.message}"), fisher.steps)
+        assertEquals(FishingBlockedReason.INVENTORY_FULL.message, activity.blocked())
         assertFalse(activity.isDone())
     }
 

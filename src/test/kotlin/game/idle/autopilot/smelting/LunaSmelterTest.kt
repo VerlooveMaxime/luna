@@ -248,13 +248,4 @@ class LunaSmelterTest {
 
         assertFalse(LunaClicks.isActing(player))
     }
-
-    @Test
-    fun `telling the player sends a chat box line`() {
-        val player = login()
-
-        smelter(player).tell("No ore.")
-
-        assertEquals(listOf("No ore."), TestWorld.chatbox(player))
-    }
 }

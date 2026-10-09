@@ -20,12 +20,14 @@ object DropStepType : StepType {
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Media("sideicons", 3)
 
+    override fun details(settings: StepSettings, context: FlowContext): List<String> = listOf("what was gathered")
+
     override val fields = emptyList<StepField>()
 
     override fun summary(settings: StepSettings): String = "drop"
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
-        if (context.gathered.isEmpty()) throw FlowError("drop comes after a chop step, so the flow knows what to drop")
+        if (context.gathered.isEmpty()) throw FlowError("drop needs a gathering step before it")
         return DropStep(context.gathered)
     }
 }

@@ -1,5 +1,6 @@
 package game.harness
 
+import game.idle.ui.BuilderSlotsMessageWriter
 import game.idle.ui.HintArrowMessageWriter
 import game.idle.ui.MapPickMessageWriter
 import game.idle.ui.PictureEncoding
@@ -10,6 +11,7 @@ import game.idle.ui.SearchRow
 import game.idle.ui.SearchRowsMessageWriter
 import game.idle.ui.StatusOverlayMessageWriter
 import game.idle.ui.StickyChatboxMessageWriter
+import game.idle.ui.WidgetColourMessageWriter
 import game.idle.ui.WidgetPicture
 import io.luna.game.model.mob.overlay.GameTabSet.TabIndex
 import io.luna.net.codec.ByteMessage
@@ -53,6 +55,14 @@ object EncodedMessageDecoder {
             )
         },
         SearchRowsMessageWriter.OPCODE to Layout("SearchRowsMessageWriter", ::searchRows),
+        BuilderSlotsMessageWriter.OPCODE to Layout("BuilderSlotsMessageWriter") {
+            it.byte()
+            mapOf("slots" to it.short())
+        },
+        WidgetColourMessageWriter.OPCODE to Layout("WidgetColourMessageWriter") {
+            val widgetId = it.short()
+            mapOf("widgetId" to widgetId, "rgb" to WidgetColourMessageWriter.unpacked(it.short(transform = ValueType.ADD)))
+        },
         StickyChatboxMessageWriter.OPCODE to Layout("StickyChatboxMessageWriter") {
             mapOf("id" to it.short(ByteOrder.LITTLE))
         },

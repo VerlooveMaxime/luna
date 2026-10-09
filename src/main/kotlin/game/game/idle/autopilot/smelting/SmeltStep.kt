@@ -11,6 +11,8 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.GameNames
+import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.smithing.BarType
@@ -30,6 +32,11 @@ object SmeltStepType : StepType {
     override val label = "smelt"
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.SMITHING)
+
+    override fun target(names: GameNames): StepTarget = StepTarget(BAR, BarOptions(names))
+
+    override fun details(settings: StepSettings, context: FlowContext): List<String> =
+        listOf(StepAmount.detail(settings, unbounded = "all of them"))
 
     override val fields = listOf(
         StepField.Choice(BAR, "bar") { BarType.entries.sortedBy { it.level }.map { it.name.lowercase() } },

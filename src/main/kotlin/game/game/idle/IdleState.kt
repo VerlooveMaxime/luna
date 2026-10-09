@@ -15,6 +15,8 @@ import io.luna.game.model.mob.Player
  * the one the current flow was last loaded from or saved to. [tutorialStep] is the value of a `TutorialStep`; a save
  * from before the tutorial existed loads as finished. [countBoostedLevels] is the player's choice to have the builder's
  * options judged on boosted levels instead of the unboosted ones; a flow that stops when a boost wears off is theirs.
+ * [blocked] is why the running step cannot go on for now (a full "Autopilot: ..." line), shown on the overlay and the
+ * builder; transient, so a save never holds it, and cleared whenever the flow starts, stops or changes step.
  *
  * The flow was kept as typed lines under the name `flow` until 2026-10-07; a save still holding them loads with an
  * empty flow, which the next save makes final.
@@ -31,11 +33,12 @@ data class IdleState(
     val savedFlows: List<SavedFlow> = emptyList(),
     val savedSlot: Int? = null,
     val countBoostedLevels: Boolean = false,
+    @Transient val blocked: String? = null,
 ) {
     fun withFlow(steps: List<StepSettings>): IdleState =
-        copy(steps = steps, stepIndex = 0, running = false, runTile = null, laps = 0)
+        copy(steps = steps, stepIndex = 0, running = false, runTile = null, laps = 0, blocked = null)
 
-    fun atStep(index: Int): IdleState = copy(stepIndex = index)
+    fun atStep(index: Int): IdleState = copy(stepIndex = index, blocked = null)
 
     /** Back to the first step, to be started from wherever the player then stands. */
     fun fromStart(): IdleState = copy(stepIndex = 0, runTile = null, laps = 0)
@@ -43,9 +46,9 @@ data class IdleState(
     fun lapped(): IdleState = copy(laps = laps + 1)
 
     /** Running, from [here] unless it was started before and is resuming. */
-    fun started(here: Tile): IdleState = copy(running = true, runTile = runTile ?: here)
+    fun started(here: Tile): IdleState = copy(running = true, runTile = runTile ?: here, blocked = null)
 
-    fun stopped(): IdleState = copy(running = false)
+    fun stopped(): IdleState = copy(running = false, blocked = null)
 
     companion object {
         const val TUTORIAL_DONE = 1000

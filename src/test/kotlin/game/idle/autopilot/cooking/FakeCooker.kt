@@ -34,8 +34,4 @@ class FakeCooker(var view: CookingView) : Cooker {
     override fun stop() {
         steps += "stop"
     }
-
-    override fun tell(message: String) {
-        steps += "tell $message"
-    }
 }

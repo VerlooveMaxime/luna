@@ -196,6 +196,13 @@ class HarnessRoutesTest {
     }
 
     @Test
+    fun `arrange passes the layer and both places`() {
+        post("/player/agent_a/arrange", """{"widget": 30711, "from": 0, "to": 2}""")
+
+        assertEquals("agent_a" to PlayerAction.Arrange(30711, 0, 2), lastAction())
+    }
+
+    @Test
     fun `button passes the id`() {
         post("/player/agent_a/button", """{"id": 2482}""")
 

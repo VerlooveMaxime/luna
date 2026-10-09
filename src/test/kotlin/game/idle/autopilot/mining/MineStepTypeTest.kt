@@ -6,6 +6,7 @@ import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.LunaGameNames
 import game.idle.location.Tile
 import game.skill.mining.Ore
 import game.testworld.TestWorld
@@ -82,5 +83,22 @@ class MineStepTypeTest {
     @Test
     fun `a mine step shows the Mining icon`() {
         assertEquals(StepIcon.Skill(Skill.MINING), MineStepType.icon(StepSettings("mine")))
+    }
+
+    @Test
+    fun `a mine step's target is its ore among the ores there are`() {
+        val target = MineStepType.target(LunaGameNames)
+
+        assertEquals(listOf("ore", "Copper ore"), listOf(target.key, target.picked(mine("ore" to "copper"))?.label))
+    }
+
+    @Test
+    fun `a mine step's slot says how many ores a lap mines`() {
+        assertEquals(listOf("5 per lap"), MineStepType.details(mine("ore" to "copper", "amount" to "5", "within" to "15"), FlowContext()))
+    }
+
+    @Test
+    fun `a mine step without a count mines until the bag is full, within the default radius`() {
+        assertEquals(listOf("until the bag is full"), MineStepType.details(mine(), FlowContext()))
     }
 }

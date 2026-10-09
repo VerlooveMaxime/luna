@@ -4,6 +4,7 @@ import game.idle.autopilot.PlaceCandidate
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -66,13 +67,33 @@ class CookingActivityTest {
     }
 
     @Test
+    fun `a block is reported with its reason`() {
+        cooker.view = view(emptyList())
+
+        activity.act()
+
+        assertEquals(CookingBlockedReason.NO_FIRE.message, activity.blocked())
+    }
+
+    @Test
+    fun `a block clears on the next decision that is not one`() {
+        cooker.view = view(emptyList())
+        activity.act()
+        cooker.view = view()
+
+        activity.act()
+
+        assertNull(activity.blocked())
+    }
+
+    @Test
     fun `at the work spot with no fire the step blocks once with a message`() {
         cooker.view = view(emptyList())
 
         activity.act()
         activity.act()
 
-        assertEquals(listOf("tell ${CookingBlockedReason.NO_FIRE.message}"), cooker.steps)
+        assertEquals(CookingBlockedReason.NO_FIRE.message, activity.blocked())
         assertFalse(activity.isDone())
     }
 
@@ -97,7 +118,7 @@ class CookingActivityTest {
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(listOf("tell ${CookingBlockedReason.NOTHING_TO_COOK.message}"), cooker.steps)
+        assertEquals(CookingBlockedReason.NOTHING_TO_COOK.message, activity.blocked())
     }
 
     @Test

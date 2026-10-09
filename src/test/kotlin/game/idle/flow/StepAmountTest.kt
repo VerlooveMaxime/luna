@@ -38,4 +38,19 @@ class StepAmountTest {
         assertEquals(listOf("", "1", "5", "10"), field.choices(StepSettings("chop")))
         assertEquals(listOf("full", "5"), listOf(field.display(""), field.display("5")))
     }
+
+    @Test
+    fun `a slot reads an amount per lap`() {
+        assertEquals("5 per lap", StepAmount.detail(amount("5"), unbounded = "all of them"))
+    }
+
+    @Test
+    fun `a slot reads an amount with what it counts`() {
+        assertEquals("5 kills per lap", StepAmount.detail(amount("5"), unbounded = "no end", counted = "kills"))
+    }
+
+    @Test
+    fun `a slot reads no amount as the step's own word`() {
+        assertEquals("no end", StepAmount.detail(StepSettings("fight"), unbounded = "no end", counted = "kills"))
+    }
 }

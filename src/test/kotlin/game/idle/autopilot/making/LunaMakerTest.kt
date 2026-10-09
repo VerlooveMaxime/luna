@@ -259,15 +259,6 @@ class LunaMakerTest {
         assertFalse(LunaClicks.isActing(player))
     }
 
-    @Test
-    fun `telling the player sends a chat box line`() {
-        val player = login()
-
-        maker(player).tell("No flour.")
-
-        assertEquals(listOf("No flour."), TestWorld.chatbox(player))
-    }
-
     private companion object {
         const val BUTTON = 12398
     }

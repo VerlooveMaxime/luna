@@ -5,6 +5,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
+import game.idle.flow.option.FakeNames
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -80,5 +81,22 @@ class MakeStepTypeTest {
     @Test
     fun `a make step shows Crafting for a product nothing makes`() {
         assertEquals(StepIcon.Skill(Skill.CRAFTING), make.icon(settings("product" to "gold")))
+    }
+
+    @Test
+    fun `a make step's target is its product among the recipes`() {
+        val target = make.target(FakeNames())
+
+        assertEquals(listOf("product", "Bread dough"), listOf(target.key, target.picked(settings("product" to "bread dough"))?.label))
+    }
+
+    @Test
+    fun `a make step's slot says how many a lap makes`() {
+        assertEquals(listOf("5 per lap"), make.details(settings("product" to "bread dough", "amount" to "5"), FlowContext()))
+    }
+
+    @Test
+    fun `a make step without a count makes all of them`() {
+        assertEquals(listOf("all of them"), make.details(settings(), FlowContext()))
     }
 }

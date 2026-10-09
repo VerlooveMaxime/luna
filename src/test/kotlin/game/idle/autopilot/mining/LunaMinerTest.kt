@@ -229,13 +229,4 @@ class LunaMinerTest {
 
         assertFalse(LunaClicks.isActing(player))
     }
-
-    @Test
-    fun `telling the player sends a chat box line`() {
-        val player = login()
-
-        miner(player).tell("You need a pickaxe.")
-
-        assertEquals(listOf("You need a pickaxe."), TestWorld.chatbox(player))
-    }
 }

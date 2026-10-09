@@ -60,10 +60,6 @@ class LunaMiner(private val player: Player, private val ore: Ore, private val ar
         player.actions.interruptWeak()
     }
 
-    override fun tell(message: String) {
-        player.sendMessage(message)
-    }
-
     // Objects found through their chunk are always ACTIVE, so only the id needs checking.
     private fun rocks(): List<GameObject> =
         world.locator.findObjects(anchor, area.radius) { it.id in rockIds && it.isVisibleTo(player) }.toList()

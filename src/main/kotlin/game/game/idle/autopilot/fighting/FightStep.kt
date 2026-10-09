@@ -11,6 +11,8 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.GameNames
+import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
@@ -33,10 +35,13 @@ object EatBelow {
         val text = settings[KEY] ?: return DEFAULT
         val percent = text.toIntOrNull()
         if (percent == null || percent !in 1..99) {
-            throw FlowError("eat below takes a share of your hitpoints from 1 to 99 percent, not '$text'")
+            throw FlowError("eat below takes 1 to 99 percent, not '$text'")
         }
         return percent
     }
+
+    /** The builder's slot line: "eat below 50%". */
+    fun detail(settings: StepSettings): String = "eat below ${settings[KEY] ?: DEFAULT}%"
 
     /** The end of a summary: nothing for the default. */
     fun suffix(settings: StepSettings): String =
@@ -59,6 +64,11 @@ class FightStepType(private val catalog: FightTargetCatalog) : StepType {
     override val label = "fight"
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.ATTACK)
+
+    override fun target(names: GameNames): StepTarget = StepTarget(NPC, FightOptions(catalog))
+
+    override fun details(settings: StepSettings, context: FlowContext): List<String> =
+        listOf(StepAmount.detail(settings, unbounded = "no end", counted = "kills"), EatBelow.detail(settings))
 
     override val fields = listOf(
         StepField.Choice(NPC, "npc") { names },

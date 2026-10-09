@@ -8,6 +8,8 @@ import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
+import game.idle.flow.option.GameNames
+import game.idle.flow.option.StepTarget
 import game.idle.location.Bank
 import game.idle.location.BankCatalog
 import game.idle.location.Tile
@@ -29,6 +31,11 @@ class BankStepType(private val catalog: BankCatalog) : StepType {
     override val label = "bank"
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.BANK
+
+    override fun target(names: GameNames): StepTarget = StepTarget(BANK, BankOptions(catalog), default = NEAREST)
+
+    /** It deposits all but tools (axes, pickaxes, the hammer, the tinderbox, fishing tools and bait). */
+    override fun details(settings: StepSettings, context: FlowContext): List<String> = listOf("keeps tools")
 
     override val fields = listOf(StepField.Choice(BANK, "bank") { listOf(NEAREST) + ids })
 

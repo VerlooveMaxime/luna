@@ -5,6 +5,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
+import game.idle.flow.option.FakeNames
 import game.idle.location.Bank
 import game.idle.location.BankCatalog
 import game.idle.location.Tile
@@ -67,5 +68,22 @@ class BankStepTypeTest {
     @Test
     fun `a bank step shows the minimap's bank icon`() {
         assertEquals(StepIcon.Media("mapfunction", 5), bank.icon(settings()))
+    }
+
+    @Test
+    fun `a bank step's target is its bank among the banks`() {
+        val target = bank.target(FakeNames())
+
+        assertEquals(listOf("bank", "Draynor bank"), listOf(target.key, target.picked(settings("draynor"))?.label))
+    }
+
+    @Test
+    fun `a bank step without a bank picks the nearest`() {
+        assertEquals("Nearest bank", bank.target(FakeNames()).picked(settings())?.label)
+    }
+
+    @Test
+    fun `a bank step's slot says it keeps tools`() {
+        assertEquals(listOf("keeps tools"), bank.details(settings(), FlowContext()))
     }
 }

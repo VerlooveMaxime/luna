@@ -31,10 +31,6 @@ class FakeSmelter(var view: SmeltingView) : Smelter {
     override fun stop() {
         steps += "stop"
     }
-
-    override fun tell(message: String) {
-        steps += "tell $message"
-    }
 }
 
 fun furnace(x: Int, y: Int, distance: Int, usableFromHere: Boolean = false) =

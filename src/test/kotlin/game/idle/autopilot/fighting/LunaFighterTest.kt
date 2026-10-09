@@ -470,15 +470,6 @@ class LunaFighterTest {
     }
 
     @Test
-    fun `telling the player sends a chat box line`() {
-        val player = login()
-
-        fighter(player).tell("Nothing to fight.")
-
-        assertEquals(listOf("Nothing to fight."), TestWorld.chatbox(player))
-    }
-
-    @Test
     fun `a fight step fights through a Luna fighter`() {
         val step = FightStep(chickens, radius = 10, WorkSpot.RunTile)
 

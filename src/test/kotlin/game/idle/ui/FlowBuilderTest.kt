@@ -40,7 +40,7 @@ class FlowBuilderTest {
     private val bankNearest = StepSettings("bank", mapOf("bank" to "nearest"))
     private val drop = StepSettings("drop")
     private val chopBankDrop = listOf(chopNormal, bankNearest, drop)
-    private val dropFirst = "Step 1: drop comes after a chop step, so the flow knows what to drop"
+    private val dropFirst = "Step 1: drop needs a gathering step before it"
 
     private fun click(widgetId: Int, times: Int = 1) = repeat(times) { builder.click(player, widgetId) }
 

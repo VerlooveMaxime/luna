@@ -6,10 +6,12 @@ import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.FakeNames
 import game.idle.location.Tile
 import game.testworld.TestWorld
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -51,7 +53,7 @@ class CookStepTypeTest {
     fun `cook with nothing raw gathered before it is rejected`() {
         val error = assertThrows<FlowError> { CookStepType.resolve(cook(), FlowContext(gathered = setOf(logs))) }
 
-        assertEquals("cook comes after a fish step, so the flow knows what to cook", error.message)
+        assertEquals("cook needs raw food from a step before it", error.message)
     }
 
     @Test
@@ -70,5 +72,25 @@ class CookStepTypeTest {
     @Test
     fun `a cook step shows the Cooking icon`() {
         assertEquals(StepIcon.Skill(Skill.COOKING), CookStepType.icon(StepSettings("cook")))
+    }
+
+    @Test
+    fun `a cook step's slot names the step its raw food comes from, all of it`() {
+        assertEquals(listOf("Raw food from step 1", "all of them"), CookStepType.details(cook(), FlowContext(gatheredBy = mapOf(317 to 1))))
+    }
+
+    @Test
+    fun `a cook step's slot says how much a lap cooks`() {
+        assertEquals("5 per lap", CookStepType.details(cook("amount" to "5"), FlowContext()).last())
+    }
+
+    @Test
+    fun `a cook step with no raw food before it says so`() {
+        assertEquals("No raw food before it", CookStepType.details(cook(), FlowContext()).first())
+    }
+
+    @Test
+    fun `a cook step has no target yet`() {
+        assertNull(CookStepType.target(FakeNames()))
     }
 }

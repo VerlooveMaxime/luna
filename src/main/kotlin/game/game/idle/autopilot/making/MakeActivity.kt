@@ -24,8 +24,6 @@ interface Maker {
 
     /** Stops the making in progress. */
     fun stop()
-
-    fun tell(message: String)
 }
 
 /**
@@ -74,7 +72,7 @@ object MakePlanner {
 /**
  * The make step: makes [recipe]'s product until [amount] were made or, without an amount, until an ingredient runs
  * out. Making that reaches the amount is stopped at once. Combining twice in a row with nothing made and no window in
- * between means it cannot be made, and the step says so instead of trying forever.
+ * between means it cannot be made, and the step blocks instead of trying forever.
  */
 class MakeActivity(private val maker: Maker, private val recipe: Recipe, private val amount: Int? = null) : StepActivity {
 
@@ -86,6 +84,8 @@ class MakeActivity(private val maker: Maker, private val recipe: Recipe, private
     override fun isBusy(): Boolean = maker.isBusy() && !amountReached()
 
     override fun isDone(): Boolean = done
+
+    override fun blocked(): String? = (lastDecision as? Blocked)?.let { message(it.reason) }
 
     override fun act() {
         val start = productsAtStart ?: maker.products().also { productsAtStart = it }
@@ -105,7 +105,7 @@ class MakeActivity(private val maker: Maker, private val recipe: Recipe, private
     /** What was done: a second fruitless use blocks instead. */
     private fun carryOut(decision: MakeDecision, start: Int): MakeDecision = when (decision) {
         is Use -> if (fruitless() && maker.products() == productsAtLastUse) {
-            tellOnce(Blocked(MakeBlockedReason.CANNOT_MAKE))
+            Blocked(MakeBlockedReason.CANNOT_MAKE)
         } else {
             decision.also {
                 productsAtLastUse = maker.products()
@@ -114,7 +114,7 @@ class MakeActivity(private val maker: Maker, private val recipe: Recipe, private
         }
         is Choose -> decision.also { maker.choose(it.option, times(start)) }
         Done -> decision.also { done = true }
-        is Blocked -> tellOnce(decision)
+        is Blocked -> decision
     }
 
     /** The last use made nothing, or the step already found it cannot make the product and nothing changed since. */
@@ -122,11 +122,6 @@ class MakeActivity(private val maker: Maker, private val recipe: Recipe, private
 
     /** As many as are left to make, or a full inventory's worth: Luna stops once an ingredient runs out. */
     private fun times(start: Int): Int = amount?.let { it - (maker.products() - start) } ?: ALL
-
-    private fun tellOnce(decision: Blocked): Blocked {
-        if (decision != lastDecision) maker.tell(message(decision.reason))
-        return decision
-    }
 
     private fun message(reason: MakeBlockedReason): String = when (reason) {
         MakeBlockedReason.NO_INGREDIENTS -> "Autopilot: you have nothing to make ${recipe.name} with."

@@ -67,10 +67,6 @@ class LunaFisher(private val player: Player, private val method: FishingMethod, 
         player.actions.interruptWeak()
     }
 
-    override fun tell(message: String) {
-        player.sendMessage(message)
-    }
-
     private fun hasBait(): Boolean = method.tool.bait?.let { player.inventory.contains(it) } ?: true
 
     private fun spots(): List<Npc> = world.locator.findNpcs(anchor, area.radius) { it.id in method.spotIds }.toList()

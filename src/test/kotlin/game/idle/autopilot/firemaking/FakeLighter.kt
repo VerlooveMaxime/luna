@@ -19,8 +19,4 @@ class FakeLighter(var view: LightView) : Lighter {
         steps += "step aside"
         return aside
     }
-
-    override fun tell(message: String) {
-        steps += "tell $message"
-    }
 }

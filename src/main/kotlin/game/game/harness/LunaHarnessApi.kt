@@ -152,6 +152,7 @@ class LunaHarnessApi(
                 val serial = prompt(player, NamePrompt::class.java, "name prompt").serial
                 send(player, "search name", HarnessPackets.searchName(serial, action.text))
             }
+            is PlayerAction.Arrange -> send(player, "arrange", HarnessPackets.arrange(action.widget, action.from, action.to))
             PlayerAction.SearchClose -> {
                 val serial = prompt(player, ChatboxPrompt::class.java, "chatbox prompt").serial
                 send(player, "search close", HarnessPackets.searchClosed(serial))

@@ -177,13 +177,4 @@ class LunaLighterTest {
 
         assertFalse(lighter(player).stepAside())
     }
-
-    @Test
-    fun `telling the player sends a chat box line`() {
-        val player = login()
-
-        lighter(player).tell("No tinderbox.")
-
-        assertEquals(listOf("No tinderbox."), TestWorld.chatbox(player))
-    }
 }

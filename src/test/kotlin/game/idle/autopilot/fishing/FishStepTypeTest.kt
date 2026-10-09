@@ -6,6 +6,7 @@ import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
+import game.idle.flow.option.LunaGameNames
 import game.idle.location.Tile
 import game.skill.fishing.catchFish.FishingSpot
 import game.skill.fishing.catchFish.Tool
@@ -120,5 +121,22 @@ class FishStepTypeTest {
     @Test
     fun `a fish step shows the Fishing icon`() {
         assertEquals(StepIcon.Skill(Skill.FISHING), FishStepType.icon(StepSettings("fish")))
+    }
+
+    @Test
+    fun `a fish step's target is its fishing method, named by its fish and tool`() {
+        val target = FishStepType.target(LunaGameNames)
+
+        assertEquals(listOf("fish", "Shrimps, anchovies (small fishing net)"), listOf(target.key, target.picked(fish("fish" to "shrimp"))?.label))
+    }
+
+    @Test
+    fun `a fish step's slot says how many fish a lap catches`() {
+        assertEquals(listOf("5 per lap"), FishStepType.details(fish("fish" to "shrimp", "amount" to "5", "within" to "15"), FlowContext()))
+    }
+
+    @Test
+    fun `a fish step without a count fishes until the bag is full, within the default radius`() {
+        assertEquals(listOf("until the bag is full"), FishStepType.details(fish(), FlowContext()))
     }
 }

@@ -49,6 +49,28 @@ class FlowRunnerTest {
     }
 
     @Test
+    fun `the current step's block is the flow's`() {
+        val runner = runner("chop")
+        runner.act()
+
+        player.started.single().blocked = "Autopilot: you need an axe."
+
+        assertEquals("Autopilot: you need an axe.", runner.blocked())
+    }
+
+    @Test
+    fun `nothing is blocked between two steps`() {
+        val runner = runner("chop", "drop")
+        runner.act()
+        player.started.single().blocked = "Autopilot: you need an axe."
+        player.started.single().done = true
+
+        runner.act()
+
+        assertEquals(null, runner.blocked())
+    }
+
+    @Test
     fun `a step never stops the flow unless it says why`() {
         val plain = object : StepActivity {
             override fun isBusy() = false

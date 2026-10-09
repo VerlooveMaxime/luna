@@ -251,13 +251,4 @@ class LunaWoodcutterTest {
 
         assertFalse(LunaClicks.isActing(player))
     }
-
-    @Test
-    fun `telling the player sends a chat box line`() {
-        val player = login()
-
-        LunaWoodcutter(player, spot).tell("You need an axe.")
-
-        assertEquals(listOf("You need an axe."), TestWorld.chatbox(player))
-    }
 }

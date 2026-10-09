@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test
 class IdleUiTest {
 
     private val running = IdleState(steps = listOf(StepSettings("chop"), StepSettings("drop")), stepIndex = 1, running = true)
-    private val idleUi = IdleUi { it.kind }
+    private val idleUi = IdleUi({ it.kind })
 
     @AfterEach
     fun resetWorld() = TestWorld.reset()

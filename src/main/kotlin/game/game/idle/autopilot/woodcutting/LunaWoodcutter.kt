@@ -59,10 +59,6 @@ class LunaWoodcutter(private val player: Player, private val spot: WoodcuttingSp
         player.actions.interruptWeak()
     }
 
-    override fun tell(message: String) {
-        player.sendMessage(message)
-    }
-
     /** What the walk packet sent before every world click does, without interrupting the current action. */
     private fun closeWindowsLikeAClick() {
         player.overlays.closeWindows(false)

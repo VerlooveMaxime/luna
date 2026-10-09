@@ -35,10 +35,6 @@ class FakeSmither(var view: SmithingView) : Smither {
     override fun stop() {
         steps += "stop"
     }
-
-    override fun tell(message: String) {
-        steps += "tell $message"
-    }
 }
 
 fun anvil(x: Int, y: Int, distance: Int, usableFromHere: Boolean = false) =

@@ -9,6 +9,8 @@ import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
+import game.idle.flow.option.GameNames
+import game.idle.flow.option.StepTarget
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
@@ -36,6 +38,10 @@ class MakeStepType(private val catalog: RecipeCatalog) : StepType {
     /** The recipe's skill, Crafting until one is picked (S01). */
     override fun icon(settings: StepSettings): StepIcon =
         StepIcon.Skill(settings[PRODUCT]?.let { catalog.find(it.lowercase()) }?.skill ?: Skill.CRAFTING)
+
+    override fun target(names: GameNames): StepTarget = StepTarget(PRODUCT, MakeOptions(catalog))
+
+    override fun details(settings: StepSettings, context: FlowContext): List<String> = listOf(StepAmount.detail(settings, unbounded = "all of them"))
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val name = settings[PRODUCT]?.lowercase() ?: throw FlowError("make needs a product")

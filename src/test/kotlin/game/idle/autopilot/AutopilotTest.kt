@@ -60,6 +60,100 @@ class AutopilotTest {
     }
 
     @Test
+    fun `a step's block goes into the state`() {
+        autopilot.start(idle)
+        activity.blocked = "Autopilot: you need an axe."
+
+        scheduler.tick()
+
+        assertEquals("Autopilot: you need an axe.", idle.idleState.blocked)
+    }
+
+    @Test
+    fun `a block that did not change is not written again`() {
+        autopilot.start(idle)
+        activity.blocked = "Autopilot: you need an axe."
+        scheduler.tick()
+        val writes = idle.stateWrites
+
+        scheduler.tick()
+
+        assertEquals(writes, idle.stateWrites)
+    }
+
+    @Test
+    fun `a block leaves the state once the step goes on`() {
+        autopilot.start(idle)
+        activity.blocked = "Autopilot: you need an axe."
+        scheduler.tick()
+        activity.blocked = null
+
+        scheduler.tick()
+
+        assertEquals(null, idle.idleState.blocked)
+    }
+
+    @Test
+    fun `a step that starts being blocked says so in the chat box, pointing at its slot`() {
+        val second = FakeAutopilotPlayer("maxime", IdleState(steps = listOf(LOOP, LOOP), stepIndex = 1))
+        autopilot.start(second)
+        activity.blocked = "Autopilot: you need an axe."
+
+        scheduler.tick()
+
+        assertEquals(listOf("Autopilot: step 2 cannot work yet. See its slot warning in the builder."), second.told)
+    }
+
+    @Test
+    fun `a block that goes on is told once`() {
+        autopilot.start(idle)
+        activity.blocked = "Autopilot: you need an axe."
+        scheduler.tick()
+
+        scheduler.tick()
+
+        assertEquals(1, idle.told.size)
+    }
+
+    @Test
+    fun `another reason while still blocked tells nothing more`() {
+        autopilot.start(idle)
+        activity.blocked = "Autopilot: you need an axe."
+        scheduler.tick()
+        activity.blocked = "Autopilot: your inventory is full."
+
+        scheduler.tick()
+
+        assertEquals(1, idle.told.size)
+    }
+
+    @Test
+    fun `a block that clears tells nothing`() {
+        autopilot.start(idle)
+        activity.blocked = "Autopilot: you need an axe."
+        scheduler.tick()
+        activity.blocked = null
+
+        scheduler.tick()
+
+        assertEquals(1, idle.told.size)
+    }
+
+    @Test
+    fun `a new block after one cleared is told again`() {
+        autopilot.start(idle)
+        activity.blocked = "Autopilot: you need an axe."
+        scheduler.tick()
+        activity.blocked = null
+        scheduler.tick()
+        activity.blocked = "Autopilot: you need an axe."
+
+        scheduler.tick()
+
+        assertEquals(2, idle.told.size)
+    }
+
+    @Test
     fun `a flow started without a run tile takes the player's tile`() {
         autopilot.start(idle)
 

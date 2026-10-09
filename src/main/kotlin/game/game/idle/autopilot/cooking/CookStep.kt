@@ -6,6 +6,7 @@ import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepIcon
+import game.idle.flow.StepInput
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
@@ -28,6 +29,9 @@ object CookStepType : StepType {
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.COOKING)
 
+    override fun details(settings: StepSettings, context: FlowContext): List<String> =
+        listOf(StepInput.detail("Raw food", context, Food.RAW_TO_FOOD.keys), StepAmount.detail(settings, unbounded = "all of them"))
+
     override val fields = listOf(StepAmount.field(unbounded = "all"), StepRadius.field())
 
     override fun summary(settings: StepSettings): String =
@@ -35,7 +39,7 @@ object CookStepType : StepType {
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val raw = context.gathered intersect Food.RAW_TO_FOOD.keys
-        if (raw.isEmpty()) throw FlowError("cook comes after a fish step, so the flow knows what to cook")
+        if (raw.isEmpty()) throw FlowError("cook needs raw food from a step before it")
         return CookStep(raw, StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
     }
 }

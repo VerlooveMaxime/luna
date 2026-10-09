@@ -63,10 +63,6 @@ class LunaSmelter(private val player: Player, private val bar: BarType, private 
         player.actions.interruptWeak()
     }
 
-    override fun tell(message: String) {
-        player.sendMessage(message)
-    }
-
     private fun hasOreForABar(): Boolean = listOfNotNull(bar.oreRequired.first, bar.oreRequired.second).all(::carries)
 
     private fun carries(ore: Item): Boolean = player.inventory.computeAmountForId(ore.id) >= ore.amount

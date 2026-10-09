@@ -30,8 +30,6 @@ interface Smelter {
 
     /** Stops the smelting in progress. */
     fun stop()
-
-    fun tell(message: String)
 }
 
 /** What the smelt step knows when it decides: [oreSlot] holds the ore to use, while there is ore for a bar. */
@@ -109,6 +107,8 @@ class SmeltingActivity(private val smelter: Smelter, private val bar: BarType, p
 
     override fun isDone(): Boolean = done
 
+    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+
     override fun act() {
         val start = barsAtStart ?: smelter.bars().also { barsAtStart = it }
         if (amountReached()) {
@@ -128,11 +128,13 @@ class SmeltingActivity(private val smelter: Smelter, private val bar: BarType, p
     }
 
     private fun carryOut(decision: SmeltingDecision) = when (decision) {
+        // A block does nothing here (the autopilot tells it); as the last arm its empty body would leave JaCoCo a branch
+        // no test can reach, so it comes first.
+        is Blocked -> Unit
         is Smelt -> smelter.smelt(decision.furnace, decision.slot)
         is WalkTo -> smelter.walkTo(decision.furnace)
         WalkToLocation -> smelter.walkToLocation()
         Done -> done = true
-        is Blocked -> if (decision != lastDecision) smelter.tell(decision.reason.message) else Unit
     }
 
     private fun decideSkippingRetries(view: SmeltingView, smeltedSome: Boolean): SmeltingDecision {

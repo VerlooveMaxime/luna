@@ -4,7 +4,9 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
+import game.idle.flow.option.FakeNames
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -27,7 +29,7 @@ class DropStepTypeTest {
     fun `drop before anything was gathered is rejected`() {
         val error = assertThrows<FlowError> { DropStepType.resolve(drop, FlowContext()) }
 
-        assertEquals("drop comes after a chop step, so the flow knows what to drop", error.message)
+        assertEquals("drop needs a gathering step before it", error.message)
     }
 
     @Test
@@ -40,5 +42,15 @@ class DropStepTypeTest {
     @Test
     fun `a drop step shows the inventory tab's backpack`() {
         assertEquals(StepIcon.Media("sideicons", 3), DropStepType.icon(drop))
+    }
+
+    @Test
+    fun `a drop step's slot says it drops what was gathered`() {
+        assertEquals(listOf("what was gathered"), DropStepType.details(drop, FlowContext()))
+    }
+
+    @Test
+    fun `a drop step has no target`() {
+        assertNull(DropStepType.target(FakeNames()))
     }
 }
