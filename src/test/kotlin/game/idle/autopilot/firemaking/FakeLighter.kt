@@ -1,6 +1,6 @@
 package game.idle.autopilot.firemaking
 
-/** Records each step as text, for example `light 3`; [aside] is what a step aside answers. */
+/** Records each step as text, for example `light 3`; [aside] is what a move to a free tile answers. */
 class FakeLighter(var view: LightView) : Lighter {
 
     var busy = false
@@ -15,8 +15,8 @@ class FakeLighter(var view: LightView) : Lighter {
         steps += "light $slot"
     }
 
-    override fun stepAside(): Boolean {
-        steps += "step aside"
+    override fun moveToFreeTile(): Boolean {
+        steps += "move to a free tile"
         return aside
     }
 }

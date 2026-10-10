@@ -6,10 +6,15 @@ import game.idle.flow.option.StepTarget
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
-/** A resolved step that names itself; whatever it lists in [gathers] the steps after it can rely on. */
-data class FakeStep(val name: String, val gathers: Set<Int> = emptySet()) : ResolvedStep {
+/**
+ * A resolved step that names itself; whatever it lists in [gathers] the steps after it can rely on, and it needs what
+ * [needs] lists.
+ */
+data class FakeStep(val name: String, val gathers: Set<Int> = emptySet(), val needs: List<StepNeeds> = emptyList()) : ResolvedStep {
 
     override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + gathers)
+
+    override fun needs(): List<StepNeeds> = needs
 
     override fun activity(player: Player, runTile: Tile): StepActivity = error("fake steps start through FakeFlowPlayer")
 }
@@ -17,7 +22,7 @@ data class FakeStep(val name: String, val gathers: Set<Int> = emptySet()) : Reso
 /**
  * A kind of step with one optional setting, [WORD], the configure screen's [fields], and optionally a [skill] and a
  * [target]. Resolving records the context it was given, refuses the word "bad", and gathers item 1 when the word is
- * "gather".
+ * "gather"; with [resolved] it resolves to what that gives instead.
  */
 class FakeStepType(
     override val kind: String,
@@ -26,6 +31,7 @@ class FakeStepType(
     private val target: StepTarget? = null,
     private val newStep: ((FlowContext) -> StepSettings)? = null,
     private val inputOf: ((StepSettings) -> InputSource)? = null,
+    private val resolved: ((StepSettings) -> ResolvedStep)? = null,
 ) : StepType {
 
     val contexts = mutableListOf<FlowContext>()
@@ -51,6 +57,7 @@ class FakeStepType(
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         contexts += context
         if (settings[WORD] == "bad") throw FlowError("'bad' is refused")
+        resolved?.let { return it(settings) }
         return FakeStep(summary(settings), gathers = if (settings[WORD] == "gather") setOf(1) else emptySet())
     }
 

@@ -4,6 +4,7 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepSettings
 import game.idle.flow.described
 import game.idle.flow.option.FakeNames
@@ -61,5 +62,10 @@ class DropStepTypeTest {
     @Test
     fun `a drop step has no target`() {
         assertNull(DropStepType.target(FakeNames()))
+    }
+
+    @Test
+    fun `a drop step needs nothing in the bag`() {
+        assertEquals(emptyList<StepNeeds>(), DropStep(setOf(1511)).needs())
     }
 }

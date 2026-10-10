@@ -4,6 +4,7 @@ import api.predef.woodcutting
 import game.idle.IdleState
 import game.idle.autopilot.bank.BankActivity
 import game.idle.autopilot.bank.BankStep
+import game.idle.autopilot.bank.EVERYTHING
 import game.idle.autopilot.cooking.CookStep
 import game.idle.autopilot.cooking.CookingActivity
 import game.idle.autopilot.drop.DropActivity
@@ -254,7 +255,7 @@ class LunaAutopilotPlayerTest {
 
     @Test
     fun `a bank step runs as a bank activity`() {
-        val step = BankStep(listOf(Bank("test", "Test bank", Tile(3210, 3200))))
+        val step = BankStep(listOf(Bank("test", "Test bank", Tile(3210, 3200))), EVERYTHING)
 
         assertInstanceOf(BankActivity::class.java, autopilotPlayer().activity(step))
     }

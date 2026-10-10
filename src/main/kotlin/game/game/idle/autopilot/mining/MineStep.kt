@@ -7,15 +7,18 @@ import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
+import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.mining.Ore
+import game.skill.mining.Pickaxe
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
@@ -69,6 +72,10 @@ object MineStepType : StepType {
 data class MineStep(val ore: Ore, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep {
 
     override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + ore.item)
+
+    /** Any pickaxe the player's Mining level allows, as Luna's mining takes one carried or wielded. */
+    override fun needs(): List<StepNeeds> =
+        listOf(StepNeeds(tools = listOf(ToolNeed("pickaxe", Pickaxe.entries.associate { it.id to it.level }, Skill.MINING))))
 
     override fun activity(player: Player, runTile: Tile): StepActivity =
         MiningActivity(LunaMiner(player, ore, Area(workSpot.tile(runTile), radius)), ore, amount)

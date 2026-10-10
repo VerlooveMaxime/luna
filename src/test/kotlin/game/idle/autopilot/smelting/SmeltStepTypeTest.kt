@@ -4,6 +4,7 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepSettings
 import game.idle.flow.Uses
 import game.idle.flow.WorkSpot
@@ -74,7 +75,7 @@ class SmeltStepTypeTest {
                 "Input (left): toggle input earlier 'Earlier steps' / bank 'The bank'",
                 "Bar (left): search bar, 'Which bar would you like to smelt?'",
                 "Uses (left): note",
-                "Amount (left): typed amount 1..1000, button 'All'",
+                "Amount (left): typed amount 1..2147483647, button 'All'",
                 "Within (right): typed within 1..32",
             ),
             described(type.fields(FakeNames())),
@@ -152,4 +153,9 @@ class SmeltStepTypeTest {
 
     private fun uses(settings: StepSettings): String =
         (type.fields(LunaGameNames)[2] as StepField.Note).text(settings, FlowContext())
+
+    @Test
+    fun `a smelt step needs the bar's ores and no tool`() {
+        assertEquals(listOf(StepNeeds(inputs = listOf(436, 438))), SmeltStep(BarType.BRONZE, 10, walkedTo).needs())
+    }
 }

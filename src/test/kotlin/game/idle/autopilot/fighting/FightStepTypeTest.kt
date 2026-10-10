@@ -3,6 +3,7 @@ package game.idle.autopilot.fighting
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepIcon
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.flow.described
@@ -75,7 +76,7 @@ class FightStepTypeTest {
         assertEquals(
             listOf(
                 "Npc (left): search npc, 'What would you like to fight?'",
-                "Kills (left): typed amount 1..1000, button 'No end'",
+                "Kills (left): typed amount 1..2147483647, button 'No end'",
                 "Eat below (left): typed eatBelow 1..99",
                 "Within (right): typed within 1..32",
             ),
@@ -137,5 +138,10 @@ class FightStepTypeTest {
     @Test
     fun `eat below without a share reads as the default`() {
         assertEquals("eat below 50%", EatBelow.detail(fight()))
+    }
+
+    @Test
+    fun `a fight step needs nothing in the bag`() {
+        assertEquals(emptyList<StepNeeds>(), FightStep(rats, 10, walkedTo).needs())
     }
 }

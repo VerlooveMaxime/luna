@@ -15,6 +15,7 @@ import game.idle.autopilot.smithing.SmithStepType
 import game.idle.autopilot.walk.WalkStepType
 import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.flow.option.FakeNames
+import game.idle.flow.option.ItemCatalog
 import game.idle.location.BankCatalog
 import game.testworld.TestWorld
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -23,7 +24,11 @@ import org.junit.jupiter.api.Test
 
 class IdleStepsTest {
 
-    private val types = IdleSteps(BankCatalog(emptyList()), RecipeCatalog(emptyList()), FightTargetCatalog(emptyList()), FakeNames()).types.all
+    /** Luna's food and make tables name their items from the cache, so the steps need the test world's definitions. */
+    private val context = TestWorld.context
+
+    private val types =
+        IdleSteps(BankCatalog(emptyList()), RecipeCatalog(emptyList()), FightTargetCatalog(emptyList()), ItemCatalog(emptyMap()), FakeNames()).types.all
 
     @Test
     fun `the kind picker shows gathering, processing, fighting, then walking, dropping and banking`() {
@@ -38,11 +43,8 @@ class IdleStepsTest {
         assertEquals(12, types.size)
     }
 
-    /** Luna's make tables name their items from the cache, so loading needs the test world's definitions. */
     @Test
     fun `the steps load over the data files`() {
-        TestWorld.context
-
         assertEquals(types.map { it.kind }, IdleSteps.load().types.all.map { it.kind })
     }
 }

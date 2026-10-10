@@ -3,7 +3,7 @@ package game.idle.autopilot.firemaking
 import game.idle.autopilot.firemaking.LightDecision.Blocked
 import game.idle.autopilot.firemaking.LightDecision.Done
 import game.idle.autopilot.firemaking.LightDecision.Light
-import game.idle.autopilot.firemaking.LightDecision.StepAside
+import game.idle.autopilot.firemaking.LightDecision.MoveToFreeTile
 import game.idle.flow.StepActivity
 
 /** What the light step can see and do for one player. [LunaLighter] is the in-game one. */
@@ -15,8 +15,8 @@ interface Lighter {
 
     fun light(slot: Int)
 
-    /** Steps onto a free tile next to the player; false when there is none. */
-    fun stepAside(): Boolean
+    /** Walks to a free tile near where the step started; false when there is none close enough. */
+    fun moveToFreeTile(): Boolean
 }
 
 /**
@@ -29,7 +29,7 @@ sealed interface LightDecision {
 
     data class Light(val slot: Int) : LightDecision
 
-    data object StepAside : LightDecision
+    data object MoveToFreeTile : LightDecision
 
     data object Done : LightDecision
 
@@ -44,8 +44,8 @@ enum class LightBlockedReason(val message: String) {
 }
 
 /**
- * Light a log where the player stands, stepping aside first when something takes the tile; done once the logs run
- * out after lighting some. With no logs from the start the step waits instead, so a flow never spins through empty
+ * Light a log where the player stands, moving to a free tile first when something takes the tile; done once the logs
+ * run out after lighting some. With no logs from the start the step waits instead, so a flow never spins through empty
  * steps.
  */
 object LightPlanner {
@@ -55,7 +55,7 @@ object LightPlanner {
             !view.hasTinderbox -> Blocked(LightBlockedReason.NO_TINDERBOX)
             view.logs == 0 -> if (litSome) Done else Blocked(LightBlockedReason.NO_LOGS)
             view.lightable == null -> Blocked(LightBlockedReason.LEVEL_TOO_LOW)
-            !view.tileFree -> StepAside
+            !view.tileFree -> MoveToFreeTile
             else -> Light(view.lightable)
         }
 }
@@ -87,10 +87,10 @@ class LightActivity(private val lighter: Lighter, private val amount: Int? = nul
         lastDecision = carryOut(LightPlanner.decide(view, litSome = view.logs < start))
     }
 
-    /** What was done: a step aside with nowhere to go blocks instead. */
+    /** What was done: a move with no free tile close enough blocks instead. */
     private fun carryOut(decision: LightDecision): LightDecision = when (decision) {
         is Light -> decision.also { lighter.light(it.slot) }
-        StepAside -> if (lighter.stepAside()) decision else Blocked(LightBlockedReason.NO_ROOM)
+        MoveToFreeTile -> if (lighter.moveToFreeTile()) decision else Blocked(LightBlockedReason.NO_ROOM)
         Done -> decision.also { done = true }
         is Blocked -> decision
     }

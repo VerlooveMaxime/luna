@@ -3,8 +3,10 @@ package game.idle.autopilot.firemaking
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepIcon
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
+import game.idle.flow.ToolNeed
 import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
@@ -71,7 +73,7 @@ class LightStepTypeTest {
         assertEquals(
             listOf(
                 "Input (left): toggle input earlier 'Earlier steps' / bank 'The bank'",
-                "Amount (left): typed amount 1..1000, button 'All'",
+                "Amount (left): typed amount 1..2147483647, button 'All'",
                 "Logs (left): list logs on 4 rows, 'Which logs would you like to light?'",
             ),
             described(type.fields(FakeNames())),
@@ -121,5 +123,13 @@ class LightStepTypeTest {
     @Test
     fun `a light step has no target to search`() {
         assertNull(type.target(FakeNames()))
+    }
+
+    @Test
+    fun `a light step needs a tinderbox and the logs it lights`() {
+        assertEquals(
+            listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(590 to 1))), inputs = listOf(logs))),
+            LightStep(setOf(logs)).needs(),
+        )
     }
 }

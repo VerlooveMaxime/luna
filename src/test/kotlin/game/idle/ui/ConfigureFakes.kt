@@ -1,13 +1,16 @@
 package game.idle.ui
 
 import game.idle.flow.Choice
+import game.idle.flow.FakeStep
 import game.idle.flow.FakeStepType
 import game.idle.flow.FieldColumn
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepTypes
+import game.idle.flow.ToolNeed
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
@@ -52,13 +55,27 @@ val DEPOSIT_TOGGLE = StepField.Toggle(
     column = FieldColumn.RIGHT,
 )
 
-val CHOSEN_LIST = StepField.Items("chosen", "Chosen", LOGS, "Which items?", "+ Add or remove items...", rows = 3, column = FieldColumn.RIGHT)
+/** Shown only when the deposit is chosen. */
+val CHOSEN_LIST = StepField.Items(
+    "chosen", "Chosen", LOGS, "Which items?", "+ Add or remove items...", rows = 3, column = FieldColumn.RIGHT,
+    visible = { it["deposit"] == "chosen" },
+)
+
+/** Shown unless the deposit is chosen, counting what the flow gathers. */
+val BANKS_NOTE = StepField.Note("Banks", FieldColumn.RIGHT, visible = { it["deposit"] != "chosen" }) { _, before -> "${before.lap.size} gathered" }
+
+/** A withdrawal list, with amounts. */
+val WITHDRAW_LIST = StepField.Items("withdraw", "Withdraw", LOGS, "Which items?", "+ Add or remove items...", rows = 5, amounts = true)
+
+/** A saw, which the fake "saw" kind needs. */
+const val SAW = 8794
 
 /**
  * Kinds with every sort of configure field: chop (a tree search on row 0, an amount on row 1, a note on row 2, within
  * on the right's first row, 6), drop (none), walk (a tile), light (an input toggle on row 0, an amount on row 1, a list
- * of logs on rows 2-5; new ones take logs from earlier steps), bank (a three-button toggle on the right's first row, a
- * list on the right's rows 1-3).
+ * of logs on rows 2-5; new ones take logs from earlier steps), bank (a three-button toggle on the right's first row,
+ * then on Chosen a list on the right's rows 1-3, else a note on row 1, 7), stock (a withdrawal list on rows 0-4), saw
+ * (needs a saw).
  */
 val CONFIGURED_TYPES = StepTypes(
     listOf(
@@ -71,7 +88,9 @@ val CONFIGURED_TYPES = StepTypes(
             newStep = { StepSettings("light", mapOf("input" to "earlier", "logs" to "1511")) },
             inputOf = { if (it["input"] == "bank") InputSource.BANK else InputSource.EARLIER_STEPS },
         ),
-        FakeStepType("bank", listOf(DEPOSIT_TOGGLE, CHOSEN_LIST)),
+        FakeStepType("bank", listOf(DEPOSIT_TOGGLE, BANKS_NOTE, CHOSEN_LIST)),
+        FakeStepType("stock", listOf(WITHDRAW_LIST)),
+        FakeStepType("saw", resolved = { FakeStep("saw", needs = listOf(StepNeeds(tools = listOf(ToolNeed("saw", mapOf(SAW to 1)))))) }),
     ),
 )
 

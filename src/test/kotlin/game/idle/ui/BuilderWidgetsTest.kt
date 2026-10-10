@@ -163,6 +163,29 @@ class BuilderWidgetsTest {
     }
 
     @Test
+    fun `a line's amount box and All button follow its layer, as the client lays them`() {
+        assertEquals(
+            listOf(31215, 31216, 31217, 31218),
+            listOf(BuilderWidgets.lineAmountFace(0, 0), BuilderWidgets.lineAmountFrame(0, 0), BuilderWidgets.lineAmountText(0, 0), BuilderWidgets.lineAllFace(0, 0)),
+        )
+    }
+
+    @Test
+    fun `a line's amount box names its list and line`() {
+        assertEquals(1 to 3, BuilderWidgets.lineAmountOf(BuilderWidgets.lineAmountFace(1, 3)))
+    }
+
+    @Test
+    fun `a line's All button names its list and line`() {
+        assertEquals(0 to 27, BuilderWidgets.lineAllOf(BuilderWidgets.lineAllFace(0, 27)))
+    }
+
+    @Test
+    fun `another widget is no amount box or All button`() {
+        assertEquals(listOf(null, null), listOf(BuilderWidgets.lineAmountOf(BuilderWidgets.lineAllFace(0, 0)), BuilderWidgets.lineAllOf(BuilderWidgets.lineAmountFace(0, 0))))
+    }
+
+    @Test
     fun `a field's face names its row`() {
         assertEquals(7, BuilderWidgets.fieldOf(BuilderWidgets.rowFace(7)))
     }

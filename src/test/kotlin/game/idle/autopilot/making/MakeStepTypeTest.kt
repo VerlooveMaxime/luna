@@ -4,7 +4,9 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepSettings
+import game.idle.flow.ToolNeed
 import game.idle.flow.Uses
 import game.idle.flow.described
 import game.idle.flow.option.FakeNames
@@ -60,7 +62,7 @@ class MakeStepTypeTest {
                 "Input (left): toggle input earlier 'Earlier steps' / bank 'The bank'",
                 "Product (left): search product, 'What would you like to make?'",
                 "Uses (left): note",
-                "Amount (left): typed amount 1..1000, button 'All'",
+                "Amount (left): typed amount 1..2147483647, button 'All'",
             ),
             described(make.fields(FakeNames())),
         )
@@ -164,4 +166,14 @@ class MakeStepTypeTest {
     }
 
     private fun uses(settings: StepSettings): String = (make.fields(names)[2] as StepField.Note).text(settings, FlowContext())
+
+    @Test
+    fun `a make step needs each way's tools and items, one entry a way`() {
+        val tooled = twoWays.copy(ways = listOf(twoWays.ways.first().copy(tools = setOf(946)), twoWays.ways.last()))
+
+        assertEquals(
+            listOf(StepNeeds(listOf(ToolNeed(word = null, mapOf(946 to 1))), listOf(flour, water)), StepNeeds(emptyList(), listOf(flour, jug))),
+            MakeStep(tooled).needs(),
+        )
+    }
 }

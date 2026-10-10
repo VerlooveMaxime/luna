@@ -9,8 +9,10 @@ import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepInput
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
+import game.idle.flow.ToolNeed
 import game.idle.flow.Uses
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
@@ -91,6 +93,10 @@ data class MakeStep(val recipe: Recipe, val amount: Int? = null) : ResolvedStep 
 
     /** Later steps can cook, drop or bank what was made. */
     override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + recipe.made)
+
+    /** One entry per way to make the recipe: its tools and what it uses up. */
+    override fun needs(): List<StepNeeds> =
+        recipe.ways.map { way -> StepNeeds(way.tools.map { ToolNeed(word = null, mapOf(it to 1)) }, way.inputs.keys.toList()) }
 
     override fun activity(player: Player, runTile: Tile): StepActivity = MakeActivity(LunaMaker(player, recipe), recipe, amount)
 }

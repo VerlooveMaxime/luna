@@ -4,6 +4,7 @@ import game.idle.IdleState
 import game.idle.idleState
 import game.testworld.TestWorld
 import io.luna.game.model.Position
+import io.luna.game.model.item.Equipment
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
@@ -50,6 +51,24 @@ class LunaOptionFactsTest {
         player.bank.add(Item(995, 40))
 
         assertEquals(mapOf(1521 to 312, 995 to 40), LunaOptionFacts.of(player).bank)
+    }
+
+    @Test
+    fun `the facts hold what the bag holds`() {
+        val player = boostedWoodcutter()
+        player.inventory.add(Item(1351))
+        player.inventory.add(Item(1511))
+        player.inventory.add(Item(1511))
+
+        assertEquals(setOf(1351, 1511), LunaOptionFacts.of(player).bag)
+    }
+
+    @Test
+    fun `the facts hold what the player wears`() {
+        val player = boostedWoodcutter()
+        player.equipment.set(Equipment.WEAPON, Item(1351))
+
+        assertEquals(setOf(1351), LunaOptionFacts.of(player).worn)
     }
 
     @Test

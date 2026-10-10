@@ -7,14 +7,17 @@ import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
+import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.skill.woodcutting.cutTree.Axe
 import game.skill.woodcutting.cutTree.Tree
 import game.skill.woodcutting.cutTree.TreeStump
 import io.luna.game.model.mob.Player
@@ -69,6 +72,10 @@ object ChopStepType : StepType {
 data class ChopStep(val tree: Tree, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep {
 
     override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + tree.logId)
+
+    /** Any axe the player's Woodcutting level allows, as Luna's woodcutting takes one carried or wielded. */
+    override fun needs(): List<StepNeeds> =
+        listOf(StepNeeds(tools = listOf(ToolNeed("axe", Axe.entries.associate { it.id to it.level }, Skill.WOODCUTTING))))
 
     override fun activity(player: Player, runTile: Tile): StepActivity {
         val spot = WoodcuttingSpot(tree, Area(workSpot.tile(runTile), radius))

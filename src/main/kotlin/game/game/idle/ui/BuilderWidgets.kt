@@ -78,8 +78,9 @@ object BuilderWidgets {
 
     /** Room for a field's text, a note and a warning line, as the client lays them out. */
     const val FIELD_ROOM = 104
-    /** Room for a list line's name. */
+    /** Room for a list line's name, and for one with an amount box after it. */
     const val LINE_NAME_ROOM = 125
+    const val LINE_NAME_ROOM_AMOUNT = 61
     const val NOTE_ROOM = 160
     const val WARNING_ROOM = 492
     const val DESCRIPTION_ROOM = 450
@@ -195,6 +196,16 @@ object BuilderWidgets {
     /** The layer of a withdrawal's amount box and All button, hidden in other lists. */
     fun lineAmount(list: Int, line: Int): Int = line(list, line) + 4
 
+    /** The amount box, which opens "Enter amount". */
+    fun lineAmountFace(list: Int, line: Int): Int = line(list, line) + 5
+
+    fun lineAmountFrame(list: Int, line: Int): Int = line(list, line) + 6
+
+    fun lineAmountText(list: Int, line: Int): Int = line(list, line) + 7
+
+    /** The All button, which puts the amount back to as many as fit. */
+    fun lineAllFace(list: Int, line: Int): Int = line(list, line) + 8
+
     fun lineRemoveFace(list: Int, line: Int): Int = line(list, line) + 10
 
     /** The row and button of the toggle whose face [widgetId] is, or null. */
@@ -207,9 +218,17 @@ object BuilderWidgets {
     fun listAddOf(widgetId: Int): Int? = (0 until LISTS).firstOrNull { listAdd(it) == widgetId }
 
     /** The list and line whose remove button [widgetId] is, or null. */
-    fun lineRemoveOf(widgetId: Int): Pair<Int, Int>? =
+    fun lineRemoveOf(widgetId: Int): Pair<Int, Int>? = lineOf(widgetId, ::lineRemoveFace)
+
+    /** The list and line whose amount box [widgetId] is, or null. */
+    fun lineAmountOf(widgetId: Int): Pair<Int, Int>? = lineOf(widgetId, ::lineAmountFace)
+
+    /** The list and line whose All button [widgetId] is, or null. */
+    fun lineAllOf(widgetId: Int): Pair<Int, Int>? = lineOf(widgetId, ::lineAllFace)
+
+    private fun lineOf(widgetId: Int, face: (Int, Int) -> Int): Pair<Int, Int>? =
         (0 until LISTS).firstNotNullOfOrNull { list ->
-            (0 until LIST_LINES).firstOrNull { lineRemoveFace(list, it) == widgetId }?.let { list to it }
+            (0 until LIST_LINES).firstOrNull { face(list, it) == widgetId }?.let { list to it }
         }
 
     /** The configure row whose field face [widgetId] is, or null. */

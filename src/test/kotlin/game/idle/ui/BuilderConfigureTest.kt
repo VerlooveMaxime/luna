@@ -145,7 +145,7 @@ class BuilderConfigureTest {
 
     @Test
     fun `the field being typed is framed yellow, the others keep their edge`() {
-        val typing = chopping.copy(typing = "amount")
+        val typing = chopping.copy(typing = Typing("amount"))
 
         assertEquals(
             listOf(BuilderWidgets.TYPING, BuilderWidgets.FIELD_EDGE, BuilderWidgets.FIELD_EDGE),
@@ -238,7 +238,7 @@ class BuilderConfigureTest {
 
     @Test
     fun `a draft changed keeps its step and stops typing`() {
-        assertEquals(StepDraft(0, step("chop", "willow"), new = false), chopping.copy(typing = "amount").with("word", "willow"))
+        assertEquals(StepDraft(0, step("chop", "willow"), new = false), chopping.copy(typing = Typing("amount")).with("word", "willow"))
     }
 
     @Test
@@ -248,7 +248,7 @@ class BuilderConfigureTest {
 
     @Test
     fun `a draft stops typing`() {
-        assertEquals(chopping, chopping.copy(typing = "amount").notTyping())
+        assertEquals(chopping, chopping.copy(typing = Typing("amount")).notTyping())
     }
 
     @Test
@@ -381,4 +381,117 @@ class BuilderConfigureTest {
     }
 
     private val lightFlow = IdleState(steps = listOf(oak, StepSettings("light")))
+
+    private val gatheredDeposit = StepDraft(1, StepSettings("bank"), new = false)
+
+    @Test
+    fun `a field the settings do not show takes no row`() {
+        assertEquals(
+            listOf<Any>(true, "Banks", "1 gathered", false),
+            listOf(
+                visible(gatheredDeposit, BuilderWidgets.row(7)),
+                text(gatheredDeposit, BuilderWidgets.rowLabel(7)),
+                text(gatheredDeposit, BuilderWidgets.rowNote(7), IdleState(steps = listOf(step("chop", "gather")))),
+                visible(gatheredDeposit, BuilderWidgets.list(1)),
+            ),
+        )
+    }
+
+    @Test
+    fun `a field the settings show replaces the one they hide`() {
+        assertEquals(listOf(true, "Chosen"), listOf(visible(banking, BuilderWidgets.list(1)), text(banking, BuilderWidgets.rowLabel(7))))
+    }
+
+    @Test
+    fun `the rows keep only the fields the settings show`() {
+        assertEquals(listOf(DEPOSIT_TOGGLE, BANKS_NOTE), ConfigureRows.shown(listOf(DEPOSIT_TOGGLE, BANKS_NOTE, CHOSEN_LIST), StepSettings("bank")))
+    }
+
+    private val stocking = StepDraft(0, StepSettings("stock", mapOf("withdraw" to "1511:14,1521")), new = true)
+
+    @Test
+    fun `a withdrawal's line shows its amount box and All button`() {
+        assertEquals(
+            listOf<Any>(true, "14", true, "All"),
+            listOf(
+                visible(stocking, BuilderWidgets.lineAmount(0, 0)),
+                text(stocking, BuilderWidgets.lineAmountText(0, 0)),
+                visible(stocking, BuilderWidgets.lineAmount(0, 1)),
+                text(stocking, BuilderWidgets.lineAmountText(0, 1)),
+            ),
+        )
+    }
+
+    @Test
+    fun `a withdrawal's big amount shows as a stack does`() {
+        val big = stocking.copy(settings = StepSettings("stock", mapOf("withdraw" to "1511:150000")))
+
+        assertEquals("150K", text(big, BuilderWidgets.lineAmountText(0, 0)))
+    }
+
+    @Test
+    fun `a withdrawal's name is fitted to the room the amount box leaves`() {
+        val long = stocking.copy(settings = StepSettings("stock", mapOf("withdraw" to "1511")))
+        val configure = BuilderConfigure(FlowResolver(CONFIGURED_TYPES), FakeNames(mapOf(1511 to "Logs of a very long name")), font)
+
+        val name = configure.updates(IdleState(), long, facts).filterIsInstance<WidgetUpdate.Text>().single { it.id == BuilderWidgets.lineName(0, 0) }
+
+        assertEquals("Logs of a..", name.text)
+    }
+
+    @Test
+    fun `the withdrawal being typed is framed yellow, the others keep their edge`() {
+        val typing = stocking.copy(typing = Typing("withdraw", 1521))
+
+        assertEquals(
+            listOf(BuilderWidgets.FIELD_EDGE, BuilderWidgets.TYPING),
+            listOf(colour(typing, BuilderWidgets.lineAmountFrame(0, 0)), colour(typing, BuilderWidgets.lineAmountFrame(0, 1))),
+        )
+    }
+
+    private val sawing = StepDraft(0, StepSettings("saw"), new = true)
+
+    @Test
+    fun `a warning that does not stop the step shows in yellow`() {
+        assertEquals(listOf("@yel@! You carry no saw and no bank step withdraws one.", "", ""), (0 until 3).map { text(sawing, BuilderWidgets.warning(it), IdleState()) })
+    }
+
+    @Test
+    fun `a step with what it needs carried has no warnings`() {
+        val carried = configure.updates(IdleState(), sawing, facts.copy(bag = setOf(SAW))).filterIsInstance<WidgetUpdate.Text>()
+
+        assertEquals("@gre@No warnings.", carried.single { it.id == BuilderWidgets.warning(0) }.text)
+    }
+
+    @Test
+    fun `the red reason comes before the yellow warnings`() {
+        val state = IdleState(steps = listOf(StepSettings("saw")), running = true, blocked = "Autopilot: you need a saw.")
+
+        assertEquals(
+            listOf("@red@! You need a saw.", "@yel@! You carry no saw and no bank step withdraws one."),
+            (0 until 2).map { text(sawing.copy(new = false), BuilderWidgets.warning(it), state) },
+        )
+    }
+
+    @Test
+    fun `a step edited is warned about in its place in the flow`() {
+        val state = IdleState(steps = listOf(oak, oak))
+
+        assertEquals("@yel@! You carry no saw and no bank step withdraws one.", text(StepDraft(1, StepSettings("saw"), new = false), BuilderWidgets.warning(0), state))
+    }
+
+    @Test
+    fun `a draft in the flow replaces the step it edits`() {
+        assertEquals(listOf(oak, step("drop")) to 0, StepDraft(0, oak, new = false).inFlow(listOf(step("walk"), step("drop"))))
+    }
+
+    @Test
+    fun `a new draft goes after the flow's steps`() {
+        assertEquals(listOf(step("walk"), oak) to 1, StepDraft(0, oak, new = true).inFlow(listOf(step("walk"))))
+    }
+
+    @Test
+    fun `a draft of a step deleted since goes after the flow's steps`() {
+        assertEquals(listOf(oak) to 0, StepDraft(2, oak, new = false).inFlow(emptyList()))
+    }
 }

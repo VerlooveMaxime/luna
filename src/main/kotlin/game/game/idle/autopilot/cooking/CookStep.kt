@@ -9,6 +9,7 @@ import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepInput
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepPick
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
@@ -75,8 +76,16 @@ class CookStepType(private val names: GameNames) : StepType {
     }
 }
 
-/** A cook step resolved: the raw food it cooks, where, and how much ([amount], null for all). */
+/**
+ * A cook step resolved: the raw food it cooks, where, and how much ([amount], null for all). Later steps know it makes
+ * the cooked food and the burnt (S07b: the bank's Gathered banks them, a drop step drops them).
+ */
 data class CookStep(val rawIds: Set<Int>, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep {
+
+    override fun after(context: FlowContext): FlowContext =
+        context.copy(gathered = context.gathered + rawIds.flatMap { Food.RAW_TO_FOOD.getValue(it).let { food -> listOf(food.cooked, food.burnt) } })
+
+    override fun needs(): List<StepNeeds> = listOf(StepNeeds(inputs = rawIds.toList()))
 
     override fun activity(player: Player, runTile: Tile): StepActivity =
         CookingActivity(LunaCooker(player, rawIds, Area(workSpot.tile(runTile), radius)), amount)

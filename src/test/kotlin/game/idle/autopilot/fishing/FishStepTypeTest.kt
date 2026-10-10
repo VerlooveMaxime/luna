@@ -3,8 +3,10 @@ package game.idle.autopilot.fishing
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepIcon
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
+import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
 import game.idle.flow.described
 import game.idle.flow.option.FakeNames
@@ -70,7 +72,7 @@ class FishStepTypeTest {
         assertEquals(
             listOf(
                 "Catch (left): search fish, 'What would you like to fish?'",
-                "Amount (left): typed amount 1..1000, button 'Full'",
+                "Amount (left): typed amount 1..2147483647, button 'Full'",
                 "Within (right): typed within 1..32",
             ),
             described(FishStepType.fields(FakeNames())),
@@ -164,5 +166,17 @@ class FishStepTypeTest {
     @Test
     fun `a fish step without a count fishes until the bag is full, within the default radius`() {
         assertEquals(listOf("until the bag is full"), FishStepType.details(fish(), FlowContext()))
+    }
+
+    @Test
+    fun `a fish step needs its method's tool`() {
+        assertEquals(listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(303 to 1))))), FishStep(FishingMethod(Tool.SMALL_NET), 10, walkedTo).needs())
+    }
+
+    @Test
+    fun `a fish step with bait needs the bait too, which is not counted one by one`() {
+        val tools = FishStep(FishingMethod(Tool.FLY_FISHING_ROD), 10, walkedTo).needs().single().tools
+
+        assertEquals(listOf(ToolNeed(word = null, mapOf(309 to 1)), ToolNeed(word = null, mapOf(314 to 1), countable = false)), tools)
     }
 }

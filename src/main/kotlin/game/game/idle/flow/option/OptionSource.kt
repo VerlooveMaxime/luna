@@ -39,8 +39,16 @@ data class OptionContext(
     val here: Tile? = null,
 )
 
-/** The player's levels options grey on, by skill id, and what the bank holds, by item id. */
-data class OptionFacts(val levels: Map<Int, Int> = emptyMap(), val bank: Map<Int, Int> = emptyMap()) {
+/**
+ * The player's levels options grey on, by skill id, what the bank holds, by item id, and what the player carries: the
+ * ids in the [bag] and those [worn], which the configure screen's tool warnings read (S07b).
+ */
+data class OptionFacts(
+    val levels: Map<Int, Int> = emptyMap(),
+    val bank: Map<Int, Int> = emptyMap(),
+    val bag: Set<Int> = emptySet(),
+    val worn: Set<Int> = emptySet(),
+) {
 
     fun level(skill: Int): Int = levels[skill] ?: 1
 

@@ -20,10 +20,39 @@ class StepAmountTest {
     }
 
     @Test
-    fun `a count is 1 to 1000`() {
-        assertEquals("the amount takes 1 to 1000, not '0'", assertThrows<FlowError> { StepAmount.read(amount("0")) }.message)
-        assertEquals("the amount takes 1 to 1000, not '1001'", assertThrows<FlowError> { StepAmount.read(amount("1001")) }.message)
-        assertEquals("the amount takes 1 to 1000, not 'lots'", assertThrows<FlowError> { StepAmount.read(amount("lots")) }.message)
+    fun `a count is 1 or more`() {
+        assertEquals("the amount takes 1 or more, not '0'", assertThrows<FlowError> { StepAmount.read(amount("0")) }.message)
+        assertEquals("the amount takes 1 or more, not 'lots'", assertThrows<FlowError> { StepAmount.read(amount("lots")) }.message)
+    }
+
+    @Test
+    fun `a count has no cap but what Enter amount takes`() {
+        assertEquals(2147483647, StepAmount.read(amount("2147483647")))
+    }
+
+    @Test
+    fun `a count past what Enter amount takes is refused`() {
+        assertEquals("the amount takes 1 or more, not '2147483648'", assertThrows<FlowError> { StepAmount.read(amount("2147483648")) }.message)
+    }
+
+    @Test
+    fun `a count below 100,000 shows as it is`() {
+        assertEquals("99999", StepAmount.short(99999))
+    }
+
+    @Test
+    fun `a count from 100,000 shows in thousands, as the 377 shows a stack`() {
+        assertEquals(listOf("100K", "9999K"), listOf(StepAmount.short(100_000), StepAmount.short(9_999_999)))
+    }
+
+    @Test
+    fun `a count from ten million shows in millions`() {
+        assertEquals("2147M", StepAmount.short(Int.MAX_VALUE))
+    }
+
+    @Test
+    fun `a text that is not a count shows as it is`() {
+        assertEquals("lots", StepAmount.short("lots"))
     }
 
     @Test
@@ -32,9 +61,9 @@ class StepAmountTest {
     }
 
     @Test
-    fun `the configure screen types an amount from 1 to 1000, a button removing it`() {
+    fun `the configure screen types an amount of 1 or more, a button removing it`() {
         assertEquals(
-            listOf("Kills (left): typed amount 1..1000, button 'No end'"),
+            listOf("Kills (left): typed amount 1..2147483647, button 'No end'"),
             described(listOf(StepAmount.field("Kills", unbounded = "no end", button = "No end"))),
         )
     }
@@ -47,8 +76,13 @@ class StepAmountTest {
     }
 
     @Test
+    fun `the configure screen shows a big amount as a stack does`() {
+        assertEquals("150K per lap", StepAmount.field("Amount", unbounded = "all of them", button = "All").shown("150000"))
+    }
+
+    @Test
     fun `a typed amount out of range is refused with its rule`() {
-        assertEquals("the amount takes 1 to 1000", StepAmount.field("Amount", unbounded = "all of them", button = "All").rule)
+        assertEquals("the amount takes 1 or more", StepAmount.field("Amount", unbounded = "all of them", button = "All").rule)
     }
 
     @Test
@@ -59,6 +93,11 @@ class StepAmountTest {
     @Test
     fun `a slot reads an amount with what it counts`() {
         assertEquals("5 kills per lap", StepAmount.detail(amount("5"), unbounded = "no end", counted = "kills"))
+    }
+
+    @Test
+    fun `a slot reads a big amount as a stack does`() {
+        assertEquals(listOf("20M per lap", "20M kills per lap"), listOf(StepAmount.detail(amount("20000000"), "all"), StepAmount.detail(amount("20000000"), "no end", "kills")))
     }
 
     @Test

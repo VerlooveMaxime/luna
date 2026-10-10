@@ -11,8 +11,8 @@ class FlowResolverTest {
     private val rest = FakeStepType("rest")
     private val resolver = FlowResolver(StepTypes(listOf(walk, rest)))
 
-    /** What a first step that gathers item 1 sets up. */
-    private val gatheredByStep1 = FlowContext(gathered = setOf(1), gatheredBy = mapOf(1 to 1))
+    /** What a first step that gathers item 1 sets up, in a flow that gathers nothing else. */
+    private val gatheredByStep1 = FlowContext(gathered = setOf(1), gatheredBy = mapOf(1 to 1), lap = setOf(1))
 
     @Test
     fun `each step resolves through its kind of step`() {
@@ -23,14 +23,14 @@ class FlowResolverTest {
     fun `the first step starts from an empty context`() {
         resolver.resolve(listOf(step("walk", "north")))
 
-        assertEquals(listOf(FlowContext()), walk.contexts)
+        assertEquals(FlowContext(), walk.contexts.last())
     }
 
     @Test
     fun `each step relies on what the steps before it set up`() {
         resolver.resolve(listOf(step("walk", "gather"), step("rest"), step("rest")))
 
-        assertEquals(listOf(gatheredByStep1, gatheredByStep1), rest.contexts)
+        assertEquals(listOf(gatheredByStep1, gatheredByStep1), rest.contexts.takeLast(2))
     }
 
     @Test
@@ -62,8 +62,25 @@ class FlowResolverTest {
     }
 
     @Test
-    fun `the first step has an empty context before it`() {
-        assertEquals(FlowContext(), resolver.contextBefore(listOf(step("walk", "gather")), 0))
+    fun `the first step has nothing before it but what the flow gathers`() {
+        assertEquals(FlowContext(lap = setOf(1)), resolver.contextBefore(listOf(step("walk", "gather")), 0))
+    }
+
+    @Test
+    fun `every step knows what the whole flow gathers, steps after it too`() {
+        resolver.resolve(listOf(step("rest"), step("walk", "gather")))
+
+        assertEquals(setOf(1), rest.contexts.last().lap)
+    }
+
+    @Test
+    fun `a step that does not resolve adds nothing to what the flow gathers`() {
+        assertEquals(emptySet<Int>(), resolver.contextBefore(listOf(step("rest"), step("fly"), step("walk", "bad")), 1).lap)
+    }
+
+    @Test
+    fun `each step is resolved, a step that cannot work as none`() {
+        assertEquals(listOf(FakeStep("walk north"), null), resolver.resolvedEach(listOf(step("walk", "north"), step("walk", "bad"))))
     }
 
     @Test
@@ -97,14 +114,14 @@ class FlowResolverTest {
     fun `a refused step adds nothing to what the steps after it rely on`() {
         resolver.problems(listOf(step("walk", "bad"), step("rest")))
 
-        assertEquals(listOf(FlowContext()), rest.contexts)
+        assertEquals(FlowContext(), rest.contexts.last())
     }
 
     @Test
     fun `a step that works sets up what the steps after it rely on`() {
         resolver.problems(listOf(step("walk", "gather"), step("rest")))
 
-        assertEquals(listOf(gatheredByStep1), rest.contexts)
+        assertEquals(gatheredByStep1, rest.contexts.last())
     }
 
     @Test

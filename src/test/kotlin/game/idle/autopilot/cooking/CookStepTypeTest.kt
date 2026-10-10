@@ -3,6 +3,7 @@ package game.idle.autopilot.cooking
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepIcon
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
@@ -15,11 +16,13 @@ import game.testworld.TestWorld
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class CookStepTypeTest {
+
+    /** Luna's food names itself from the item definitions, which need the cache, before the type reads it. */
+    private val world = TestWorld.world
 
     private val walkedTo = WorkSpot.At(Tile(3086, 3228))
     private val rawShrimps = 317
@@ -29,12 +32,6 @@ class CookStepTypeTest {
     private val fished = FlowContext(walkedTo, gathered = setOf(rawShrimps, rawAnchovies, logs), gatheredBy = mapOf(rawShrimps to 1, rawAnchovies to 1, logs to 2))
 
     private fun cook(vararg values: Pair<String, String>) = StepSettings("cook", mapOf(*values))
-
-    /** Luna's food names itself from the item definitions, which need the cache. */
-    @BeforeEach
-    fun `item definitions are loaded`() {
-        TestWorld.world
-    }
 
     @Test
     fun `a cook step with its defaults reads as cook alone`() {
@@ -65,7 +62,7 @@ class CookStepTypeTest {
         assertEquals(
             listOf(
                 "Input (left): toggle input earlier 'Earlier steps' / bank 'The bank'",
-                "Amount (left): typed amount 1..1000, button 'All'",
+                "Amount (left): typed amount 1..2147483647, button 'All'",
                 "Raw food (left): list raw on 4 rows, 'What would you like to cook?'",
                 "Within (right): typed within 1..32",
             ),
@@ -94,10 +91,15 @@ class CookStepTypeTest {
     }
 
     @Test
-    fun `the steps after a cook step know what the steps before it knew`() {
+    fun `the steps after a cook step know it makes cooked and burnt food`() {
         val context = FlowContext(walkedTo, gathered = setOf(rawShrimps))
 
-        assertEquals(context, CookStep(setOf(rawShrimps), 10, walkedTo).after(context))
+        assertEquals(context.copy(gathered = setOf(rawShrimps, 315, 323)), CookStep(setOf(rawShrimps), 10, walkedTo).after(context))
+    }
+
+    @Test
+    fun `a cook step needs its raw food in the bag and no tool`() {
+        assertEquals(listOf(StepNeeds(inputs = listOf(rawShrimps))), CookStep(setOf(rawShrimps), 10, walkedTo).needs())
     }
 
     @Test

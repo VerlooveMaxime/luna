@@ -56,4 +56,24 @@ class StepItemsTest {
     fun `toggling the last item out leaves no setting`() {
         assertEquals(StepSettings("bank"), StepItems.toggled(settings("590"), "withdraw", 590))
     }
+
+    @Test
+    fun `an amount below 1 reads as all`() {
+        assertEquals(listOf(StepItem(1511), StepItem(590)), StepItems.read(settings("1511:0,590:-3"), "withdraw"))
+    }
+
+    @Test
+    fun `an item's amount can be set, the others kept`() {
+        assertEquals("1511:20,590:1", StepItems.withAmount(settings("1511,590:1"), "withdraw", 1511, 20)["withdraw"])
+    }
+
+    @Test
+    fun `an item's amount can be put back to all`() {
+        assertEquals("1511,590:1", StepItems.withAmount(settings("1511:14,590:1"), "withdraw", 1511, amount = null)["withdraw"])
+    }
+
+    @Test
+    fun `setting the amount of an item the list lacks leaves the list as it is`() {
+        assertEquals("590:1", StepItems.withAmount(settings("590:1"), "withdraw", 1511, 5)["withdraw"])
+    }
 }

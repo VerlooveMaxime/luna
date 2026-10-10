@@ -9,12 +9,15 @@ import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepInput
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
+import game.idle.flow.ToolNeed
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.location.Tile
+import game.skill.firemaking.Firemaking
 import game.skill.firemaking.Log
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
@@ -72,6 +75,9 @@ class LightStepType(private val names: GameNames) : StepType {
 
 /** A light step resolved: the logs it lights and how many ([amount], null for all). */
 data class LightStep(val logIds: Set<Int>, val amount: Int? = null) : ResolvedStep {
+
+    override fun needs(): List<StepNeeds> =
+        listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(Firemaking.TINDERBOX to 1))), inputs = logIds.toList()))
 
     override fun activity(player: Player, runTile: Tile): StepActivity = LightActivity(LunaLighter(player, logIds), amount)
 }

@@ -7,7 +7,10 @@ import io.luna.game.model.def.NpcDefinition
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
-/** Reads a player's [OptionFacts]: unboosted levels unless the player counts boosted ones, and the bank's counts. */
+/**
+ * Reads a player's [OptionFacts]: unboosted levels unless the player counts boosted ones, the bank's counts, and what
+ * the bag holds and the player wears.
+ */
 object LunaOptionFacts {
 
     fun of(player: Player): OptionFacts {
@@ -16,7 +19,9 @@ object LunaOptionFacts {
             player.skills.getSkill(id).let { if (boosted) it.level else it.staticLevel }
         }
         val bank = player.bank.filterNotNull().groupingBy { it.id }.fold(0) { total, item -> total + item.amount }
-        return OptionFacts(levels, bank)
+        val bag = player.inventory.filterNotNull().map { it.id }.toSet()
+        val worn = player.equipment.filterNotNull().map { it.id }.toSet()
+        return OptionFacts(levels, bank, bag, worn)
     }
 }
 

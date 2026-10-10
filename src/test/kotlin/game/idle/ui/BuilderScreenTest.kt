@@ -244,7 +244,7 @@ class BuilderScreenTest {
     @Test
     fun `a new step finds no room in a full flow`() {
         val player = player(chop, drop, chop)
-        val draft = StepDraft(3, drop, new = true, typing = "amount")
+        val draft = StepDraft(3, drop, new = true, typing = Typing("amount"))
 
         assertEquals(BuilderAnswer.Configure(draft.notTyping(), "Autopilot: the flow has room for 3 steps."), click(player, BuilderWidgets.SAVE, draft))
         assertEquals(3, player.idleState.steps.size)
@@ -269,7 +269,7 @@ class BuilderScreenTest {
 
     @Test
     fun `delete does nothing on a step not saved yet`() {
-        val draft = StepDraft(1, drop, new = true, typing = "amount")
+        val draft = StepDraft(1, drop, new = true, typing = Typing("amount"))
 
         assertEquals(BuilderAnswer.Configure(draft.notTyping()), click(player(chop), BuilderWidgets.DELETE, draft))
     }
@@ -293,23 +293,23 @@ class BuilderScreenTest {
     @Test
     fun `a search field opens the search over the steps before and the bank, nothing typed any more`() {
         val player = player(step("chop", "gather"), drop)
-        val draft = StepDraft(1, step("chop", "oak"), new = false, typing = "amount")
+        val draft = StepDraft(1, step("chop", "oak"), new = false, typing = Typing("amount"))
 
         val answer = click(player, BuilderWidgets.rowFace(0), draft)
 
-        val before = FlowContext(gathered = setOf(1), gatheredBy = mapOf(1 to 1))
+        val before = FlowContext(gathered = setOf(1), gatheredBy = mapOf(1 to 1), lap = setOf(1))
         val context = OptionContext(settings = draft.settings, before = before, input = InputSource.BANK)
         assertEquals(BuilderAnswer.Search(draft.notTyping(), TREE_SEARCH, context), answer)
     }
 
     @Test
     fun `a typed field opens the amount prompt, framing the field`() {
-        assertEquals(BuilderAnswer.Amount(choppingDraft.copy(typing = "amount")), click(player(chop), BuilderWidgets.rowFace(1), choppingDraft))
+        assertEquals(BuilderAnswer.Amount(choppingDraft.copy(typing = Typing("amount"))), click(player(chop), BuilderWidgets.rowFace(1), choppingDraft))
     }
 
     @Test
     fun `a field on the right column opens like the left's`() {
-        assertEquals(BuilderAnswer.Amount(choppingDraft.copy(typing = "within")), click(player(chop), BuilderWidgets.rowFace(6), choppingDraft))
+        assertEquals(BuilderAnswer.Amount(choppingDraft.copy(typing = Typing("within"))), click(player(chop), BuilderWidgets.rowFace(6), choppingDraft))
     }
 
     @Test
@@ -372,23 +372,23 @@ class BuilderScreenTest {
 
     @Test
     fun `a typed number in range sets the field being typed`() {
-        val answer = screen.typed(choppingDraft.copy(typing = "amount"), 25)
+        val answer = screen.typed(choppingDraft.copy(typing = Typing("amount")), 25)
 
         assertEquals(BuilderAnswer.Configure(choppingDraft.with("amount", "25")), answer)
     }
 
     @Test
     fun `a typed number out of range says the field's rule`() {
-        val answer = screen.typed(choppingDraft.copy(typing = "within"), 40)
+        val answer = screen.typed(choppingDraft.copy(typing = Typing("within")), 40)
 
         assertEquals(BuilderAnswer.Configure(choppingDraft, "Autopilot: within takes 1 to 32 tiles."), answer)
     }
 
     @Test
     fun `a typed number below the range says the field's rule`() {
-        val answer = screen.typed(choppingDraft.copy(typing = "amount"), 0)
+        val answer = screen.typed(choppingDraft.copy(typing = Typing("amount")), 0)
 
-        assertEquals(BuilderAnswer.Configure(choppingDraft, "Autopilot: the amount takes 1 to 1000."), answer)
+        assertEquals(BuilderAnswer.Configure(choppingDraft, "Autopilot: the amount takes 1 or more."), answer)
     }
 
     @Test
@@ -398,7 +398,7 @@ class BuilderScreenTest {
 
     @Test
     fun `a pick sets the search's setting`() {
-        val answer = screen.picked(choppingDraft.copy(typing = "amount"), opened = choppingDraft, key = "word", value = "willow")
+        val answer = screen.picked(choppingDraft.copy(typing = Typing("amount")), opened = choppingDraft, key = "word", value = "willow")
 
         assertEquals(BuilderAnswer.Configure(choppingDraft.with("word", "willow")), answer)
     }
@@ -735,7 +735,7 @@ class BuilderScreenTest {
 
     @Test
     fun `a list's first line opens the search that stays open, over the steps before and the step's input`() {
-        val answer = click(player(chop, light), BuilderWidgets.listAdd(0), lighting.copy(typing = "amount"))
+        val answer = click(player(chop, light), BuilderWidgets.listAdd(0), lighting.copy(typing = Typing("amount")))
 
         val context = OptionContext(settings = light, before = FlowContext(), input = InputSource.EARLIER_STEPS)
         assertEquals(BuilderAnswer.Several(lighting, LOGS_LIST, context), answer)
@@ -814,5 +814,67 @@ class BuilderScreenTest {
     @Test
     fun `a row naming no item changes nothing`() {
         assertEquals(BuilderAnswer.Ignored, screen.toggledItem(lighting, lighting, "logs", "nearest"))
+    }
+
+    private val stocking = StepDraft(1, StepSettings("stock", mapOf("withdraw" to "1511:14,1521")), new = false)
+    private val stock = StepSettings("stock", mapOf("withdraw" to "1511:14,1521"))
+
+    @Test
+    fun `a withdrawal's amount box opens Enter amount for its line`() {
+        assertEquals(BuilderAnswer.Amount(stocking.copy(typing = Typing("withdraw", 1521))), click(player(chop, stock), BuilderWidgets.lineAmountFace(0, 1), stocking))
+    }
+
+    @Test
+    fun `a withdrawal's All button puts its amount back to as many as fit`() {
+        assertEquals(BuilderAnswer.Configure(stocking.with("withdraw", "1511,1521")), click(player(chop, stock), BuilderWidgets.lineAllFace(0, 0), stocking))
+    }
+
+    @Test
+    fun `a list without amounts has no amount box or All button to click`() {
+        assertEquals(
+            listOf(BuilderAnswer.Ignored, BuilderAnswer.Ignored),
+            listOf(click(player(chop, light), BuilderWidgets.lineAmountFace(0, 0), lighting), click(player(chop, light), BuilderWidgets.lineAllFace(0, 0), lighting)),
+        )
+    }
+
+    @Test
+    fun `an amount box past the list's items does nothing`() {
+        assertEquals(BuilderAnswer.Ignored, click(player(chop, stock), BuilderWidgets.lineAmountFace(0, 2), stocking))
+    }
+
+    @Test
+    fun `no amount changes while the flow runs`() {
+        val player = player(chop, stock).also { autopilot.start(it) }
+
+        assertEquals(
+            listOf(BuilderAnswer.Configure(stocking, BuilderScreen.STOP_FIRST), BuilderAnswer.Configure(stocking, BuilderScreen.STOP_FIRST)),
+            listOf(click(player, BuilderWidgets.lineAmountFace(0, 0), stocking), click(player, BuilderWidgets.lineAllFace(0, 0), stocking)),
+        )
+    }
+
+    @Test
+    fun `a number typed for a withdrawal sets its amount`() {
+        val answer = screen.typed(stocking.copy(typing = Typing("withdraw", 1521)), 150000)
+
+        assertEquals(BuilderAnswer.Configure(stocking.with("withdraw", "1511:14,1521:150000")), answer)
+    }
+
+    @Test
+    fun `a withdrawal of none says the amount's rule`() {
+        val answer = screen.typed(stocking.copy(typing = Typing("withdraw", 1521)), 0)
+
+        assertEquals(BuilderAnswer.Configure(stocking, "Autopilot: the amount takes 1 or more."), answer)
+    }
+
+    @Test
+    fun `a typed number for a field the step no longer has is ignored`() {
+        assertEquals(BuilderAnswer.Ignored, screen.typed(choppingDraft.copy(typing = Typing("tile")), 5))
+    }
+
+    @Test
+    fun `a click on a field the settings hide does nothing`() {
+        val banking = StepDraft(1, StepSettings("bank"), new = false)
+
+        assertEquals(BuilderAnswer.Ignored, click(player(chop, StepSettings("bank")), BuilderWidgets.listAdd(1), banking))
     }
 }

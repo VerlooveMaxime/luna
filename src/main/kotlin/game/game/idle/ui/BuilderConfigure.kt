@@ -4,19 +4,28 @@ import game.idle.IdleState
 import game.idle.flow.FieldColumn
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowResolver
+import game.idle.flow.StepAmount
 import game.idle.flow.StepField
+import game.idle.flow.StepItem
 import game.idle.flow.StepItems
 import game.idle.flow.StepSettings
+import game.idle.flow.StepWarnings
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.OptionFacts
 import io.luna.game.model.mob.Skill
 
 /**
- * The step a player configures: the one in flow slot [slot], or a [new] one to go there, with its [settings] as edited;
- * they reach the flow only on Save (Maxime, 2026-10-09). [typing] is the key of the setting the "Enter amount" prompt
- * is open for, its field framed yellow.
+ * What the "Enter amount" prompt is open for: the setting under [key], or, with [item], that item's line in the list
+ * under [key] (a withdrawal's amount, S07b).
  */
-data class StepDraft(val slot: Int, val settings: StepSettings, val new: Boolean, val typing: String? = null) {
+data class Typing(val key: String, val item: Int? = null)
+
+/**
+ * The step a player configures: the one in flow slot [slot], or a [new] one to go there, with its [settings] as edited;
+ * they reach the flow only on Save (Maxime, 2026-10-09). [typing] is what the "Enter amount" prompt is open for, its
+ * field framed yellow.
+ */
+data class StepDraft(val slot: Int, val settings: StepSettings, val new: Boolean, val typing: Typing? = null) {
 
     /** The draft with [key] set to [value] ("" for none) and nothing being typed. */
     fun with(key: String, value: String): StepDraft = copy(settings = settings.with(key, value), typing = null)
@@ -26,10 +35,17 @@ data class StepDraft(val slot: Int, val settings: StepSettings, val new: Boolean
 
     /** Whether [other] configures the same step, whatever was edited since. */
     fun sameStep(other: StepDraft): Boolean = slot == other.slot && new == other.new && settings.kind == other.settings.kind
+
+    /** [steps] with this step in its place, replacing the one it edits or added after them, and its index there. */
+    fun inFlow(steps: List<StepSettings>): Pair<List<StepSettings>, Int> =
+        if (!new && slot < steps.size) steps.toMutableList().apply { set(slot, settings) } to slot else steps + settings to steps.size
 }
 
 /** Where a kind's settings go on the configure screen: each column's fields on its rows, in order. */
 object ConfigureRows {
+
+    /** The fields of [fields] that [settings] show (S07b: Deposit's Chosen list only on Chosen). */
+    fun shown(fields: List<StepField>, settings: StepSettings): List<StepField> = fields.filter { it.visible(settings) }
 
     /** The first row of each of [fields]: the left column's from 0, the right's from `BuilderWidgets.ROWS_PER_COLUMN`. */
     fun of(fields: List<StepField>): Map<Int, StepField> =
@@ -55,19 +71,22 @@ object ConfigureRows {
 /**
  * What a step's configure screen shows (flow builder v2, S06b, the mockup's screen): the step's pictures, number, kind,
  * the level of its skill as the player's [OptionFacts] count it and what it does; its settings on rows, the one being
- * typed framed yellow, a choice as a row of buttons and several items as a list (S07a); the reason it cannot work,
- * checked on the settings as edited (the running step's block first), else "No warnings." (Maxime, 2026-10-09); then
- * Delete, Back and Save, greyed when they cannot be used.
+ * typed framed yellow, a choice as a row of buttons and several items as a list (S07a), a withdrawal's with its amount
+ * (S07b); the reason it cannot work, checked on the settings as edited (the running step's block first), then the
+ * warnings that never stop it in yellow (S07b), else "No warnings." (Maxime, 2026-10-09); then Delete, Back and Save,
+ * greyed when they cannot be used.
  */
 class BuilderConfigure(private val resolver: FlowResolver, private val names: GameNames, private val font: ClientFont) {
 
     private val types = resolver.types
+    private val stepWarnings = StepWarnings(resolver, names)
 
     fun updates(state: IdleState, draft: StepDraft, facts: OptionFacts): List<WidgetUpdate> {
         val settings = draft.settings
         val type = types.find(settings.kind)
-        val before = resolver.contextBefore(state.steps, draft.slot)
-        val fields = type?.fields(names).orEmpty()
+        val (flow, index) = draft.inFlow(state.steps)
+        val before = resolver.contextBefore(flow, index)
+        val fields = ConfigureRows.shown(type?.fields(names).orEmpty(), settings)
         val rows = ConfigureRows.of(fields)
         val icon = type?.let { WidgetPicture.of(it.icon(settings)) } ?: WidgetPicture.None
         val pictures = StepPictures.of(icon, type?.pick(settings, names)?.icon)
@@ -79,8 +98,8 @@ class BuilderConfigure(private val resolver: FlowResolver, private val names: Ga
             WidgetUpdate.Text(BuilderWidgets.HEADER_NAME, "Step ${draft.slot + 1}: ${capitalised(type?.label ?: settings.kind)}$level"),
             WidgetUpdate.Text(BuilderWidgets.HEADER_DESCRIPTION, font.fit(type?.description.orEmpty(), BuilderWidgets.DESCRIPTION_ROOM)),
         ) + (0 until BuilderWidgets.ROWS).flatMap { row -> row(row, rows[row], draft, before) } +
-            (0 until BuilderWidgets.LISTS).flatMap { list(it, rows, ConfigureRows.list(fields, it), settings) } +
-            warnings(state, draft) + buttons(state, draft)
+            (0 until BuilderWidgets.LISTS).flatMap { list(it, rows, ConfigureRows.list(fields, it), draft) } +
+            warnings(state, draft, flow, index, facts) + buttons(state, draft)
     }
 
     /**
@@ -107,7 +126,7 @@ class BuilderConfigure(private val resolver: FlowResolver, private val names: Ga
     /** A field box: its frame (yellow while typed), picture and text. */
     private fun box(row: Int, shown: Shown, typed: StepField.Typed?, draft: StepDraft): List<WidgetUpdate> =
         listOf(
-            WidgetUpdate.Colour(BuilderWidgets.rowFrame(row), if (typed != null && typed.key == draft.typing) BuilderWidgets.TYPING else BuilderWidgets.FIELD_EDGE),
+            WidgetUpdate.Colour(BuilderWidgets.rowFrame(row), frame(typed != null && Typing(typed.key) == draft.typing)),
             WidgetUpdate.Picture(BuilderWidgets.rowPicture(row), shown.picture),
             WidgetUpdate.Text(BuilderWidgets.rowText(row), shown.text),
             WidgetUpdate.Text(BuilderWidgets.rowPlainText(row), shown.plainText),
@@ -131,25 +150,35 @@ class BuilderConfigure(private val resolver: FlowResolver, private val names: Ga
 
     /**
      * Configure list [list]: hidden without a list in its column, else placed on its field's rows with a line to add or
-     * remove, then a line per item: its picture and its name. Lines past the last lie outside the list (the client
-     * sizes it to its lines), so they need no update.
+     * remove, then a line per item: its picture and its name, and for a withdrawal its amount. Lines past the last lie
+     * outside the list (the client sizes it to its lines), so they need no update.
      */
-    private fun list(list: Int, rows: Map<Int, StepField>, field: StepField.Items?, settings: StepSettings): List<WidgetUpdate> {
+    private fun list(list: Int, rows: Map<Int, StepField>, field: StepField.Items?, draft: StepDraft): List<WidgetUpdate> {
         if (field == null) return listOf(WidgetUpdate.Visible(BuilderWidgets.list(list), visible = false))
         val firstRow = rows.entries.first { it.value === field }.key % BuilderWidgets.ROWS_PER_COLUMN
-        val ids = StepItems.ids(settings, field.key).take(BuilderWidgets.LIST_LINES)
+        val items = StepItems.read(draft.settings, field.key).take(BuilderWidgets.LIST_LINES)
+        val nameRoom = if (field.amounts) BuilderWidgets.LINE_NAME_ROOM_AMOUNT else BuilderWidgets.LINE_NAME_ROOM
         return listOf(
             WidgetUpdate.Visible(BuilderWidgets.list(list), visible = true),
-            WidgetUpdate.Placement(list, firstRow, field.rows, lines = ids.size + 1),
+            WidgetUpdate.Placement(list, firstRow, field.rows, lines = items.size + 1),
             WidgetUpdate.Text(BuilderWidgets.listAddText(list), field.add),
-        ) + ids.withIndex().flatMap { (line, id) ->
+        ) + items.withIndex().flatMap { (line, item) ->
             listOf(
-                WidgetUpdate.Picture(BuilderWidgets.linePicture(list, line), WidgetPicture.Item(id)),
-                WidgetUpdate.Text(BuilderWidgets.lineName(list, line), font.fit(names.item(id), BuilderWidgets.LINE_NAME_ROOM)),
-                WidgetUpdate.Visible(BuilderWidgets.lineAmount(list, line), visible = false),
-            )
+                WidgetUpdate.Picture(BuilderWidgets.linePicture(list, line), WidgetPicture.Item(item.id)),
+                WidgetUpdate.Text(BuilderWidgets.lineName(list, line), font.fit(names.item(item.id), nameRoom)),
+                WidgetUpdate.Visible(BuilderWidgets.lineAmount(list, line), visible = field.amounts),
+            ) + if (field.amounts) amount(list, line, field.key, item, draft) else emptyList()
         }
     }
+
+    /** A withdrawal's amount box: its count as a stack shows it, or All, framed yellow while typed. */
+    private fun amount(list: Int, line: Int, key: String, item: StepItem, draft: StepDraft): List<WidgetUpdate> =
+        listOf(
+            WidgetUpdate.Text(BuilderWidgets.lineAmountText(list, line), item.amount?.let(StepAmount::short) ?: ALL),
+            WidgetUpdate.Colour(BuilderWidgets.lineAmountFrame(list, line), frame(Typing(key, item.id) == draft.typing)),
+        )
+
+    private fun frame(typing: Boolean): Int = if (typing) BuilderWidgets.TYPING else BuilderWidgets.FIELD_EDGE
 
     /** A row's contents: a search's picture and text, a typed number's or a tile's text, or a note. */
     private data class Shown(
@@ -173,14 +202,19 @@ class BuilderConfigure(private val resolver: FlowResolver, private val names: Ga
             is StepField.Note -> Shown(note = font.fit(field.text(settings, before), BuilderWidgets.NOTE_ROOM))
         }
 
-    private fun warnings(state: IdleState, draft: StepDraft): List<WidgetUpdate> {
+    /** The red reason first, then each yellow warning on its lines, as many lines as the band has. */
+    private fun warnings(state: IdleState, draft: StepDraft, flow: List<StepSettings>, index: Int, facts: OptionFacts): List<WidgetUpdate> {
         val running = state.running && !draft.new && state.stepIndex == draft.slot
         val block = state.blocked?.takeIf { running }?.let(AutopilotStatus::reason)
         val reason = block ?: resolver.problems(state.steps.take(draft.slot) + draft.settings).last()
-        val lines = reason?.let { font.wrap("! $it", BuilderWidgets.WARNING_ROOM, BuilderWidgets.WARNING_LINES).map { line -> "@red@$line" } }
-            ?: listOf(NO_WARNINGS)
+        val red = listOfNotNull(reason).flatMap { warning(it, "@red@") }
+        val yellow = stepWarnings.of(flow, index, facts).flatMap { warning(it, "@yel@") }
+        val lines = (red + yellow).ifEmpty { listOf(NO_WARNINGS) }
         return (0 until BuilderWidgets.WARNING_LINES).map { WidgetUpdate.Text(BuilderWidgets.warning(it), lines.getOrNull(it).orEmpty()) }
     }
+
+    private fun warning(text: String, colour: String): List<String> =
+        font.wrap("! $text", BuilderWidgets.WARNING_ROOM, BuilderWidgets.WARNING_LINES).map { "$colour$it" }
 
     private fun buttons(state: IdleState, draft: StepDraft): List<WidgetUpdate> =
         listOf(
@@ -197,6 +231,7 @@ class BuilderConfigure(private val resolver: FlowResolver, private val names: Ga
         const val SEARCH = "@gry@Search..."
         const val PICK_ON_MAP = "@gry@Pick on the world map"
         const val NO_WARNINGS = "@gre@No warnings."
+        const val ALL = "All"
 
         /** A toggle shows two or three buttons. */
         val TOGGLE_SIZES = listOf(2, 3)

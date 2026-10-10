@@ -7,9 +7,11 @@ import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
+import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
@@ -88,6 +90,13 @@ object FishStepType : StepType {
 data class FishStep(val method: FishingMethod, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep {
 
     override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + method.catchIds)
+
+    /** The method's tool and its bait, if it takes any (S03b: bait like tools). */
+    override fun needs(): List<StepNeeds> {
+        val tool = method.tool
+        val bait = tool.bait?.let { ToolNeed(word = null, mapOf(it to 1), countable = false) }
+        return listOf(StepNeeds(tools = listOfNotNull(ToolNeed(word = null, mapOf(tool.id to 1)), bait)))
+    }
 
     override fun activity(player: Player, runTile: Tile): StepActivity =
         FishingActivity(LunaFisher(player, method, Area(workSpot.tile(runTile), radius)), amount)

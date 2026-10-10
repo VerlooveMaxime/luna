@@ -66,7 +66,7 @@ class ChopStepTypeTest {
         assertEquals(
             listOf(
                 "Tree (left): search tree, 'Which tree would you like to cut?'",
-                "Amount (left): typed amount 1..1000, button 'Full'",
+                "Amount (left): typed amount 1..2147483647, button 'Full'",
                 "Within (right): typed within 1..32",
             ),
             described(ChopStepType.fields(FakeNames())),
@@ -126,5 +126,12 @@ class ChopStepTypeTest {
     @Test
     fun `a chop step without a count cuts until the bag is full, within the default radius`() {
         assertEquals(listOf("until the bag is full"), ChopStepType.details(chop(), FlowContext()))
+    }
+
+    @Test
+    fun `a chop step needs an axe its Woodcutting level allows`() {
+        val axe = ChopStep(Tree.NORMAL, 10, walkedTo).needs().single().tools.single()
+
+        assertEquals(listOf("axe", 1, 41, Skill.WOODCUTTING), listOf(axe.word, axe.items[1351], axe.items[1359], axe.skill))
     }
 }

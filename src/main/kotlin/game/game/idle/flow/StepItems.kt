@@ -26,9 +26,13 @@ object StepItems {
         return settings.with(key, text(if (kept.size < items.size) kept else items + StepItem(id)))
     }
 
+    /** [settings] with [id]'s amount in [key]'s list set to [amount] (null for all); a list without [id] is left as it is. */
+    fun withAmount(settings: StepSettings, key: String, id: Int, amount: Int?): StepSettings =
+        settings.with(key, text(read(settings, key).map { if (it.id == id) it.copy(amount = amount) else it }))
+
     private fun item(text: String): StepItem? {
         val parts = text.split(":")
         val id = parts[0].toIntOrNull() ?: return null
-        return StepItem(id, parts.getOrNull(1)?.toIntOrNull())
+        return StepItem(id, parts.getOrNull(1)?.toIntOrNull()?.takeIf { it >= 1 })
     }
 }

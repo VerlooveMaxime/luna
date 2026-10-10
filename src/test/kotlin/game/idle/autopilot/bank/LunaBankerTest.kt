@@ -8,6 +8,7 @@ import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.overlay.OverlayType
 import io.luna.game.model.mob.overlay.StandardInterface
+import io.luna.game.model.mob.varp.PersistentVarp
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -64,7 +65,7 @@ class LunaBankerTest {
     fun `without a booth on the tile the view has none to use`() {
         val view = LunaBanker(login(), boothTile).look()
 
-        assertEquals(BankView(boothFound = false, boothUsableFromHere = false, bankOpen = false, emptyList()), view)
+        assertEquals(listOf(false, false, false), listOf(view.boothFound, view.boothUsableFromHere, view.bankOpen))
     }
 
     @Test
@@ -73,7 +74,7 @@ class LunaBankerTest {
 
         val view = LunaBanker(login(), boothTile = null).look()
 
-        assertEquals(BankView(boothFound = false, boothUsableFromHere = false, bankOpen = false, emptyList()), view)
+        assertEquals(listOf(false, false, false), listOf(view.boothFound, view.boothUsableFromHere, view.bankOpen))
     }
 
     @Test
@@ -82,7 +83,7 @@ class LunaBankerTest {
 
         val view = LunaBanker(login(), boothTile).look()
 
-        assertEquals(BankView(boothFound = true, boothUsableFromHere = true, bankOpen = false, emptyList()), view)
+        assertEquals(listOf(true, true, false), listOf(view.boothFound, view.boothUsableFromHere, view.bankOpen))
     }
 
     @Test
@@ -91,7 +92,7 @@ class LunaBankerTest {
 
         val view = LunaBanker(login(awayFromBooth), boothTile).look()
 
-        assertEquals(BankView(boothFound = true, boothUsableFromHere = false, bankOpen = false, emptyList()), view)
+        assertEquals(listOf(true, false, false), listOf(view.boothFound, view.boothUsableFromHere, view.bankOpen))
     }
 
     @Test
@@ -103,41 +104,27 @@ class LunaBankerTest {
     }
 
     @Test
-    fun `every slot but the axe's is depositable`() {
+    fun `the view holds the bag's slots, empty ones as none`() {
         val player = login()
         holdAxeLogsAndCoins(player)
 
-        assertEquals(listOf(1, 2, 3), LunaBanker(player, boothTile).look().depositableSlots)
+        assertEquals(listOf(Held(bronzeAxe, 1), Held(logs, 1), Held(logs, 1), Held(coins, 100), null), LunaBanker(player, boothTile).look().bag.take(5))
     }
 
     @Test
-    fun `pickaxes and the hammer stay in the inventory, so mine and smith steps go on after a bank step`() {
+    fun `the view counts what the bank holds by item`() {
         val player = login()
-        player.inventory.add(Item(1265))
-        player.inventory.add(Item(2347))
-        player.inventory.add(Item(logs))
+        player.bank.add(Item(logs, 40))
+        player.bank.add(Item(coins, 7))
 
-        assertEquals(listOf(2), LunaBanker(player, boothTile).look().depositableSlots)
+        assertEquals(mapOf(logs to 40, coins to 7), LunaBanker(player, boothTile).look().bank)
     }
 
     @Test
-    fun `fishing bait and feathers stay in the inventory, as the rods they feed do`() {
-        val player = login()
-        player.inventory.add(Item(313, 50))
-        player.inventory.add(Item(314, 50))
-        player.inventory.add(Item(logs))
+    fun `coins stack and logs do not`() {
+        val banker = LunaBanker(login(), boothTile)
 
-        assertEquals(listOf(2), LunaBanker(player, boothTile).look().depositableSlots)
-    }
-
-    @Test
-    fun `the tinderbox and the fishing net stay in the inventory too`() {
-        val player = login()
-        player.inventory.add(Item(590))
-        player.inventory.add(Item(303))
-        player.inventory.add(Item(logs))
-
-        assertEquals(listOf(2), LunaBanker(player, boothTile).look().depositableSlots)
+        assertEquals(listOf(true, false), listOf(banker.stacks(coins), banker.stacks(logs)))
     }
 
     @Test
@@ -198,9 +185,74 @@ class LunaBankerTest {
         val player = login()
         holdAxeLogsAndCoins(player)
 
-        LunaBanker(player, boothTile).deposit(listOf(1, 2, 3))
+        val move = LunaBanker(player, boothTile).deposit(listOf(1, 2, 3))
 
         assertEquals(listOf(2, 100), listOf(player.bank.computeAmountForId(logs), player.bank.computeAmountForId(coins)))
+        assertEquals(BankMove(moved = true, failed = emptySet()), move)
+    }
+
+    @Test
+    fun `a deposit the bank has no room for fails`() {
+        val player = login()
+        holdAxeLogsAndCoins(player)
+        (0 until player.bank.capacity()).forEach { player.bank.add(Item(4000 + it)) }
+
+        val move = LunaBanker(player, boothTile).deposit(listOf(1, 3))
+
+        assertEquals(BankMove(moved = false, failed = setOf(logs, coins)), move)
+    }
+
+    @Test
+    fun `withdrawing takes each amount from the bank into the bag`() {
+        val player = login()
+        player.bank.add(Item(logs, 40))
+        player.bank.add(Item(coins, 500))
+
+        val move = LunaBanker(player, boothTile).withdraw(listOf(Take(logs, 5), Take(coins, 200)))
+
+        assertEquals(listOf(5, 200, 35), listOf(player.inventory.computeAmountForId(logs), player.inventory.computeAmountForId(coins), player.bank.computeAmountForId(logs)))
+        assertEquals(BankMove(moved = true, failed = emptySet()), move)
+    }
+
+    @Test
+    fun `withdrawing hands out items, not notes, whatever the player's bank setting`() {
+        val player = login()
+        player.bank.add(Item(logs, 40))
+        player.varpManager.setValue(PersistentVarp.WITHDRAW_AS_NOTE, 1)
+
+        LunaBanker(player, boothTile).withdraw(listOf(Take(logs, 5)))
+
+        assertEquals(5, player.inventory.computeAmountForId(logs))
+    }
+
+    @Test
+    fun `a withdrawal the bank holds none of fails`() {
+        val player = login()
+        player.bank.add(Item(logs, 40))
+
+        val move = LunaBanker(player, boothTile).withdraw(listOf(Take(coins, 5), Take(logs, 5)))
+
+        assertEquals(BankMove(moved = true, failed = setOf(coins)), move)
+    }
+
+    @Test
+    fun `a withdrawal into a full bag fails`() {
+        val player = login()
+        player.bank.add(Item(logs, 40))
+        (0 until player.inventory.capacity()).forEach { player.inventory.add(Item(bronzeAxe)) }
+
+        val move = LunaBanker(player, boothTile).withdraw(listOf(Take(logs, 5)))
+
+        assertEquals(BankMove(moved = false, failed = setOf(logs)), move)
+    }
+
+    @Test
+    fun `the banker tells the player in the chat box`() {
+        val player = login()
+
+        LunaBanker(player, boothTile).tell("Autopilot: hello.")
+
+        assertEquals(listOf("Autopilot: hello."), TestWorld.chatbox(player))
     }
 
     @Test

@@ -71,11 +71,11 @@ class LightActivityTest {
 
         activity.act()
 
-        assertEquals(listOf("step aside"), lighter.steps)
+        assertEquals(listOf("move to a free tile"), lighter.steps)
     }
 
     @Test
-    fun `nowhere to step aside blocks the step`() {
+    fun `no free tile close enough blocks the step`() {
         lighter.view = ready.copy(tileFree = false)
         lighter.aside = false
 

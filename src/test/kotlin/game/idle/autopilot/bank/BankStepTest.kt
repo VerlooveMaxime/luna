@@ -33,7 +33,7 @@ class BankStepTest {
 
     @Test
     fun `the nearest bank is the one a walk reaches first, not the nearest in a straight line`() {
-        val nearest = BankStep(listOf(acrossFence, thisSide)).nearest(here, FakeBankTerrain(usable, fence))
+        val nearest = BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(here, FakeBankTerrain(usable, fence))
 
         assertEquals(thisSide, nearest)
     }
@@ -42,7 +42,7 @@ class BankStepTest {
     fun `with no bank within walking reach the nearest in a straight line is taken`() {
         val walledIn = FakeBankTerrain(usable) { true }
 
-        val nearest = BankStep(listOf(thisSide, acrossFence)).nearest(here, walledIn)
+        val nearest = BankStep(listOf(thisSide, acrossFence), EVERYTHING).nearest(here, walledIn)
 
         assertEquals(acrossFence, nearest)
     }
@@ -51,14 +51,14 @@ class BankStepTest {
     fun `a lone bank on the player's floor is taken without a search`() {
         val terrain = FakeBankTerrain(usable, fence)
 
-        BankStep(listOf(acrossFence, near.copy(booth = Tile(3200, 3200, 1)))).nearest(here, terrain)
+        BankStep(listOf(acrossFence, near.copy(booth = Tile(3200, 3200, 1))), EVERYTHING).nearest(here, terrain)
 
         assertEquals(0, terrain.stepsAsked)
     }
 
     @Test
     fun `with no bank on the player's floor there is none to take`() {
-        assertNull(BankStep(listOf(acrossFence, thisSide)).nearest(Position(3200, 3200, 1), FakeBankTerrain(usable)))
+        assertNull(BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(Position(3200, 3200, 1), FakeBankTerrain(usable)))
     }
 
     @Test
@@ -68,7 +68,7 @@ class BankStepTest {
         TestWorld.place(boothId, far.booth.toPosition())
         player.inventory.add(Item(1511))
 
-        BankStep(listOf(far, near)).activity(player, runTile).act()
+        BankStep(listOf(far, near), EVERYTHING).activity(player, runTile).act()
 
         assertEquals(Position(3199, 3200), player.navigator.currentTarget)
     }
@@ -76,10 +76,12 @@ class BankStepTest {
     @Test
     fun `with no bank on the player's floor the step blocks`() {
         val player = TestWorld.login("banker", Position(3195, 3200, 1))
-        val activity = BankStep(listOf(near)).activity(player, runTile)
+        player.inventory.add(Item(1511))
+        val activity = BankStep(listOf(near), EVERYTHING).activity(player, runTile)
 
         activity.act()
 
         assertEquals("Autopilot: there is no bank booth this step can use on this floor.", activity.blocked())
     }
 }
+

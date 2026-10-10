@@ -5,6 +5,7 @@ import game.idle.autopilot.AutopilotPlayer
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.SavedFlows
+import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepItems
 import game.idle.flow.option.GameNames
@@ -142,12 +143,23 @@ class BuilderScreen<P : AutopilotPlayer>(
         return BuilderAnswer.Configure(current.copy(settings = StepItems.toggled(current.settings, key, id), typing = null))
     }
 
-    /** [value] entered on the "Enter amount" prompt [draft] opened; out of its field's range it says the rule instead. */
+    /**
+     * [value] entered on the "Enter amount" prompt [draft] opened, for a field or a withdrawal's line; out of range it
+     * says the rule instead.
+     */
     fun typed(draft: StepDraft?, value: Int): BuilderAnswer {
-        val field = draft?.let { fields(it).filterIsInstance<StepField.Typed>().firstOrNull { field -> field.key == it.typing } }
-            ?: return BuilderAnswer.Ignored
+        val typing = draft?.typing ?: return BuilderAnswer.Ignored
+        val item = typing.item
+        if (item != null) return typedLine(draft, typing.key, item, value)
+        val field = fields(draft).filterIsInstance<StepField.Typed>().firstOrNull { it.key == typing.key } ?: return BuilderAnswer.Ignored
         if (value !in field.range) return BuilderAnswer.Configure(draft.notTyping(), "$PREFIX ${field.rule}.")
         return BuilderAnswer.Configure(draft.with(field.key, value.toString()))
+    }
+
+    /** A withdrawal takes any count of 1 or more, as every amount does (Maxime, 2026-10-10): no Int is past the top. */
+    private fun typedLine(draft: StepDraft, key: String, item: Int, value: Int): BuilderAnswer {
+        if (value < StepAmount.RANGE.first) return BuilderAnswer.Configure(draft.notTyping(), "$PREFIX ${StepAmount.RULE}.")
+        return BuilderAnswer.Configure(draft.copy(settings = StepItems.withAmount(draft.settings, key, item, value), typing = null))
     }
 
     /** A tile picked on the world map: it goes into [draft]'s tile, if it has one. */
@@ -267,6 +279,8 @@ class BuilderScreen<P : AutopilotPlayer>(
                 ?: BuilderWidgets.toggleOf(widgetId)?.let { (row, button) -> if (running) stopFirst else toggle(draft, row, button) }
                 ?: BuilderWidgets.listAddOf(widgetId)?.let { list -> if (running) stopFirst else addOrRemove(player, draft, list) }
                 ?: BuilderWidgets.lineRemoveOf(widgetId)?.let { (list, line) -> if (running) stopFirst else remove(draft, list, line) }
+                ?: BuilderWidgets.lineAmountOf(widgetId)?.let { (list, line) -> if (running) stopFirst else lineAmount(draft, list, line) }
+                ?: BuilderWidgets.lineAllOf(widgetId)?.let { (list, line) -> if (running) stopFirst else lineAll(draft, list, line) }
         }
     }
 
@@ -283,9 +297,26 @@ class BuilderScreen<P : AutopilotPlayer>(
 
     /** A list line's x takes its item out. */
     private fun remove(draft: StepDraft, list: Int, line: Int): BuilderAnswer? {
-        val field = ConfigureRows.list(fields(draft), list) ?: return null
-        val id = StepItems.ids(draft.settings, field.key).getOrNull(line) ?: return null
+        val (field, id) = lineItem(draft, list, line) ?: return null
         return BuilderAnswer.Configure(draft.copy(settings = StepItems.toggled(draft.settings, field.key, id), typing = null))
+    }
+
+    /** A withdrawal's amount box opens "Enter amount" for its line. */
+    private fun lineAmount(draft: StepDraft, list: Int, line: Int): BuilderAnswer? {
+        val (field, id) = lineItem(draft, list, line)?.takeIf { (field, _) -> field.amounts } ?: return null
+        return BuilderAnswer.Amount(draft.copy(typing = Typing(field.key, id)))
+    }
+
+    /** A withdrawal's All button: as many as fit (Maxime, 2026-10-10). */
+    private fun lineAll(draft: StepDraft, list: Int, line: Int): BuilderAnswer? {
+        val (field, id) = lineItem(draft, list, line)?.takeIf { (field, _) -> field.amounts } ?: return null
+        return BuilderAnswer.Configure(draft.copy(settings = StepItems.withAmount(draft.settings, field.key, id, amount = null), typing = null))
+    }
+
+    /** The list of configure list [list] and the item on its [line], null when there is none. */
+    private fun lineItem(draft: StepDraft, list: Int, line: Int): Pair<StepField.Items, Int>? {
+        val field = ConfigureRows.list(fields(draft), list) ?: return null
+        return StepItems.ids(draft.settings, field.key).getOrNull(line)?.let { field to it }
     }
 
     private fun save(player: P, draft: StepDraft): BuilderAnswer {
@@ -312,7 +343,7 @@ class BuilderScreen<P : AutopilotPlayer>(
         return when (val field = ConfigureRows.of(fields(draft))[row]) {
             is StepField.Note, is StepField.Toggle, is StepField.Items, null -> null
             is StepField.Search -> BuilderAnswer.Search(idle, field, searchContext(player, draft))
-            is StepField.Typed -> BuilderAnswer.Amount(draft.copy(typing = field.key))
+            is StepField.Typed -> BuilderAnswer.Amount(draft.copy(typing = Typing(field.key)))
             is StepField.MapTile -> BuilderAnswer.PickTile(idle, tileOf(draft.settings[field.key]) ?: player.tile)
         }
     }
@@ -330,7 +361,9 @@ class BuilderScreen<P : AutopilotPlayer>(
         return OptionContext(settings = draft.settings, before = before, input = resolver.types.input(draft.settings, before))
     }
 
-    private fun fields(draft: StepDraft): List<StepField> = resolver.types.find(draft.settings.kind)?.fields(names).orEmpty()
+    /** The fields the configure screen shows for [draft]'s settings, as [BuilderConfigure] lays them out. */
+    private fun fields(draft: StepDraft): List<StepField> =
+        ConfigureRows.shown(resolver.types.find(draft.settings.kind)?.fields(names).orEmpty(), draft.settings)
 
     /** The tile a map field holds ("x y"), null when it holds none. */
     private fun tileOf(text: String?): Tile? =

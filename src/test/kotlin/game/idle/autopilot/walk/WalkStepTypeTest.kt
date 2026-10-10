@@ -3,6 +3,7 @@ package game.idle.autopilot.walk
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepIcon
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.flow.described
@@ -92,5 +93,10 @@ class WalkStepTypeTest {
     @Test
     fun `a walk step has no target`() {
         assertNull(WalkStepType.target(FakeNames()))
+    }
+
+    @Test
+    fun `a walk step needs nothing in the bag`() {
+        assertEquals(emptyList<StepNeeds>(), WalkStep(Tile(3086, 3233)).needs())
     }
 }

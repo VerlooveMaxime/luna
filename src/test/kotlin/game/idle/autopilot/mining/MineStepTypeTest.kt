@@ -67,7 +67,7 @@ class MineStepTypeTest {
         assertEquals(
             listOf(
                 "Rock (left): search ore, 'Which rock would you like to mine?'",
-                "Amount (left): typed amount 1..1000, button 'Full'",
+                "Amount (left): typed amount 1..2147483647, button 'Full'",
                 "Within (right): typed within 1..32",
             ),
             described(MineStepType.fields(FakeNames())),
@@ -126,5 +126,12 @@ class MineStepTypeTest {
     @Test
     fun `a mine step without a count mines until the bag is full, within the default radius`() {
         assertEquals(listOf("until the bag is full"), MineStepType.details(mine(), FlowContext()))
+    }
+
+    @Test
+    fun `a mine step needs a pickaxe its Mining level allows`() {
+        val pickaxe = MineStep(Ore.COPPER, 10, walkedTo).needs().single().tools.single()
+
+        assertEquals(listOf("pickaxe", 1, 40, Skill.MINING), listOf(pickaxe.word, pickaxe.items[1265], pickaxe.items[1275], pickaxe.skill))
     }
 }

@@ -4,7 +4,9 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepSettings
+import game.idle.flow.ToolNeed
 import game.idle.flow.Uses
 import game.idle.flow.WorkSpot
 import game.idle.flow.described
@@ -84,7 +86,7 @@ class SmithStepTypeTest {
                 "Input (left): toggle input earlier 'Earlier steps' / bank 'The bank'",
                 "Item (left): search item, 'What would you like to smith?'",
                 "Uses (left): note",
-                "Amount (left): typed amount 1..1000, button 'All'",
+                "Amount (left): typed amount 1..2147483647, button 'All'",
                 "Within (right): typed within 1..32",
             ),
             described(type.fields(FakeNames())),
@@ -167,5 +169,13 @@ class SmithStepTypeTest {
     private companion object {
         const val BRONZE_DAGGER = 1205
         const val IRON_PLATEBODY = 1115
+    }
+
+    @Test
+    fun `a smith step needs a hammer and the bar`() {
+        assertEquals(
+            listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(2347 to 1))), inputs = listOf(2349))),
+            SmithStep(BarType.BRONZE, SmithingTable.DAGGER, 10, walkedTo).needs(),
+        )
     }
 }

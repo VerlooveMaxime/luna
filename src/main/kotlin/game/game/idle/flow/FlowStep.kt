@@ -85,7 +85,10 @@ enum class FieldColumn { LEFT, RIGHT }
 /** What a step picked as the builder shows it: [label] (null when nothing is picked yet) and [icon]. */
 data class StepPick(val label: String?, val icon: OptionIcon?)
 
-/** A setting of a step on the builder's configure screen, on a row under [label], taking [rows] rows. */
+/**
+ * A setting of a step on the builder's configure screen, on a row under [label], taking [rows] rows; [visible] says
+ * whether the settings show it (Deposit's Chosen list only on Chosen).
+ */
 sealed interface StepField {
 
     val label: String
@@ -94,9 +97,12 @@ sealed interface StepField {
 
     val rows: Int get() = 1
 
+    val visible: (StepSettings) -> Boolean
+
     /** The step's [target], picked in the chatbox search headed [title]. */
     class Search(override val label: String, val target: StepTarget, val title: String) : StepField {
         override val column = FieldColumn.LEFT
+        override val visible = ALWAYS
     }
 
     /**
@@ -112,17 +118,23 @@ sealed interface StepField {
         val shown: (String?) -> String,
         val unbounded: String? = null,
         override val column: FieldColumn = FieldColumn.LEFT,
-    ) : StepField
+    ) : StepField {
+        override val visible = ALWAYS
+    }
 
     /** A tile picked on the world map, kept under [key] as [Tile.text]. */
     class MapTile(val key: String, override val label: String) : StepField {
         override val column = FieldColumn.LEFT
+        override val visible = ALWAYS
     }
 
     /** What the step works out by itself, worded by [text] from its settings and what the steps before it set up. */
-    class Note(override val label: String, val text: (StepSettings, FlowContext) -> String) : StepField {
-        override val column = FieldColumn.LEFT
-    }
+    class Note(
+        override val label: String,
+        override val column: FieldColumn = FieldColumn.LEFT,
+        override val visible: (StepSettings) -> Boolean = ALWAYS,
+        val text: (StepSettings, FlowContext) -> String,
+    ) : StepField
 
     /**
      * One of [choices] kept under [key], picked from a row of small buttons; [current] is the one lit for the settings
@@ -134,11 +146,14 @@ sealed interface StepField {
         val choices: List<Choice>,
         val current: (StepSettings, FlowContext) -> String,
         override val column: FieldColumn = FieldColumn.LEFT,
-    ) : StepField
+    ) : StepField {
+        override val visible = ALWAYS
+    }
 
     /**
      * Several items of [source] kept under [key] ([StepItems]), shown as a list on [rows] rows (Maxime, 2026-10-10): its
      * first line, worded [add], opens the search headed [title], which stays open and adds or takes out each row clicked.
+     * With [amounts] each line has its amount too, typed or All (a withdrawal, S07b).
      */
     class Items(
         val key: String,
@@ -148,7 +163,13 @@ sealed interface StepField {
         val add: String,
         override val rows: Int,
         override val column: FieldColumn = FieldColumn.LEFT,
+        val amounts: Boolean = false,
+        override val visible: (StepSettings) -> Boolean = ALWAYS,
     ) : StepField
+
+    private companion object {
+        val ALWAYS: (StepSettings) -> Boolean = { true }
+    }
 }
 
 /** A button of a [StepField.Toggle]: the [value] it keeps, under its [word]. */
@@ -171,13 +192,15 @@ sealed interface WorkSpot {
 /**
  * What a step can rely on from the steps before it in the flow: where they work, the item ids they get, and the npcs
  * the last fight step fights (a pick-up step offers their drops). [gatheredBy] numbers the step (from 1) that first gets
- * each gathered id; the resolver fills it in, so the builder can say where a step's input comes from.
+ * each gathered id; the resolver fills it in, so the builder can say where a step's input comes from. [lap] is what
+ * every step of the flow gathers or makes, which the bank's Gathered deposits since the flow loops (S07b).
  */
 data class FlowContext(
     val workSpot: WorkSpot = WorkSpot.RunTile,
     val gathered: Set<Int> = emptySet(),
     val fought: Set<Int> = emptySet(),
     val gatheredBy: Map<Int, Int> = emptyMap(),
+    val lap: Set<Int> = emptySet(),
 ) {
     /** The numbers of the steps that get any of [items], in flow order. */
     fun stepsGathering(items: Set<Int>): List<Int> = gatheredBy.filterKeys { it in items }.values.distinct().sorted()
@@ -206,6 +229,33 @@ interface ResolvedStep {
     /** What the steps after this one can rely on. */
     fun after(context: FlowContext): FlowContext = context
 
+    /**
+     * What the step needs in the bag, one entry per way it can work (a make recipe's ways), none for a step that needs
+     * nothing; the configure screen warns about the first way the flow cannot supply (S07b).
+     */
+    fun needs(): List<StepNeeds> = emptyList()
+
     /** The activity that carries this step out for [player], whose flow was started on [runTile]. */
     fun activity(player: Player, runTile: Tile): StepActivity
+}
+
+/**
+ * What a step needs in the bag to work one way: its [tools] (kept), and [inputs] (item ids used up), which a step taking
+ * its input from the bank relies on a bank step to withdraw.
+ */
+data class StepNeeds(val tools: List<ToolNeed> = emptyList(), val inputs: List<Int> = emptyList())
+
+/**
+ * A tool or bait a step needs carried or worn: any one of [items], an item id to the level in [skill] it needs (no skill:
+ * any level). [word] names it in a warning ("axe"), null for the first item's own name; a [countable] one is "one", bait
+ * "any" ("no bank step withdraws any").
+ */
+data class ToolNeed(val word: String?, val items: Map<Int, Int>, val skill: Int? = null, val countable: Boolean = true)
+
+/** A step that moves items between the bag and the bank: the ids it [withdraws], and whether it banks [id] from the bag. */
+interface BankMoves {
+
+    val withdraws: Set<Int>
+
+    fun banks(id: Int): Boolean
 }

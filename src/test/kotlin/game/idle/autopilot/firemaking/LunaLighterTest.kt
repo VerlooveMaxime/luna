@@ -126,55 +126,66 @@ class LunaLighterTest {
         assertEquals(emptyList<Int>(), used)
     }
 
+    private val around = Direction.values().filter { it != Direction.NONE }.map { here.translate(1, it) }
+
     @Test
-    fun `stepping aside goes west first`() {
+    fun `a player whose tile is taken walks to a free tile next to it`() {
         val player = login()
+        TestWorld.place(fire, here)
 
-        assertTrue(lighter(player).stepAside())
-        TestWorld.tick()
+        assertTrue(lighter(player).moveToFreeTile())
 
-        assertEquals(Position(3199, 3200), player.position)
+        assertEquals(1, player.navigator.currentTarget?.let { maxOf(Math.abs(it.x - here.x), Math.abs(it.y - here.y)) })
     }
 
     @Test
-    fun `stepping aside passes over a tile something takes`() {
+    fun `a player boxed in by fires walks past them to the nearest free tile`() {
         val player = login()
-        TestWorld.place(fire, Position(3199, 3200))
+        (around + here).forEach { TestWorld.place(fire, it) }
 
-        lighter(player).stepAside()
-        TestWorld.tick()
+        lighter(player).moveToFreeTile()
 
-        assertEquals(Position(3201, 3200), player.position)
+        assertEquals(2, player.navigator.currentTarget?.let { maxOf(Math.abs(it.x - here.x), Math.abs(it.y - here.y)) })
     }
 
     @Test
-    fun `stepping aside passes over a tile a wall shuts off`() {
+    fun `the free tile is the one nearest where the step started, not where the player stands`() {
         val player = login()
-        TestWorld.place(deadTree, Position(3199, 3200))
-        TestWorld.place(deadTree, Position(3201, 3200))
+        val lighter = lighter(player)
+        player.move(Position(3205, 3200))
+        TestWorld.place(fire, Position(3205, 3200))
 
-        lighter(player).stepAside()
-        TestWorld.tick()
+        lighter.moveToFreeTile()
 
-        assertEquals(Position(3200, 3199), player.position)
+        assertEquals(here, player.navigator.currentTarget)
     }
 
     @Test
-    fun `stepping aside passes over a free tile behind a wall on the player's own tile`() {
+    fun `a tile scenery stands on is passed over`() {
         val player = login()
-        TestWorld.place(1902, Position(3200, 3200), ObjectType.STRAIGHT_WALL, ObjectDirection.WEST)
+        TestWorld.place(fire, here)
+        around.filter { it != Position(3200, 3201) }.forEach { TestWorld.place(deadTree, it) }
 
-        lighter(player).stepAside()
-        TestWorld.tick()
+        lighter(player).moveToFreeTile()
 
-        assertEquals(Position(3201, 3200), player.position)
+        assertEquals(Position(3200, 3201), player.navigator.currentTarget)
     }
 
     @Test
-    fun `with every side taken there is nowhere to step`() {
+    fun `a free tile a walk cannot reach is passed over`() {
         val player = login()
-        listOf(Position(3199, 3200), Position(3201, 3200), Position(3200, 3199), Position(3200, 3201)).forEach { TestWorld.place(fire, it) }
+        TestWorld.place(fire, here)
+        around.filter { it != Position(3201, 3201) }.forEach { TestWorld.place(deadTree, it) }
 
-        assertFalse(lighter(player).stepAside())
+        assertFalse(lighter(player).moveToFreeTile())
+    }
+
+    @Test
+    fun `with no free tile a walk reaches near the start there is none to go to`() {
+        val player = login()
+        TestWorld.place(fire, here)
+        around.forEach { TestWorld.place(deadTree, it) }
+
+        assertFalse(lighter(player).moveToFreeTile())
     }
 }

@@ -9,6 +9,7 @@ import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepInput
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
@@ -90,6 +91,9 @@ class SmeltStepType(private val names: GameNames) : StepType {
 data class SmeltStep(val bar: BarType, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep {
 
     override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + bar.id)
+
+    override fun needs(): List<StepNeeds> =
+        listOf(StepNeeds(inputs = listOfNotNull(bar.oreRequired.first, bar.oreRequired.second).map { it.id }))
 
     override fun activity(player: Player, runTile: Tile): StepActivity =
         SmeltingActivity(LunaSmelter(player, bar, Area(workSpot.tile(runTile), radius)), bar, amount)
