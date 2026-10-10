@@ -12,7 +12,7 @@ interface ItemDropper {
     fun dropItems()
 }
 
-/** The `drop` step: drops what the flow gathered so far, over as soon as none of it is left. */
+/** The `drop` step: drops its items, over as soon as the bag holds none of them. */
 class DropActivity(private val dropper: ItemDropper) : StepActivity {
 
     override fun isBusy(): Boolean = dropper.isBusy()

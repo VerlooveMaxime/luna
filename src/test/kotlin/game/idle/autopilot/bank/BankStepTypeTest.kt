@@ -26,11 +26,12 @@ class BankStepTypeTest {
     private val logs = 1511
     private val oak = 1521
     private val tinderbox = 590
+    private val notedLogs = 1512
 
     private val draynor = Bank("draynor", "Draynor bank", Tile(3091, 3242))
     private val varrock = Bank("varrock_west", "Varrock west bank", Tile(3186, 3440))
-    private val names = FakeNames(mapOf(logs to "Logs", oak to "Oak logs", tinderbox to "Tinderbox"))
-    private val bank = BankStepType(BankCatalog(listOf(varrock, draynor)), ItemCatalog(mapOf(logs to "Logs", oak to "Oak logs")), names)
+    private val names = FakeNames(mapOf(logs to "Logs", notedLogs to "Logs", oak to "Oak logs", tinderbox to "Tinderbox"))
+    private val bank = BankStepType(BankCatalog(listOf(varrock, draynor)), ItemCatalog(mapOf(logs to "Logs", oak to "Oak logs", tinderbox to "Tinderbox"), notes = mapOf(notedLogs to logs)), names)
 
     private val gathered = BankOrder(DepositRule.Only(emptySet()), emptyList(), IfStuck.SKIP)
 
@@ -91,10 +92,10 @@ class BankStepTypeTest {
     }
 
     @Test
-    fun `chosen deposits the items picked`() {
+    fun `chosen deposits every item of the names picked, notes too`() {
         val step = bank.resolve(settings("deposit" to "chosen", "depositItems" to "1511,590"), FlowContext()) as BankStep
 
-        assertEquals(DepositRule.Only(setOf(logs, tinderbox)), step.order.deposit)
+        assertEquals(DepositRule.Only(setOf(logs, notedLogs, tinderbox)), step.order.deposit)
     }
 
     @Test
@@ -140,10 +141,17 @@ class BankStepTypeTest {
     }
 
     @Test
-    fun `withdrawals and chosen deposits offer any item with the bank's counts`() {
+    fun `withdrawals offer any item with the bank's counts`() {
         val options = (fields()[1] as StepField.Items).source.options(OptionContext(facts = OptionFacts(bank = mapOf(oak to 312))))
 
         assertEquals("312 in bank", options.single { it.value == "$oak" }.note)
+    }
+
+    @Test
+    fun `chosen deposits offer what the flow gathers first, as a drop step does`() {
+        val options = (fields()[5] as StepField.Items).source.options(OptionContext(before = FlowContext(lap = setOf(oak))))
+
+        assertEquals("Oak logs gathered", options.first().let { "${it.label} ${it.note}" })
     }
 
     @Test
@@ -164,6 +172,11 @@ class BankStepTypeTest {
     @Test
     fun `the deposit's note names what the flow gathers`() {
         assertEquals("Logs, oak logs", note(settings(), FlowContext(lap = setOf(logs, oak))))
+    }
+
+    @Test
+    fun `the deposit's note names items that share a name once`() {
+        assertEquals("Logs, oak logs", note(settings(), FlowContext(lap = setOf(logs, notedLogs, oak))))
     }
 
     @Test

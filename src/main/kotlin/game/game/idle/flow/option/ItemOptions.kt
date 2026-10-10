@@ -41,7 +41,7 @@ class ItemCatalog(private val names: Map<Int, String>, private val notes: Map<In
     }
 }
 
-/** Any item, with the bank's counts: what a bank step withdraws or deposits, a drop step drops, an "until" counts. */
+/** Any item, with the bank's counts: what a bank step withdraws, an "until" counts. */
 class ItemOptions(private val catalog: ItemCatalog) : OptionSource {
 
     override fun options(context: OptionContext): List<StepOption> =
@@ -54,4 +54,30 @@ class ItemOptions(private val catalog: ItemCatalog) : OptionSource {
                 banked = context.facts.banked(id),
             )
         }
+}
+
+/**
+ * Any item, for a list that takes items out of the bag (S07f: Drop's and the bank's Chosen): what the flow gathers or
+ * makes first, then what the bag holds, then every other item; one row per name, named with [names].
+ */
+class CarriedItemOptions(private val catalog: ItemCatalog, private val names: GameNames) : OptionSource {
+
+    override fun options(context: OptionContext): List<StepOption> {
+        val gathered = rows(context.before.lap, "gathered", GATHERED)
+        val carried = rows(context.facts.bag.map(catalog::unnoted), "in your bag", CARRIED)
+        val near = (gathered + carried).distinctBy { it.label }
+        val nearNames = near.map { it.label }.toSet()
+        val others = catalog.items(context.facts).filterValues { it !in nearNames }
+        return near + others.map { (id, name) -> row(id, name, "any item", group = 0) }
+    }
+
+    private fun rows(ids: Collection<Int>, note: String, group: Int): List<StepOption> = ids.map { row(it, names.item(it), note, group) }
+
+    private fun row(id: Int, name: String, note: String, group: Int) =
+        StepOption(value = id.toString(), label = name, icon = OptionIcon.Item(id), note = note, group = group)
+
+    private companion object {
+        const val GATHERED = -2
+        const val CARRIED = -1
+    }
 }

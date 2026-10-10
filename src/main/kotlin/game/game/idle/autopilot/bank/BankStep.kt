@@ -11,8 +11,10 @@ import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepItem
 import game.idle.flow.StepItems
+import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
+import game.idle.flow.option.CarriedItemOptions
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.ItemCatalog
 import game.idle.flow.option.ItemOptions
@@ -62,7 +64,7 @@ data class BankOrder(val deposit: DepositRule, val withdrawals: List<StepItem>, 
 /**
  * Bank: walks to the nearest bank or a chosen one, deposits, then withdraws (S07b). The nearest bank is picked by
  * walking distance when the step starts, from where the player stands. Withdrawals and chosen deposits are any item of
- * [items], named with [names].
+ * [items], named with [names]; a chosen deposit takes every item of its name, notes too (S07f, as drop and pick up).
  */
 class BankStepType(private val catalog: BankCatalog, private val items: ItemCatalog, private val names: GameNames) : StepType {
 
@@ -104,7 +106,7 @@ class BankStepType(private val catalog: BankCatalog, private val items: ItemCata
                 banks(settings, before)
             },
             StepField.Items(
-                DEPOSIT_ITEMS, "Chosen", ItemOptions(items), "What would you like to deposit?", ADD, rows = 4,
+                DEPOSIT_ITEMS, "Chosen", CarriedItemOptions(items, names), "What would you like to deposit?", ADD, rows = 4,
                 column = FieldColumn.RIGHT, visible = { deposit(it) == DepositChoice.CHOSEN },
             ),
         )
@@ -122,7 +124,7 @@ class BankStepType(private val catalog: BankCatalog, private val items: ItemCata
         val rule = when (deposit(settings)) {
             DepositChoice.EVERYTHING -> DepositRule.Everything
             DepositChoice.GATHERED -> DepositRule.Only(context.lap)
-            DepositChoice.CHOSEN -> DepositRule.Only(StepItems.ids(settings, DEPOSIT_ITEMS).toSet())
+            DepositChoice.CHOSEN -> DepositRule.Only(StepItems.ids(settings, DEPOSIT_ITEMS).flatMap(items::alike).toSet())
         }
         val order = BankOrder(rule, StepItems.read(settings, WITHDRAW), ifStuck(settings))
         val id = settings[BANK] ?: NEAREST
@@ -135,8 +137,7 @@ class BankStepType(private val catalog: BankCatalog, private val items: ItemCata
     /** What Deposit's rows say when they hold no list: what Gathered banks, or that Everything takes tools too. */
     private fun banks(settings: StepSettings, before: FlowContext): String {
         if (deposit(settings) == DepositChoice.EVERYTHING) return "All the bag holds, tools too"
-        val gathered = before.lap.mapIndexed { index, id -> names.item(id).let { if (index == 0) it else it.lowercase() } }
-        return gathered.joinToString(", ").ifEmpty { "Nothing any step gathers yet" }
+        return StepPick.items(before.lap.toList(), names).label ?: "Nothing any step gathers yet"
     }
 
     companion object {

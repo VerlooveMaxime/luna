@@ -19,6 +19,8 @@ import game.idle.autopilot.making.MakeStep
 import game.idle.autopilot.making.BREAD_DOUGH
 import game.idle.autopilot.mining.MineStep
 import game.idle.autopilot.mining.MiningActivity
+import game.idle.autopilot.rest.RestActivity
+import game.idle.autopilot.rest.RestStep
 import game.idle.autopilot.smelting.SmeltStep
 import game.idle.autopilot.smelting.SmeltingActivity
 import game.idle.autopilot.smithing.SmithStep
@@ -262,6 +264,11 @@ class LunaAutopilotPlayerTest {
     @Test
     fun `a drop step runs as a drop activity`() {
         assertInstanceOf(DropActivity::class.java, autopilotPlayer().activity(DropStep(setOf(logs))))
+    }
+
+    @Test
+    fun `a rest step runs as a rest activity`() {
+        assertInstanceOf(RestActivity::class.java, autopilotPlayer().activity(RestStep(100)))
     }
 
     @Test

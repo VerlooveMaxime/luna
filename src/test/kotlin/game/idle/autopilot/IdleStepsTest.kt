@@ -12,6 +12,7 @@ import game.idle.autopilot.making.RecipeCatalog
 import game.idle.autopilot.mining.MineStepType
 import game.idle.autopilot.pickup.PickUpStepType
 import game.idle.autopilot.pickup.SpawnCatalog
+import game.idle.autopilot.rest.RestStepType
 import game.idle.autopilot.smelting.SmeltStepType
 import game.idle.autopilot.smithing.SmithStepType
 import game.idle.autopilot.walk.WalkStepType
@@ -21,7 +22,6 @@ import game.idle.flow.option.ItemCatalog
 import game.idle.location.BankCatalog
 import game.testworld.TestWorld
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Test
 
 class IdleStepsTest {
@@ -36,16 +36,16 @@ class IdleStepsTest {
         ).types.all
 
     @Test
-    fun `the kind picker shows gathering, processing, fighting and picking up, then walking, dropping and banking`() {
+    fun `the kind picker shows gathering, processing, fighting, picking up and resting, then walking, dropping and banking`() {
         assertEquals(listOf(ChopStepType, MineStepType, FishStepType), types.take(3))
         assertEquals(
             listOf(LightStepType::class, CookStepType::class, MakeStepType::class, SmeltStepType::class, SmithStepType::class),
             types.subList(3, 8).map { it::class },
         )
         assertEquals(listOf(FightStepType::class, PickUpStepType::class), types.subList(8, 10).map { it::class })
-        assertEquals(listOf(WalkStepType, DropStepType), types.subList(10, 12))
-        assertInstanceOf(BankStepType::class.java, types[12])
-        assertEquals(13, types.size)
+        assertEquals(listOf(RestStepType, WalkStepType), types.subList(10, 12))
+        assertEquals(listOf(DropStepType::class, BankStepType::class), types.subList(12, 14).map { it::class })
+        assertEquals(14, types.size)
     }
 
     @Test

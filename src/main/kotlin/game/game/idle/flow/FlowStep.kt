@@ -95,9 +95,12 @@ enum class FieldColumn { LEFT, RIGHT }
 data class StepPick(val label: String?, val icon: OptionIcon?) {
 
     companion object {
-        /** Several items picked, named with [names]: "Oak logs, willow logs" with the first one's picture; no label for none. */
+        /**
+         * Several items picked, named with [names]: "Oak logs, willow logs" with the first one's picture, each name once (a
+         * pick-up step gathers every item named "Bones"); no label for none.
+         */
         fun items(ids: List<Int>, names: GameNames): StepPick {
-            val label = ids.mapIndexed { index, id -> names.item(id).let { if (index == 0) it else it.lowercase() } }.joinToString(", ")
+            val label = ids.map(names::item).distinct().mapIndexed { index, name -> if (index == 0) name else name.lowercase() }.joinToString(", ")
             return StepPick(label.ifEmpty { null }, ids.firstOrNull()?.let(OptionIcon::Item))
         }
     }
