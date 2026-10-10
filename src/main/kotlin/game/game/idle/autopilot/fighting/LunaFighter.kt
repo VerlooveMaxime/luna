@@ -40,7 +40,9 @@ class LunaFighter(private val player: Player, private val target: FightTarget, p
         FightView(
             atLocation = scan.atLocation(player.position),
             targets = scan.reachable(player.position, candidates(), { Footprint(it.position, it.size(), it.size()) }, terrain = this)
-                .map { (npc, reach) -> TargetCandidate(npc.index, npc.position, reach.distance, reach.usableFromHere, reach.approach) },
+                .map { (npc, reach) ->
+                    TargetCandidate(npc.index, npc.position, reach.distance, reach.usableFromHere, reach.approach, attacking = attacksPlayer(npc))
+                },
         )
 
     override fun attack(target: TargetCandidate) {
@@ -83,15 +85,20 @@ class LunaFighter(private val player: Player, private val target: FightTarget, p
         if (fighting != null && fighting.isAlive && fighting.id in target.npcs) watched = fighting
     }
 
-    /** Npcs of the target nobody else is fighting. */
+    /**
+     * Npcs of the target nobody else is fighting, and whatever attacks the player, of any kind (Maxime, 2026-10-10: it is
+     * fought back first; only the target's count as kills).
+     */
     private fun candidates(): List<Npc> =
         world.locator.findNpcs(anchor, area.radius) { npc ->
-            npc.id in target.npcs && npc.isAlive && npc.combat.isAttackable && npc.combat.target.let { it == null || it == player }
+            npc.isAlive && npc.combat.isAttackable && (attacksPlayer(npc) || npc.id in target.npcs && npc.combat.target == null)
         }.toList()
+
+    private fun attacksPlayer(npc: Npc): Boolean = npc.combat.target == player
 
     /** An npc that wandered off since the look is still attacked; a dead one or another in its slot is not. */
     private fun find(candidate: TargetCandidate): Npc? =
-        world.npcs.get(candidate.npcIndex)?.takeIf { it.id in target.npcs && it.isAlive }
+        world.npcs.get(candidate.npcIndex)?.takeIf { it.isAlive && (it.id in target.npcs || attacksPlayer(it)) }
 
     /** The reach of the player's next attack: next to the npc for melee, in sight and range for a bow. */
     private fun attackPolicy(): InteractionPolicy {

@@ -48,6 +48,15 @@ class FightingActivityTest {
     }
 
     @Test
+    fun `an npc attacking the player is fought back before one nearer and in reach`() {
+        fighter.view = view(targets = listOf(inReach, far.copy(attacking = true)))
+
+        activity().act()
+
+        assertEquals(listOf("walk to 3104,9510"), fighter.steps)
+    }
+
+    @Test
     fun `npcs at the same distance are picked west to east, then south to north`() {
         fighter.view = view(targets = listOf(target(3102, 9513, 2), target(3102, 9512, 2), target(3101, 9515, 2)))
 

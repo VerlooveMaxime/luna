@@ -30,13 +30,17 @@ interface Fighter {
     fun stop()
 }
 
-/** An npc the player could fight, ranked like fishing spots: [distance] walking steps to [approach], where it can be hit from. */
+/**
+ * An npc the player could fight, ranked like fishing spots: [distance] walking steps to [approach], where it can be hit
+ * from; [attacking] when it attacks the player.
+ */
 data class TargetCandidate(
     val npcIndex: Int,
     val position: Position,
     val distance: Int,
     val usableFromHere: Boolean,
     val approach: Position,
+    val attacking: Boolean = false,
 )
 
 /** What the fight step knows about the player when it decides. */
@@ -65,11 +69,16 @@ enum class FightBlockedReason(val message: String) {
     NO_TARGET("Autopilot: there is nothing to fight here that you can reach."),
 }
 
-/** Fights the nearest npc, one in reach first, walking up to it when none is: Luna's click does not walk. */
+/**
+ * Fights back what attacks the player first (Maxime, 2026-10-10: in single combat nothing else can be fought, in multi
+ * a second npc would join), then the nearest npc, one in reach first, walking up to it when none is: Luna's click does
+ * not walk.
+ */
 object FightingPlanner {
 
     private val preferredFirst: Comparator<TargetCandidate> =
-        compareByDescending<TargetCandidate> { it.usableFromHere }
+        compareByDescending<TargetCandidate> { it.attacking }
+            .thenByDescending { it.usableFromHere }
             .thenBy { it.distance }
             .thenBy { it.position.x }
             .thenBy { it.position.y }

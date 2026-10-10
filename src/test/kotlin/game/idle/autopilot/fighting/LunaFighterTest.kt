@@ -166,12 +166,21 @@ class LunaFighterTest {
     }
 
     @Test
-    fun `an npc fighting the player is a candidate`() {
+    fun `an npc fighting the player is a candidate that attacks them`() {
         val player = login()
         val npc = TestWorld.spawnNpc(chicken, Position(3201, 3200))
         npc.combat.target = player
 
-        assertEquals(1, fighter(player).look().targets.size)
+        assertTrue(fighter(player).look().targets.single().attacking)
+    }
+
+    @Test
+    fun `an npc of another kind attacking the player is a candidate, to fight back`() {
+        val player = login()
+        val npc = TestWorld.spawnNpc(cow, Position(3201, 3200))
+        npc.combat.target = player
+
+        assertEquals(listOf(npc.index to true), fighter(player).look().targets.map { it.npcIndex to it.attacking })
     }
 
     @Test
@@ -227,6 +236,18 @@ class LunaFighterTest {
         TestWorld.tick()
 
         assertEquals(emptyList<Int>(), clicked)
+    }
+
+    @Test
+    fun `an npc of another kind attacking the player is attacked back`() {
+        val player = login()
+        val cowAttacking = TestWorld.spawnNpc(cow, Position(3201, 3200)).also { it.combat.target = player }
+        val clicked = attackClicks()
+
+        attacked(player, cowAttacking)
+        TestWorld.tick()
+
+        assertEquals(listOf(cow), clicked)
     }
 
     @Test
