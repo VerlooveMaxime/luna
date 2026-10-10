@@ -31,7 +31,8 @@ class LunaLighterTest {
 
     private fun login(): Player = TestWorld.login("lighter", here)
 
-    private fun lighter(player: Player, logIds: Set<Int> = setOf(logs, oakLogs)) = LunaLighter(player, logIds)
+    private fun lighter(player: Player, logIds: Set<Int> = setOf(logs, oakLogs), start: Position = player.position) =
+        LunaLighter(player, logIds, start)
 
     @Test
     fun `an idle player is not busy`() {
@@ -158,6 +159,16 @@ class LunaLighterTest {
         lighter.moveToFreeTile()
 
         assertEquals(here, player.navigator.currentTarget)
+    }
+
+    @Test
+    fun `the free tile is the one nearest the start it is given, such as the step's own tile`() {
+        val player = login()
+        TestWorld.place(fire, here)
+
+        lighter(player, start = Position(3210, 3200)).moveToFreeTile()
+
+        assertEquals(Position(3210, 3200), player.navigator.currentTarget)
     }
 
     @Test

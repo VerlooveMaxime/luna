@@ -2,6 +2,7 @@ package game.idle.autopilot.mining
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.OwnSpot
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
@@ -10,6 +11,7 @@ import game.idle.flow.StepIcon
 import game.idle.flow.StepNeeds
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
+import game.idle.flow.StepSpot
 import game.idle.flow.StepType
 import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
@@ -51,17 +53,18 @@ object MineStepType : StepType {
         listOf(
             StepField.Search("Rock", target(names), "Which rock would you like to mine?"),
             StepAmount.field("Amount", unbounded = "until the bag is full", button = "Full"),
+            StepSpot.field(),
             StepRadius.field(),
         )
 
     override fun summary(settings: StepSettings): String =
-        "mine ${StepAmount.prefix(settings)}${settings[ORE] ?: "?"}${StepRadius.suffix(settings)}"
+        "mine ${StepAmount.prefix(settings)}${settings[ORE] ?: "?"}${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val name = settings[ORE] ?: throw FlowError("mine needs an ore")
         val ore = MINEABLE.firstOrNull { it.name.equals(name, ignoreCase = true) }
             ?: throw FlowError("'$name' is not an ore with rocks to mine")
-        return MineStep(ore, StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
+        return MineStep(ore, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
     }
 }
 
@@ -69,9 +72,11 @@ object MineStepType : StepType {
  * A mine step resolved: which ore, how far from the work spot, and how many ([amount], null for a full inventory).
  * Later steps know it gathers that ore.
  */
-data class MineStep(val ore: Ore, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep {
+data class MineStep(val ore: Ore, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot {
 
-    override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + ore.item)
+    override val ownArea: Area? get() = workSpot.ownArea(radius)
+
+    override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + ore.item))
 
     /** Any pickaxe the player's Mining level allows, as Luna's mining takes one carried or wielded. */
     override fun needs(): List<StepNeeds> =

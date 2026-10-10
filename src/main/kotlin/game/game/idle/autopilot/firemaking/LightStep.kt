@@ -1,6 +1,7 @@
 package game.idle.autopilot.firemaking
 
 import game.idle.flow.FlowContext
+import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
 import game.idle.flow.ProcessKinds
 import game.idle.flow.ResolvedStep
@@ -12,10 +13,13 @@ import game.idle.flow.StepInput
 import game.idle.flow.StepNeeds
 import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
+import game.idle.flow.StepSpot
 import game.idle.flow.StepType
 import game.idle.flow.ToolNeed
+import game.idle.flow.WorkSpot
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
+import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.firemaking.Firemaking
 import game.skill.firemaking.Log
@@ -23,8 +27,8 @@ import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
 /**
- * Light: lights a count of the kinds of logs picked or, without one, all of them, where the player stands. The logs come
- * from earlier steps or the bank (S07a), named with [names].
+ * Light: lights a count of the kinds of logs picked or, without one, all of them, where the player stands or from a tile
+ * picked for it (S07e). The logs come from earlier steps or the bank (S07a), named with [names].
  */
 class LightStepType(private val names: GameNames) : StepType {
 
@@ -34,7 +38,7 @@ class LightStepType(private val names: GameNames) : StepType {
 
     override val label = "light"
 
-    override val description = "Lights the logs picked where it stands, from earlier steps or the bank."
+    override val description = "Lights the logs picked where it stands or at its work spot, from earlier steps or the bank."
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.FIREMAKING)
 
@@ -60,24 +64,36 @@ class LightStepType(private val names: GameNames) : StepType {
             ProcessInput.field(logs.usable),
             StepAmount.field("Amount", unbounded = "all of them", button = "All"),
             logs.field("Logs", LogOptions(names), "Which logs would you like to light?"),
+            StepSpot.field(),
         )
 
     override fun summary(settings: StepSettings): String =
-        "light ${StepAmount.prefix(settings)}${logs.ids(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd()
+        "light ${StepAmount.prefix(settings)}${logs.ids(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd() +
+            StepSpot.suffix(settings)
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep =
-        LightStep(logs.resolve(settings, context, input(settings, context)), StepAmount.read(settings))
+        LightStep(logs.resolve(settings, context, input(settings, context)), StepAmount.read(settings), StepSpot.read(settings))
 
     companion object {
         const val LOGS = "logs"
     }
 }
 
-/** A light step resolved: the logs it lights and how many ([amount], null for all). */
-data class LightStep(val logIds: Set<Int>, val amount: Int? = null) : ResolvedStep {
+/**
+ * A light step resolved: the logs it lights, how many ([amount], null for all), and the tile picked for it ([spot]), its
+ * fires starting there, or null to light where it stands, not at the flow's spot (Maxime, 2026-10-10). A picked tile is
+ * where the flow went for the steps after it.
+ */
+data class LightStep(val logIds: Set<Int>, val amount: Int? = null, val spot: Tile? = null) : ResolvedStep, OwnSpot {
+
+    /** Light has no Within: the player walks to the tile unless standing on it. */
+    override val ownArea: Area? get() = spot?.let { Area(it, radius = 0) }
+
+    override fun after(context: FlowContext): FlowContext = spot?.let { WorkSpot.Own(it).after(context) } ?: context
 
     override fun needs(): List<StepNeeds> =
         listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(Firemaking.TINDERBOX to 1))), inputs = logIds.toList()))
 
-    override fun activity(player: Player, runTile: Tile): StepActivity = LightActivity(LunaLighter(player, logIds), amount)
+    override fun activity(player: Player, runTile: Tile): StepActivity =
+        LightActivity(LunaLighter(player, logIds, spot?.toPosition() ?: player.position), amount)
 }

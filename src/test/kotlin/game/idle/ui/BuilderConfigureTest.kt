@@ -176,6 +176,28 @@ class BuilderConfigureTest {
         assertEquals("@gry@Pick on the world map", text(walking, BuilderWidgets.rowPlainText(0)))
     }
 
+    private val fishing = StepDraft(1, step("fish"), new = true)
+
+    @Test
+    fun `a work spot with no tile picked reads From the flow, with no x`() {
+        assertEquals(listOf<Any>("From the flow", false), listOf(text(fishing, BuilderWidgets.rowPlainText(6)), visible(fishing, BuilderWidgets.rowButton(6))))
+    }
+
+    @Test
+    fun `a work spot shows the tile picked, with an x to put it back`() {
+        val picked = fishing.with("spot", "3101 3509")
+
+        assertEquals(
+            listOf<Any>("3101, 3509", true, "x"),
+            listOf(text(picked, BuilderWidgets.rowPlainText(6)), visible(picked, BuilderWidgets.rowButton(6)), text(picked, BuilderWidgets.rowButtonText(6))),
+        )
+    }
+
+    @Test
+    fun `a tile the step needs has no x, a tile picked or not`() {
+        assertFalse(visible(walking.with("tile", "3086 3233"), BuilderWidgets.rowButton(0)))
+    }
+
     @Test
     fun `a row the kind has no setting for is hidden, its contents left alone`() {
         assertEquals(listOf(false, false), listOf(visible(chopping, BuilderWidgets.row(3)), updates(chopping).containsKey(BuilderWidgets.rowLabel(3))))

@@ -2,6 +2,7 @@ package game.idle.autopilot.smithing
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
@@ -12,6 +13,7 @@ import game.idle.flow.StepInput
 import game.idle.flow.StepNeeds
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
+import game.idle.flow.StepSpot
 import game.idle.flow.StepType
 import game.idle.flow.ToolNeed
 import game.idle.flow.Uses
@@ -63,19 +65,20 @@ class SmithStepType(private val names: GameNames) : StepType {
             StepField.Search("Item", target(names), "What would you like to smith?"),
             StepField.Note("Uses") { settings, _ -> uses(settings) },
             StepAmount.field("Amount", unbounded = "all of them", button = "All"),
+            StepSpot.field(),
             StepRadius.field(),
         )
 
     override fun summary(settings: StepSettings): String {
         val name = smithed(settings)?.let { (_, smithed) -> names.item(smithed.item.id).lowercase() } ?: settings[ITEM] ?: "?"
-        return "smith ${StepAmount.prefix(settings)}$name${StepRadius.suffix(settings)}"
+        return "smith ${StepAmount.prefix(settings)}$name${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
     }
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val item = settings[ITEM] ?: throw FlowError("smith needs an item")
         val (table, smithed) = smithed(settings) ?: throw FlowError("'$item' is not an item to smith")
         ProcessInput.requireGathered(input(settings, context), context, listOf(smithed.barType.id), names)
-        return SmithStep(smithed.barType, table, StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
+        return SmithStep(smithed.barType, table, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
     }
 
     private fun uses(settings: StepSettings): String =
@@ -104,11 +107,13 @@ data class SmithStep(
     val radius: Int,
     val workSpot: WorkSpot,
     val amount: Int? = null,
-) : ResolvedStep {
+) : ResolvedStep, OwnSpot {
+
+    override val ownArea: Area? get() = workSpot.ownArea(radius)
 
     private val made = table.items.first { it.barType == metal }
 
-    override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + made.item.id)
+    override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + made.item.id))
 
     override fun needs(): List<StepNeeds> =
         listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(Smithing.HAMMER to 1))), inputs = listOf(metal.id)))

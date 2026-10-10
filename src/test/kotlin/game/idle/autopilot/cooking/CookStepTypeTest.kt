@@ -11,6 +11,7 @@ import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionIcon
+import game.idle.location.Area
 import game.idle.location.Tile
 import game.testworld.TestWorld
 import io.luna.game.model.mob.Skill
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.assertThrows
 
 class CookStepTypeTest {
 
+    private val picked = Tile(3101, 3509)
     /** Luna's food names itself from the item definitions, which need the cache, before the type reads it. */
     private val world = TestWorld.world
 
@@ -58,12 +60,13 @@ class CookStepTypeTest {
     }
 
     @Test
-    fun `the configure screen toggles the input, types the amount, lists the food and types the radius`() {
+    fun `the configure screen toggles the input, types the amount, lists the food, picks the work spot and types the radius`() {
         assertEquals(
             listOf(
                 "Input (left): toggle input earlier 'Earlier steps' / bank 'The bank'",
                 "Amount (left): typed amount 1..2147483647, button 'All'",
                 "Raw food (left): list raw on 4 rows, 'What would you like to cook?'",
+                "Work spot (right): map spot, none 'From the flow'",
                 "Within (right): typed within 1..32",
             ),
             described(type.fields(FakeNames())),
@@ -115,5 +118,32 @@ class CookStepTypeTest {
     @Test
     fun `a cook step has no target to search`() {
         assertNull(type.target(FakeNames()))
+    }
+
+    @Test
+    fun `a cook step with a picked work spot works around it, not where the flow went`() {
+        val step = type.resolve(cook("input" to "bank", "raw" to "$rawShrimps", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
+
+        assertEquals(CookStep(setOf(rawShrimps), 10, WorkSpot.Own(picked)), step)
+    }
+
+    @Test
+    fun `a cook step's summary ends with its picked work spot`() {
+        assertEquals("cook raw shrimps at 3101 3509", type.summary(cook("input" to "bank", "raw" to "$rawShrimps", "spot" to "3101 3509")))
+    }
+
+    @Test
+    fun `the steps after a cook step with a picked work spot work there`() {
+        val after = CookStep(setOf(rawShrimps), 12, WorkSpot.Own(picked)).after(FlowContext())
+
+        assertEquals(WorkSpot.At(picked), after.workSpot)
+    }
+
+    @Test
+    fun `a cook step walks to its picked spot from outside its area, and to no spot when it works where the flow went`() {
+        val own = CookStep(setOf(rawShrimps), 12, WorkSpot.Own(picked))
+        val flows = CookStep(setOf(rawShrimps), 12, WorkSpot.At(picked))
+
+        assertEquals(listOf(Area(picked, 12), null), listOf(own.ownArea, flows.ownArea))
     }
 }

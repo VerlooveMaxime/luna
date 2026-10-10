@@ -372,6 +372,13 @@ class BuilderScreenTest {
     }
 
     @Test
+    fun `a work spot without a tile opens the world map where the flow went before the step`() {
+        val draft = StepDraft(1, step("fish"), new = true)
+
+        assertEquals(BuilderAnswer.PickTile(draft, WENT_TO), click(player(step("goto")), BuilderWidgets.rowFace(6), draft))
+    }
+
+    @Test
     fun `a note's row does nothing`() {
         assertEquals(BuilderAnswer.Ignored, click(player(chop), BuilderWidgets.rowFace(2), choppingDraft))
     }
@@ -401,6 +408,20 @@ class BuilderScreenTest {
     @Test
     fun `the amount's button waits for the flow to stop`() {
         assertEquals(BuilderAnswer.Configure(choppingDraft, BuilderScreen.STOP_FIRST), click(running(), BuilderWidgets.rowButtonFace(1), choppingDraft))
+    }
+
+    @Test
+    fun `the work spot's x puts it back to From the flow`() {
+        val draft = StepDraft(0, step("fish"), new = false)
+
+        assertEquals(BuilderAnswer.Configure(draft), click(player(step("fish")), BuilderWidgets.rowButtonFace(6), draft.with("spot", "3101 3509")))
+    }
+
+    @Test
+    fun `a tile the step needs is not cleared by its row's button`() {
+        val draft = StepDraft(0, walk.with("tile", "3086 3233"), new = false)
+
+        assertEquals(BuilderAnswer.Ignored, click(player(walk), BuilderWidgets.rowButtonFace(0), draft))
     }
 
     @Test
@@ -456,6 +477,13 @@ class BuilderScreenTest {
         val draft = StepDraft(0, walk, new = false)
 
         assertEquals(BuilderAnswer.Configure(draft.with("tile", "3086 3233")), screen.pickedTile(player(walk), draft, Tile(3086, 3233)))
+    }
+
+    @Test
+    fun `a tile picked on the map becomes the step's work spot`() {
+        val draft = StepDraft(0, step("fish"), new = false)
+
+        assertEquals(BuilderAnswer.Configure(draft.with("spot", "3101 3509")), screen.pickedTile(player(step("fish")), draft, Tile(3101, 3509)))
     }
 
     @Test

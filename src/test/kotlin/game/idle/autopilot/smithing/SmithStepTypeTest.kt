@@ -13,6 +13,7 @@ import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.LunaGameNames
+import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.smithing.BarType
 import game.skill.smithing.smithBar.SmithingTable
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.assertThrows
 
 class SmithStepTypeTest {
 
+    private val picked = Tile(3101, 3509)
     private val walkedTo = WorkSpot.At(Tile(3188, 3426))
     private val bronzeBar = 2349
     private val type = SmithStepType(LunaGameNames)
@@ -80,13 +82,14 @@ class SmithStepTypeTest {
     }
 
     @Test
-    fun `the configure screen toggles the input, searches the item, notes its bars, types the amount and the radius`() {
+    fun `the configure screen toggles the input, searches the item, notes its bars, types the amount, picks the work spot and the radius`() {
         assertEquals(
             listOf(
                 "Input (left): toggle input earlier 'Earlier steps' / bank 'The bank'",
                 "Item (left): search item, 'What would you like to smith?'",
                 "Uses (left): note",
                 "Amount (left): typed amount 1..2147483647, button 'All'",
+                "Work spot (right): map spot, none 'From the flow'",
                 "Within (right): typed within 1..32",
             ),
             described(type.fields(FakeNames())),
@@ -177,5 +180,32 @@ class SmithStepTypeTest {
             listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(2347 to 1))), inputs = listOf(2349))),
             SmithStep(BarType.BRONZE, SmithingTable.DAGGER, 10, walkedTo).needs(),
         )
+    }
+
+    @Test
+    fun `a smith step with a picked work spot works around it, not where the flow went`() {
+        val step = type.resolve(smith("item" to "$BRONZE_DAGGER", "input" to "bank", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
+
+        assertEquals(SmithStep(BarType.BRONZE, SmithingTable.DAGGER, 10, WorkSpot.Own(picked)), step)
+    }
+
+    @Test
+    fun `a smith step's summary ends with its picked work spot`() {
+        assertEquals("smith bronze dagger at 3101 3509", type.summary(smith("item" to "$BRONZE_DAGGER", "input" to "bank", "spot" to "3101 3509")))
+    }
+
+    @Test
+    fun `the steps after a smith step with a picked work spot work there`() {
+        val after = SmithStep(BarType.BRONZE, SmithingTable.DAGGER, 12, WorkSpot.Own(picked)).after(FlowContext())
+
+        assertEquals(WorkSpot.At(picked), after.workSpot)
+    }
+
+    @Test
+    fun `a smith step walks to its picked spot from outside its area, and to no spot when it works where the flow went`() {
+        val own = SmithStep(BarType.BRONZE, SmithingTable.DAGGER, 12, WorkSpot.Own(picked))
+        val flows = SmithStep(BarType.BRONZE, SmithingTable.DAGGER, 12, WorkSpot.At(picked))
+
+        assertEquals(listOf(Area(picked, 12), null), listOf(own.ownArea, flows.ownArea))
     }
 }

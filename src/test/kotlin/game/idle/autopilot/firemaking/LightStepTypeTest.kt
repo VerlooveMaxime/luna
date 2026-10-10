@@ -7,10 +7,13 @@ import game.idle.flow.StepNeeds
 import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.ToolNeed
+import game.idle.flow.WorkSpot
 import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionIcon
+import game.idle.location.Area
+import game.idle.location.Tile
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -24,6 +27,7 @@ class LightStepTypeTest {
     private val rawShrimps = 317
     private val type = LightStepType(FakeNames(items = mapOf(logs to "Logs", oakLogs to "Oak logs")))
     private val chopped = FlowContext(gathered = setOf(logs), gatheredBy = mapOf(logs to 1))
+    private val picked = Tile(3101, 3509)
 
     private fun light(vararg values: Pair<String, String>) = StepSettings("light", mapOf(*values))
 
@@ -69,12 +73,13 @@ class LightStepTypeTest {
     }
 
     @Test
-    fun `the configure screen toggles the input, types the amount and lists the logs`() {
+    fun `the configure screen toggles the input, types the amount, lists the logs and picks the work spot`() {
         assertEquals(
             listOf(
                 "Input (left): toggle input earlier 'Earlier steps' / bank 'The bank'",
                 "Amount (left): typed amount 1..2147483647, button 'All'",
                 "Logs (left): list logs on 4 rows, 'Which logs would you like to light?'",
+                "Work spot (right): map spot, none 'From the flow'",
             ),
             described(type.fields(FakeNames())),
         )
@@ -131,5 +136,32 @@ class LightStepTypeTest {
             listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(590 to 1))), inputs = listOf(logs))),
             LightStep(setOf(logs)).needs(),
         )
+    }
+
+    @Test
+    fun `a light step with a picked work spot lights from there`() {
+        val step = type.resolve(light("input" to "bank", "logs" to "$oakLogs", "spot" to "3101 3509"), chopped)
+
+        assertEquals(LightStep(setOf(oakLogs), spot = picked), step)
+    }
+
+    @Test
+    fun `a light step's summary ends with its picked work spot`() {
+        assertEquals("light oak logs at 3101 3509", type.summary(light("logs" to "$oakLogs", "spot" to "3101 3509")))
+    }
+
+    @Test
+    fun `the steps after a light step with a picked work spot work there`() {
+        assertEquals(FlowContext(WorkSpot.At(picked)), LightStep(setOf(logs), spot = picked).after(FlowContext()))
+    }
+
+    @Test
+    fun `a light step lighting where it stands leaves the flow's spot where it was`() {
+        assertEquals(chopped, LightStep(setOf(logs)).after(chopped))
+    }
+
+    @Test
+    fun `a light step walks to its picked tile unless standing on it, and nowhere when it lights where it stands`() {
+        assertEquals(listOf(Area(picked, 0), null), listOf(LightStep(setOf(logs), spot = picked).ownArea, LightStep(setOf(logs)).ownArea))
     }
 }

@@ -117,4 +117,14 @@ class WalkActivityTest {
 
         assertEquals(listOf<Any?>(0, "Autopilot: the walk step cannot change floors to reach 3100 3100."), listOf(walker.walks, activity.blocked()))
     }
+
+    @Test
+    fun `a walk to a step's work spot names the spot when there is no way to it`() {
+        val toSpot = WalkActivity(walker, target, place = "the work spot 3100 3100", walking = "the step")
+        toSpot.act()
+
+        toSpot.act()
+
+        assertEquals("Autopilot: there is no way to walk to the work spot 3100 3100 from here.", toSpot.blocked())
+    }
 }

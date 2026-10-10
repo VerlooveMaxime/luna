@@ -3,7 +3,7 @@ package game.idle.autopilot.pickup
 import game.idle.flow.FlowContext
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
-import game.idle.flow.WorkSpot
+import game.idle.flow.StepSpot
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.ItemCatalog
 import game.idle.flow.option.OptionContext
@@ -38,14 +38,11 @@ class PickUpOptions(
     }
 
     /**
-     * The items that spawn within the step's distance of its work spot: the walk step's tile before it, else where the
-     * player stands (Run will be pressed there); none when that is not known.
+     * The items that spawn within the step's distance of its work spot: its own tile (S07e), else where the flow went
+     * before it, else where the player stands (Run will be pressed there); none when that is not known.
      */
     fun spawnsAround(settings: StepSettings, before: FlowContext, facts: OptionFacts): Set<Int> {
-        val spot = when (val spot = before.workSpot) {
-            WorkSpot.RunTile -> facts.here
-            is WorkSpot.At -> spot.tile
-        }
+        val spot = StepSpot.of(settings, before).known() ?: facts.here
         return spot?.let { spawns.itemsIn(Area(it, StepRadius.read(settings))) }.orEmpty()
     }
 

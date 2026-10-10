@@ -312,4 +312,30 @@ class LunaAutopilotPlayerTest {
     fun `a walk step runs as a walk activity`() {
         assertInstanceOf(WalkActivity::class.java, autopilotPlayer().activity(WalkStep(Tile(3210, 3200))))
     }
+
+    @Test
+    fun `a step with its own spot starting outside its area walks to the spot first`() {
+        val autopilot = autopilotPlayer()
+        val activity = autopilot.activity(ChopStep(Tree.NORMAL, radius = 5, WorkSpot.Own(Tile(3220, 3200))))
+
+        activity.act()
+
+        assertEquals(Position(3220, 3200), autopilot.player.navigator.currentTarget)
+    }
+
+    @Test
+    fun `a step with its own spot starting inside its area works at once`() {
+        val step = ChopStep(Tree.NORMAL, radius = 5, WorkSpot.Own(Tile(3205, 3200)))
+
+        assertInstanceOf(WoodcuttingActivity::class.java, autopilotPlayer().activity(step))
+    }
+
+    @Test
+    fun `a step's walk to its own spot names the spot when it cannot get there`() {
+        val activity = autopilotPlayer().activity(ChopStep(Tree.NORMAL, radius = 5, WorkSpot.Own(Tile(3220, 3200, 1))))
+
+        activity.act()
+
+        assertEquals("Autopilot: the step cannot change floors to reach the work spot 3220 3200 1.", activity.blocked())
+    }
 }

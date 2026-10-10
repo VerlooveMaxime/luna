@@ -10,6 +10,7 @@ import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.LunaGameNames
+import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.mining.Ore
 import game.testworld.TestWorld
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.assertThrows
 
 class MineStepTypeTest {
 
+    private val picked = Tile(3101, 3509)
     private val walkedTo = WorkSpot.At(Tile(3285, 3365))
 
     private fun mine(vararg values: Pair<String, String>) = StepSettings("mine", mapOf(*values))
@@ -63,11 +65,12 @@ class MineStepTypeTest {
     }
 
     @Test
-    fun `the configure screen searches the rock, types the amount and the radius`() {
+    fun `the configure screen searches the rock, types the amount, picks the work spot and the radius`() {
         assertEquals(
             listOf(
                 "Rock (left): search ore, 'Which rock would you like to mine?'",
                 "Amount (left): typed amount 1..2147483647, button 'Full'",
+                "Work spot (right): map spot, none 'From the flow'",
                 "Within (right): typed within 1..32",
             ),
             described(MineStepType.fields(FakeNames())),
@@ -133,5 +136,32 @@ class MineStepTypeTest {
         val pickaxe = MineStep(Ore.COPPER, 10, walkedTo).needs().single().tools.single()
 
         assertEquals(listOf("pickaxe", 1, 40, Skill.MINING), listOf(pickaxe.word, pickaxe.items[1265], pickaxe.items[1275], pickaxe.skill))
+    }
+
+    @Test
+    fun `a mine step with a picked work spot works around it, not where the flow went`() {
+        val step = MineStepType.resolve(mine("ore" to "tin", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
+
+        assertEquals(MineStep(Ore.TIN, 10, WorkSpot.Own(picked)), step)
+    }
+
+    @Test
+    fun `a mine step's summary ends with its picked work spot`() {
+        assertEquals("mine tin at 3101 3509", MineStepType.summary(mine("ore" to "tin", "spot" to "3101 3509")))
+    }
+
+    @Test
+    fun `the steps after a mine step with a picked work spot work there`() {
+        val after = MineStep(Ore.TIN, 12, WorkSpot.Own(picked)).after(FlowContext())
+
+        assertEquals(WorkSpot.At(picked), after.workSpot)
+    }
+
+    @Test
+    fun `a mine step walks to its picked spot from outside its area, and to no spot when it works where the flow went`() {
+        val own = MineStep(Ore.TIN, 12, WorkSpot.Own(picked))
+        val flows = MineStep(Ore.TIN, 12, WorkSpot.At(picked))
+
+        assertEquals(listOf(Area(picked, 12), null), listOf(own.ownArea, flows.ownArea))
     }
 }

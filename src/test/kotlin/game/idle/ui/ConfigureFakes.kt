@@ -4,21 +4,28 @@ import game.idle.flow.Choice
 import game.idle.flow.FakeStep
 import game.idle.flow.FakeStepType
 import game.idle.flow.FieldColumn
+import game.idle.flow.FlowContext
 import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexResolver
+import game.idle.flow.ResolvedStep
+import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepNeeds
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
+import game.idle.flow.StepSpot
 import game.idle.flow.StepTypes
 import game.idle.flow.ToolNeed
+import game.idle.flow.WorkSpot
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
 import game.idle.flow.option.StepOption
 import game.idle.flow.option.StepTarget
+import game.idle.location.Tile
+import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
 /** The fake kinds' tree target, kept under their one setting: oak, with its logs' icon. */
@@ -34,6 +41,19 @@ val INPUT_NOTE = StepField.Note("Input") { _, before -> "${before.gathered.size}
 val WITHIN = StepRadius.field()
 
 val TILE = StepField.MapTile("tile", "Tile")
+
+/** A step's own work spot, From the flow without one (S07e). */
+val SPOT = StepSpot.field()
+
+/** Where the fake "goto" kind takes the flow, as a walk step does. */
+val WENT_TO = Tile(3086, 3233)
+
+private object WentThere : ResolvedStep {
+
+    override fun after(context: FlowContext): FlowContext = context.copy(workSpot = WorkSpot.At(WENT_TO))
+
+    override fun activity(player: Player, runTile: Tile): StepActivity = error("configure tests never run steps")
+}
 
 /** Two logs a list can hold: logs and oak logs, by item id. */
 val LOGS = OptionSource {
@@ -78,7 +98,7 @@ const val SAW = 8794
  * on the right's first row, 6), drop (none), walk (a tile), light (an input toggle on row 0, an amount on row 1, a list
  * of logs on rows 2-5; new ones take logs from earlier steps), bank (a three-button toggle on the right's first row,
  * then on Chosen a list on the right's rows 1-3, else a note on row 1, 7), stock (a withdrawal list on rows 0-4), saw
- * (needs a saw).
+ * (needs a saw), goto (takes the flow to [WENT_TO]), fish (a work spot on the right's first row, 6, within on 7).
  */
 val CONFIGURED_TYPES = StepTypes(
     listOf(
@@ -94,6 +114,8 @@ val CONFIGURED_TYPES = StepTypes(
         FakeStepType("bank", listOf(DEPOSIT_TOGGLE, BANKS_NOTE, CHOSEN_LIST)),
         FakeStepType("stock", listOf(WITHDRAW_LIST)),
         FakeStepType("saw", resolved = { FakeStep("saw", needs = listOf(StepNeeds(tools = listOf(ToolNeed("saw", mapOf(SAW to 1)))))) }),
+        FakeStepType("goto", resolved = { WentThere }),
+        FakeStepType("fish", listOf(SPOT, WITHIN)),
     ),
 )
 

@@ -62,6 +62,14 @@ class PickUpOptionsTest {
     }
 
     @Test
+    fun `a step with its own spot lists what spawns there, not where the flow went`() {
+        val settings = StepSettings("pickup", mapOf("within" to "5", "spot" to "3200 3201"))
+        val context = OptionContext(settings = settings, before = FlowContext(WorkSpot.At(pen)))
+
+        assertEquals(row(bucket, "Bucket", "spawns here", -1), source.options(context).first())
+    }
+
+    @Test
     fun `without a walk step the spawns are those around the player`() {
         val context = OptionContext(facts = OptionFacts(here = Tile(3201, 3201)))
 

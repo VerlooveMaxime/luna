@@ -2,6 +2,7 @@ package game.idle.autopilot.smelting
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
@@ -12,6 +13,7 @@ import game.idle.flow.StepInput
 import game.idle.flow.StepNeeds
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
+import game.idle.flow.StepSpot
 import game.idle.flow.StepType
 import game.idle.flow.Uses
 import game.idle.flow.WorkSpot
@@ -59,17 +61,18 @@ class SmeltStepType(private val names: GameNames) : StepType {
             StepField.Search("Bar", target(names), "Which bar would you like to smelt?"),
             StepField.Note("Uses") { settings, _ -> uses(settings) },
             StepAmount.field("Amount", unbounded = "all of them", button = "All"),
+            StepSpot.field(),
             StepRadius.field(),
         )
 
     override fun summary(settings: StepSettings): String =
-        "smelt ${StepAmount.prefix(settings)}${settings[BAR] ?: "?"}${StepRadius.suffix(settings)}"
+        "smelt ${StepAmount.prefix(settings)}${settings[BAR] ?: "?"}${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val name = settings[BAR] ?: throw FlowError("smelt needs a bar")
         val bar = bar(settings) ?: throw FlowError("'$name' is not a bar to smelt")
         ProcessInput.requireGathered(input(settings, context), context, ores(bar).map { it.id }, names)
-        return SmeltStep(bar, StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
+        return SmeltStep(bar, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
     }
 
     private fun bar(settings: StepSettings): BarType? = BarType.entries.firstOrNull { it.name.equals(settings[BAR], ignoreCase = true) }
@@ -88,9 +91,11 @@ class SmeltStepType(private val names: GameNames) : StepType {
 }
 
 /** A smelt step resolved: the bar, where, and how many ([amount], null for all). Later steps know it makes that bar. */
-data class SmeltStep(val bar: BarType, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep {
+data class SmeltStep(val bar: BarType, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot {
 
-    override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + bar.id)
+    override val ownArea: Area? get() = workSpot.ownArea(radius)
+
+    override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + bar.id))
 
     override fun needs(): List<StepNeeds> =
         listOf(StepNeeds(inputs = listOfNotNull(bar.oreRequired.first, bar.oreRequired.second).map { it.id }))

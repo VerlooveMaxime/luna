@@ -17,9 +17,15 @@ interface Walker {
 /**
  * The walk step: walks until the player stands on the [target] or next to it (a target taken by a wall or a tree
  * cannot be stood on). A walk that ends where it started found no way closer, so the step blocks with the reason; it
- * tries again once the player stands somewhere else.
+ * tries again once the player stands somewhere else. The reasons name the target as [place] and the step walking as
+ * [walking]: a step walking to its own work spot words them its way (S07e).
  */
-class WalkActivity(private val walker: Walker, private val target: Tile) : StepActivity {
+class WalkActivity(
+    private val walker: Walker,
+    private val target: Tile,
+    private val place: String = target.text(),
+    private val walking: String = "the walk step",
+) : StepActivity {
 
     private var walkedFrom: Tile? = null
     private var reason: String? = null
@@ -34,9 +40,9 @@ class WalkActivity(private val walker: Walker, private val target: Tile) : StepA
     override fun act() {
         val here = walker.position()
         when {
-            here.z != target.z -> reason = "Autopilot: the walk step cannot change floors to reach ${target.text()}."
+            here.z != target.z -> reason = "Autopilot: $walking cannot change floors to reach $place."
             arrived(here) -> done = true
-            here == walkedFrom -> reason = "Autopilot: there is no way to walk to ${target.text()} from here."
+            here == walkedFrom -> reason = "Autopilot: there is no way to walk to $place from here."
             else -> {
                 walkedFrom = here
                 reason = null

@@ -2,6 +2,7 @@ package game.idle.autopilot.pickup
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.OwnSpot
 import game.idle.flow.OwnWarnings
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
@@ -12,6 +13,7 @@ import game.idle.flow.StepItems
 import game.idle.flow.StepPick
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
+import game.idle.flow.StepSpot
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
 import game.idle.flow.option.GameNames
@@ -47,17 +49,18 @@ class PickUpStepType(drops: DropLookup, spawns: SpawnCatalog, private val items:
         listOf(
             StepAmount.field("Amount", unbounded = ALL_LYING, button = "All"),
             StepField.Items(ITEMS, "Items", options, "What would you like to pick up?", add = "+ Add or remove items...", rows = ROWS),
+            StepSpot.field(),
             StepRadius.field(),
         )
 
     override fun summary(settings: StepSettings): String =
         "pick up ${StepAmount.prefix(settings)}${picked(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd() +
-            StepRadius.suffix(settings)
+            StepRadius.suffix(settings) + StepSpot.suffix(settings)
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val picked = picked(settings)
         if (picked.isEmpty()) throw FlowError("pick up needs items picked")
-        return PickUpStep(picked.flatMap(items::alike).toSet(), StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
+        return PickUpStep(picked.flatMap(items::alike).toSet(), StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
     }
 
     /**
@@ -91,9 +94,11 @@ class PickUpStepType(drops: DropLookup, spawns: SpawnCatalog, private val items:
  * notes), within [radius] of its work spot, [amount] pickups or, without one, all lying there. Later steps know what it
  * picks up as gathered (S07 plan: the bank's Gathered banks the loot).
  */
-data class PickUpStep(val itemIds: Set<Int>, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep {
+data class PickUpStep(val itemIds: Set<Int>, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot {
 
-    override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + itemIds)
+    override val ownArea: Area? get() = workSpot.ownArea(radius)
+
+    override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + itemIds))
 
     override fun activity(player: Player, runTile: Tile): StepActivity =
         PickUpActivity(LunaPicker(player, itemIds, Area(workSpot.tile(runTile), radius)), amount, LunaGameNames)

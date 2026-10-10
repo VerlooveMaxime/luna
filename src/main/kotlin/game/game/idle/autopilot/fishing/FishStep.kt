@@ -2,6 +2,7 @@ package game.idle.autopilot.fishing
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.OwnSpot
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
@@ -10,6 +11,7 @@ import game.idle.flow.StepIcon
 import game.idle.flow.StepNeeds
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
+import game.idle.flow.StepSpot
 import game.idle.flow.StepType
 import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
@@ -72,24 +74,27 @@ object FishStepType : StepType {
         listOf(
             StepField.Search("Catch", target(names), "What would you like to fish?"),
             StepAmount.field("Amount", unbounded = "until the bag is full", button = "Full"),
+            StepSpot.field(),
             StepRadius.field(),
         )
 
     override fun summary(settings: StepSettings): String =
-        "fish ${StepAmount.prefix(settings)}${settings[FISH] ?: "?"}${StepRadius.suffix(settings)}"
+        "fish ${StepAmount.prefix(settings)}${settings[FISH] ?: "?"}${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val name = settings[FISH] ?: throw FlowError("fish needs a fish")
         val method = FishingMethod.named(name)
             ?: throw FlowError("'$name' is not a fish you can catch yet. Fish: ${FishingMethod.ALL.joinToString(", ") { it.word }}")
-        return FishStep(method, StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
+        return FishStep(method, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
     }
 }
 
 /** A fish step resolved. Later steps know it gathers its catches. */
-data class FishStep(val method: FishingMethod, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep {
+data class FishStep(val method: FishingMethod, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot {
 
-    override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + method.catchIds)
+    override val ownArea: Area? get() = workSpot.ownArea(radius)
+
+    override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + method.catchIds))
 
     /** The method's tool and its bait, if it takes any (S03b: bait like tools). */
     override fun needs(): List<StepNeeds> {

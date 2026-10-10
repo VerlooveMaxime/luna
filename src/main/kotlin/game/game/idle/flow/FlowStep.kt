@@ -6,6 +6,7 @@ import game.idle.flow.option.OptionFacts
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
 import game.idle.flow.option.StepTarget
+import game.idle.location.Area
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 
@@ -147,9 +148,16 @@ sealed interface StepField {
         override val visible = ALWAYS
     }
 
-    /** A tile picked on the world map, kept under [key] as [Tile.text]. */
-    class MapTile(val key: String, override val label: String) : StepField {
-        override val column = FieldColumn.LEFT
+    /**
+     * A tile picked on the world map, kept under [key] as [Tile.text]. A field that may hold none words it [none], and
+     * the row's x button puts it back (S07e's Work spot: "From the flow"); without [none] the step needs a tile.
+     */
+    class MapTile(
+        val key: String,
+        override val label: String,
+        override val column: FieldColumn = FieldColumn.LEFT,
+        val none: String? = null,
+    ) : StepField {
         override val visible = ALWAYS
     }
 
@@ -201,22 +209,37 @@ sealed interface StepField {
 /** A button of a [StepField.Toggle]: the [value] it keeps, under its [word]. */
 data class Choice(val value: String, val word: String)
 
-/** Where an action step works: around the tile the player pressed Run on, or where a walk step before it went. */
+/**
+ * Where an action step works: around the tile the player pressed Run on, where the flow went before it (a walk step's
+ * tile or an earlier step's own spot), or a tile picked for the step itself (S07e).
+ */
 sealed interface WorkSpot {
 
     data object RunTile : WorkSpot
 
     data class At(val tile: Tile) : WorkSpot
 
-    fun tile(runTile: Tile): Tile =
+    data class Own(val tile: Tile) : WorkSpot
+
+    /** The spot's tile, null for the Run tile, which is not known before Run. */
+    fun known(): Tile? =
         when (this) {
-            RunTile -> runTile
+            RunTile -> null
             is At -> tile
+            is Own -> tile
         }
+
+    fun tile(runTile: Tile): Tile = known() ?: runTile
+
+    /** What the steps after one working here rely on: a spot of its own is where the flow went (Maxime, 2026-10-10). */
+    fun after(context: FlowContext): FlowContext = if (this is Own) context.copy(workSpot = At(tile)) else context
+
+    /** The area a step working [radius] tiles around its own spot works in, null when the spot is not its own. */
+    fun ownArea(radius: Int): Area? = (this as? Own)?.let { Area(it.tile, radius) }
 }
 
 /**
- * What a step can rely on from the steps before it in the flow: where they work, the item ids they get, and the npcs
+ * What a step can rely on from the steps before it in the flow: where the flow went, the item ids they get, and the npcs
  * the last fight step fights (a pick-up step offers their drops). [gatheredBy] numbers the step (from 1) that first gets
  * each gathered id; the resolver fills it in, so the builder can say where a step's input comes from. [lap] is what
  * every step of the flow gathers or makes, which the bank's Gathered deposits since the flow loops (S07b).
@@ -267,6 +290,15 @@ interface ResolvedStep {
 
 /** A step that fights: its configure screen warns when no reflex attached to it eats or runs (S07c). */
 interface Fights
+
+/**
+ * A step that can work at a spot picked for it (S07e): [ownArea] is the area around that tile it works in, null when it
+ * works where the flow went. From outside that area the step walks to the tile before it works (Maxime, 2026-10-11).
+ */
+interface OwnSpot {
+
+    val ownArea: Area?
+}
 
 /** A kind of step whose configure screen has warnings of its own, besides tools and inputs (S07d: a pick-up step's items). */
 interface OwnWarnings {

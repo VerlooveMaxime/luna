@@ -13,16 +13,13 @@ import io.luna.game.model.mob.Player
 import io.luna.game.model.`object`.ObjectType
 
 /**
- * [Lighter] for a logged-in player and the logs in [logIds], from where the player stands when the step starts.
- * Lighting posts the same event as the client's "use tinderbox on logs", so Luna's firemaking runs unchanged; a tile
- * is free when Luna's own check would let a fire be lit on it.
+ * [Lighter] for a logged-in player and the logs in [logIds], from [start]: the step's own tile, else where the player
+ * stands when the step starts; the fires stay near it. Lighting posts the same event as the client's "use tinderbox on
+ * logs", so Luna's firemaking runs unchanged; a tile is free when Luna's own check would let a fire be lit on it.
  */
-class LunaLighter(private val player: Player, private val logIds: Set<Int>) : Lighter {
+class LunaLighter(private val player: Player, private val logIds: Set<Int>, private val start: Position) : Lighter {
 
     private val world get() = player.world
-
-    /** The spot the step started on, which the fires stay near. */
-    private val start: Position = player.position
 
     override fun isBusy(): Boolean = LunaClicks.isActing(player) || LunaClicks.hasBlockingWindow(player)
 

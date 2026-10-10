@@ -1,6 +1,7 @@
 package game.idle.autopilot.cooking
 
 import game.idle.flow.FlowContext
+import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
 import game.idle.flow.ProcessKinds
 import game.idle.flow.ResolvedStep
@@ -13,6 +14,7 @@ import game.idle.flow.StepNeeds
 import game.idle.flow.StepPick
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
+import game.idle.flow.StepSpot
 import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
 import game.idle.flow.option.GameNames
@@ -61,15 +63,16 @@ class CookStepType(private val names: GameNames) : StepType {
             ProcessInput.field(food.usable),
             StepAmount.field("Amount", unbounded = "all of them", button = "All"),
             food.field("Raw food", RawFoodOptions(names), "What would you like to cook?"),
+            StepSpot.field(),
             StepRadius.field(),
         )
 
     override fun summary(settings: StepSettings): String =
         "cook ${StepAmount.prefix(settings)}${food.ids(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd() +
-            StepRadius.suffix(settings)
+            StepRadius.suffix(settings) + StepSpot.suffix(settings)
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep =
-        CookStep(food.resolve(settings, context, input(settings, context)), StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
+        CookStep(food.resolve(settings, context, input(settings, context)), StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
 
     companion object {
         const val RAW = "raw"
@@ -80,10 +83,14 @@ class CookStepType(private val names: GameNames) : StepType {
  * A cook step resolved: the raw food it cooks, where, and how much ([amount], null for all). Later steps know it makes
  * the cooked food and the burnt (S07b: the bank's Gathered banks them, a drop step drops them).
  */
-data class CookStep(val rawIds: Set<Int>, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep {
+data class CookStep(val rawIds: Set<Int>, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot {
 
-    override fun after(context: FlowContext): FlowContext =
-        context.copy(gathered = context.gathered + rawIds.flatMap { Food.RAW_TO_FOOD.getValue(it).let { food -> listOf(food.cooked, food.burnt) } })
+    override val ownArea: Area? get() = workSpot.ownArea(radius)
+
+    override fun after(context: FlowContext): FlowContext {
+        val made = rawIds.flatMap { Food.RAW_TO_FOOD.getValue(it).let { food -> listOf(food.cooked, food.burnt) } }
+        return workSpot.after(context.copy(gathered = context.gathered + made))
+    }
 
     override fun needs(): List<StepNeeds> = listOf(StepNeeds(inputs = rawIds.toList()))
 

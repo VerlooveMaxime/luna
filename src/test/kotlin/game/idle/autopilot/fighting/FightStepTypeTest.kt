@@ -8,6 +8,7 @@ import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.flow.described
 import game.idle.flow.option.FakeNames
+import game.idle.location.Area
 import game.idle.location.Tile
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.assertThrows
 
 class FightStepTypeTest {
 
+    private val picked = Tile(3101, 3509)
     private val rats = FightTarget("giant rat", setOf(950), "Giant rat", 3..3)
     private val cows = FightTarget("cow", setOf(81), "Cow", 2..2)
     private val type = FightStepType(FightTargetCatalog(listOf(rats, cows)))
@@ -64,11 +66,12 @@ class FightStepTypeTest {
     }
 
     @Test
-    fun `the configure screen searches the npc, types the kills and the radius`() {
+    fun `the configure screen searches the npc, types the kills, picks the work spot and the radius`() {
         assertEquals(
             listOf(
                 "Npc (left): search npc, 'What would you like to fight?'",
                 "Kills (left): typed amount 1..2147483647, button 'No end'",
+                "Work spot (right): map spot, none 'From the flow'",
                 "Within (right): typed within 1..32",
             ),
             described(type.fields(FakeNames())),
@@ -111,5 +114,32 @@ class FightStepTypeTest {
     @Test
     fun `a fight step needs nothing in the bag`() {
         assertEquals(emptyList<StepNeeds>(), FightStep(rats, 10, walkedTo).needs())
+    }
+
+    @Test
+    fun `a fight step with a picked work spot works around it, not where the flow went`() {
+        val step = type.resolve(fight("npc" to "cow", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
+
+        assertEquals(FightStep(cows, 10, WorkSpot.Own(picked)), step)
+    }
+
+    @Test
+    fun `a fight step's summary ends with its picked work spot`() {
+        assertEquals("fight cow at 3101 3509", type.summary(fight("npc" to "cow", "spot" to "3101 3509")))
+    }
+
+    @Test
+    fun `the steps after a fight step with a picked work spot work there`() {
+        val after = FightStep(cows, 12, WorkSpot.Own(picked)).after(FlowContext())
+
+        assertEquals(WorkSpot.At(picked), after.workSpot)
+    }
+
+    @Test
+    fun `a fight step walks to its picked spot from outside its area, and to no spot when it works where the flow went`() {
+        val own = FightStep(cows, 12, WorkSpot.Own(picked))
+        val flows = FightStep(cows, 12, WorkSpot.At(picked))
+
+        assertEquals(listOf(Area(picked, 12), null), listOf(own.ownArea, flows.ownArea))
     }
 }

@@ -360,7 +360,7 @@ class BuilderScreen<P : AutopilotPlayer>(
             }
             else -> stepPage(player, widgetId, draft, running)
                 ?: BuilderWidgets.fieldOf(widgetId)?.let { row -> if (running) stopFirst else field(player, draft, row) }
-                ?: BuilderWidgets.buttonOf(widgetId)?.let { row -> if (running) stopFirst else unbounded(player, draft, row) }
+                ?: BuilderWidgets.buttonOf(widgetId)?.let { row -> if (running) stopFirst else rowButton(player, draft, row) }
                 ?: BuilderWidgets.toggleOf(widgetId)?.let { (row, button) -> if (running) stopFirst else toggle(player, draft, row, button) }
                 ?: BuilderWidgets.listAddOf(widgetId)?.let { list -> if (running) stopFirst else addOrRemove(player, draft, list) }
                 ?: BuilderWidgets.lineRemoveOf(widgetId)?.let { (list, line) -> if (running) stopFirst else remove(player, draft, list, line) }
@@ -493,13 +493,25 @@ class BuilderScreen<P : AutopilotPlayer>(
             is StepField.Note, is StepField.Toggle, is StepField.Items, null -> null
             is StepField.Search -> BuilderAnswer.Search(idle, field, searchContext(player, draft))
             is StepField.Typed -> BuilderAnswer.Amount(draft.copy(typing = Typing(field.key)))
-            is StepField.MapTile -> BuilderAnswer.PickTile(idle, tileOf(draft.settings[field.key]) ?: player.tile)
+            is StepField.MapTile -> BuilderAnswer.PickTile(idle, tileOf(draft.settings[field.key]) ?: flowSpot(player, draft) ?: player.tile)
         }
     }
 
-    /** The button that removes a typed amount, so the step does as much as it can. */
-    private fun unbounded(player: P, draft: StepDraft, row: Int): BuilderAnswer? =
-        (ConfigureRows.of(fields(player, draft))[row] as? StepField.Typed)?.let { BuilderAnswer.Configure(draft.with(it.key, "")) }
+    /** Where the flow went before [draft]'s step (a walk step's tile or an earlier step's own spot), null for the Run tile. */
+    private fun flowSpot(player: P, draft: StepDraft): Tile? = resolver.contextBefore(player.idleState.steps, draft.slot).workSpot.known()
+
+    /**
+     * A row's button: a typed amount's removes it, so the step does as much as it can; a map tile's x puts the tile back
+     * to none, From the flow (S07e). A tile the step needs has no x.
+     */
+    private fun rowButton(player: P, draft: StepDraft, row: Int): BuilderAnswer? {
+        val key = when (val field = ConfigureRows.of(fields(player, draft))[row]) {
+            is StepField.Typed -> field.key
+            is StepField.MapTile -> field.key.takeIf { field.none != null }
+            else -> null
+        }
+        return key?.let { BuilderAnswer.Configure(draft.with(it, "")) }
+    }
 
     /**
      * The search's options are worked out from the steps before the one configured and its settings as edited, a

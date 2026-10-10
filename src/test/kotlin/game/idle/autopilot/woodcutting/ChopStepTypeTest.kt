@@ -10,6 +10,7 @@ import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionIcon
+import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
 import io.luna.game.model.mob.Skill
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.assertThrows
 
 class ChopStepTypeTest {
 
+    private val picked = Tile(3101, 3509)
     private val walkedTo = WorkSpot.At(Tile(3086, 3233))
 
     private fun chop(vararg values: Pair<String, String>) = StepSettings("chop", mapOf(*values))
@@ -62,11 +64,12 @@ class ChopStepTypeTest {
     }
 
     @Test
-    fun `the configure screen searches the tree, types the amount and the radius`() {
+    fun `the configure screen searches the tree, types the amount, picks the work spot and the radius`() {
         assertEquals(
             listOf(
                 "Tree (left): search tree, 'Which tree would you like to cut?'",
                 "Amount (left): typed amount 1..2147483647, button 'Full'",
+                "Work spot (right): map spot, none 'From the flow'",
                 "Within (right): typed within 1..32",
             ),
             described(ChopStepType.fields(FakeNames())),
@@ -133,5 +136,32 @@ class ChopStepTypeTest {
         val axe = ChopStep(Tree.NORMAL, 10, walkedTo).needs().single().tools.single()
 
         assertEquals(listOf("axe", 1, 41, Skill.WOODCUTTING), listOf(axe.word, axe.items[1351], axe.items[1359], axe.skill))
+    }
+
+    @Test
+    fun `a chop step with a picked work spot works around it, not where the flow went`() {
+        val step = ChopStepType.resolve(chop("tree" to "oak", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
+
+        assertEquals(ChopStep(Tree.OAK, 10, WorkSpot.Own(picked)), step)
+    }
+
+    @Test
+    fun `a chop step's summary ends with its picked work spot`() {
+        assertEquals("chop oak at 3101 3509", ChopStepType.summary(chop("tree" to "oak", "spot" to "3101 3509")))
+    }
+
+    @Test
+    fun `the steps after a chop step with a picked work spot work there`() {
+        val after = ChopStep(Tree.OAK, 12, WorkSpot.Own(picked)).after(FlowContext())
+
+        assertEquals(WorkSpot.At(picked), after.workSpot)
+    }
+
+    @Test
+    fun `a chop step walks to its picked spot from outside its area, and to no spot when it works where the flow went`() {
+        val own = ChopStep(Tree.OAK, 12, WorkSpot.Own(picked))
+        val flows = ChopStep(Tree.OAK, 12, WorkSpot.At(picked))
+
+        assertEquals(listOf(Area(picked, 12), null), listOf(own.ownArea, flows.ownArea))
     }
 }

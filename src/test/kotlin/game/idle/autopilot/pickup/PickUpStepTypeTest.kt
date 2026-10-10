@@ -14,6 +14,7 @@ import game.idle.flow.option.ItemCatalog
 import game.idle.flow.option.OptionContext
 import game.idle.flow.option.OptionFacts
 import game.idle.flow.option.OptionIcon
+import game.idle.location.Area
 import game.idle.location.Tile
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.assertThrows
 
 class PickUpStepTypeTest {
 
+    private val picked = Tile(3101, 3509)
     private val cow = 81
     private val bones = 526
     private val notedBones = 527
@@ -77,11 +79,12 @@ class PickUpStepTypeTest {
     }
 
     @Test
-    fun `the configure screen types the amount, lists the items and types the distance`() {
+    fun `the configure screen types the amount, lists the items, picks the work spot and types the distance`() {
         assertEquals(
             listOf(
                 "Amount (left): typed amount 1..2147483647, button 'All'",
                 "Items (left): list items on 5 rows, 'What would you like to pick up?'",
+                "Work spot (right): map spot, none 'From the flow'",
                 "Within (right): typed within 1..32",
             ),
             described(type.fields(FakeNames())),
@@ -163,5 +166,32 @@ class PickUpStepTypeTest {
         val field = type.fields(FakeNames())[1] as StepField.Items
 
         assertEquals(listOf("Bones", "Cowhide"), field.source.options(OptionContext(before = afterCows)).take(2).map { it.label })
+    }
+
+    @Test
+    fun `a pick-up step with a picked work spot works around it, not where the flow went`() {
+        val step = type.resolve(pickUp("items" to "$bones", "spot" to "3101 3509"), FlowContext(workSpot = WorkSpot.At(pen)))
+
+        assertEquals(PickUpStep(setOf(bones, notedBones), 10, WorkSpot.Own(picked)), step)
+    }
+
+    @Test
+    fun `a pick-up step's summary ends with its picked work spot`() {
+        assertEquals("pick up bones at 3101 3509", type.summary(pickUp("items" to "$bones", "spot" to "3101 3509")))
+    }
+
+    @Test
+    fun `the steps after a pick-up step with a picked work spot work there`() {
+        val after = PickUpStep(setOf(bones), 12, WorkSpot.Own(picked)).after(FlowContext())
+
+        assertEquals(WorkSpot.At(picked), after.workSpot)
+    }
+
+    @Test
+    fun `a pick-up step walks to its picked spot from outside its area, and to no spot when it works where the flow went`() {
+        val own = PickUpStep(setOf(bones), 12, WorkSpot.Own(picked))
+        val flows = PickUpStep(setOf(bones), 12, WorkSpot.At(picked))
+
+        assertEquals(listOf(Area(picked, 12), null), listOf(own.ownArea, flows.ownArea))
     }
 }

@@ -12,6 +12,7 @@ import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.LunaGameNames
+import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.smithing.BarType
 import game.testworld.TestWorld
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.assertThrows
 
 class SmeltStepTypeTest {
 
+    private val picked = Tile(3101, 3509)
     private val walkedTo = WorkSpot.At(Tile(3226, 3256))
     private val copperOre = 436
     private val tinOre = 438
@@ -69,13 +71,14 @@ class SmeltStepTypeTest {
     }
 
     @Test
-    fun `the configure screen toggles the input, searches the bar, notes its ores, types the amount and the radius`() {
+    fun `the configure screen toggles the input, searches the bar, notes its ores, types the amount, picks the work spot and the radius`() {
         assertEquals(
             listOf(
                 "Input (left): toggle input earlier 'Earlier steps' / bank 'The bank'",
                 "Bar (left): search bar, 'Which bar would you like to smelt?'",
                 "Uses (left): note",
                 "Amount (left): typed amount 1..2147483647, button 'All'",
+                "Work spot (right): map spot, none 'From the flow'",
                 "Within (right): typed within 1..32",
             ),
             described(type.fields(FakeNames())),
@@ -157,5 +160,32 @@ class SmeltStepTypeTest {
     @Test
     fun `a smelt step needs the bar's ores and no tool`() {
         assertEquals(listOf(StepNeeds(inputs = listOf(436, 438))), SmeltStep(BarType.BRONZE, 10, walkedTo).needs())
+    }
+
+    @Test
+    fun `a smelt step with a picked work spot works around it, not where the flow went`() {
+        val step = type.resolve(smelt("bar" to "bronze", "input" to "bank", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
+
+        assertEquals(SmeltStep(BarType.BRONZE, 10, WorkSpot.Own(picked)), step)
+    }
+
+    @Test
+    fun `a smelt step's summary ends with its picked work spot`() {
+        assertEquals("smelt bronze at 3101 3509", type.summary(smelt("bar" to "bronze", "input" to "bank", "spot" to "3101 3509")))
+    }
+
+    @Test
+    fun `the steps after a smelt step with a picked work spot work there`() {
+        val after = SmeltStep(BarType.BRONZE, 12, WorkSpot.Own(picked)).after(FlowContext())
+
+        assertEquals(WorkSpot.At(picked), after.workSpot)
+    }
+
+    @Test
+    fun `a smelt step walks to its picked spot from outside its area, and to no spot when it works where the flow went`() {
+        val own = SmeltStep(BarType.BRONZE, 12, WorkSpot.Own(picked))
+        val flows = SmeltStep(BarType.BRONZE, 12, WorkSpot.At(picked))
+
+        assertEquals(listOf(Area(picked, 12), null), listOf(own.ownArea, flows.ownArea))
     }
 }

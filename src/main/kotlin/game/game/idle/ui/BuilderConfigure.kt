@@ -229,16 +229,28 @@ class BuilderConfigure(
         val shown = shown(field, draft.settings, before)
         val typed = field as? StepField.Typed
         val boxed = field is StepField.Search || field is StepField.Typed || field is StepField.MapTile
+        val button = button(field, draft.settings)
         return listOf(
             WidgetUpdate.Visible(BuilderWidgets.row(row), visible = true),
             WidgetUpdate.Text(BuilderWidgets.rowLabel(row), field.label),
             WidgetUpdate.Visible(BuilderWidgets.rowField(row), visible = boxed),
-            WidgetUpdate.Visible(BuilderWidgets.rowButton(row), visible = typed?.unbounded != null),
+            WidgetUpdate.Visible(BuilderWidgets.rowButton(row), visible = button != null),
             WidgetUpdate.Text(BuilderWidgets.rowNote(row), shown.note),
         ) + box(row, shown, typed, draft).takeIf { boxed }.orEmpty() +
-            listOfNotNull(typed?.unbounded?.let { WidgetUpdate.Text(BuilderWidgets.rowButtonText(row), it) }) +
+            listOfNotNull(button?.let { WidgetUpdate.Text(BuilderWidgets.rowButtonText(row), it) }) +
             toggles(row, field as? StepField.Toggle, draft.settings, before)
     }
+
+    /**
+     * The word on a row's button, null for none: a typed amount's that removes it, a map tile's x while it holds a tile
+     * it may go without (S07e's Work spot, back to From the flow).
+     */
+    private fun button(field: StepField, settings: StepSettings): String? =
+        when (field) {
+            is StepField.Typed -> field.unbounded
+            is StepField.MapTile -> CLEAR.takeIf { field.none != null && settings[field.key] != null }
+            else -> null
+        }
 
     /** A field box: its frame (yellow while typed), picture and text. */
     private fun box(row: Int, shown: Shown, typed: StepField.Typed?, draft: StepDraft): List<WidgetUpdate> =
@@ -297,7 +309,7 @@ class BuilderConfigure(
 
     private fun frame(typing: Boolean): Int = if (typing) BuilderWidgets.TYPING else BuilderWidgets.FIELD_EDGE
 
-    /** A row's contents: a search's picture and text, a typed number's or a tile's text, or a note. */
+    /** A row's contents: a search's picture and text, a typed number's or a tile's text (or the word for none), or a note. */
     private data class Shown(
         val picture: WidgetPicture = WidgetPicture.None,
         val text: String = "",
@@ -315,7 +327,7 @@ class BuilderConfigure(
                 Shown(picked?.let { WidgetPicture.of(it.icon) } ?: WidgetPicture.None, text?.let(::fittedField) ?: SEARCH)
             }
             is StepField.Typed -> Shown(plainText = field.shown(settings[field.key]))
-            is StepField.MapTile -> Shown(plainText = settings[field.key]?.replace(" ", ", ") ?: PICK_ON_MAP)
+            is StepField.MapTile -> Shown(plainText = settings[field.key]?.replace(" ", ", ") ?: field.none ?: PICK_ON_MAP)
             is StepField.Note -> Shown(note = font.fit(field.text(settings, before), BuilderWidgets.NOTE_ROOM))
         }
 
@@ -348,6 +360,7 @@ class BuilderConfigure(
     private companion object {
         const val SEARCH = "@gry@Search..."
         const val PICK_ON_MAP = "@gry@Pick on the world map"
+        const val CLEAR = "x"
         const val NO_WARNINGS = "@gre@No warnings."
         const val ALL = "All"
         const val ATTACH = "+ Attach or detach reflexes..."

@@ -12,6 +12,7 @@ import game.idle.flow.described
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.LunaGameNames
+import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.fishing.catchFish.FishingSpot
 import game.skill.fishing.catchFish.Tool
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.assertThrows
 
 class FishStepTypeTest {
 
+    private val picked = Tile(3101, 3509)
     private val walkedTo = WorkSpot.At(Tile(3086, 3228))
 
     private fun fish(vararg values: Pair<String, String>) = StepSettings("fish", mapOf(*values))
@@ -68,11 +70,12 @@ class FishStepTypeTest {
     }
 
     @Test
-    fun `the configure screen searches the catch, types the amount and the radius`() {
+    fun `the configure screen searches the catch, types the amount, picks the work spot and the radius`() {
         assertEquals(
             listOf(
                 "Catch (left): search fish, 'What would you like to fish?'",
                 "Amount (left): typed amount 1..2147483647, button 'Full'",
+                "Work spot (right): map spot, none 'From the flow'",
                 "Within (right): typed within 1..32",
             ),
             described(FishStepType.fields(FakeNames())),
@@ -178,5 +181,32 @@ class FishStepTypeTest {
         val tools = FishStep(FishingMethod(Tool.FLY_FISHING_ROD), 10, walkedTo).needs().single().tools
 
         assertEquals(listOf(ToolNeed(word = null, mapOf(309 to 1)), ToolNeed(word = null, mapOf(314 to 1), countable = false)), tools)
+    }
+
+    @Test
+    fun `a fish step with a picked work spot works around it, not where the flow went`() {
+        val step = FishStepType.resolve(fish("fish" to "shrimp", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
+
+        assertEquals(FishStep(FishingMethod(Tool.SMALL_NET), 10, WorkSpot.Own(picked)), step)
+    }
+
+    @Test
+    fun `a fish step's summary ends with its picked work spot`() {
+        assertEquals("fish shrimp at 3101 3509", FishStepType.summary(fish("fish" to "shrimp", "spot" to "3101 3509")))
+    }
+
+    @Test
+    fun `the steps after a fish step with a picked work spot work there`() {
+        val after = FishStep(FishingMethod(Tool.SMALL_NET), 12, WorkSpot.Own(picked)).after(FlowContext())
+
+        assertEquals(WorkSpot.At(picked), after.workSpot)
+    }
+
+    @Test
+    fun `a fish step walks to its picked spot from outside its area, and to no spot when it works where the flow went`() {
+        val own = FishStep(FishingMethod(Tool.SMALL_NET), 12, WorkSpot.Own(picked))
+        val flows = FishStep(FishingMethod(Tool.SMALL_NET), 12, WorkSpot.At(picked))
+
+        assertEquals(listOf(Area(picked, 12), null), listOf(own.ownArea, flows.ownArea))
     }
 }

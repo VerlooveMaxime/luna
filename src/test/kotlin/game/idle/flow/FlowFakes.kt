@@ -128,7 +128,7 @@ fun described(fields: List<StepField>): List<String> =
         val words = when (field) {
             is StepField.Search -> "search ${field.target.key}, '${field.title}'"
             is StepField.Typed -> "typed ${field.key} ${field.range}" + (field.unbounded?.let { ", button '$it'" } ?: "")
-            is StepField.MapTile -> "map ${field.key}"
+            is StepField.MapTile -> "map ${field.key}" + (field.none?.let { ", none '$it'" } ?: "")
             is StepField.Note -> "note"
             is StepField.Toggle -> "toggle ${field.key} ${field.choices.joinToString(" / ") { "${it.value} '${it.word}'" }}"
             is StepField.Items -> "list ${field.key} on ${field.rows} rows, '${field.title}'"
