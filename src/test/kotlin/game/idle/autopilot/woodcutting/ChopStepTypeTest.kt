@@ -3,10 +3,12 @@ package game.idle.autopilot.woodcutting
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepIcon
+import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.flow.described
 import game.idle.flow.option.FakeNames
+import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionIcon
 import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
@@ -81,6 +83,21 @@ class ChopStepTypeTest {
         val after = ChopStep(Tree.WILLOW, 10, walkedTo).after(FlowContext(walkedTo, gathered = setOf(Tree.NORMAL.logId)))
 
         assertEquals(FlowContext(walkedTo, setOf(Tree.NORMAL.logId, Tree.WILLOW.logId)), after)
+    }
+
+    @Test
+    fun `a chop step shows a value that is no option as it is kept, without a picture`() {
+        assertEquals(StepPick("nothing", null), ChopStepType.pick(chop("tree" to "nothing"), FakeNames()))
+    }
+
+    @Test
+    fun `a new chop step starts with no settings`() {
+        assertEquals(StepSettings("chop"), ChopStepType.newSettings(FlowContext()))
+    }
+
+    @Test
+    fun `a chop step takes nothing in, so its searches count the bank`() {
+        assertEquals(InputSource.BANK, ChopStepType.input(chop(), FlowContext()))
     }
 
     private fun assertRejected(message: String, action: () -> Unit) {

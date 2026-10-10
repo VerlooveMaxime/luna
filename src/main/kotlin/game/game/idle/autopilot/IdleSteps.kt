@@ -16,22 +16,23 @@ import game.idle.autopilot.smithing.SmithStepType
 import game.idle.autopilot.walk.WalkStepType
 import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.flow.StepTypes
+import game.idle.flow.option.GameNames
 import game.idle.flow.option.LunaGameNames
 import game.idle.location.BankCatalog
 
-/** Every kind of step a flow can use, in the order the builder's kind picker shows them. */
-class IdleSteps(banks: BankCatalog, recipes: RecipeCatalog, fightTargets: FightTargetCatalog) {
+/** Every kind of step a flow can use, in the order the builder's kind picker shows them, items named with [names]. */
+class IdleSteps(banks: BankCatalog, recipes: RecipeCatalog, fightTargets: FightTargetCatalog, names: GameNames) {
 
     val types = StepTypes(
         listOf(
-            ChopStepType, MineStepType, FishStepType, LightStepType, CookStepType, MakeStepType(recipes), SmeltStepType,
-            SmithStepType, FightStepType(fightTargets), WalkStepType, DropStepType, BankStepType(banks),
+            ChopStepType, MineStepType, FishStepType, LightStepType(names), CookStepType(names), MakeStepType(recipes, names),
+            SmeltStepType(names), SmithStepType(names), FightStepType(fightTargets), WalkStepType, DropStepType, BankStepType(banks),
         ),
     )
 
     companion object {
         /** The steps over the data files, the cache and Luna's tables; a bad file fails the boot. */
         fun load(): IdleSteps =
-            IdleSteps(BankCatalog.load(BankCatalog.PATH), LunaRecipes(LunaGameNames).catalog(), FightTargetCatalog.fromCache())
+            IdleSteps(BankCatalog.load(BankCatalog.PATH), LunaRecipes(LunaGameNames).catalog(), FightTargetCatalog.fromCache(), LunaGameNames)
     }
 }

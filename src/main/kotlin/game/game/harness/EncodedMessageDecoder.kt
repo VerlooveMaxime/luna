@@ -5,6 +5,7 @@ import game.idle.ui.MapPickMessageWriter
 import game.idle.ui.PictureEncoding
 import game.idle.ui.PictureMessageWriter
 import game.idle.ui.PromptMode
+import game.idle.ui.ListPlacementMessageWriter
 import game.idle.ui.SearchOpenMessageWriter
 import game.idle.ui.SearchRow
 import game.idle.ui.SearchRowsMessageWriter
@@ -55,7 +56,6 @@ object EncodedMessageDecoder {
             )
         },
         SearchRowsMessageWriter.OPCODE to Layout("SearchRowsMessageWriter", ::searchRows),
-        SlotCountMessageWriter.OPCODE to Layout("SlotCountMessageWriter") { mapOf("kind" to it.byte(), "slots" to it.short()) },
         WidgetColourMessageWriter.OPCODE to Layout("WidgetColourMessageWriter") {
             val widgetId = it.short()
             mapOf("widgetId" to widgetId, "rgb" to WidgetColourMessageWriter.unpacked(it.short(transform = ValueType.ADD)))
@@ -86,8 +86,20 @@ object EncodedMessageDecoder {
         if (message.opcode in updatingOpcodes) {
             return null
         }
+        val payload = Payload(ByteMessage.wrap(message.payload.buffer.duplicate()))
+        if (message.opcode == SlotCountMessageWriter.OPCODE) return idlePacket(payload)
         val layout = layouts[message.opcode] ?: return undecoded(message)
-        return DecodedMessage(layout.type, layout.read(Payload(ByteMessage.wrap(message.payload.buffer.duplicate()))))
+        return DecodedMessage(layout.type, layout.read(payload))
+    }
+
+    /** The IdleRS packet: its sub-opcode says which writer wrote it, a slot count or a configure list's placement. */
+    private fun idlePacket(payload: Payload): DecodedMessage {
+        val sub = payload.byte()
+        if (sub == ListPlacementMessageWriter.SUB) {
+            val fields = mapOf("list" to payload.byte(), "firstRow" to payload.byte(), "rows" to payload.byte(), "lines" to payload.byte())
+            return DecodedMessage("ListPlacementMessageWriter", fields)
+        }
+        return DecodedMessage("SlotCountMessageWriter", mapOf("kind" to sub, "slots" to payload.short()))
     }
 
     /** An npc arrow carries an index where a tile arrow carries x, y and height; the writer holds all four. */
@@ -129,8 +141,10 @@ object EncodedMessageDecoder {
         )
         val rows = List(payload.short()) {
             val index = payload.short()
-            val greyed = payload.byte() and SearchRowsMessageWriter.GREYED != 0
-            SearchRow(index, payload.string(), payload.string(), greyed, readPicture(payload))
+            val flags = payload.byte()
+            val greyed = flags and SearchRowsMessageWriter.GREYED != 0
+            val chosen = flags and SearchRowsMessageWriter.CHOSEN != 0
+            SearchRow(index, payload.string(), payload.string(), greyed, readPicture(payload), chosen)
         }
         return header + mapOf("count" to rows.size, "rows" to SearchRowsMessageWriter.describe(rows))
     }

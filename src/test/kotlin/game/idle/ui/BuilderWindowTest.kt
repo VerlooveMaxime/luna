@@ -254,6 +254,57 @@ class BuilderWindowTest {
         assertEquals("Oak", texts(player)[BuilderWidgets.rowText(0)])
     }
 
+    private val light = StepSettings("light", mapOf("input" to "earlier", "logs" to "1511"))
+
+    @Test
+    fun `a list's first line opens the search that stays open`() {
+        val player = configuring(0, light)
+
+        ui.click(player, BuilderWidgets.listAdd(0))
+
+        assertEquals(listOf<Any>("Which logs?", "SEVERAL"), fields(player, "SearchOpenMessageWriter").single().let { listOf(it.getValue("title"), it.getValue("mode")) })
+    }
+
+    @Test
+    fun `the search over a list shows the items the step holds chosen, first`() {
+        val player = configuring(0, light)
+
+        ui.click(player, BuilderWidgets.listAdd(0))
+
+        assertEquals("0 Logs / chosen / item 1511; 1 Oak logs / item 1521", fields(player, "SearchRowsMessageWriter").last()["rows"])
+    }
+
+    @Test
+    fun `a pick in the search over a list adds the item to the step being configured, the search staying open`() {
+        val player = configuring(0, light)
+        ui.click(player, BuilderWidgets.listAdd(0))
+
+        SearchPrompts.pick(player, checkNotNull(SearchPrompts.opened(player, SearchPrompt::class.java)).serial, 1)
+
+        assertEquals("1511,1521", window.draft(player)?.settings?.get("logs"))
+        assertEquals("1 Oak logs / chosen / item 1521", fields(player, "SearchRowsMessageWriter").last()["rows"])
+        assertTrue(player.overlays.has(SearchPrompt::class.java))
+    }
+
+    @Test
+    fun `the search over a list shows nothing chosen once the step is no longer configured`() {
+        val player = configuring(0, light)
+        ui.click(player, BuilderWidgets.listAdd(0))
+        val serial = checkNotNull(SearchPrompts.opened(player, SearchPrompt::class.java)).serial
+        ui.click(player, BuilderWidgets.BACK)
+
+        SearchPrompts.page(player, serial, offset = 0, count = 1, query = "")
+
+        assertEquals("0 Logs / item 1511", fields(player, "SearchRowsMessageWriter").last()["rows"])
+    }
+
+    @Test
+    fun `the configure screen places its list for the client`() {
+        val player = configuring(0, light)
+
+        assertEquals(mapOf("list" to 0, "firstRow" to 2, "rows" to 4, "lines" to 2), fields(player, "ListPlacementMessageWriter").last())
+    }
+
     @Test
     fun `a typed field opens the amount prompt and frames the field`() {
         val player = configuring(0, oak)

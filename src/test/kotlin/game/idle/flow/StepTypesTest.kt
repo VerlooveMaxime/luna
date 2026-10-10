@@ -1,8 +1,8 @@
 package game.idle.flow
 
-import game.idle.flow.FlowContext
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.option.FakeNames
+import game.idle.flow.option.InputSource
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -53,5 +53,17 @@ class StepTypesTest {
     @Test
     fun `a kind of step shows no details unless it has some`() {
         assertEquals(emptyList<String>(), rest.details(step("rest"), FlowContext()))
+    }
+
+    @Test
+    fun `a step's input is its kind's`() {
+        val types = StepTypes(listOf(FakeStepType("light", inputOf = { InputSource.EARLIER_STEPS })))
+
+        assertEquals(InputSource.EARLIER_STEPS, types.input(StepSettings("light"), FlowContext()))
+    }
+
+    @Test
+    fun `a step of a kind no type knows takes from the bank`() {
+        assertEquals(InputSource.BANK, StepTypes(listOf(FakeStepType("light"))).input(StepSettings("gone"), FlowContext()))
     }
 }

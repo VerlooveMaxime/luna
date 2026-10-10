@@ -3,10 +3,12 @@ package game.idle.autopilot.fishing
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepIcon
+import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.flow.described
 import game.idle.flow.option.FakeNames
+import game.idle.flow.option.InputSource
 import game.idle.flow.option.LunaGameNames
 import game.idle.location.Tile
 import game.skill.fishing.catchFish.FishingSpot
@@ -117,6 +119,21 @@ class FishStepTypeTest {
         val after = FishStep(FishingMethod(Tool.SMALL_NET), 10, walkedTo).after(FlowContext(walkedTo, gathered = setOf(1511)))
 
         assertEquals(FlowContext(walkedTo, setOf(1511, 317, 321)), after)
+    }
+
+    @Test
+    fun `a fish step shows a value that is no option as it is kept, without a picture`() {
+        assertEquals(StepPick("nothing", null), FishStepType.pick(fish("fish" to "nothing"), LunaGameNames))
+    }
+
+    @Test
+    fun `a new fish step starts with no settings`() {
+        assertEquals(StepSettings("fish"), FishStepType.newSettings(FlowContext()))
+    }
+
+    @Test
+    fun `a fish step takes nothing in, so its searches count the bank`() {
+        assertEquals(InputSource.BANK, FishStepType.input(fish(), FlowContext()))
     }
 
     private fun assertRejected(message: String, action: () -> Unit) {

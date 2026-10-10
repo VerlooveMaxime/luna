@@ -6,9 +6,8 @@ import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepField
-import game.idle.flow.StepSettings
+import game.idle.flow.StepItems
 import game.idle.flow.option.GameNames
-import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionContext
 import game.idle.location.Tile
 
@@ -36,6 +35,12 @@ sealed interface BuilderAnswer {
      * caller adds the player's facts and tile).
      */
     data class Search(val draft: StepDraft, val field: StepField.Search, val context: OptionContext) : BuilderAnswer
+
+    /**
+     * Shows [draft] and opens the chatbox search that stays open for its list [field], over the options its source
+     * offers in [context] (the caller adds the player's facts and tile): each row clicked is added or taken out.
+     */
+    data class Several(val draft: StepDraft, val field: StepField.Items, val context: OptionContext) : BuilderAnswer
 
     /** Shows [draft], the field it types framed, and opens the client's "Enter amount" prompt. */
     data class Amount(val draft: StepDraft) : BuilderAnswer
@@ -124,6 +129,18 @@ class BuilderScreen<P : AutopilotPlayer>(
      */
     fun picked(draft: StepDraft?, opened: StepDraft, key: String, value: String): BuilderAnswer =
         draft?.takeIf { it.sameStep(opened) }?.let { BuilderAnswer.Configure(it.with(key, value)) } ?: BuilderAnswer.Ignored
+
+    /**
+     * A row clicked in the search that stays open, which [opened] asked for its list under [key]: the item [value] names
+     * is added, or taken out when the list has it; a full list says so instead (S07a).
+     */
+    fun toggledItem(draft: StepDraft?, opened: StepDraft, key: String, value: String): BuilderAnswer {
+        val current = draft?.takeIf { it.sameStep(opened) } ?: return BuilderAnswer.Ignored
+        val id = value.toIntOrNull() ?: return BuilderAnswer.Ignored
+        val ids = StepItems.ids(current.settings, key)
+        if (id !in ids && ids.size >= StepItems.MOST) return BuilderAnswer.Configure(current, "$PREFIX the list holds ${StepItems.MOST} items.")
+        return BuilderAnswer.Configure(current.copy(settings = StepItems.toggled(current.settings, key, id), typing = null))
+    }
 
     /** [value] entered on the "Enter amount" prompt [draft] opened; out of its field's range it says the rule instead. */
     fun typed(draft: StepDraft?, value: Int): BuilderAnswer {
@@ -233,7 +250,8 @@ class BuilderScreen<P : AutopilotPlayer>(
     private fun kind(player: P, kind: Int): BuilderAnswer {
         val type = types.getOrNull(kind) ?: return BuilderAnswer.Ignored
         if (autopilot.isRunning(player)) return BuilderAnswer.Show(BuilderPage.OVERVIEW, STOP_FIRST)
-        return BuilderAnswer.Configure(StepDraft(player.idleState.steps.size, StepSettings(type.kind), new = true))
+        val steps = player.idleState.steps
+        return BuilderAnswer.Configure(StepDraft(steps.size, type.newSettings(resolver.contextBefore(steps, steps.size)), new = true))
     }
 
     /** A click on the configure screen of [draft]; any click closes the client's "Enter amount" prompt. */
@@ -246,7 +264,28 @@ class BuilderScreen<P : AutopilotPlayer>(
             BuilderWidgets.DELETE -> if (draft.new) BuilderAnswer.Configure(draft.notTyping()) else if (running) stopFirst else delete(player, draft)
             else -> BuilderWidgets.fieldOf(widgetId)?.let { row -> if (running) stopFirst else field(player, draft, row) }
                 ?: BuilderWidgets.buttonOf(widgetId)?.let { row -> if (running) stopFirst else unbounded(draft, row) }
+                ?: BuilderWidgets.toggleOf(widgetId)?.let { (row, button) -> if (running) stopFirst else toggle(draft, row, button) }
+                ?: BuilderWidgets.listAddOf(widgetId)?.let { list -> if (running) stopFirst else addOrRemove(player, draft, list) }
+                ?: BuilderWidgets.lineRemoveOf(widgetId)?.let { (list, line) -> if (running) stopFirst else remove(draft, list, line) }
         }
+    }
+
+    /** A toggle's button: its choice is kept. */
+    private fun toggle(draft: StepDraft, row: Int, button: Int): BuilderAnswer? {
+        val toggle = ConfigureRows.of(fields(draft))[row] as? StepField.Toggle ?: return null
+        val choice = toggle.choices.getOrNull(button) ?: return null
+        return BuilderAnswer.Configure(draft.with(toggle.key, choice.value))
+    }
+
+    /** A list's first line opens the search that stays open over its items. */
+    private fun addOrRemove(player: P, draft: StepDraft, list: Int): BuilderAnswer? =
+        ConfigureRows.list(fields(draft), list)?.let { BuilderAnswer.Several(draft.notTyping(), it, searchContext(player, draft)) }
+
+    /** A list line's x takes its item out. */
+    private fun remove(draft: StepDraft, list: Int, line: Int): BuilderAnswer? {
+        val field = ConfigureRows.list(fields(draft), list) ?: return null
+        val id = StepItems.ids(draft.settings, field.key).getOrNull(line) ?: return null
+        return BuilderAnswer.Configure(draft.copy(settings = StepItems.toggled(draft.settings, field.key, id), typing = null))
     }
 
     private fun save(player: P, draft: StepDraft): BuilderAnswer {
@@ -271,7 +310,7 @@ class BuilderScreen<P : AutopilotPlayer>(
         val idle = draft.notTyping()
         // The empty arm goes first: last, JaCoCo counts a branch no test can reach (coverage notes).
         return when (val field = ConfigureRows.of(fields(draft))[row]) {
-            is StepField.Note, null -> null
+            is StepField.Note, is StepField.Toggle, is StepField.Items, null -> null
             is StepField.Search -> BuilderAnswer.Search(idle, field, searchContext(player, draft))
             is StepField.Typed -> BuilderAnswer.Amount(draft.copy(typing = field.key))
             is StepField.MapTile -> BuilderAnswer.PickTile(idle, tileOf(draft.settings[field.key]) ?: player.tile)
@@ -283,11 +322,13 @@ class BuilderScreen<P : AutopilotPlayer>(
         (ConfigureRows.of(fields(draft))[row] as? StepField.Typed)?.let { BuilderAnswer.Configure(draft.with(it.key, "")) }
 
     /**
-     * The search's options are worked out from the steps before the one configured and its settings as edited. Until S07
-     * gives processing steps their input setting, they offer everything with the bank's counts (Maxime, 2026-10-09).
+     * The search's options are worked out from the steps before the one configured and its settings as edited, a
+     * processing step's from where its input comes from (S07a).
      */
-    private fun searchContext(player: P, draft: StepDraft): OptionContext =
-        OptionContext(settings = draft.settings, before = resolver.contextBefore(player.idleState.steps, draft.slot), input = InputSource.BANK)
+    private fun searchContext(player: P, draft: StepDraft): OptionContext {
+        val before = resolver.contextBefore(player.idleState.steps, draft.slot)
+        return OptionContext(settings = draft.settings, before = before, input = resolver.types.input(draft.settings, before))
+    }
 
     private fun fields(draft: StepDraft): List<StepField> = resolver.types.find(draft.settings.kind)?.fields(names).orEmpty()
 

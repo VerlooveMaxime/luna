@@ -8,6 +8,7 @@ import game.idle.ui.SearchOpenMessageWriter
 import game.idle.ui.WidgetColourMessageWriter
 import game.idle.ui.SearchRow
 import game.idle.ui.SearchRowsMessageWriter
+import game.idle.ui.ListPlacementMessageWriter
 import game.idle.ui.SlotCountMessageWriter
 import game.idle.ui.StatusOverlayMessageWriter
 import game.idle.ui.StickyChatboxMessageWriter
@@ -150,6 +151,16 @@ class EncodedMessageDecoderTest {
                 ),
             ),
         )
+    }
+
+    @Test
+    fun `a chosen search row decodes as the writer records it`() {
+        assertDecodesAsRecorded(SearchRowsMessageWriter(3, "", 1, 3, 0, listOf(SearchRow(0, "Oak logs", "chosen", false, WidgetPicture.Item(1521), chosen = true))))
+    }
+
+    @Test
+    fun `a configure list's placement decodes as the writer records it`() {
+        assertDecodesAsRecorded(ListPlacementMessageWriter(1, 2, 4, 3))
     }
 
     @Test

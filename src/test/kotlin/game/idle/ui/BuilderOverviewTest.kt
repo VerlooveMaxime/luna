@@ -66,6 +66,7 @@ class BuilderOverviewTest {
             is WidgetUpdate.Picture -> it.id
             is WidgetUpdate.Visible -> it.id
             is WidgetUpdate.Colour -> it.id
+            is WidgetUpdate.Placement -> placementKey(it.list)
         }
     }
 

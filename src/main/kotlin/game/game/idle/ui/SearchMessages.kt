@@ -9,8 +9,8 @@ import io.luna.net.msg.GameMessageReader
 import io.luna.net.msg.GameMessageWriter
 import io.netty.buffer.ByteBuf
 
-/** What a chatbox prompt asks for; the client reads its ordinal. */
-enum class PromptMode { SEARCH, NAME }
+/** What a chatbox prompt asks for: one row, a name, or several rows (it stays open on a pick); the client reads its ordinal. */
+enum class PromptMode { SEARCH, NAME, SEVERAL }
 
 /**
  * Opens the IdleRS client's chatbox prompt (opcode [OPCODE], unused by the 377 protocol both ways): the prompt's
@@ -58,7 +58,7 @@ class SearchRowsMessageWriter(
         val message = ByteMessage.message(OPCODE, MessageType.VAR_SHORT, buffer)
             .put(serial).putString(query).putShort(total).put(columns).putShort(offset).putShort(count)
         for (row in searchRows) {
-            message.putShort(row.index).put(if (row.greyed) GREYED else 0).putString(row.label).putString(row.note)
+            message.putShort(row.index).put(flags(row)).putString(row.label).putString(row.note)
             PictureEncoding.write(row.picture, message)
         }
         return message
@@ -67,8 +67,11 @@ class SearchRowsMessageWriter(
     companion object {
         const val OPCODE = 105
 
-        /** Bit of a row's flags byte set when it is greyed. */
+        /** Bits of a row's flags byte: greyed, and chosen in a search that picks several (its note drawn green). */
         const val GREYED = 1
+        const val CHOSEN = 2
+
+        fun flags(row: SearchRow): Int = (if (row.greyed) GREYED else 0) or (if (row.chosen) CHOSEN else 0)
 
         fun describe(rows: List<SearchRow>): String = rows.joinToString("; ", transform = SearchRow::describe)
     }

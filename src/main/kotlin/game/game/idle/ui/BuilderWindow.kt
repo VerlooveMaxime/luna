@@ -5,6 +5,7 @@ import api.attr.getValue
 import api.attr.setValue
 import game.idle.IdleState
 import game.idle.autopilot.LunaAutopilotPlayer
+import game.idle.flow.StepItems
 import game.idle.flow.SavedFlows
 import game.idle.flow.option.LunaOptionFacts
 import game.idle.idleState
@@ -110,6 +111,7 @@ class LunaBuilderUi(
             is BuilderAnswer.Show -> show(player, answer)
             is BuilderAnswer.Configure -> configure(player, answer.draft, answer.message)
             is BuilderAnswer.Search -> search(player, answer)
+            is BuilderAnswer.Several -> several(player, answer)
             is BuilderAnswer.Amount -> amount(player, answer.draft)
             is BuilderAnswer.PickTile -> pickTile(player, answer)
             is BuilderAnswer.Replaced -> replaced(player, answer.message)
@@ -135,6 +137,17 @@ class LunaBuilderUi(
         val context = answer.context.copy(facts = LunaOptionFacts.of(player), here = Tile.of(player.position))
         SearchPrompts.open(player, field.title, field.target.source.options(context), font) { plr, option ->
             answer(plr, screen.picked(window.draft(plr), answer.draft, field.target.key, option.value))
+        }
+    }
+
+    /** The search that stays open over a list: rows show "chosen" for the items the step being configured now holds. */
+    private fun several(player: Player, answer: BuilderAnswer.Several) {
+        configure(player, answer.draft, message = "")
+        val field = answer.field
+        val context = answer.context.copy(facts = LunaOptionFacts.of(player), here = Tile.of(player.position))
+        val chosen = { plr: Player -> window.draft(plr)?.let { StepItems.ids(it.settings, field.key) }.orEmpty().map(Int::toString).toSet() }
+        SearchPrompts.openSeveral(player, field.title, field.source.options(context), font, chosen) { plr, option ->
+            answer(plr, screen.toggledItem(window.draft(plr), answer.draft, field.key, option.value))
         }
     }
 

@@ -2,16 +2,20 @@ package game.idle.autopilot.smithing
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.ProcessInput
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
+import game.idle.flow.StepInput
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
+import game.idle.flow.Uses
 import game.idle.flow.WorkSpot
 import game.idle.flow.option.GameNames
+import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
@@ -23,17 +27,16 @@ import io.luna.game.model.mob.Skill
 
 /**
  * Smith: smiths a count of an item or, without one, as many as the bars carried make, at an anvil within a radius of
- * the work spot. The item is kept by its id, its metal and table row following from it (S06b, Maxime 2026-10-09).
+ * the work spot. The item is kept by its id, its metal and table row following from it (S06b, Maxime 2026-10-09). The
+ * bars come from earlier steps or the bank (S07a), named with [names].
  */
-object SmithStepType : StepType {
-
-    const val ITEM = "item"
+class SmithStepType(private val names: GameNames) : StepType {
 
     override val kind = "smith"
 
     override val label = "smith"
 
-    override val description = "Smiths bars into items at an anvil."
+    override val description = "Smiths bars into items at an anvil, from earlier steps or the bank."
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.SMITHING)
 
@@ -41,31 +44,51 @@ object SmithStepType : StepType {
 
     override fun target(names: GameNames): StepTarget = StepTarget(ITEM, SmithItemOptions(names))
 
+    override fun input(settings: StepSettings, before: FlowContext): InputSource = ProcessInput.read(settings, before, BAR_IDS)
+
+    override fun newSettings(before: FlowContext): StepSettings = ProcessInput.initial(StepSettings(kind), before, BAR_IDS)
+
     override fun details(settings: StepSettings, context: FlowContext): List<String> =
-        listOf(StepAmount.detail(settings, unbounded = "all of them"))
+        listOf(
+            StepInput.detail("Bars", input(settings, context), context, smithed(settings)?.let { setOf(it.second.barType.id) }.orEmpty()),
+            StepAmount.detail(settings, unbounded = "all of them"),
+        )
 
     override fun fields(names: GameNames): List<StepField> =
         listOf(
+            ProcessInput.field(BAR_IDS),
             StepField.Search("Item", target(names), "What would you like to smith?"),
+            StepField.Note("Uses") { settings, _ -> uses(settings) },
             StepAmount.field("Amount", unbounded = "all of them", button = "All"),
             StepRadius.field(),
         )
 
     override fun summary(settings: StepSettings): String {
-        val item = settings[ITEM]
-        val name = item?.toIntOrNull()?.let(::smithed)?.let { (_, smithed) -> smithed.item.itemDef.name.lowercase() } ?: item ?: "?"
+        val name = smithed(settings)?.let { (_, smithed) -> names.item(smithed.item.id).lowercase() } ?: settings[ITEM] ?: "?"
         return "smith ${StepAmount.prefix(settings)}$name${StepRadius.suffix(settings)}"
     }
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val item = settings[ITEM] ?: throw FlowError("smith needs an item")
-        val (table, smithed) = item.toIntOrNull()?.let(::smithed) ?: throw FlowError("'$item' is not an item to smith")
+        val (table, smithed) = smithed(settings) ?: throw FlowError("'$item' is not an item to smith")
+        ProcessInput.requireGathered(input(settings, context), context, listOf(smithed.barType.id), names)
         return SmithStep(smithed.barType, table, StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
     }
 
-    /** The table row and the item of it whose id is [id], null when no row smiths it. */
-    private fun smithed(id: Int): Pair<SmithingTable, SmithingItem>? =
-        SmithingTable.entries.firstNotNullOfOrNull { table -> table.items.firstOrNull { it.item.id == id }?.let { table to it } }
+    private fun uses(settings: StepSettings): String =
+        smithed(settings)?.let { (table, smithed) -> Uses.text(mapOf(smithed.barType.id to table.bars), names) } ?: Uses.NOTHING_PICKED
+
+    /** The table row and the item of it [settings] keep, null when no row smiths it. */
+    private fun smithed(settings: StepSettings): Pair<SmithingTable, SmithingItem>? {
+        val id = settings[ITEM]?.toIntOrNull() ?: return null
+        return SmithingTable.entries.firstNotNullOfOrNull { table -> table.items.firstOrNull { it.item.id == id }?.let { table to it } }
+    }
+
+    companion object {
+        const val ITEM = "item"
+
+        private val BAR_IDS: Set<Int> = BarType.entries.map { it.id }.toSet()
+    }
 }
 
 /**

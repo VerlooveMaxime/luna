@@ -291,4 +291,68 @@ class SearchPromptTest {
 
         assertEquals(1, prompt(player)?.serial)
     }
+
+    /** The values a list holds, which a search of several shows chosen; its picks add or take them out. */
+    private val list = mutableSetOf("oak")
+
+    private fun several(player: Player) =
+        SearchPrompts.openSeveral(player, "Which trees?", listOf(yew, oak, tree), font, chosen = { list.toSet() }) { _, option ->
+            if (!list.remove(option.value)) list += option.value
+        }
+
+    private fun severalOpen(): Player = login().also { several(it) }
+
+    @Test
+    fun `a search of several opens in its own mode`() {
+        assertEquals("SEVERAL", fields(severalOpen(), "SearchOpenMessageWriter")["mode"])
+    }
+
+    @Test
+    fun `the rows chosen when it opens come first, noted chosen`() {
+        assertEquals(
+            "0 Oak / chosen / item 1521; 1 Tree / Woodcutting 1 / item 1511; 2 Yew / needs Woodcutting 60 / item 1515 / greyed",
+            fields(severalOpen(), "SearchRowsMessageWriter")["rows"],
+        )
+    }
+
+    @Test
+    fun `a pick in a search of several leaves it open`() {
+        val player = severalOpen()
+
+        SearchPrompts.pick(player, serial = 0, index = 1)
+
+        assertTrue(player.overlays.has(SearchPrompt::class.java))
+    }
+
+    @Test
+    fun `a pick in a search of several sends its row again, changed, where it was`() {
+        val player = severalOpen()
+
+        SearchPrompts.pick(player, serial = 0, index = 0)
+
+        val page = fields(player, "SearchRowsMessageWriter")
+        assertEquals(listOf<Any>(0, 1, "0 Oak / Woodcutting 15 / item 1521"), listOf(page.getValue("offset"), page.getValue("count"), page.getValue("rows")))
+    }
+
+    @Test
+    fun `a row picked among a query's results is sent at its place in them`() {
+        val player = severalOpen()
+        page(player, offset = 0, count = 6, query = "tree")
+
+        SearchPrompts.pick(player, serial = 0, index = 1)
+
+        val page = fields(player, "SearchRowsMessageWriter")
+        assertEquals(listOf<Any>("tree", 0, "1 Tree / chosen / item 1511"), listOf(page.getValue("query"), page.getValue("offset"), page.getValue("rows")))
+    }
+
+    @Test
+    fun `a row picked outside the query's results is not sent again`() {
+        val player = severalOpen()
+        page(player, offset = 0, count = 6, query = "tree")
+        val before = TestWorld.messages(player).size
+
+        SearchPrompts.pick(player, serial = 0, index = 0)
+
+        assertEquals(listOf(before, false), listOf(TestWorld.messages(player).size, "oak" in list))
+    }
 }

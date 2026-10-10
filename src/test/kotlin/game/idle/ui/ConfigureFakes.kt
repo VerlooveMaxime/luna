@@ -1,10 +1,14 @@
 package game.idle.ui
 
+import game.idle.flow.Choice
 import game.idle.flow.FakeStepType
+import game.idle.flow.FieldColumn
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepRadius
+import game.idle.flow.StepSettings
 import game.idle.flow.StepTypes
+import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
 import game.idle.flow.option.StepOption
@@ -25,14 +29,51 @@ val WITHIN = StepRadius.field()
 
 val TILE = StepField.MapTile("tile", "Tile")
 
+/** Two logs a list can hold: logs and oak logs, by item id. */
+val LOGS = OptionSource {
+    listOf(StepOption("1511", "Logs", OptionIcon.Item(1511)), StepOption("1521", "Oak logs", OptionIcon.Item(1521)))
+}
+
+/** Where a fake light step takes its logs: earlier steps unless the setting says the bank. */
+val INPUT_TOGGLE = StepField.Toggle(
+    "input",
+    "Input",
+    listOf(Choice("earlier", "Earlier steps"), Choice("bank", "The bank")),
+    current = { settings, _ -> settings["input"] ?: "earlier" },
+)
+
+val LOGS_LIST = StepField.Items("logs", "Logs", LOGS, "Which logs?", "+ Add or remove logs...", rows = 4)
+
+val DEPOSIT_TOGGLE = StepField.Toggle(
+    "deposit",
+    "Deposit",
+    listOf(Choice("everything", "Everything"), Choice("gathered", "Gathered"), Choice("chosen", "Chosen")),
+    current = { settings, _ -> settings["deposit"] ?: "gathered" },
+    column = FieldColumn.RIGHT,
+)
+
+val CHOSEN_LIST = StepField.Items("chosen", "Chosen", LOGS, "Which items?", "+ Add or remove items...", rows = 3, column = FieldColumn.RIGHT)
+
 /**
  * Kinds with every sort of configure field: chop (a tree search on row 0, an amount on row 1, a note on row 2, within
- * on the right's first row, 5), drop (none), walk (a tile).
+ * on the right's first row, 6), drop (none), walk (a tile), light (an input toggle on row 0, an amount on row 1, a list
+ * of logs on rows 2-5; new ones take logs from earlier steps), bank (a three-button toggle on the right's first row, a
+ * list on the right's rows 1-3).
  */
 val CONFIGURED_TYPES = StepTypes(
     listOf(
         FakeStepType("chop", listOf(TREE_SEARCH, AMOUNT, INPUT_NOTE, WITHIN), skill = Skill.WOODCUTTING, target = TREES),
         FakeStepType("drop"),
         FakeStepType("walk", listOf(TILE)),
+        FakeStepType(
+            "light",
+            listOf(INPUT_TOGGLE, AMOUNT, LOGS_LIST),
+            newStep = { StepSettings("light", mapOf("input" to "earlier", "logs" to "1511")) },
+            inputOf = { if (it["input"] == "bank") InputSource.BANK else InputSource.EARLIER_STEPS },
+        ),
+        FakeStepType("bank", listOf(DEPOSIT_TOGGLE, CHOSEN_LIST)),
     ),
 )
+
+/** Where a list's placement goes among updates keyed by widget id: below every id. */
+fun placementKey(list: Int): Int = -1 - list

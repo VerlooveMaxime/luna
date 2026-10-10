@@ -167,7 +167,14 @@ class BuilderScreenTest {
 
     @Test
     fun `a button past the kinds does nothing`() {
-        assertEquals(BuilderAnswer.Ignored, click(player(), BuilderWidgets.kindFace(3)))
+        assertEquals(BuilderAnswer.Ignored, click(player(), BuilderWidgets.kindFace(CONFIGURED_TYPES.all.size)))
+    }
+
+    @Test
+    fun `a new step starts with the settings its kind gives it after the steps before`() {
+        val answer = click(player(chop), BuilderWidgets.kindFace(3))
+
+        assertEquals(BuilderAnswer.Configure(StepDraft(1, StepSettings("light", mapOf("input" to "earlier", "logs" to "1511")), new = true)), answer)
     }
 
     @Test
@@ -302,7 +309,7 @@ class BuilderScreenTest {
 
     @Test
     fun `a field on the right column opens like the left's`() {
-        assertEquals(BuilderAnswer.Amount(choppingDraft.copy(typing = "within")), click(player(chop), BuilderWidgets.rowFace(5), choppingDraft))
+        assertEquals(BuilderAnswer.Amount(choppingDraft.copy(typing = "within")), click(player(chop), BuilderWidgets.rowFace(6), choppingDraft))
     }
 
     @Test
@@ -699,5 +706,113 @@ class BuilderScreenTest {
 
         assertEquals(BuilderAnswer.Show(message = BuilderScreen.STOP_FIRST), screen.arrange(player, from = 0, to = 1))
         assertEquals(listOf(chop, drop), player.idleState.steps)
+    }
+
+    private val light = StepSettings("light", mapOf("input" to "earlier", "logs" to "1511"))
+    private val lighting = StepDraft(1, light, new = false)
+
+    @Test
+    fun `a toggle's button keeps its choice`() {
+        assertEquals(BuilderAnswer.Configure(lighting.with("input", "bank")), click(player(chop, light), BuilderWidgets.toggleFace(0, 2, 1), lighting))
+    }
+
+    @Test
+    fun `a toggle button on a row without a toggle does nothing`() {
+        assertEquals(BuilderAnswer.Ignored, click(player(chop, light), BuilderWidgets.toggleFace(1, 2, 0), lighting))
+    }
+
+    @Test
+    fun `a toggle button past the toggle's choices does nothing`() {
+        assertEquals(BuilderAnswer.Ignored, click(player(chop, light), BuilderWidgets.toggleFace(0, 3, 2), lighting))
+    }
+
+    @Test
+    fun `no toggle changes while the flow runs`() {
+        val player = player(chop, light).also { autopilot.start(it) }
+
+        assertEquals(BuilderAnswer.Configure(lighting, BuilderScreen.STOP_FIRST), click(player, BuilderWidgets.toggleFace(0, 2, 1), lighting))
+    }
+
+    @Test
+    fun `a list's first line opens the search that stays open, over the steps before and the step's input`() {
+        val answer = click(player(chop, light), BuilderWidgets.listAdd(0), lighting.copy(typing = "amount"))
+
+        val context = OptionContext(settings = light, before = FlowContext(), input = InputSource.EARLIER_STEPS)
+        assertEquals(BuilderAnswer.Several(lighting, LOGS_LIST, context), answer)
+    }
+
+    @Test
+    fun `a list's first line where the kind has no list does nothing`() {
+        assertEquals(BuilderAnswer.Ignored, click(player(chop, light), BuilderWidgets.listAdd(1), lighting))
+    }
+
+    @Test
+    fun `no search opens over a list while the flow runs`() {
+        val player = player(chop, light).also { autopilot.start(it) }
+
+        assertEquals(BuilderAnswer.Configure(lighting, BuilderScreen.STOP_FIRST), click(player, BuilderWidgets.listAdd(0), lighting))
+    }
+
+    @Test
+    fun `a line's x takes its item out`() {
+        val two = lighting.with("logs", "1511,1521")
+
+        assertEquals(BuilderAnswer.Configure(lighting.with("logs", "1521")), click(player(chop, light), BuilderWidgets.lineRemoveFace(0, 0), two))
+    }
+
+    @Test
+    fun `an x past the list's items does nothing`() {
+        assertEquals(BuilderAnswer.Ignored, click(player(chop, light), BuilderWidgets.lineRemoveFace(0, 1), lighting))
+    }
+
+    @Test
+    fun `an x in a list the kind does not have does nothing`() {
+        assertEquals(BuilderAnswer.Ignored, click(player(chop, light), BuilderWidgets.lineRemoveFace(1, 0), lighting))
+    }
+
+    @Test
+    fun `nothing leaves a list while the flow runs`() {
+        val player = player(chop, light).also { autopilot.start(it) }
+
+        assertEquals(BuilderAnswer.Configure(lighting, BuilderScreen.STOP_FIRST), click(player, BuilderWidgets.lineRemoveFace(0, 0), lighting))
+    }
+
+    @Test
+    fun `a row clicked in the search that stays open adds its item`() {
+        assertEquals(BuilderAnswer.Configure(lighting.with("logs", "1511,1521")), screen.toggledItem(lighting, lighting, "logs", "1521"))
+    }
+
+    @Test
+    fun `a row clicked again takes its item out`() {
+        assertEquals(BuilderAnswer.Configure(lighting.with("logs", "")), screen.toggledItem(lighting, lighting, "logs", "1511"))
+    }
+
+    @Test
+    fun `a full list takes no more items`() {
+        val full = lighting.with("logs", (1..28).joinToString(","))
+
+        assertEquals(BuilderAnswer.Configure(full, "Autopilot: the list holds 28 items."), screen.toggledItem(full, full, "logs", "1521"))
+    }
+
+    @Test
+    fun `a full list still lets an item out`() {
+        val full = lighting.with("logs", (1..28).joinToString(","))
+
+        assertEquals(BuilderAnswer.Configure(full.with("logs", (2..28).joinToString(","))), screen.toggledItem(full, full, "logs", "1"))
+    }
+
+    @Test
+    fun `a row clicked for another step changes nothing`() {
+        assertEquals(BuilderAnswer.Ignored, screen.toggledItem(choppingDraft, lighting, "logs", "1521"))
+    }
+
+    @Test
+    fun `a row clicked once the screen closed changes nothing`() {
+        assertEquals(BuilderAnswer.Ignored, screen.toggledItem(null, lighting, "logs", "1521"))
+    }
+
+    @Test
+    fun `a row naming no item changes nothing`() {
+        assertEquals(BuilderAnswer.Ignored, screen.toggledItem(lighting, lighting, "logs", "nearest"))
     }
 }

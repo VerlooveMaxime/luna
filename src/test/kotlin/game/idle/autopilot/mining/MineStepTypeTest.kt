@@ -3,10 +3,12 @@ package game.idle.autopilot.mining
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepIcon
+import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.flow.described
 import game.idle.flow.option.FakeNames
+import game.idle.flow.option.InputSource
 import game.idle.flow.option.LunaGameNames
 import game.idle.location.Tile
 import game.skill.mining.Ore
@@ -82,6 +84,21 @@ class MineStepTypeTest {
         val after = MineStep(Ore.COPPER, 10, walkedTo).after(FlowContext(walkedTo, gathered = setOf(438)))
 
         assertEquals(FlowContext(walkedTo, setOf(438, 436)), after)
+    }
+
+    @Test
+    fun `a mine step shows a value that is no option as it is kept, without a picture`() {
+        assertEquals(StepPick("nothing", null), MineStepType.pick(mine("ore" to "nothing"), FakeNames()))
+    }
+
+    @Test
+    fun `a new mine step starts with no settings`() {
+        assertEquals(StepSettings("mine"), MineStepType.newSettings(FlowContext()))
+    }
+
+    @Test
+    fun `a mine step takes nothing in, so its searches count the bank`() {
+        assertEquals(InputSource.BANK, MineStepType.input(mine(), FlowContext()))
     }
 
     private fun assertRejected(message: String, action: () -> Unit) {

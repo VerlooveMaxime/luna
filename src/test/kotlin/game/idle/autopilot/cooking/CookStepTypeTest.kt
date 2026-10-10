@@ -2,12 +2,14 @@ package game.idle.autopilot.cooking
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
-import game.idle.flow.StepField
 import game.idle.flow.StepIcon
+import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.flow.described
 import game.idle.flow.option.FakeNames
+import game.idle.flow.option.InputSource
+import game.idle.flow.option.OptionIcon
 import game.idle.location.Tile
 import game.testworld.TestWorld
 import io.luna.game.model.mob.Skill
@@ -23,6 +25,8 @@ class CookStepTypeTest {
     private val rawShrimps = 317
     private val rawAnchovies = 321
     private val logs = 1511
+    private val type = CookStepType(FakeNames(items = mapOf(rawShrimps to "Raw shrimps", rawAnchovies to "Raw anchovies")))
+    private val fished = FlowContext(walkedTo, gathered = setOf(rawShrimps, rawAnchovies, logs), gatheredBy = mapOf(rawShrimps to 1, rawAnchovies to 1, logs to 2))
 
     private fun cook(vararg values: Pair<String, String>) = StepSettings("cook", mapOf(*values))
 
@@ -34,47 +38,59 @@ class CookStepTypeTest {
 
     @Test
     fun `a cook step with its defaults reads as cook alone`() {
-        assertEquals("cook", CookStepType.summary(cook("within" to "10")))
+        assertEquals("cook", type.summary(cook("within" to "10")))
     }
 
     @Test
-    fun `a cook step's count and radius are written`() {
-        assertEquals("cook 1 within 5", CookStepType.summary(cook("amount" to "1", "within" to "5")))
-        assertEquals("cook within 5", CookStepType.summary(cook("within" to "5")))
+    fun `a cook step's count, food and radius are written`() {
+        assertEquals("cook 1 raw shrimps within 5", type.summary(cook("amount" to "1", "raw" to "$rawShrimps", "within" to "5")))
     }
 
     @Test
-    fun `cook cooks the raw food the steps before it gathered, around the work spot`() {
-        val step = CookStepType.resolve(cook("amount" to "2", "within" to "15"), FlowContext(walkedTo, gathered = setOf(rawShrimps, rawAnchovies, logs)))
+    fun `cook cooks the raw food picked, around the work spot`() {
+        val step = type.resolve(cook("amount" to "2", "within" to "15", "input" to "earlier", "raw" to "$rawShrimps,$rawAnchovies"), fished)
 
         assertEquals(CookStep(setOf(rawShrimps, rawAnchovies), 15, walkedTo, amount = 2), step)
     }
 
     @Test
-    fun `cook with nothing raw gathered before it is rejected`() {
-        val error = assertThrows<FlowError> { CookStepType.resolve(cook(), FlowContext(gathered = setOf(logs))) }
+    fun `cook with no raw food picked cannot work`() {
+        val error = assertThrows<FlowError> { type.resolve(cook("input" to "bank"), FlowContext()) }
 
-        assertEquals("cook needs raw food from a step before it", error.message)
+        assertEquals("cook needs raw food picked", error.message)
     }
 
     @Test
-    fun `the configure screen notes where the raw food comes from, types the amount and the radius`() {
+    fun `the configure screen toggles the input, types the amount, lists the food and types the radius`() {
         assertEquals(
-            listOf("Input (left): note", "Amount (left): typed amount 1..1000, button 'All'", "Within (right): typed within 1..32"),
-            described(CookStepType.fields(FakeNames())),
+            listOf(
+                "Input (left): toggle input earlier 'Earlier steps' / bank 'The bank'",
+                "Amount (left): typed amount 1..1000, button 'All'",
+                "Raw food (left): list raw on 4 rows, 'What would you like to cook?'",
+                "Within (right): typed within 1..32",
+            ),
+            described(type.fields(FakeNames())),
         )
     }
 
     @Test
-    fun `the configure screen's input note names the step that gets the raw food`() {
-        val note = CookStepType.fields(FakeNames()).first() as StepField.Note
+    fun `a new cook step after a fishing step cooks every fish it catches`() {
+        assertEquals(cook("input" to "earlier", "raw" to "$rawShrimps,$rawAnchovies"), type.newSettings(fished))
+    }
 
-        assertEquals("Raw food from step 1", note.text(cook(), FlowContext(gatheredBy = mapOf(317 to 1))))
+    @Test
+    fun `a cook step's input follows the flow until one is kept`() {
+        assertEquals(InputSource.BANK, type.input(cook(), FlowContext()))
+    }
+
+    @Test
+    fun `a cook step shows the food it cooks`() {
+        assertEquals(StepPick("Raw shrimps", OptionIcon.Item(rawShrimps)), type.pick(cook("raw" to "$rawShrimps"), FakeNames()))
     }
 
     @Test
     fun `the configure screen shows the Cooking level`() {
-        assertEquals(Skill.COOKING, CookStepType.skill(cook()))
+        assertEquals(Skill.COOKING, type.skill(cook()))
     }
 
     @Test
@@ -86,26 +102,16 @@ class CookStepTypeTest {
 
     @Test
     fun `a cook step shows the Cooking icon`() {
-        assertEquals(StepIcon.Skill(Skill.COOKING), CookStepType.icon(StepSettings("cook")))
+        assertEquals(StepIcon.Skill(Skill.COOKING), type.icon(StepSettings("cook")))
     }
 
     @Test
     fun `a cook step's slot names the step its raw food comes from, all of it`() {
-        assertEquals(listOf("Raw food from step 1", "all of them"), CookStepType.details(cook(), FlowContext(gatheredBy = mapOf(317 to 1))))
+        assertEquals(listOf("from step 1", "all of them"), type.details(cook("input" to "earlier", "raw" to "$rawShrimps"), fished))
     }
 
     @Test
-    fun `a cook step's slot says how much a lap cooks`() {
-        assertEquals("5 per lap", CookStepType.details(cook("amount" to "5"), FlowContext()).last())
-    }
-
-    @Test
-    fun `a cook step with no raw food before it says so`() {
-        assertEquals("No raw food before it", CookStepType.details(cook(), FlowContext()).first())
-    }
-
-    @Test
-    fun `a cook step has no target yet`() {
-        assertNull(CookStepType.target(FakeNames()))
+    fun `a cook step has no target to search`() {
+        assertNull(type.target(FakeNames()))
     }
 }

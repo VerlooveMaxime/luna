@@ -6,7 +6,7 @@ import game.idle.flow.FlowResolver
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepSettings
 import game.idle.flow.option.GameNames
-import game.idle.flow.option.StepOption
+import game.idle.flow.option.OptionIcon
 
 /** The builder's screens the server shows one at a time: the overview, the kind picker and a step's configure screen. */
 enum class BuilderPage { OVERVIEW, KINDS, CONFIGURE }
@@ -15,9 +15,9 @@ enum class BuilderPage { OVERVIEW, KINDS, CONFIGURE }
 data class StepPictures(val picture: WidgetPicture, val corner: WidgetPicture) {
 
     companion object {
-        /** [icon] is the kind's, [picked] the option the step's target picked, null for none. */
-        fun of(icon: WidgetPicture, picked: StepOption?): StepPictures =
-            picked?.let { StepPictures(WidgetPicture.of(it.icon), icon) } ?: StepPictures(icon, WidgetPicture.None)
+        /** [icon] is the kind's, [picked] the picture of what the step picked, null for none. */
+        fun of(icon: WidgetPicture, picked: OptionIcon?): StepPictures =
+            picked?.let { StepPictures(WidgetPicture.of(it), icon) } ?: StepPictures(icon, WidgetPicture.None)
     }
 }
 
@@ -109,14 +109,13 @@ class BuilderOverview(
     private fun step(state: IdleState, slot: Int, settings: StepSettings, problem: String?, before: FlowContext): SlotView.Step {
         val type = types.find(settings.kind)
         val icon = type?.let { WidgetPicture.of(it.icon(settings)) } ?: WidgetPicture.None
-        val target = type?.target(names)
-        val picked = target?.picked(settings)
+        val pick = type?.pick(settings, names)
         val running = state.running && state.stepIndex == slot
         val reason = state.blocked?.takeIf { running }?.let(AutopilotStatus::reason) ?: problem
-        val targetLine = target?.let { (picked?.label ?: settings[it.key])?.let(::fitted) ?: NOT_SET }
+        val targetLine = pick?.let { it.label?.let(::fitted) ?: NOT_SET }
         val details = (listOfNotNull(targetLine) + type?.details(settings, before).orEmpty().map(::fitted))
         val reasonLines = reason?.let { font.wrap("! $it", BuilderWidgets.LINE_ROOM, REASON_LINES).map { line -> "@red@$line" } }.orEmpty()
-        val pictures = StepPictures.of(icon, picked)
+        val pictures = StepPictures.of(icon, pick?.icon)
         return SlotView.Step(
             number = slot + 1,
             picture = pictures.picture,

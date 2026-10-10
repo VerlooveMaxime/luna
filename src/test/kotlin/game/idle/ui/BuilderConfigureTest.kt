@@ -3,6 +3,7 @@ package game.idle.ui
 import game.idle.IdleState
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowResolver
+import game.idle.flow.StepField
 import game.idle.flow.StepSettings
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.OptionFacts
@@ -29,6 +30,7 @@ class BuilderConfigureTest {
                 is WidgetUpdate.Picture -> it.id
                 is WidgetUpdate.Visible -> it.id
                 is WidgetUpdate.Colour -> it.id
+                is WidgetUpdate.Placement -> placementKey(it.list)
             }
         }
 
@@ -138,7 +140,7 @@ class BuilderConfigureTest {
 
     @Test
     fun `a typed row without such a button hides it`() {
-        assertEquals(listOf<Any>("10 tiles", false), listOf(text(chopping, BuilderWidgets.rowPlainText(5)), visible(chopping, BuilderWidgets.rowButton(5))))
+        assertEquals(listOf<Any>("10 tiles", false), listOf(text(chopping, BuilderWidgets.rowPlainText(6)), visible(chopping, BuilderWidgets.rowButton(6))))
     }
 
     @Test
@@ -147,7 +149,7 @@ class BuilderConfigureTest {
 
         assertEquals(
             listOf(BuilderWidgets.TYPING, BuilderWidgets.FIELD_EDGE, BuilderWidgets.FIELD_EDGE),
-            listOf(colour(typing, BuilderWidgets.rowFrame(1)), colour(typing, BuilderWidgets.rowFrame(5)), colour(typing, BuilderWidgets.rowFrame(0))),
+            listOf(colour(typing, BuilderWidgets.rowFrame(1)), colour(typing, BuilderWidgets.rowFrame(6)), colour(typing, BuilderWidgets.rowFrame(0))),
         )
     }
 
@@ -173,8 +175,8 @@ class BuilderConfigureTest {
     }
 
     @Test
-    fun `a row the kind has no setting for is hidden and blank`() {
-        assertEquals(listOf<Any>(false, ""), listOf(visible(chopping, BuilderWidgets.row(3)), text(chopping, BuilderWidgets.rowLabel(3))))
+    fun `a row the kind has no setting for is hidden, its contents left alone`() {
+        assertEquals(listOf(false, false), listOf(visible(chopping, BuilderWidgets.row(3)), updates(chopping).containsKey(BuilderWidgets.rowLabel(3))))
     }
 
     @Test
@@ -263,12 +265,120 @@ class BuilderConfigureTest {
 
     @Test
     fun `fields fill the left column's rows, then the right's`() {
-        assertEquals(mapOf(0 to TREE_SEARCH, 1 to AMOUNT, 2 to INPUT_NOTE, 5 to WITHIN), ConfigureRows.of(listOf(TREE_SEARCH, WITHIN, AMOUNT, INPUT_NOTE)))
+        assertEquals(mapOf(0 to TREE_SEARCH, 1 to AMOUNT, 2 to INPUT_NOTE, 6 to WITHIN), ConfigureRows.of(listOf(TREE_SEARCH, WITHIN, AMOUNT, INPUT_NOTE)))
     }
 
     @Test
-    fun `a column holds five fields at most`() {
-        assertThrows<IllegalArgumentException> { ConfigureRows.of(List(6) { TREE_SEARCH }) }
-        assertThrows<IllegalArgumentException> { ConfigureRows.of(List(6) { WITHIN }) }
+    fun `a column holds six rows at most`() {
+        assertThrows<IllegalArgumentException> { ConfigureRows.of(List(7) { TREE_SEARCH }) }
+        assertThrows<IllegalArgumentException> { ConfigureRows.of(List(7) { WITHIN }) }
     }
+
+    private val lighting = StepDraft(1, StepSettings("light", mapOf("input" to "earlier", "logs" to "1511,1521")), new = false)
+    private val banking = StepDraft(1, StepSettings("bank", mapOf("deposit" to "chosen")), new = false)
+
+    @Test
+    fun `a toggle row shows its two buttons in the field's place, the chosen one lit`() {
+        assertEquals(
+            listOf<Any>(false, false, true, false, "@whi@Earlier steps", "The bank", BuilderWidgets.LIT, BuilderWidgets.FIELD_EDGE),
+            listOf(
+                visible(lighting, BuilderWidgets.rowField(0)),
+                visible(lighting, BuilderWidgets.rowButton(0)),
+                visible(lighting, BuilderWidgets.toggles(0, 2)),
+                visible(lighting, BuilderWidgets.toggles(0, 3)),
+                text(lighting, BuilderWidgets.toggleText(0, 2, 0)),
+                text(lighting, BuilderWidgets.toggleText(0, 2, 1)),
+                colour(lighting, BuilderWidgets.toggleFrame(0, 2, 0)),
+                colour(lighting, BuilderWidgets.toggleFrame(0, 2, 1)),
+            ),
+        )
+    }
+
+    @Test
+    fun `a toggle of three shows the narrower buttons`() {
+        assertEquals(
+            listOf<Any>(false, true, "Everything", "@whi@Chosen"),
+            listOf(
+                visible(banking, BuilderWidgets.toggles(6, 2)),
+                visible(banking, BuilderWidgets.toggles(6, 3)),
+                text(banking, BuilderWidgets.toggleText(6, 3, 0)),
+                text(banking, BuilderWidgets.toggleText(6, 3, 2)),
+            ),
+        )
+    }
+
+    @Test
+    fun `a row of another sort hides both toggles`() {
+        assertEquals(listOf(false, false), listOf(visible(chopping, BuilderWidgets.toggles(0, 2)), visible(chopping, BuilderWidgets.toggles(0, 3))))
+    }
+
+    @Test
+    fun `a list's first row shows its label alone, the list drawn over the field's place`() {
+        assertEquals(
+            listOf<Any>(true, "Logs", false, false),
+            listOf(
+                visible(lighting, BuilderWidgets.row(2)),
+                text(lighting, BuilderWidgets.rowLabel(2)),
+                visible(lighting, BuilderWidgets.rowField(2)),
+                visible(lighting, BuilderWidgets.rowButton(2)),
+            ),
+        )
+    }
+
+    @Test
+    fun `the rows under a list hide`() {
+        assertEquals(listOf(false, false, false), (3..5).map { visible(lighting, BuilderWidgets.row(it)) })
+    }
+
+    @Test
+    fun `a list is placed on its rows, a line to add or remove then one per item`() {
+        assertEquals(
+            listOf<Any>(true, WidgetUpdate.Placement(0, firstRow = 2, rows = 4, lines = 3), "+ Add or remove logs..."),
+            listOf(visible(lighting, BuilderWidgets.list(0)), updates(lighting, lightFlow).getValue(placementKey(0)), text(lighting, BuilderWidgets.listAddText(0))),
+        )
+    }
+
+    @Test
+    fun `a list's line shows its item's picture and name, without an amount`() {
+        assertEquals(
+            listOf<Any>(WidgetPicture.Item(1521), "item 1521", false),
+            listOf(
+                picture(lighting, BuilderWidgets.linePicture(0, 1)),
+                text(lighting, BuilderWidgets.lineName(0, 1)),
+                visible(lighting, BuilderWidgets.lineAmount(0, 1)),
+            ),
+        )
+    }
+
+    @Test
+    fun `lines past the list's items are left alone`() {
+        assertFalse(updates(lighting, lightFlow).containsKey(BuilderWidgets.lineName(0, 2)))
+    }
+
+    @Test
+    fun `a column without a list hides its list`() {
+        assertEquals(listOf(false, false), listOf(visible(lighting, BuilderWidgets.list(1)), visible(banking, BuilderWidgets.list(0))))
+    }
+
+    @Test
+    fun `a list on the right column is placed from its own column's rows`() {
+        assertEquals(WidgetUpdate.Placement(1, firstRow = 1, rows = 3, lines = 1), updates(banking, lightFlow).getValue(placementKey(1)))
+    }
+
+    @Test
+    fun `a column holds one list at most`() {
+        assertThrows<IllegalArgumentException> { ConfigureRows.of(listOf(LOGS_LIST, StepField.Items("more", "More", LOGS, "More?", "+ More", rows = 1))) }
+    }
+
+    @Test
+    fun `a list takes as many rows as it says`() {
+        assertEquals(mapOf(0 to INPUT_TOGGLE, 1 to AMOUNT, 2 to LOGS_LIST), ConfigureRows.of(listOf(INPUT_TOGGLE, AMOUNT, LOGS_LIST)))
+    }
+
+    @Test
+    fun `the list of a column is found among the fields`() {
+        assertEquals(listOf(CHOSEN_LIST, null), listOf(ConfigureRows.list(listOf(LOGS_LIST, CHOSEN_LIST), 1), ConfigureRows.list(listOf(CHOSEN_LIST), 0)))
+    }
+
+    private val lightFlow = IdleState(steps = listOf(oak, StepSettings("light")))
 }

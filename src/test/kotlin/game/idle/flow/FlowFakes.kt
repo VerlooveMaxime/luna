@@ -1,6 +1,7 @@
 package game.idle.flow
 
 import game.idle.flow.option.GameNames
+import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
@@ -23,6 +24,8 @@ class FakeStepType(
     private val fields: List<StepField> = emptyList(),
     private val skill: Int? = null,
     private val target: StepTarget? = null,
+    private val newStep: ((FlowContext) -> StepSettings)? = null,
+    private val inputOf: ((StepSettings) -> InputSource)? = null,
 ) : StepType {
 
     val contexts = mutableListOf<FlowContext>()
@@ -40,6 +43,10 @@ class FakeStepType(
     override fun skill(settings: StepSettings): Int? = skill
 
     override fun target(names: GameNames): StepTarget? = target
+
+    override fun newSettings(before: FlowContext): StepSettings = newStep?.invoke(before) ?: super.newSettings(before)
+
+    override fun input(settings: StepSettings, before: FlowContext): InputSource = inputOf?.invoke(settings) ?: super.input(settings, before)
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         contexts += context
@@ -107,6 +114,8 @@ fun described(fields: List<StepField>): List<String> =
             is StepField.Typed -> "typed ${field.key} ${field.range}" + (field.unbounded?.let { ", button '$it'" } ?: "")
             is StepField.MapTile -> "map ${field.key}"
             is StepField.Note -> "note"
+            is StepField.Toggle -> "toggle ${field.key} ${field.choices.joinToString(" / ") { "${it.value} '${it.word}'" }}"
+            is StepField.Items -> "list ${field.key} on ${field.rows} rows, '${field.title}'"
         }
         "${field.label} (${field.column.name.lowercase()}): $words"
     }

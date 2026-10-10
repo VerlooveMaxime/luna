@@ -15,7 +15,14 @@ import io.luna.game.model.mob.overlay.OverlayType
  * A row of the chatbox search as the client draws it: [index] is its place in the prompt's ordered options, which a
  * pick names back; a greyed row shows its reason as its note.
  */
-data class SearchRow(val index: Int, val label: String, val note: String, val greyed: Boolean, val picture: WidgetPicture) {
+data class SearchRow(
+    val index: Int,
+    val label: String,
+    val note: String,
+    val greyed: Boolean,
+    val picture: WidgetPicture,
+    val chosen: Boolean = false,
+) {
 
     /** What the harness log shows of the row. */
     fun describe(): String =
@@ -23,8 +30,18 @@ data class SearchRow(val index: Int, val label: String, val note: String, val gr
             .joinToString(" / ")
 
     companion object {
-        fun of(index: Int, option: StepOption): SearchRow =
-            SearchRow(index, option.label, option.blocked ?: option.note, option.blocked != null, WidgetPicture.of(option.icon))
+        /** [option]'s row; a [chosen] one's note says so (S07a), its reason when it is greyed too. */
+        fun of(index: Int, option: StepOption, chosen: Boolean = false): SearchRow =
+            SearchRow(
+                index,
+                option.label,
+                option.blocked ?: if (chosen) CHOSEN else option.note,
+                option.blocked != null,
+                WidgetPicture.of(option.icon),
+                chosen,
+            )
+
+        const val CHOSEN = "chosen"
     }
 }
 
@@ -39,6 +56,9 @@ abstract class ChatboxPrompt(val serial: Int) : AbstractOverlay(OverlayType.INPU
  * [OptionOrder]. It opens on its first rows; from 3 letters the client asks for the options matching what was typed
  * (every word in the label, case ignored), and scrolling asks for further pages, so any list works the same way
  * (Maxime, 2026-10-09). [onPick] gets the option a click picked.
+ *
+ * With [chosen], the values a list holds now, it picks several (S07a, Maxime 2026-10-10): it stays open on a pick and
+ * sends the row picked again, chosen or not; the rows chosen when it opens come first, and no row moves while it is open.
  */
 class SearchPrompt(
     serial: Int,
@@ -47,15 +67,19 @@ class SearchPrompt(
     private val emptyLine: String,
     private val font: ClientFont,
     private val onPick: (Player, StepOption) -> Unit,
+    private val chosen: ((Player) -> Set<String>)? = null,
+    chosenAtOpen: Set<String> = emptySet(),
 ) : ChatboxPrompt(serial) {
 
-    private val ordered: List<StepOption> = OptionOrder.ordered(options)
+    private val ordered: List<StepOption> =
+        OptionOrder.ordered(options).sortedBy { it.value !in chosenAtOpen }
 
     /** The last query's results, kept while the player scrolls through them. */
     private var results: SearchResults = results("")
 
     override fun open(player: Player) {
-        player.queue(SearchOpenMessageWriter(serial, PromptMode.SEARCH, title, emptyLine, text = "", MOST_TYPED))
+        val mode = if (chosen != null) PromptMode.SEVERAL else PromptMode.SEARCH
+        player.queue(SearchOpenMessageWriter(serial, mode, title, emptyLine, text = "", MOST_TYPED))
         page(player, offset = 0, count = results.columns * OPENING_GRID_ROWS, query = "")
     }
 
@@ -71,18 +95,26 @@ class SearchPrompt(
             results = results(query)
         }
         val candidates = results.positions.drop(offset).take(count.coerceAtMost(MAX_PAGE))
-        val rows = candidates.take(PACKET.fit(candidates.map(ordered::get)).size).map { SearchRow.of(it, ordered[it]) }
+        val chosenNow = chosen?.invoke(player).orEmpty()
+        val rows = candidates.take(PACKET.fit(candidates.map(ordered::get)).size).map { SearchRow.of(it, ordered[it], ordered[it].value in chosenNow) }
         player.queue(SearchRowsMessageWriter(serial, query, results.positions.size, results.columns, offset, rows))
     }
 
     /**
      * Row [index] picked: the prompt closes, then [onPick] hears of the option, so a follow-up input it opens stays
-     * open. A greyed or unknown row does nothing; the client offers no such pick.
+     * open; a search that picks several stays open and sends the row again once [onPick] has changed the list. A greyed
+     * or unknown row does nothing; the client offers no such pick.
      */
     fun pick(player: Player, index: Int) {
         val option = ordered.getOrNull(index)?.takeIf { it.blocked == null } ?: return
-        player.overlays.overlayMap.remove(OverlayType.INPUT)
+        if (chosen == null) {
+            player.overlays.overlayMap.remove(OverlayType.INPUT)
+            onPick(player, option)
+            return
+        }
         onPick(player, option)
+        val place = results.positions.indexOf(index)
+        if (place >= 0) page(player, offset = place, count = 1, query = results.query)
     }
 
     private fun results(query: String): SearchResults {
@@ -175,6 +207,21 @@ object SearchPrompts {
         onPick: (Player, StepOption) -> Unit,
     ) {
         player.overlays.open(SearchPrompt(newSerial(player), title, options, emptyLine, font, onPick))
+    }
+
+    /**
+     * Opens a search over [options] that picks several (S07a): [chosen] says which values the list holds now, and
+     * [onToggle] hears of each row clicked, which adds or takes out its item.
+     */
+    fun openSeveral(
+        player: Player,
+        title: String,
+        options: List<StepOption>,
+        font: ClientFont,
+        chosen: (Player) -> Set<String>,
+        onToggle: (Player, StepOption) -> Unit,
+    ) {
+        player.overlays.open(SearchPrompt(newSerial(player), title, options, emptyLine = "", font, onToggle, chosen, chosen(player)))
     }
 
     /** Opens the name prompt: [title] over a line starting with [text], up to [mostCharacters] characters long. */

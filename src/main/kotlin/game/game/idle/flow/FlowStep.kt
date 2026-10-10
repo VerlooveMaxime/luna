@@ -1,6 +1,9 @@
 package game.idle.flow
 
 import game.idle.flow.option.GameNames
+import game.idle.flow.option.InputSource
+import game.idle.flow.option.OptionIcon
+import game.idle.flow.option.OptionSource
 import game.idle.flow.option.StepTarget
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
@@ -53,6 +56,22 @@ interface StepType {
     /** The setting the step mainly picks and the options it offers, named with [names]; null for a kind with none. */
     fun target(names: GameNames): StepTarget? = null
 
+    /**
+     * What the builder shows for what the step picked, its label and picture: by default its [target]'s option, null for
+     * a kind that picks nothing.
+     */
+    fun pick(settings: StepSettings, names: GameNames): StepPick? =
+        target(names)?.let { target ->
+            val option = target.picked(settings)
+            StepPick(option?.label ?: settings[target.key], option?.icon)
+        }
+
+    /** The settings a new step of this kind starts with, [before] being what the steps before it set up. */
+    fun newSettings(before: FlowContext): StepSettings = StepSettings(kind)
+
+    /** Where the step takes what it works on, which narrows its searches (S01); the bank for a kind that takes nothing. */
+    fun input(settings: StepSettings, before: FlowContext): InputSource = InputSource.BANK
+
     /** The lines the builder's slot shows under the target (how much, from where), [context] what the steps before set up. */
     fun details(settings: StepSettings, context: FlowContext): List<String> = emptyList()
 
@@ -63,12 +82,17 @@ interface StepType {
 /** The configure screen's two columns: the mockup's settings on the left, where the step works on the right. */
 enum class FieldColumn { LEFT, RIGHT }
 
-/** A setting of a step on the builder's configure screen, on a row under [label]. */
+/** What a step picked as the builder shows it: [label] (null when nothing is picked yet) and [icon]. */
+data class StepPick(val label: String?, val icon: OptionIcon?)
+
+/** A setting of a step on the builder's configure screen, on a row under [label], taking [rows] rows. */
 sealed interface StepField {
 
     val label: String
 
     val column: FieldColumn
+
+    val rows: Int get() = 1
 
     /** The step's [target], picked in the chatbox search headed [title]. */
     class Search(override val label: String, val target: StepTarget, val title: String) : StepField {
@@ -99,7 +123,36 @@ sealed interface StepField {
     class Note(override val label: String, val text: (StepSettings, FlowContext) -> String) : StepField {
         override val column = FieldColumn.LEFT
     }
+
+    /**
+     * One of [choices] kept under [key], picked from a row of small buttons; [current] is the one lit for the settings
+     * and what the steps before set up.
+     */
+    class Toggle(
+        val key: String,
+        override val label: String,
+        val choices: List<Choice>,
+        val current: (StepSettings, FlowContext) -> String,
+        override val column: FieldColumn = FieldColumn.LEFT,
+    ) : StepField
+
+    /**
+     * Several items of [source] kept under [key] ([StepItems]), shown as a list on [rows] rows (Maxime, 2026-10-10): its
+     * first line, worded [add], opens the search headed [title], which stays open and adds or takes out each row clicked.
+     */
+    class Items(
+        val key: String,
+        override val label: String,
+        val source: OptionSource,
+        val title: String,
+        val add: String,
+        override val rows: Int,
+        override val column: FieldColumn = FieldColumn.LEFT,
+    ) : StepField
 }
+
+/** A button of a [StepField.Toggle]: the [value] it keeps, under its [word]. */
+data class Choice(val value: String, val word: String)
 
 /** Where an action step works: around the tile the player pressed Run on, or where a walk step before it went. */
 sealed interface WorkSpot {
@@ -130,15 +183,19 @@ data class FlowContext(
     fun stepsGathering(items: Set<Int>): List<Int> = gatheredBy.filterKeys { it in items }.values.distinct().sorted()
 }
 
-/** The builder's slot line saying which earlier steps a processing step takes [what] from: "Logs from step 2". */
+/**
+ * The builder's slot line saying where a processing step takes [what] from: "from the bank", or the earlier steps that
+ * get [items], "from step 2" ("No logs before it" when none does).
+ */
 object StepInput {
 
-    fun detail(what: String, context: FlowContext, items: Set<Int>): String {
+    fun detail(what: String, input: InputSource, context: FlowContext, items: Set<Int>): String {
+        if (input == InputSource.BANK) return "from the bank"
         val steps = context.stepsGathering(items)
         return when (steps.size) {
             0 -> "No ${what.lowercase()} before it"
-            1 -> "$what from step ${steps.single()}"
-            else -> "$what from steps ${steps.joinToString(", ")}"
+            1 -> "from step ${steps.single()}"
+            else -> "from steps ${steps.joinToString(", ")}"
         }
     }
 }

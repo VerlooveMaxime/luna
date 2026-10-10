@@ -1,5 +1,6 @@
 package game.idle.flow
 
+import game.idle.flow.option.InputSource
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -19,16 +20,21 @@ class StepInputTest {
 
     @Test
     fun `one step gathering the input is named`() {
-        assertEquals("Logs from step 2", StepInput.detail("Logs", FlowContext(gatheredBy = mapOf(1521 to 2)), logs))
+        assertEquals("from step 2", StepInput.detail("Logs", InputSource.EARLIER_STEPS, FlowContext(gatheredBy = mapOf(1521 to 2)), logs))
     }
 
     @Test
     fun `several steps gathering it are all named`() {
-        assertEquals("Logs from steps 1, 2", StepInput.detail("Logs", FlowContext(gatheredBy = mapOf(1511 to 1, 1521 to 2)), logs))
+        assertEquals("from steps 1, 2", StepInput.detail("Logs", InputSource.EARLIER_STEPS, FlowContext(gatheredBy = mapOf(1511 to 1, 1521 to 2)), logs))
     }
 
     @Test
     fun `no step gathering it says so`() {
-        assertEquals("No raw food before it", StepInput.detail("Raw food", FlowContext(), setOf(317)))
+        assertEquals("No raw food before it", StepInput.detail("Raw food", InputSource.EARLIER_STEPS, FlowContext(), setOf(317)))
+    }
+
+    @Test
+    fun `an input from the bank says so whatever the steps before get`() {
+        assertEquals("from the bank", StepInput.detail("Logs", InputSource.BANK, FlowContext(gatheredBy = mapOf(1521 to 2)), logs))
     }
 }

@@ -33,7 +33,7 @@ class BuilderWidgetsTest {
     @Test
     fun `slot widgets follow each other within their slot`() {
         assertEquals(
-            listOf(31017, 31018, 31019, 31021, 31022, 31023, 31027, 31028, 31029, 31030),
+            listOf(32017, 32018, 32019, 32021, 32022, 32023, 32027, 32028, 32029, 32030),
             listOf(
                 BuilderWidgets.slotFace(1), BuilderWidgets.slotFrame(1), BuilderWidgets.slotPicture(1), BuilderWidgets.slotCorner(1),
                 BuilderWidgets.slotNumber(1), BuilderWidgets.slotKind(1), BuilderWidgets.slotLine(1, 3), BuilderWidgets.slotPlus(1),
@@ -93,7 +93,7 @@ class BuilderWidgetsTest {
     @Test
     fun `configure row widgets follow each other within their row`() {
         assertEquals(
-            listOf(30843, 30844, 30845, 30846, 30847, 30848, 30849, 30850, 30851, 30852, 30853, 30854),
+            listOf(30860, 30861, 30862, 30863, 30864, 30865, 30866, 30867, 30868, 30869, 30870, 30871),
             listOf(
                 BuilderWidgets.row(1), BuilderWidgets.rowLabel(1), BuilderWidgets.rowField(1), BuilderWidgets.rowFace(1),
                 BuilderWidgets.rowFrame(1), BuilderWidgets.rowPicture(1), BuilderWidgets.rowText(1), BuilderWidgets.rowPlainText(1),
@@ -105,9 +105,61 @@ class BuilderWidgetsTest {
     @Test
     fun `configure rows and warnings stay among the fixed ids`() {
         assertEquals(
-            listOf(30810, 30812, 30960),
+            listOf(30810, 30812, 31190),
             listOf(BuilderWidgets.warning(0), BuilderWidgets.warning(BuilderWidgets.WARNING_LINES - 1), BuilderWidgets.row(BuilderWidgets.ROWS)),
         )
+    }
+
+    @Test
+    fun `toggle buttons mirror the client's ids`() {
+        assertEquals(
+            listOf(30873, 30877, 30880, 30888, 30853),
+            listOf(
+                BuilderWidgets.toggles(1, 2), BuilderWidgets.toggleFace(1, 2, 1), BuilderWidgets.toggles(1, 3),
+                BuilderWidgets.toggleFrame(1, 3, 2), BuilderWidgets.toggleText(0, 3, 0),
+            ),
+        )
+    }
+
+    @Test
+    fun `lists mirror the client's ids`() {
+        assertEquals(
+            listOf(31600, 31202, 31604, 31212, 31537, 31614, 31232),
+            listOf(
+                BuilderWidgets.list(1), BuilderWidgets.listAdd(0), BuilderWidgets.listAddText(1), BuilderWidgets.linePicture(0, 0),
+                BuilderWidgets.lineName(0, 27), BuilderWidgets.lineAmount(1, 0), BuilderWidgets.lineRemoveFace(0, 1),
+            ),
+        )
+    }
+
+    @Test
+    fun `a toggle button's face names its row and button`() {
+        assertEquals(listOf(7 to 1, 2 to 2), listOf(BuilderWidgets.toggleOf(BuilderWidgets.toggleFace(7, 2, 1)), BuilderWidgets.toggleOf(BuilderWidgets.toggleFace(2, 3, 2))))
+    }
+
+    @Test
+    fun `another widget is no toggle button`() {
+        assertNull(BuilderWidgets.toggleOf(BuilderWidgets.toggleFrame(7, 2, 1)))
+    }
+
+    @Test
+    fun `a list's first line names its list`() {
+        assertEquals(1, BuilderWidgets.listAddOf(BuilderWidgets.listAdd(1)))
+    }
+
+    @Test
+    fun `another widget is no list's first line`() {
+        assertNull(BuilderWidgets.listAddOf(BuilderWidgets.listAddText(1)))
+    }
+
+    @Test
+    fun `a line's remove button names its list and line`() {
+        assertEquals(1 to 27, BuilderWidgets.lineRemoveOf(BuilderWidgets.lineRemoveFace(1, 27)))
+    }
+
+    @Test
+    fun `another widget is no remove button`() {
+        assertNull(BuilderWidgets.lineRemoveOf(BuilderWidgets.lineName(1, 27)))
     }
 
     @Test
