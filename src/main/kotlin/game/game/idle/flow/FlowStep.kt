@@ -106,10 +106,18 @@ sealed interface StepField {
 
     val visible: (StepSettings) -> Boolean
 
-    /** The step's [target], picked in the chatbox search headed [title]. */
-    class Search(override val label: String, val target: StepTarget, val title: String) : StepField {
+    /**
+     * The step's [target], picked in the chatbox search headed [title]; [missing] words a value no option has any more
+     * (a jump's deleted step), which otherwise shows as it is kept.
+     */
+    class Search(
+        override val label: String,
+        val target: StepTarget,
+        val title: String,
+        override val visible: (StepSettings) -> Boolean = ALWAYS,
+        val missing: String? = null,
+    ) : StepField {
         override val column = FieldColumn.LEFT
-        override val visible = ALWAYS
     }
 
     /**
@@ -153,14 +161,14 @@ sealed interface StepField {
         val choices: List<Choice>,
         val current: (StepSettings, FlowContext) -> String,
         override val column: FieldColumn = FieldColumn.LEFT,
-    ) : StepField {
-        override val visible = ALWAYS
-    }
+        override val visible: (StepSettings) -> Boolean = ALWAYS,
+    ) : StepField
 
     /**
      * Several items of [source] kept under [key] ([StepItems]), shown as a list on [rows] rows (Maxime, 2026-10-10): its
-     * first line, worded [add], opens the search headed [title], which stays open and adds or takes out each row clicked.
-     * With [amounts] each line has its amount too, typed or All (a withdrawal, S07b).
+     * first line, worded [add] ([empty] while the list holds nothing, when given), opens the search headed [title], which
+     * stays open and adds or takes out each row clicked. With [amounts] each line has its amount too, typed or All (a
+     * withdrawal, S07b).
      */
     class Items(
         val key: String,
@@ -172,6 +180,7 @@ sealed interface StepField {
         override val column: FieldColumn = FieldColumn.LEFT,
         val amounts: Boolean = false,
         override val visible: (StepSettings) -> Boolean = ALWAYS,
+        val empty: String? = null,
     ) : StepField
 
     private companion object {

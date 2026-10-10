@@ -5,12 +5,15 @@ import game.idle.autopilot.AutopilotPlayer
 import game.idle.flow.FlowError
 import game.idle.flow.FlowIds
 import game.idle.flow.FlowResolver
+import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexResolver
+import game.idle.flow.ReflexSettings
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepItems
 import game.idle.flow.option.GameNames
+import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionContext
 import game.idle.location.Tile
 
@@ -73,8 +76,10 @@ class BuilderScreen<P : AutopilotPlayer>(
     private val autopilot: Autopilot<P>,
     private val resolver: FlowResolver,
     private val reflexes: ReflexResolver,
+    private val form: ReflexForm,
     private val names: GameNames,
     private val slots: Int,
+    private val reflexSlots: Int,
     private val savedFlows: SavedFlows,
 ) {
 
@@ -90,9 +95,11 @@ class BuilderScreen<P : AutopilotPlayer>(
             BuilderWidgets.SAVE_FLOW -> saveFromBuilder(player)
             BuilderWidgets.BASE_LEVELS -> levels(player, boosted = false)
             BuilderWidgets.BOOSTED_LEVELS -> levels(player, boosted = true)
-            BuilderWidgets.KINDS_BACK -> BuilderAnswer.Show(BuilderPage.OVERVIEW)
+            BuilderWidgets.KINDS_BACK, BuilderWidgets.STEPS_TAB -> BuilderAnswer.Show(BuilderPage.OVERVIEW)
+            BuilderWidgets.REFLEXES_TAB -> BuilderAnswer.Show(BuilderPage.REFLEXES)
             else -> BuilderWidgets.slotOf(widgetId)?.let { slot(player, it) }
                 ?: BuilderWidgets.kindOf(widgetId)?.let { kind(player, it) }
+                ?: BuilderWidgets.reflexRowOf(widgetId)?.let { reflexRow(player, it) }
                 ?: draft?.let { configure(player, widgetId, it) }
                 ?: BuilderAnswer.Ignored
         }
@@ -122,10 +129,22 @@ class BuilderScreen<P : AutopilotPlayer>(
         val steps = player.idleState.steps
         if (from !in steps.indices) return BuilderAnswer.Ignored
         if (autopilot.isRunning(player)) return BuilderAnswer.Show(message = STOP_FIRST)
-        val moved = steps.toMutableList().apply { add(to.coerceAtMost(steps.lastIndex).coerceAtLeast(0), removeAt(from)) }
-        player.idleState = player.idleState.withFlow(moved)
+        player.idleState = player.idleState.withFlow(moved(steps, from, to))
         return BuilderAnswer.Show()
     }
+
+    /** A reflex row dragged onto another, as a slot is (S07c): the flow's order of its reflexes changes. */
+    fun arrangeReflexes(player: P, from: Int, to: Int): BuilderAnswer {
+        val state = player.idleState
+        if (from !in state.reflexes.indices) return BuilderAnswer.Ignored
+        if (autopilot.isRunning(player)) return BuilderAnswer.Show(message = STOP_FIRST)
+        player.idleState = state.withFlow(state.steps, moved(state.reflexes, from, to))
+        return BuilderAnswer.Show()
+    }
+
+    /** [all] with the one at [from] moved to [to], those in between shifting by one; past the end it goes last. */
+    private fun <T> moved(all: List<T>, from: Int, to: Int): List<T> =
+        all.toMutableList().apply { add(to.coerceAtMost(all.lastIndex).coerceAtLeast(0), removeAt(from)) }
 
     /**
      * An option picked in the search [opened] asked for, setting [key] to [value]; [draft] is the step configured now,
@@ -150,11 +169,11 @@ class BuilderScreen<P : AutopilotPlayer>(
      * [value] entered on the "Enter amount" prompt [draft] opened, for a field or a withdrawal's line; out of range it
      * says the rule instead.
      */
-    fun typed(draft: StepDraft?, value: Int): BuilderAnswer {
+    fun typed(player: P, draft: StepDraft?, value: Int): BuilderAnswer {
         val typing = draft?.typing ?: return BuilderAnswer.Ignored
         val item = typing.item
         if (item != null) return typedLine(draft, typing.key, item, value)
-        val field = fields(draft).filterIsInstance<StepField.Typed>().firstOrNull { it.key == typing.key } ?: return BuilderAnswer.Ignored
+        val field = fields(player, draft).filterIsInstance<StepField.Typed>().firstOrNull { it.key == typing.key } ?: return BuilderAnswer.Ignored
         if (value !in field.range) return BuilderAnswer.Configure(draft.notTyping(), "$PREFIX ${field.rule}.")
         return BuilderAnswer.Configure(draft.with(field.key, value.toString()))
     }
@@ -166,8 +185,8 @@ class BuilderScreen<P : AutopilotPlayer>(
     }
 
     /** A tile picked on the world map: it goes into [draft]'s tile, if it has one. */
-    fun pickedTile(draft: StepDraft?, tile: Tile): BuilderAnswer {
-        val field = draft?.let { fields(it).filterIsInstance<StepField.MapTile>().firstOrNull() } ?: return BuilderAnswer.Ignored
+    fun pickedTile(player: P, draft: StepDraft?, tile: Tile): BuilderAnswer {
+        val field = draft?.let { fields(player, it).filterIsInstance<StepField.MapTile>().firstOrNull() } ?: return BuilderAnswer.Ignored
         return BuilderAnswer.Configure(draft.with(field.key, tile.text()))
     }
 
@@ -264,6 +283,18 @@ class BuilderScreen<P : AutopilotPlayer>(
         return BuilderAnswer.Show(BuilderPage.KINDS)
     }
 
+    /**
+     * A reflex row opens its reflex's screen, to look at while the flow runs; the first free row a new reflex's, which
+     * eats any food below half hitpoints until changed (S07c).
+     */
+    private fun reflexRow(player: P, row: Int): BuilderAnswer {
+        val all = player.idleState.reflexes
+        all.getOrNull(row)?.let { return BuilderAnswer.Configure(StepDraft(row, form.settings(it), new = false, subject = DraftSubject.REFLEX)) }
+        if (row != all.size || row >= reflexSlots) return BuilderAnswer.Ignored
+        if (autopilot.isRunning(player)) return BuilderAnswer.Show(message = STOP_FIRST)
+        return BuilderAnswer.Configure(StepDraft(row, form.settings(ReflexSettings()), new = true, subject = DraftSubject.REFLEX))
+    }
+
     /** A kind picked: a new step of it, numbered after the last, which joins the flow on Save (Maxime, 2026-10-09). */
     private fun kind(player: P, kind: Int): BuilderAnswer {
         val type = types.getOrNull(kind) ?: return BuilderAnswer.Ignored
@@ -276,52 +307,58 @@ class BuilderScreen<P : AutopilotPlayer>(
     private fun configure(player: P, widgetId: Int, draft: StepDraft): BuilderAnswer? {
         val running = autopilot.isRunning(player)
         val stopFirst = BuilderAnswer.Configure(draft.notTyping(), STOP_FIRST)
+        val reflex = draft.subject == DraftSubject.REFLEX
         return when (widgetId) {
-            BuilderWidgets.BACK -> BuilderAnswer.Show(BuilderPage.OVERVIEW)
-            BuilderWidgets.SAVE -> if (running) stopFirst else save(player, draft)
-            BuilderWidgets.DELETE -> if (draft.new) BuilderAnswer.Configure(draft.notTyping()) else if (running) stopFirst else delete(player, draft)
+            BuilderWidgets.BACK -> BuilderAnswer.Show(if (reflex) BuilderPage.REFLEXES else BuilderPage.OVERVIEW)
+            BuilderWidgets.SAVE -> if (running) stopFirst else if (reflex) saveReflex(player, draft) else save(player, draft)
+            BuilderWidgets.DELETE -> when {
+                draft.new -> BuilderAnswer.Configure(draft.notTyping())
+                running -> stopFirst
+                reflex -> deleteReflex(player, draft)
+                else -> delete(player, draft)
+            }
             else -> BuilderWidgets.fieldOf(widgetId)?.let { row -> if (running) stopFirst else field(player, draft, row) }
-                ?: BuilderWidgets.buttonOf(widgetId)?.let { row -> if (running) stopFirst else unbounded(draft, row) }
-                ?: BuilderWidgets.toggleOf(widgetId)?.let { (row, button) -> if (running) stopFirst else toggle(draft, row, button) }
+                ?: BuilderWidgets.buttonOf(widgetId)?.let { row -> if (running) stopFirst else unbounded(player, draft, row) }
+                ?: BuilderWidgets.toggleOf(widgetId)?.let { (row, button) -> if (running) stopFirst else toggle(player, draft, row, button) }
                 ?: BuilderWidgets.listAddOf(widgetId)?.let { list -> if (running) stopFirst else addOrRemove(player, draft, list) }
-                ?: BuilderWidgets.lineRemoveOf(widgetId)?.let { (list, line) -> if (running) stopFirst else remove(draft, list, line) }
-                ?: BuilderWidgets.lineAmountOf(widgetId)?.let { (list, line) -> if (running) stopFirst else lineAmount(draft, list, line) }
-                ?: BuilderWidgets.lineAllOf(widgetId)?.let { (list, line) -> if (running) stopFirst else lineAll(draft, list, line) }
+                ?: BuilderWidgets.lineRemoveOf(widgetId)?.let { (list, line) -> if (running) stopFirst else remove(player, draft, list, line) }
+                ?: BuilderWidgets.lineAmountOf(widgetId)?.let { (list, line) -> if (running) stopFirst else lineAmount(player, draft, list, line) }
+                ?: BuilderWidgets.lineAllOf(widgetId)?.let { (list, line) -> if (running) stopFirst else lineAll(player, draft, list, line) }
         }
     }
 
     /** A toggle's button: its choice is kept. */
-    private fun toggle(draft: StepDraft, row: Int, button: Int): BuilderAnswer? {
-        val toggle = ConfigureRows.of(fields(draft))[row] as? StepField.Toggle ?: return null
+    private fun toggle(player: P, draft: StepDraft, row: Int, button: Int): BuilderAnswer? {
+        val toggle = ConfigureRows.of(fields(player, draft))[row] as? StepField.Toggle ?: return null
         val choice = toggle.choices.getOrNull(button) ?: return null
         return BuilderAnswer.Configure(draft.with(toggle.key, choice.value))
     }
 
     /** A list's first line opens the search that stays open over its items. */
     private fun addOrRemove(player: P, draft: StepDraft, list: Int): BuilderAnswer? =
-        ConfigureRows.list(fields(draft), list)?.let { BuilderAnswer.Several(draft.notTyping(), it, searchContext(player, draft)) }
+        ConfigureRows.list(fields(player, draft), list)?.let { BuilderAnswer.Several(draft.notTyping(), it, searchContext(player, draft)) }
 
     /** A list line's x takes its item out. */
-    private fun remove(draft: StepDraft, list: Int, line: Int): BuilderAnswer? {
-        val (field, id) = lineItem(draft, list, line) ?: return null
+    private fun remove(player: P, draft: StepDraft, list: Int, line: Int): BuilderAnswer? {
+        val (field, id) = lineItem(player, draft, list, line) ?: return null
         return BuilderAnswer.Configure(draft.copy(settings = StepItems.toggled(draft.settings, field.key, id), typing = null))
     }
 
     /** A withdrawal's amount box opens "Enter amount" for its line. */
-    private fun lineAmount(draft: StepDraft, list: Int, line: Int): BuilderAnswer? {
-        val (field, id) = lineItem(draft, list, line)?.takeIf { (field, _) -> field.amounts } ?: return null
+    private fun lineAmount(player: P, draft: StepDraft, list: Int, line: Int): BuilderAnswer? {
+        val (field, id) = lineItem(player, draft, list, line)?.takeIf { (field, _) -> field.amounts } ?: return null
         return BuilderAnswer.Amount(draft.copy(typing = Typing(field.key, id)))
     }
 
     /** A withdrawal's All button: as many as fit (Maxime, 2026-10-10). */
-    private fun lineAll(draft: StepDraft, list: Int, line: Int): BuilderAnswer? {
-        val (field, id) = lineItem(draft, list, line)?.takeIf { (field, _) -> field.amounts } ?: return null
+    private fun lineAll(player: P, draft: StepDraft, list: Int, line: Int): BuilderAnswer? {
+        val (field, id) = lineItem(player, draft, list, line)?.takeIf { (field, _) -> field.amounts } ?: return null
         return BuilderAnswer.Configure(draft.copy(settings = StepItems.withAmount(draft.settings, field.key, id, amount = null), typing = null))
     }
 
     /** The list of configure list [list] and the item on its [line], null when there is none. */
-    private fun lineItem(draft: StepDraft, list: Int, line: Int): Pair<StepField.Items, Int>? {
-        val field = ConfigureRows.list(fields(draft), list) ?: return null
+    private fun lineItem(player: P, draft: StepDraft, list: Int, line: Int): Pair<StepField.Items, Int>? {
+        val field = ConfigureRows.list(fields(player, draft), list) ?: return null
         return StepItems.ids(draft.settings, field.key).getOrNull(line)?.let { field to it }
     }
 
@@ -336,6 +373,31 @@ class BuilderScreen<P : AutopilotPlayer>(
         return BuilderAnswer.Show(BuilderPage.OVERVIEW, "$PREFIX step ${slot + 1} saved.")
     }
 
+    /** A reflex saved over the one it edits, or added after the last while the flow has room (S07c). */
+    private fun saveReflex(player: P, draft: StepDraft): BuilderAnswer {
+        val state = player.idleState
+        val all = state.reflexes
+        // A draft's slot is never negative, so one comparison says whether the reflex is still there.
+        val replacing = !draft.new && draft.slot < all.size
+        if (!replacing && all.size >= reflexSlots) {
+            return BuilderAnswer.Configure(draft.notTyping(), "$PREFIX the flow has room for $reflexSlots reflexes.")
+        }
+        val reflex = form.reflex(draft.settings)
+        val slot = if (replacing) draft.slot else all.size
+        val saved = if (replacing) all.toMutableList().apply { set(slot, reflex) } else all + reflex
+        player.idleState = state.withFlow(state.steps, FlowIds.reflexes(saved))
+        return BuilderAnswer.Show(BuilderPage.REFLEXES, "$PREFIX reflex ${slot + 1} saved.")
+    }
+
+    /** A deleted reflex leaves every step it was attached to (S07c). */
+    private fun deleteReflex(player: P, draft: StepDraft): BuilderAnswer {
+        val state = player.idleState
+        val deleted = state.reflexes.getOrNull(draft.slot) ?: return BuilderAnswer.Show(BuilderPage.REFLEXES)
+        val steps = state.steps.map { it.copy(reflexes = it.reflexes - deleted.id) }
+        player.idleState = state.withFlow(steps, state.reflexes - deleted)
+        return BuilderAnswer.Show(BuilderPage.REFLEXES, "$PREFIX reflex ${draft.slot + 1} deleted.")
+    }
+
     private fun delete(player: P, draft: StepDraft): BuilderAnswer {
         val steps = player.idleState.steps
         if (draft.slot >= steps.size) return BuilderAnswer.Show(BuilderPage.OVERVIEW)
@@ -346,7 +408,7 @@ class BuilderScreen<P : AutopilotPlayer>(
     private fun field(player: P, draft: StepDraft, row: Int): BuilderAnswer? {
         val idle = draft.notTyping()
         // The empty arm goes first: last, JaCoCo counts a branch no test can reach (coverage notes).
-        return when (val field = ConfigureRows.of(fields(draft))[row]) {
+        return when (val field = ConfigureRows.of(fields(player, draft))[row]) {
             is StepField.Note, is StepField.Toggle, is StepField.Items, null -> null
             is StepField.Search -> BuilderAnswer.Search(idle, field, searchContext(player, draft))
             is StepField.Typed -> BuilderAnswer.Amount(draft.copy(typing = Typing(field.key)))
@@ -355,21 +417,24 @@ class BuilderScreen<P : AutopilotPlayer>(
     }
 
     /** The button that removes a typed amount, so the step does as much as it can. */
-    private fun unbounded(draft: StepDraft, row: Int): BuilderAnswer? =
-        (ConfigureRows.of(fields(draft))[row] as? StepField.Typed)?.let { BuilderAnswer.Configure(draft.with(it.key, "")) }
+    private fun unbounded(player: P, draft: StepDraft, row: Int): BuilderAnswer? =
+        (ConfigureRows.of(fields(player, draft))[row] as? StepField.Typed)?.let { BuilderAnswer.Configure(draft.with(it.key, "")) }
 
     /**
      * The search's options are worked out from the steps before the one configured and its settings as edited, a
      * processing step's from where its input comes from (S07a).
      */
     private fun searchContext(player: P, draft: StepDraft): OptionContext {
+        if (draft.subject == DraftSubject.REFLEX) return OptionContext(settings = draft.settings, input = InputSource.BANK)
         val before = resolver.contextBefore(player.idleState.steps, draft.slot)
         return OptionContext(settings = draft.settings, before = before, input = resolver.types.input(draft.settings, before))
     }
 
     /** The fields the configure screen shows for [draft]'s settings, as [BuilderConfigure] lays them out. */
-    private fun fields(draft: StepDraft): List<StepField> =
-        ConfigureRows.shown(resolver.types.find(draft.settings.kind)?.fields(names).orEmpty(), draft.settings)
+    private fun fields(player: P, draft: StepDraft): List<StepField> {
+        val all = if (draft.subject == DraftSubject.REFLEX) form.fields(player.idleState.steps) else resolver.types.find(draft.settings.kind)?.fields(names).orEmpty()
+        return ConfigureRows.shown(all, draft.settings)
+    }
 
     /** The tile a map field holds ("x y"), null when it holds none. */
     private fun tileOf(text: String?): Tile? =

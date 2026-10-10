@@ -4,6 +4,8 @@ import game.idle.flow.Choice
 import game.idle.flow.FakeStep
 import game.idle.flow.FakeStepType
 import game.idle.flow.FieldColumn
+import game.idle.flow.ReflexForm
+import game.idle.flow.ReflexResolver
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepNeeds
@@ -11,6 +13,7 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepTypes
 import game.idle.flow.ToolNeed
+import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
@@ -96,3 +99,17 @@ val CONFIGURED_TYPES = StepTypes(
 
 /** Where a list's placement goes among updates keyed by widget id: below every id. */
 fun placementKey(list: Int): Int = -1 - list
+
+/** Trout and lobster, the foods an eat reflex picks from in these tests, by item id. */
+val FOODS = OptionSource {
+    listOf(StepOption("333", "Trout", OptionIcon.Item(333)), StepOption("379", "Lobster", OptionIcon.Item(379)))
+}
+
+/** Trout, lobster and a cake with its slices, as Luna's eat table gives every portion of each food. */
+val PORTIONS: Map<Int, Set<Int>> = mapOf(333 to setOf(333), 379 to setOf(379), 1891 to setOf(1891, 1893), 1893 to setOf(1891, 1893))
+
+val REFLEXES = ReflexResolver(PORTIONS)
+
+/** Reflex screens over the configured kinds, trout and lobster named. */
+val REFLEX_FORM = ReflexForm(FOODS, PORTIONS, CONFIGURED_TYPES, FakeNames(mapOf(333 to "Trout", 379 to "Lobster")))
+

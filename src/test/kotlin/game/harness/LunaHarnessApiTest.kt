@@ -63,7 +63,7 @@ class LunaHarnessApiTest {
         override fun run(): Boolean = false
     }
 
-    private val flows = FlowCheck(FlowResolver(StepTypes(listOf(FakeStepType("chop"), FakeStepType("drop")))), ReflexResolver(setOf(333)), maxSteps = 2, maxReflexes = 2)
+    private val flows = FlowCheck(FlowResolver(StepTypes(listOf(FakeStepType("chop"), FakeStepType("drop")))), ReflexResolver(mapOf(333 to setOf(333))), maxSteps = 2, maxReflexes = 2)
 
     private fun api() = LunaHarnessApi(
         TestWorld.world,

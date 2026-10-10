@@ -11,6 +11,9 @@ sealed interface OptionIcon {
 
     /** The minimap's bank icon. */
     data object Bank : OptionIcon
+
+    /** Sprite [index] of [name] in the client's media archive (a kind of step's icon, S07c). */
+    data class Media(val name: String, val index: Int) : OptionIcon
 }
 
 /**

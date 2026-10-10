@@ -8,7 +8,7 @@ import org.junit.jupiter.api.assertThrows
 
 class FlowCheckTest {
 
-    private val check = FlowCheck(FlowResolver(StepTypes(listOf(FakeStepType("walk")))), ReflexResolver(setOf(333)), maxSteps = 2, maxReflexes = 1)
+    private val check = FlowCheck(FlowResolver(StepTypes(listOf(FakeStepType("walk")))), ReflexResolver(mapOf(333 to setOf(333))), maxSteps = 2, maxReflexes = 1)
 
     private fun walk(id: Int) = step("walk").copy(id = id)
 
@@ -37,7 +37,7 @@ class FlowCheckTest {
 
     @Test
     fun `two reflexes sharing an id are refused`() {
-        val check = FlowCheck(FlowResolver(StepTypes(listOf(FakeStepType("walk")))), ReflexResolver(emptySet()), maxSteps = 2, maxReflexes = 2)
+        val check = FlowCheck(FlowResolver(StepTypes(listOf(FakeStepType("walk")))), ReflexResolver(emptyMap()), maxSteps = 2, maxReflexes = 2)
 
         val error = assertThrows<FlowError> { check.check(listOf(walk(1)), listOf(ReflexSettings(3), ReflexSettings(3))) }
 

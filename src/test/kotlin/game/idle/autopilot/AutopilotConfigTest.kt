@@ -1,5 +1,6 @@
 package game.idle.autopilot
 
+import game.idle.ui.BuilderWidgets
 import game.idle.ui.FlowWidgets
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -56,6 +57,23 @@ class AutopilotConfigTest {
     @Test
     fun `a flow without step slots is rejected`() {
         assertThrows<IllegalArgumentException> { AutopilotConfig(stepSlots = 0).validated() }
+    }
+
+    @Test
+    fun `more step slots than the builder has ids for are rejected`() {
+        assertThrows<IllegalArgumentException> { AutopilotConfig(stepSlots = BuilderWidgets.MOST_STEP_SLOTS + 1).validated() }
+    }
+
+    @Test
+    fun `more reflex slots than the builder has rows for are rejected`() {
+        assertThrows<IllegalArgumentException> { AutopilotConfig(reflexSlots = BuilderWidgets.MOST_REFLEX_SLOTS + 1).validated() }
+    }
+
+    @Test
+    fun `as many step and reflex slots as the builder has room for are accepted`() {
+        val most = AutopilotConfig(stepSlots = BuilderWidgets.MOST_STEP_SLOTS, reflexSlots = BuilderWidgets.MOST_REFLEX_SLOTS)
+
+        assertEquals(most, most.validated())
     }
 
     @Test

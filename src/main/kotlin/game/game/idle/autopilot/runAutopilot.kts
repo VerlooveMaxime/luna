@@ -20,7 +20,8 @@ import game.idle.ui.IdleTab
 import game.idle.ui.IdleUi
 import game.idle.ui.LunaBuilderUi
 import game.idle.ui.MapPickEvent
-import game.player.item.consume.food.Food
+import game.idle.autopilot.reflex.FoodOptions
+import game.idle.flow.ReflexForm
 import io.luna.game.event.impl.ArrangeItemEvent
 import io.luna.game.event.impl.ButtonClickEvent
 import io.luna.game.event.impl.LoginEvent
@@ -31,13 +32,15 @@ val config = AutopilotConfig.load(AutopilotConfig.PATH)
 // Loaded at boot so a typo in a data file stops the server instead of surfacing at the first step that uses it.
 val steps = IdleSteps.load()
 val resolver = FlowResolver(steps.types)
-val reflexResolver = ReflexResolver(Food.ID_TO_FOOD.keys)
+val reflexResolver = ReflexResolver(FoodOptions.portions())
+val reflexForm = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames)
 val font = ClientFont.fromCache(ctx.cache)
 val savedFlows = SavedFlows(config.savedFlowSlots)
 val builderWindow = BuilderWindow(
-    BuilderOverview(resolver, LunaGameNames, font, savedFlows),
-    BuilderConfigure(resolver, LunaGameNames, font),
+    BuilderOverview(resolver, reflexResolver, reflexForm, LunaGameNames, font, savedFlows),
+    BuilderConfigure(resolver, reflexResolver, reflexForm, LunaGameNames, font),
     config.stepSlots,
+    config.reflexSlots,
 )
 val ui = IdleUi(steps.types::summary, IdleTab.fromCache(ctx.cache, config.savedFlowSlots), builderWindow)
 logger.info("Loaded {} kinds of idle step.", steps.types.all.size)
@@ -52,7 +55,7 @@ val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world)) { auto
     resolved?.let { AutopilotDriver(FlowRunner(it, state.stepIndex, autopilotPlayer), config.decisionDelayTicks) }
 }
 
-val builderUi = LunaBuilderUi(BuilderScreen(autopilot, resolver, reflexResolver, LunaGameNames, config.stepSlots, savedFlows), builderWindow, ui, font)
+val builderUi = LunaBuilderUi(BuilderScreen(autopilot, resolver, reflexResolver, reflexForm, LunaGameNames, config.stepSlots, config.reflexSlots, savedFlows), builderWindow, ui, font)
 
 on(LoginEvent::class)
     .filter { !plr.isBot }
@@ -78,6 +81,10 @@ on(ButtonClickEvent::class)
 on(ArrangeItemEvent::class)
     .filter { widgetId == BuilderWidgets.SLOTS }
     .then { builderUi.arrange(plr, fromIndex, toIndex) }
+
+on(ArrangeItemEvent::class)
+    .filter { widgetId == BuilderWidgets.REFLEX_ROWS }
+    .then { builderUi.arrangeReflexes(plr, fromIndex, toIndex) }
 
 on(MapPickEvent::class) {
     builderUi.picked(plr, tile)

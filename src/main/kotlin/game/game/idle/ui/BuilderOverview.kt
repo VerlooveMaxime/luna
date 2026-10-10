@@ -3,13 +3,19 @@ package game.idle.ui
 import game.idle.IdleState
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowResolver
+import game.idle.flow.ReflexForm
+import game.idle.flow.ReflexResolver
+import game.idle.flow.ReflexSettings
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepSettings
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.OptionIcon
 
-/** The builder's screens the server shows one at a time: the overview, the kind picker and a step's configure screen. */
-enum class BuilderPage { OVERVIEW, KINDS, CONFIGURE }
+/**
+ * The builder's screens the server shows one at a time: the overview on its Steps tab or its Reflexes tab (S07c), the
+ * kind picker, and a step's or reflex's configure screen.
+ */
+enum class BuilderPage { OVERVIEW, REFLEXES, KINDS, CONFIGURE }
 
 /** The pictures a step shows: its target's [picture] with the kind's icon in the [corner], or the kind's icon alone. */
 data class StepPictures(val picture: WidgetPicture, val corner: WidgetPicture) {
@@ -43,16 +49,31 @@ sealed interface SlotView {
     data object Free : SlotView
 }
 
+/** One reflex row of the overview's Reflexes tab as the player sees it (S07c). */
+sealed interface ReflexRowView {
+
+    /** A reflex: its [number], [picture] and [sentence], framed in [frame]'s colour, red when it cannot work. */
+    data class Reflex(val number: Int, val picture: WidgetPicture, val sentence: String, val frame: Int) : ReflexRowView
+
+    /** The first free row, which adds a reflex. */
+    data object Add : ReflexRowView
+
+    data object Free : ReflexRowView
+}
+
 /**
  * What the builder's overview and kind picker show for a player's [IdleState] (flow builder v2, S06a, the mockup's
  * screens): the title naming the saved flow it holds, of [savedFlows]; a slot per step slot, each step with its target,
  * kind and details, framed green while it runs and red with its reason when it cannot work (Maxime, 2026-10-09: what
  * the resolver refuses, or the running step's block); then the status line, the levels toggle and the buttons. Texts
  * are fitted to the client's small font, [font]; a reason takes the last lines, up to three, the details giving way to
+ * it. The Reflexes tab (S07c) shows a row per reflex slot, each reflex as [form] words it, red when [reflexes] refuses
  * it.
  */
 class BuilderOverview(
     private val resolver: FlowResolver,
+    private val reflexes: ReflexResolver,
+    private val form: ReflexForm,
     private val names: GameNames,
     private val font: ClientFont,
     private val savedFlows: SavedFlows,
@@ -84,9 +105,23 @@ class BuilderOverview(
         return "$now  @gry@${state.steps.size} of $slots steps"
     }
 
-    /** Every widget of the overview: slots, status, levels toggle and buttons. */
-    fun updates(state: IdleState, slots: Int): List<WidgetUpdate> =
-        slots(state, slots).withIndex().flatMap { (slot, view) -> slotUpdates(slot, view) } + controls(state, slots)
+    /** The Reflexes tab's rows: each reflex, then the row that adds one, then free rows up to [reflexSlots]. */
+    fun reflexRows(state: IdleState, reflexSlots: Int): List<ReflexRowView> {
+        val problems = reflexes.problems(state.steps, state.reflexes)
+        return (0 until reflexSlots).map { row ->
+            val reflex = state.reflexes.getOrNull(row)
+            when {
+                reflex != null -> reflexRow(state, row, reflex, problems[row])
+                row == state.reflexes.size -> ReflexRowView.Add
+                else -> ReflexRowView.Free
+            }
+        }
+    }
+
+    /** Every widget of the overview: slots, reflex rows, status, levels toggle and buttons. */
+    fun updates(state: IdleState, slots: Int, reflexSlots: Int): List<WidgetUpdate> =
+        slots(state, slots).withIndex().flatMap { (slot, view) -> slotUpdates(slot, view) } +
+            reflexRows(state, reflexSlots).withIndex().flatMap { (row, view) -> reflexRowUpdates(row, view) } + controls(state, slots)
 
     /** The kind picker: its title and a button per kind of step, the buttons left over hidden. */
     fun kinds(state: IdleState): List<WidgetUpdate> =
@@ -99,12 +134,42 @@ class BuilderOverview(
                 )
             }
 
-    fun page(page: BuilderPage): List<WidgetUpdate> =
-        listOf(
-            WidgetUpdate.Visible(BuilderWidgets.OVERVIEW, visible = page == BuilderPage.OVERVIEW),
+    /** Shows [page]: the overview with the tab it names lit (its other tab's area hidden), or another screen. */
+    fun page(page: BuilderPage): List<WidgetUpdate> {
+        val reflexTab = page == BuilderPage.REFLEXES
+        return listOf(
+            WidgetUpdate.Visible(BuilderWidgets.OVERVIEW, visible = page == BuilderPage.OVERVIEW || reflexTab),
+            WidgetUpdate.Visible(BuilderWidgets.SLOTS, visible = !reflexTab),
+            WidgetUpdate.Visible(BuilderWidgets.REFLEX_ROWS, visible = reflexTab),
+            WidgetUpdate.Text(BuilderWidgets.STEPS_TAB, lit("Steps", !reflexTab)),
+            WidgetUpdate.Colour(BuilderWidgets.STEPS_TAB_FRAME, frame(lit = !reflexTab)),
+            WidgetUpdate.Text(BuilderWidgets.REFLEXES_TAB, lit("Reflexes", reflexTab)),
+            WidgetUpdate.Colour(BuilderWidgets.REFLEXES_TAB_FRAME, frame(lit = reflexTab)),
             WidgetUpdate.Visible(BuilderWidgets.KINDS, visible = page == BuilderPage.KINDS),
             WidgetUpdate.Visible(BuilderWidgets.CONFIGURE, visible = page == BuilderPage.CONFIGURE),
         )
+    }
+
+    private fun reflexRow(state: IdleState, row: Int, reflex: ReflexSettings, problem: String?): ReflexRowView.Reflex {
+        val sentence = font.fit(form.sentence(reflex, state.steps), BuilderWidgets.SENTENCE_ROOM)
+        return ReflexRowView.Reflex(
+            number = row + 1,
+            picture = WidgetPicture.of(form.icon(reflex)),
+            sentence = if (problem != null) "@red@$sentence" else sentence,
+            frame = if (problem != null) BuilderWidgets.PROBLEM else BuilderWidgets.EDGE,
+        )
+    }
+
+    private fun reflexRowUpdates(row: Int, view: ReflexRowView): List<WidgetUpdate> {
+        val reflex = view as? ReflexRowView.Reflex
+        val text = reflex?.sentence ?: if (view == ReflexRowView.Add) ADD_REFLEX else ""
+        return listOf(
+            WidgetUpdate.Text(BuilderWidgets.reflexRowNumber(row), reflex?.number?.toString().orEmpty()),
+            WidgetUpdate.Picture(BuilderWidgets.reflexRowPicture(row), reflex?.picture ?: WidgetPicture.None),
+            WidgetUpdate.Text(BuilderWidgets.reflexRowText(row), text),
+            WidgetUpdate.Colour(BuilderWidgets.reflexRowFrame(row), reflex?.frame ?: if (view == ReflexRowView.Add) BuilderWidgets.EDGE else BuilderWidgets.FREE),
+        )
+    }
 
     private fun step(state: IdleState, slot: Int, settings: StepSettings, problem: String?, before: FlowContext): SlotView.Step {
         val type = types.find(settings.kind)
@@ -150,7 +215,7 @@ class BuilderOverview(
 
     private fun controls(state: IdleState, slots: Int): List<WidgetUpdate> {
         val boosted = state.countBoostedLevels
-        val editable = !state.running && state.steps.isNotEmpty()
+        val editable = !state.running && (state.steps.isNotEmpty() || state.reflexes.isNotEmpty())
         return listOf(
             WidgetUpdate.Text(BuilderWidgets.TITLE, title(state)),
             WidgetUpdate.Text(BuilderWidgets.STATUS, status(state, slots)),
@@ -176,6 +241,7 @@ class BuilderOverview(
 
     private companion object {
         const val NOT_SET = "@gry@not set yet"
+        const val ADD_REFLEX = "@gry@+ Add reflex"
 
         /** A reason may take every line but the first, which keeps the target (Maxime, 2026-10-09). */
         const val REASON_LINES = BuilderWidgets.SLOT_LINES - 1

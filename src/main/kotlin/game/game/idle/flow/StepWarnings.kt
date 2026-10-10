@@ -20,12 +20,21 @@ class StepWarnings(private val resolver: FlowResolver, private val names: GameNa
     fun of(steps: List<StepSettings>, index: Int, facts: OptionFacts, reflexes: List<ReflexSettings>): List<String> {
         val resolved = resolver.resolvedEach(steps)
         val step = resolved.getOrNull(index) ?: return emptyList()
-        val banking = resolved.withIndex().mapNotNull { (at, other) -> (other as? BankMoves)?.let { Banking(at + 1, it) } }
+        val banking = banking(resolved)
         val fromBank = resolver.types.input(steps[index], resolver.contextBefore(steps, index)) == InputSource.BANK
         val ways = step.needs().map { way -> warnings(way, banking, facts, fromBank) }
         val needs = if (ways.any { it.isEmpty() }) emptyList() else ways.firstOrNull().orEmpty()
         return needs + listOfNotNull(NO_SURVIVAL.takeIf { step is Fights && !survives(steps[index], reflexes) })
     }
+
+    /**
+     * The warning for [need] when the flow of [steps] does not supply it, null when it does: an eat reflex's food (S07c),
+     * judged as a step's tool is.
+     */
+    fun supplies(steps: List<StepSettings>, need: ToolNeed, facts: OptionFacts): String? = tool(need, banking(resolver.resolvedEach(steps)), facts)
+
+    private fun banking(resolved: List<ResolvedStep?>): List<Banking> =
+        resolved.withIndex().mapNotNull { (at, other) -> (other as? BankMoves)?.let { Banking(at + 1, it) } }
 
     /** Whether a reflex attached to [step] eats or runs: every reflex S07c builds does one or the other. */
     private fun survives(step: StepSettings, reflexes: List<ReflexSettings>): Boolean = reflexes.any { it.id in step.reflexes }

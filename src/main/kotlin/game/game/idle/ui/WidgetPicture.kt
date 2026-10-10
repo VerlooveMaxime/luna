@@ -39,6 +39,7 @@ sealed interface WidgetPicture {
                 is OptionIcon.Npc -> NpcBody(icon.id)
                 is OptionIcon.Skill -> SkillIcons.sprite(icon.id)
                 OptionIcon.Bank -> of(StepIcon.BANK)
+                is OptionIcon.Media -> Media(icon.name, icon.index)
             }
     }
 }

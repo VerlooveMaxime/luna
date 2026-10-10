@@ -12,7 +12,8 @@ import io.netty.buffer.ByteBuf
 /**
  * Ids of the flow builder's screens the IdleRS client defines in code (`idlers.BuilderWidgets` in `luna-client`, the
  * layout lives there): one root with a layer per screen, the overview's step slots from [SLOT_BASE], as many as the
- * player has, then the padlock; the configure screen's rows from [ROW_BASE]. Both files must agree on every id.
+ * player has, then the padlock; its reflex rows from [REFLEX_ROWS] the same way (S07c); the configure screen's rows
+ * from [ROW_BASE]. Both files must agree on every id.
  */
 object BuilderWidgets {
 
@@ -37,6 +38,11 @@ object BuilderWidgets {
     const val CLEAR = 30720
     /** Saves the flow over the saved flow it came from, or into the first empty slot. */
     const val SAVE_FLOW = 30721
+    /** The overview's tabs (S07c): the step slots, or the reflex rows. */
+    const val STEPS_TAB = 30722
+    const val STEPS_TAB_FRAME = 30723
+    const val REFLEXES_TAB = 30724
+    const val REFLEXES_TAB_FRAME = 30725
 
     const val KINDS = 30730
     const val KINDS_TITLE = 30731
@@ -89,6 +95,18 @@ object BuilderWidgets {
     private const val SLOT_STRIDE = 16
     const val SLOT_LINES = 4
 
+    /** The layer holding the reflex rows, which a dragged row's move names; the rows follow it, then the padlock. */
+    const val REFLEX_ROWS = 40000
+    private const val REFLEX_ROW_BASE = 40016
+    private const val REFLEX_ROW_STRIDE = 8
+
+    /** As many step slots as fit below the reflex rows' ids, the padlock included. */
+    const val MOST_STEP_SLOTS = (REFLEX_ROWS - SLOT_BASE) / SLOT_STRIDE - 1
+    const val MOST_REFLEX_SLOTS = 99
+
+    /** Room for a reflex row's sentence, as the client lays it out. */
+    const val SENTENCE_ROOM = 420
+
     /** Room for a line of a slot, as the client lays it out. */
     const val LINE_ROOM = 108
 
@@ -137,6 +155,20 @@ object BuilderWidgets {
     fun slotPlus(slot: Int): Int = slot(slot) + 12
 
     fun slotAdd(slot: Int): Int = slot(slot) + 13
+
+    /** The layer of reflex row [row]; row `reflex_slots` is the padlock. */
+    private fun reflexRow(row: Int): Int = REFLEX_ROW_BASE + row * REFLEX_ROW_STRIDE
+
+    fun reflexRowFace(row: Int): Int = reflexRow(row) + 1
+
+    fun reflexRowFrame(row: Int): Int = reflexRow(row) + 2
+
+    fun reflexRowNumber(row: Int): Int = reflexRow(row) + 3
+
+    fun reflexRowPicture(row: Int): Int = reflexRow(row) + 4
+
+    /** The row's sentence, or "+ Add reflex" on the first free row. */
+    fun reflexRowText(row: Int): Int = reflexRow(row) + 5
 
     fun warning(line: Int): Int = WARNING_BASE + line
 
@@ -240,12 +272,16 @@ object BuilderWidgets {
     /** The fixed ids run up to the slots, so every id from [FIRST_ID] on is the builder's. */
     fun owns(widgetId: Int): Boolean = widgetId >= FIRST_ID
 
-    /** The slot whose face [widgetId] is, or null. */
+    /** The slot whose face [widgetId] is, or null; the reflex rows' ids are past every slot's. */
     fun slotOf(widgetId: Int): Int? =
-        ((widgetId - SLOT_BASE) / SLOT_STRIDE).takeIf { widgetId >= SLOT_BASE && slotFace(it) == widgetId }
+        ((widgetId - SLOT_BASE) / SLOT_STRIDE).takeIf { widgetId >= SLOT_BASE && widgetId < REFLEX_ROWS && slotFace(it) == widgetId }
 
     /** The kind button whose face [widgetId] is, or null. */
     fun kindOf(widgetId: Int): Int? = (0 until KIND_BUTTONS).firstOrNull { kindFace(it) == widgetId }
+
+    /** The reflex row whose face [widgetId] is, or null. */
+    fun reflexRowOf(widgetId: Int): Int? =
+        ((widgetId - REFLEX_ROW_BASE) / REFLEX_ROW_STRIDE).takeIf { widgetId >= REFLEX_ROW_BASE && reflexRowFace(it) == widgetId }
 }
 
 /** A change the server makes to a widget the client defines in code. */
@@ -318,6 +354,8 @@ class SlotCountMessageWriter(private val kind: Int, private val slots: Int) : Ga
         const val OPCODE = 108
         const val STEP_SLOTS = 0
         const val SAVED_FLOW_SLOTS = 1
+        /** How many reflexes a flow holds, the builder's Reflexes tab building a row for each (S07c). */
+        const val REFLEX_SLOTS = 3
     }
 }
 

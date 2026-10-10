@@ -7,6 +7,7 @@ import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
+import game.idle.flow.ReflexSettings
 import game.idle.flow.ResolvedStep
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepField
@@ -51,7 +52,7 @@ class BuilderOverviewTest {
 
     private val font = ClientFont(IntArray(256) { 5 })
     private val types = StepTypes(listOf(Chop, FakeStepType("drop")))
-    private val overview = BuilderOverview(FlowResolver(types), FakeNames(items = mapOf(1521 to "Oak")), font, SavedFlows(2))
+    private val overview = BuilderOverview(FlowResolver(types), REFLEXES, REFLEX_FORM, FakeNames(items = mapOf(1521 to "Oak")), font, SavedFlows(2))
 
     private val oak = StepSettings("chop", mapOf("tree" to "oak"))
     private val drop = StepSettings("drop")
@@ -60,7 +61,7 @@ class BuilderOverviewTest {
 
     private fun step(state: IdleState, slot: Int = 0): SlotView.Step = slot(state, slot) as SlotView.Step
 
-    private fun updates(state: IdleState): Map<Int, WidgetUpdate> = overview.updates(state, slots = 4).associateBy {
+    private fun updates(state: IdleState): Map<Int, WidgetUpdate> = overview.updates(state, slots = 4, reflexSlots = 2).associateBy {
         when (it) {
             is WidgetUpdate.Text -> it.id
             is WidgetUpdate.Picture -> it.id
@@ -383,13 +384,117 @@ class BuilderOverviewTest {
 
     @Test
     fun `a page shows its layer and hides the others`() {
+        val visible = overview.page(BuilderPage.CONFIGURE).filterIsInstance<WidgetUpdate.Visible>().filter { it.id in SCREENS }
+
         assertEquals(
             listOf(
                 WidgetUpdate.Visible(BuilderWidgets.OVERVIEW, visible = false),
                 WidgetUpdate.Visible(BuilderWidgets.KINDS, visible = false),
                 WidgetUpdate.Visible(BuilderWidgets.CONFIGURE, visible = true),
             ),
-            overview.page(BuilderPage.CONFIGURE),
+            visible,
         )
+    }
+
+    @Test
+    fun `the Steps tab shows the overview with its slots, the tab lit`() {
+        val page = overview.page(BuilderPage.OVERVIEW)
+
+        assertEquals(
+            listOf(
+                WidgetUpdate.Visible(BuilderWidgets.OVERVIEW, visible = true),
+                WidgetUpdate.Visible(BuilderWidgets.SLOTS, visible = true),
+                WidgetUpdate.Visible(BuilderWidgets.REFLEX_ROWS, visible = false),
+                WidgetUpdate.Text(BuilderWidgets.STEPS_TAB, "@whi@Steps"),
+                WidgetUpdate.Colour(BuilderWidgets.STEPS_TAB_FRAME, BuilderWidgets.LIT),
+                WidgetUpdate.Text(BuilderWidgets.REFLEXES_TAB, "Reflexes"),
+                WidgetUpdate.Colour(BuilderWidgets.REFLEXES_TAB_FRAME, BuilderWidgets.UNLIT),
+            ),
+            page.take(7),
+        )
+    }
+
+    @Test
+    fun `the Reflexes tab shows the overview with its reflex rows instead of the slots, the tab lit`() {
+        val page = overview.page(BuilderPage.REFLEXES)
+
+        assertEquals(
+            listOf(
+                WidgetUpdate.Visible(BuilderWidgets.OVERVIEW, visible = true),
+                WidgetUpdate.Visible(BuilderWidgets.SLOTS, visible = false),
+                WidgetUpdate.Visible(BuilderWidgets.REFLEX_ROWS, visible = true),
+                WidgetUpdate.Text(BuilderWidgets.STEPS_TAB, "Steps"),
+                WidgetUpdate.Colour(BuilderWidgets.STEPS_TAB_FRAME, BuilderWidgets.UNLIT),
+                WidgetUpdate.Text(BuilderWidgets.REFLEXES_TAB, "@whi@Reflexes"),
+                WidgetUpdate.Colour(BuilderWidgets.REFLEXES_TAB_FRAME, BuilderWidgets.LIT),
+            ),
+            page.take(7),
+        )
+    }
+
+    private val trout = ReflexSettings(1, mapOf("foods" to "333"))
+
+    private fun rowTexts(state: IdleState, row: Int): List<Any> {
+        val sent = updates(state)
+        return listOf(
+            (sent.getValue(BuilderWidgets.reflexRowNumber(row)) as WidgetUpdate.Text).text,
+            (sent.getValue(BuilderWidgets.reflexRowPicture(row)) as WidgetUpdate.Picture).picture,
+            (sent.getValue(BuilderWidgets.reflexRowText(row)) as WidgetUpdate.Text).text,
+            (sent.getValue(BuilderWidgets.reflexRowFrame(row)) as WidgetUpdate.Colour).rgb,
+        )
+    }
+
+    @Test
+    fun `the Reflexes tab has a row per reflex slot`() {
+        assertEquals(3, overview.reflexRows(IdleState(), reflexSlots = 3).size)
+    }
+
+    @Test
+    fun `a reflex's row shows its number, picture and sentence`() {
+        assertEquals(
+            ReflexRowView.Reflex(1, WidgetPicture.Item(333), "Hitpoints below 50%: eat trout", BuilderWidgets.EDGE),
+            overview.reflexRows(IdleState(reflexes = listOf(trout)), reflexSlots = 2)[0],
+        )
+    }
+
+    @Test
+    fun `the row after the last reflex adds one, the rows past it are free`() {
+        assertEquals(
+            listOf(ReflexRowView.Add, ReflexRowView.Free),
+            overview.reflexRows(IdleState(), reflexSlots = 2),
+        )
+    }
+
+    @Test
+    fun `a reflex that cannot work shows in red`() {
+        val deleted = ReflexSettings(1, mapOf("do" to "run", "then" to "jump", "step" to "9"))
+
+        val row = overview.reflexRows(IdleState(reflexes = listOf(deleted)), reflexSlots = 1)[0] as ReflexRowView.Reflex
+
+        assertEquals(listOf("@red@Hitpoints below 50%: run away, then jump to a deleted step", BuilderWidgets.PROBLEM), listOf(row.sentence, row.frame))
+    }
+
+    @Test
+    fun `a reflex row's widgets show the reflex`() {
+        assertEquals(listOf("1", WidgetPicture.Item(333), "Hitpoints below 50%: eat trout", BuilderWidgets.EDGE), rowTexts(IdleState(reflexes = listOf(trout)), 0))
+    }
+
+    @Test
+    fun `the adding row says so and the free rows show nothing`() {
+        val state = IdleState()
+
+        assertEquals(
+            listOf(listOf("", WidgetPicture.None, "@gry@+ Add reflex", BuilderWidgets.EDGE), listOf("", WidgetPicture.None, "", BuilderWidgets.FREE)),
+            listOf(rowTexts(state, 0), rowTexts(state, 1)),
+        )
+    }
+
+    @Test
+    fun `a flow of reflexes alone can be cleared`() {
+        assertEquals("Clear", (updates(IdleState(reflexes = listOf(trout))).getValue(BuilderWidgets.CLEAR) as WidgetUpdate.Text).text)
+    }
+
+    private companion object {
+        val SCREENS = setOf(BuilderWidgets.OVERVIEW, BuilderWidgets.KINDS, BuilderWidgets.CONFIGURE)
     }
 }

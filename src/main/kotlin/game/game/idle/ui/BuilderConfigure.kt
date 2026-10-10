@@ -4,6 +4,8 @@ import game.idle.IdleState
 import game.idle.flow.FieldColumn
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowResolver
+import game.idle.flow.ReflexForm
+import game.idle.flow.ReflexResolver
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepItem
@@ -20,12 +22,21 @@ import io.luna.game.model.mob.Skill
  */
 data class Typing(val key: String, val item: Int? = null)
 
+/** What a configure screen edits: a step, or a reflex (S07c), which its screen edits as settings like a step's. */
+enum class DraftSubject { STEP, REFLEX }
+
 /**
  * The step a player configures: the one in flow slot [slot], or a [new] one to go there, with its [settings] as edited;
  * they reach the flow only on Save (Maxime, 2026-10-09). [typing] is what the "Enter amount" prompt is open for, its
- * field framed yellow.
+ * field framed yellow. A [subject] of [DraftSubject.REFLEX] is the flow's reflex [slot] instead (`ReflexForm.settings`).
  */
-data class StepDraft(val slot: Int, val settings: StepSettings, val new: Boolean, val typing: Typing? = null) {
+data class StepDraft(
+    val slot: Int,
+    val settings: StepSettings,
+    val new: Boolean,
+    val typing: Typing? = null,
+    val subject: DraftSubject = DraftSubject.STEP,
+) {
 
     /** The draft with [key] set to [value] ("" for none) and nothing being typed. */
     fun with(key: String, value: String): StepDraft = copy(settings = settings.with(key, value), typing = null)
@@ -33,8 +44,9 @@ data class StepDraft(val slot: Int, val settings: StepSettings, val new: Boolean
     /** The draft once a click closed the client's "Enter amount" prompt. */
     fun notTyping(): StepDraft = copy(typing = null)
 
-    /** Whether [other] configures the same step, whatever was edited since. */
-    fun sameStep(other: StepDraft): Boolean = slot == other.slot && new == other.new && settings.kind == other.settings.kind
+    /** Whether [other] configures the same step or reflex, whatever was edited since. */
+    fun sameStep(other: StepDraft): Boolean =
+        slot == other.slot && new == other.new && settings.kind == other.settings.kind && subject == other.subject
 
     /** [steps] with this step in its place, replacing the one it edits or added after them, and its index there. */
     fun inFlow(steps: List<StepSettings>): Pair<List<StepSettings>, Int> =
@@ -74,32 +86,79 @@ object ConfigureRows {
  * typed framed yellow, a choice as a row of buttons and several items as a list (S07a), a withdrawal's with its amount
  * (S07b); the reason it cannot work, checked on the settings as edited (the running step's block first), then the
  * warnings that never stop it in yellow (S07b), else "No warnings." (Maxime, 2026-10-09); then Delete, Back and Save,
- * greyed when they cannot be used.
+ * greyed when they cannot be used. A reflex's screen (S07c) is the same screen over [reflexes]: its picture, number and
+ * what it does, its rows, the reason it cannot work and its food warning.
  */
-class BuilderConfigure(private val resolver: FlowResolver, private val names: GameNames, private val font: ClientFont) {
+class BuilderConfigure(
+    private val resolver: FlowResolver,
+    private val reflexes: ReflexResolver,
+    private val form: ReflexForm,
+    private val names: GameNames,
+    private val font: ClientFont,
+) {
 
     private val types = resolver.types
     private val stepWarnings = StepWarnings(resolver, names)
 
     fun updates(state: IdleState, draft: StepDraft, facts: OptionFacts): List<WidgetUpdate> {
+        val screen = if (draft.subject == DraftSubject.REFLEX) reflexScreen(state, draft, facts) else stepScreen(state, draft, facts)
+        val fields = ConfigureRows.shown(screen.fields, draft.settings)
+        val rows = ConfigureRows.of(fields)
+        return listOf(
+            WidgetUpdate.Picture(BuilderWidgets.HEADER_PICTURE, screen.pictures.picture),
+            WidgetUpdate.Picture(BuilderWidgets.HEADER_CORNER, screen.pictures.corner),
+            WidgetUpdate.Visible(BuilderWidgets.HEADER_CORNER_LAYER, visible = screen.pictures.corner != WidgetPicture.None),
+            WidgetUpdate.Text(BuilderWidgets.HEADER_NAME, screen.name),
+            WidgetUpdate.Text(BuilderWidgets.HEADER_DESCRIPTION, font.fit(screen.description, BuilderWidgets.DESCRIPTION_ROOM)),
+        ) + (0 until BuilderWidgets.ROWS).flatMap { row -> row(row, rows[row], draft, screen.before) } +
+            (0 until BuilderWidgets.LISTS).flatMap { list(it, rows, ConfigureRows.list(fields, it), draft) } +
+            warnings(screen.reason, screen.warnings) + buttons(state, draft)
+    }
+
+    /** What sets a step's screen apart from a reflex's: its header, fields, what the steps before set up and its warnings. */
+    private data class Screen(
+        val pictures: StepPictures,
+        val name: String,
+        val description: String,
+        val fields: List<StepField>,
+        val before: FlowContext,
+        val reason: String?,
+        val warnings: List<String>,
+    )
+
+    private fun stepScreen(state: IdleState, draft: StepDraft, facts: OptionFacts): Screen {
         val settings = draft.settings
         val type = types.find(settings.kind)
         val (flow, index) = draft.inFlow(state.steps)
-        val before = resolver.contextBefore(flow, index)
-        val fields = ConfigureRows.shown(type?.fields(names).orEmpty(), settings)
-        val rows = ConfigureRows.of(fields)
         val icon = type?.let { WidgetPicture.of(it.icon(settings)) } ?: WidgetPicture.None
-        val pictures = StepPictures.of(icon, type?.pick(settings, names)?.icon)
         val level = type?.skill(settings)?.let { " @gry@(${Skill.getName(it)} ${facts.level(it)})" }.orEmpty()
-        return listOf(
-            WidgetUpdate.Picture(BuilderWidgets.HEADER_PICTURE, pictures.picture),
-            WidgetUpdate.Picture(BuilderWidgets.HEADER_CORNER, pictures.corner),
-            WidgetUpdate.Visible(BuilderWidgets.HEADER_CORNER_LAYER, visible = pictures.corner != WidgetPicture.None),
-            WidgetUpdate.Text(BuilderWidgets.HEADER_NAME, "Step ${draft.slot + 1}: ${capitalised(type?.label ?: settings.kind)}$level"),
-            WidgetUpdate.Text(BuilderWidgets.HEADER_DESCRIPTION, font.fit(type?.description.orEmpty(), BuilderWidgets.DESCRIPTION_ROOM)),
-        ) + (0 until BuilderWidgets.ROWS).flatMap { row -> row(row, rows[row], draft, before) } +
-            (0 until BuilderWidgets.LISTS).flatMap { list(it, rows, ConfigureRows.list(fields, it), draft) } +
-            warnings(state, draft, flow, index, facts) + buttons(state, draft)
+        val running = state.running && !draft.new && state.stepIndex == draft.slot
+        val block = state.blocked?.takeIf { running }?.let(AutopilotStatus::reason)
+        return Screen(
+            pictures = StepPictures.of(icon, type?.pick(settings, names)?.icon),
+            name = "Step ${draft.slot + 1}: ${capitalised(type?.label ?: settings.kind)}$level",
+            description = type?.description.orEmpty(),
+            fields = type?.fields(names).orEmpty(),
+            before = resolver.contextBefore(flow, index),
+            reason = block ?: resolver.problems(state.steps.take(draft.slot) + settings).last(),
+            warnings = stepWarnings.of(flow, index, facts, state.reflexes),
+        )
+    }
+
+    private fun reflexScreen(state: IdleState, draft: StepDraft, facts: OptionFacts): Screen {
+        val reflex = form.reflex(draft.settings)
+        val replacing = !draft.new && draft.slot < state.reflexes.size
+        val index = if (replacing) draft.slot else state.reflexes.size
+        val inFlow = if (replacing) state.reflexes.toMutableList().apply { set(index, reflex) } else state.reflexes + reflex
+        return Screen(
+            pictures = StepPictures(WidgetPicture.of(form.icon(reflex)), WidgetPicture.None),
+            name = "Reflex ${draft.slot + 1}: ${form.label(reflex)}",
+            description = form.description(reflex),
+            fields = form.fields(state.steps),
+            before = FlowContext(),
+            reason = reflexes.problems(state.steps, inFlow)[index],
+            warnings = listOfNotNull(form.need(reflex)?.let { stepWarnings.supplies(state.steps, it, facts) }),
+        )
     }
 
     /**
@@ -161,7 +220,7 @@ class BuilderConfigure(private val resolver: FlowResolver, private val names: Ga
         return listOf(
             WidgetUpdate.Visible(BuilderWidgets.list(list), visible = true),
             WidgetUpdate.Placement(list, firstRow, field.rows, lines = items.size + 1),
-            WidgetUpdate.Text(BuilderWidgets.listAddText(list), field.add),
+            WidgetUpdate.Text(BuilderWidgets.listAddText(list), field.empty?.takeIf { items.isEmpty() } ?: field.add),
         ) + items.withIndex().flatMap { (line, item) ->
             listOf(
                 WidgetUpdate.Picture(BuilderWidgets.linePicture(list, line), WidgetPicture.Item(item.id)),
@@ -194,7 +253,7 @@ class BuilderConfigure(private val resolver: FlowResolver, private val names: Ga
             is StepField.Toggle, is StepField.Items -> Shown()
             is StepField.Search -> {
                 val picked = field.target.picked(settings)
-                val text = picked?.label ?: settings[field.target.key]
+                val text = picked?.label ?: settings[field.target.key]?.let { field.missing ?: it }
                 Shown(picked?.let { WidgetPicture.of(it.icon) } ?: WidgetPicture.None, text?.let(::fittedField) ?: SEARCH)
             }
             is StepField.Typed -> Shown(plainText = field.shown(settings[field.key]))
@@ -202,13 +261,10 @@ class BuilderConfigure(private val resolver: FlowResolver, private val names: Ga
             is StepField.Note -> Shown(note = font.fit(field.text(settings, before), BuilderWidgets.NOTE_ROOM))
         }
 
-    /** The red reason first, then each yellow warning on its lines, as many lines as the band has. */
-    private fun warnings(state: IdleState, draft: StepDraft, flow: List<StepSettings>, index: Int, facts: OptionFacts): List<WidgetUpdate> {
-        val running = state.running && !draft.new && state.stepIndex == draft.slot
-        val block = state.blocked?.takeIf { running }?.let(AutopilotStatus::reason)
-        val reason = block ?: resolver.problems(state.steps.take(draft.slot) + draft.settings).last()
+    /** The red [reason] first, then each yellow warning on its lines, as many lines as the band has. */
+    private fun warnings(reason: String?, warnings: List<String>): List<WidgetUpdate> {
         val red = listOfNotNull(reason).flatMap { warning(it, "@red@") }
-        val yellow = stepWarnings.of(flow, index, facts, state.reflexes).flatMap { warning(it, "@yel@") }
+        val yellow = warnings.flatMap { warning(it, "@yel@") }
         val lines = (red + yellow).ifEmpty { listOf(NO_WARNINGS) }
         return (0 until BuilderWidgets.WARNING_LINES).map { WidgetUpdate.Text(BuilderWidgets.warning(it), lines.getOrNull(it).orEmpty()) }
     }

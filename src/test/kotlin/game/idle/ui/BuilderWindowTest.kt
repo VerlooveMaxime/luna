@@ -10,6 +10,7 @@ import game.idle.autopilot.LunaAutopilotPlayer
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowResolver
 import game.idle.flow.ReflexResolver
+import game.idle.flow.ReflexSettings
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepSettings
 import game.idle.flow.option.FakeNames
@@ -29,10 +30,15 @@ class BuilderWindowTest {
 
     private val resolver = FlowResolver(CONFIGURED_TYPES)
     private val font = ClientFont(IntArray(256) { 5 })
-    private val window = BuilderWindow(BuilderOverview(resolver, FakeNames(), font, SavedFlows(2)), BuilderConfigure(resolver, FakeNames(), font), slots = 4)
+    private val window = BuilderWindow(
+        BuilderOverview(resolver, REFLEXES, REFLEX_FORM, FakeNames(), font, SavedFlows(2)),
+        BuilderConfigure(resolver, REFLEXES, REFLEX_FORM, FakeNames(), font),
+        slots = 4,
+        reflexSlots = 2,
+    )
     private val idleUi = IdleUi({ it.kind }, idleTab(), window)
     private val autopilot = Autopilot<LunaAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
-    private val ui = LunaBuilderUi(BuilderScreen(autopilot, resolver, ReflexResolver(emptySet()), FakeNames(), slots = 4, SavedFlows(2)), window, idleUi, font)
+    private val ui = LunaBuilderUi(BuilderScreen(autopilot, resolver, REFLEXES, REFLEX_FORM, FakeNames(), slots = 4, reflexSlots = 2, SavedFlows(2)), window, idleUi, font)
 
     private val oak = step("chop", "oak")
 
@@ -64,10 +70,13 @@ class BuilderWindowTest {
         fields(player, "WidgetColourMessageWriter").associate { it.getValue("widgetId") as Int to it.getValue("rgb") }
 
     @Test
-    fun `opening tells the client the slot count first`() {
+    fun `opening tells the client the slot counts first`() {
         val player = opened()
 
-        assertEquals(mapOf("kind" to SlotCountMessageWriter.STEP_SLOTS, "slots" to 4), fields(player, "SlotCountMessageWriter").single())
+        assertEquals(
+            listOf(mapOf("kind" to SlotCountMessageWriter.STEP_SLOTS, "slots" to 4), mapOf("kind" to SlotCountMessageWriter.REFLEX_SLOTS, "slots" to 2)),
+            fields(player, "SlotCountMessageWriter"),
+        )
         assertTrue(types(player).indexOf("SlotCountMessageWriter") < types(player).indexOf("InterfaceMessageWriter"))
     }
 
@@ -157,6 +166,16 @@ class BuilderWindowTest {
 
         assertEquals(listOf(step("drop"), step("chop")), player.idleState.steps)
         assertEquals("Chop label", texts(player)[BuilderWidgets.slotKind(1)])
+    }
+
+    @Test
+    fun `a drag of a reflex row moves the reflex`() {
+        val player = opened(step("chop"))
+        player.idleState = player.idleState.copy(reflexes = listOf(ReflexSettings(1), ReflexSettings(2)))
+
+        ui.arrangeReflexes(player, from = 0, to = 1)
+
+        assertEquals(listOf(2, 1), player.idleState.reflexes.map { it.id })
     }
 
     @Test

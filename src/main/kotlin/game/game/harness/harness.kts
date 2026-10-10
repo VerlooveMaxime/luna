@@ -6,7 +6,7 @@ import game.idle.autopilot.IdleSteps
 import game.idle.flow.FlowCheck
 import game.idle.flow.FlowResolver
 import game.idle.flow.ReflexResolver
-import game.player.item.consume.food.Food
+import game.idle.autopilot.reflex.FoodOptions
 import io.luna.game.event.impl.LoginEvent
 import io.luna.game.event.impl.ServerStateChangedEvent.ServerLaunchEvent
 import io.luna.game.event.impl.ServerStateChangedEvent.ServerShutdownEvent
@@ -20,7 +20,7 @@ val harness = HarnessService { config ->
         headless = HeadlessPlayers(ctx, config),
         flows = FlowCheck(
             FlowResolver(IdleSteps.load().types),
-            ReflexResolver(Food.ID_TO_FOOD.keys),
+            ReflexResolver(FoodOptions.portions()),
             autopilotConfig.stepSlots,
             autopilotConfig.reflexSlots,
         ),

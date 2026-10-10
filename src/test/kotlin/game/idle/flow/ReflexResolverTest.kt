@@ -10,7 +10,9 @@ class ReflexResolverTest {
     private val trout = 333
     private val lobster = 379
     private val logs = 1511
-    private val resolver = ReflexResolver(edible = setOf(trout, lobster))
+    private val cake = 1891
+    private val twoThirdsCake = 1893
+    private val resolver = ReflexResolver(portions = mapOf(trout to setOf(trout), lobster to setOf(lobster), cake to setOf(cake, twoThirdsCake)))
     private val fight = step("fight").copy(id = 7, reflexes = listOf(2, 1))
     private val bank = step("bank").copy(id = 3)
 
@@ -31,6 +33,11 @@ class ReflexResolverTest {
     @Test
     fun `an eat reflex eats the foods it lists`() {
         assertEquals(ReflexAction.Eat(setOf(lobster, trout)), resolvedAlone("do" to "eat", "foods" to "379,333").action)
+    }
+
+    @Test
+    fun `an eat reflex eats every portion of the foods it lists`() {
+        assertEquals(ReflexAction.Eat(setOf(cake, twoThirdsCake)), resolvedAlone("foods" to "$cake").action)
     }
 
     @Test

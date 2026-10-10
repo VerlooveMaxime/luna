@@ -32,6 +32,7 @@ class FakeStepType(
     private val newStep: ((FlowContext) -> StepSettings)? = null,
     private val inputOf: ((StepSettings) -> InputSource)? = null,
     private val resolved: ((StepSettings) -> ResolvedStep)? = null,
+    private val icon: StepIcon = StepIcon.Media(kind, 0),
 ) : StepType {
 
     val contexts = mutableListOf<FlowContext>()
@@ -44,7 +45,7 @@ class FakeStepType(
 
     override fun summary(settings: StepSettings): String = listOfNotNull(kind, settings[WORD]).joinToString(" ")
 
-    override fun icon(settings: StepSettings): StepIcon = StepIcon.Media(kind, 0)
+    override fun icon(settings: StepSettings): StepIcon = icon
 
     override fun skill(settings: StepSettings): Int? = skill
 

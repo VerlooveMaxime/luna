@@ -43,21 +43,27 @@ class AmountInput(private val onAmount: (Player, Int) -> Unit) : NumberInput() {
 }
 
 /**
- * Shows the builder's screens to Luna players, each with room for [slots] steps: the client is told the slot count,
- * then the window opens on the overview, which follows every change of the player's idle state while it is open, as
- * the configure screen of the step being configured does.
+ * Shows the builder's screens to Luna players, each with room for [slots] steps and [reflexSlots] reflexes: the client
+ * is told both counts, then the window opens on the overview, which follows every change of the player's idle state
+ * while it is open, as the configure screen of the step or reflex being configured does.
  */
-class BuilderWindow(private val overview: BuilderOverview, private val configure: BuilderConfigure, private val slots: Int) {
+class BuilderWindow(
+    private val overview: BuilderOverview,
+    private val configure: BuilderConfigure,
+    private val slots: Int,
+    private val reflexSlots: Int,
+) {
 
     fun open(player: Player) {
         player.queue(SlotCountMessageWriter(SlotCountMessageWriter.STEP_SLOTS, slots))
+        player.queue(SlotCountMessageWriter(SlotCountMessageWriter.REFLEX_SLOTS, reflexSlots))
         player.overlays.open(BuilderInterface { show(it, BuilderPage.OVERVIEW) })
     }
 
     /** Called on every idle state change: the open screens follow it. */
     fun refresh(player: Player, state: IdleState) {
         if (!isOpen(player)) return
-        WidgetUpdate.send(player, overview.updates(state, slots))
+        WidgetUpdate.send(player, overview.updates(state, slots, reflexSlots))
         draft(player)?.let { WidgetUpdate.send(player, configure.updates(state, it, LunaOptionFacts.of(player))) }
     }
 
@@ -65,7 +71,7 @@ class BuilderWindow(private val overview: BuilderOverview, private val configure
     fun show(player: Player, page: BuilderPage) {
         player.builderDraft = null
         val state = player.idleState
-        WidgetUpdate.send(player, overview.updates(state, slots) + overview.kinds(state) + overview.page(page))
+        WidgetUpdate.send(player, overview.updates(state, slots, reflexSlots) + overview.kinds(state) + overview.page(page))
     }
 
     /** Shows the configure screen of [draft], which becomes the step being configured. */
@@ -97,8 +103,10 @@ class LunaBuilderUi(
 
     fun arrange(player: Player, from: Int, to: Int) = answer(player, screen.arrange(autopilotPlayer(player), from, to))
 
+    fun arrangeReflexes(player: Player, from: Int, to: Int) = answer(player, screen.arrangeReflexes(autopilotPlayer(player), from, to))
+
     /** A tile the player picked on the world map the configure screen opened. */
-    fun picked(player: Player, tile: Tile) = answer(player, screen.pickedTile(window.draft(player), tile))
+    fun picked(player: Player, tile: Tile) = answer(player, screen.pickedTile(autopilotPlayer(player), window.draft(player), tile))
 
     private fun autopilotPlayer(player: Player) = LunaAutopilotPlayer(player, ui)
 
@@ -153,7 +161,7 @@ class LunaBuilderUi(
 
     private fun amount(player: Player, draft: StepDraft) {
         configure(player, draft, message = "")
-        player.overlays.open(AmountInput { plr, value -> answer(plr, screen.typed(window.draft(plr), value)) })
+        player.overlays.open(AmountInput { plr, value -> answer(plr, screen.typed(autopilotPlayer(plr), window.draft(plr), value)) })
     }
 
     private fun pickTile(player: Player, answer: BuilderAnswer.PickTile) {

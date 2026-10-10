@@ -68,6 +68,26 @@ class BuilderWidgetsTest {
     }
 
     @Test
+    fun `the first reflex row's face is no step slot`() {
+        assertNull(BuilderWidgets.slotOf(BuilderWidgets.reflexRowFace(0)))
+    }
+
+    @Test
+    fun `a reflex row's face is known by its row`() {
+        assertEquals(3, BuilderWidgets.reflexRowOf(BuilderWidgets.reflexRowFace(3)))
+    }
+
+    @Test
+    fun `a reflex row's other widgets and ids below the rows are no row`() {
+        assertEquals(listOf(null, null), listOf(BuilderWidgets.reflexRowOf(BuilderWidgets.reflexRowText(3)), BuilderWidgets.reflexRowOf(BuilderWidgets.REFLEX_ROWS)))
+    }
+
+    @Test
+    fun `the most step slots end below the reflex rows`() {
+        assertEquals(BuilderWidgets.REFLEX_ROWS, BuilderWidgets.SLOT_BASE + (BuilderWidgets.MOST_STEP_SLOTS + 1) * 16)
+    }
+
+    @Test
     fun `kind buttons stay among the fixed ids`() {
         assertEquals(listOf(30736, 30737, 30738, 30739, 30799), listOf(
             BuilderWidgets.kindButton(0), BuilderWidgets.kindFace(0), BuilderWidgets.kindPicture(0), BuilderWidgets.kindLabel(0),

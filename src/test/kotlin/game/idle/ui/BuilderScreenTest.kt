@@ -11,7 +11,6 @@ import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowIds
 import game.idle.flow.FlowResolver
-import game.idle.flow.ReflexResolver
 import game.idle.flow.ReflexSettings
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepSettings
@@ -27,7 +26,7 @@ import org.junit.jupiter.api.Test
 class BuilderScreenTest {
 
     private val autopilot = Autopilot<FakeAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
-    private val screen = BuilderScreen(autopilot, FlowResolver(CONFIGURED_TYPES), ReflexResolver(emptySet()), FakeNames(), slots = 3, SavedFlows(2))
+    private val screen = BuilderScreen(autopilot, FlowResolver(CONFIGURED_TYPES), REFLEXES, REFLEX_FORM, FakeNames(), slots = 3, reflexSlots = 2, SavedFlows(2))
 
     private val chop = step("chop", "oak")
     private val drop = step("drop")
@@ -411,28 +410,28 @@ class BuilderScreenTest {
 
     @Test
     fun `a typed number in range sets the field being typed`() {
-        val answer = screen.typed(choppingDraft.copy(typing = Typing("amount")), 25)
+        val answer = screen.typed(player(chop), choppingDraft.copy(typing = Typing("amount")), 25)
 
         assertEquals(BuilderAnswer.Configure(choppingDraft.with("amount", "25")), answer)
     }
 
     @Test
     fun `a typed number out of range says the field's rule`() {
-        val answer = screen.typed(choppingDraft.copy(typing = Typing("within")), 40)
+        val answer = screen.typed(player(chop), choppingDraft.copy(typing = Typing("within")), 40)
 
         assertEquals(BuilderAnswer.Configure(choppingDraft, "Autopilot: within takes 1 to 32 tiles."), answer)
     }
 
     @Test
     fun `a typed number below the range says the field's rule`() {
-        val answer = screen.typed(choppingDraft.copy(typing = Typing("amount")), 0)
+        val answer = screen.typed(player(chop), choppingDraft.copy(typing = Typing("amount")), 0)
 
         assertEquals(BuilderAnswer.Configure(choppingDraft, "Autopilot: the amount takes 1 or more."), answer)
     }
 
     @Test
     fun `a typed number with no field being typed is ignored`() {
-        assertEquals(listOf(BuilderAnswer.Ignored, BuilderAnswer.Ignored), listOf(screen.typed(choppingDraft, 5), screen.typed(null, 5)))
+        assertEquals(listOf(BuilderAnswer.Ignored, BuilderAnswer.Ignored), listOf(screen.typed(player(chop), choppingDraft, 5), screen.typed(player(chop), null, 5)))
     }
 
     @Test
@@ -456,14 +455,14 @@ class BuilderScreenTest {
     fun `a tile picked on the map goes into the step's tile`() {
         val draft = StepDraft(0, walk, new = false)
 
-        assertEquals(BuilderAnswer.Configure(draft.with("tile", "3086 3233")), screen.pickedTile(draft, Tile(3086, 3233)))
+        assertEquals(BuilderAnswer.Configure(draft.with("tile", "3086 3233")), screen.pickedTile(player(walk), draft, Tile(3086, 3233)))
     }
 
     @Test
     fun `a tile picked for a step without one, or once the screen is gone, is ignored`() {
         assertEquals(
             listOf(BuilderAnswer.Ignored, BuilderAnswer.Ignored),
-            listOf(screen.pickedTile(choppingDraft, Tile(3086, 3233)), screen.pickedTile(null, Tile(3086, 3233))),
+            listOf(screen.pickedTile(player(chop), choppingDraft, Tile(3086, 3233)), screen.pickedTile(player(chop), null, Tile(3086, 3233))),
         )
     }
 
@@ -893,21 +892,21 @@ class BuilderScreenTest {
 
     @Test
     fun `a number typed for a withdrawal sets its amount`() {
-        val answer = screen.typed(stocking.copy(typing = Typing("withdraw", 1521)), 150000)
+        val answer = screen.typed(player(stock), stocking.copy(typing = Typing("withdraw", 1521)), 150000)
 
         assertEquals(BuilderAnswer.Configure(stocking.with("withdraw", "1511:14,1521:150000")), answer)
     }
 
     @Test
     fun `a withdrawal of none says the amount's rule`() {
-        val answer = screen.typed(stocking.copy(typing = Typing("withdraw", 1521)), 0)
+        val answer = screen.typed(player(stock), stocking.copy(typing = Typing("withdraw", 1521)), 0)
 
         assertEquals(BuilderAnswer.Configure(stocking, "Autopilot: the amount takes 1 or more."), answer)
     }
 
     @Test
     fun `a typed number for a field the step no longer has is ignored`() {
-        assertEquals(BuilderAnswer.Ignored, screen.typed(choppingDraft.copy(typing = Typing("tile")), 5))
+        assertEquals(BuilderAnswer.Ignored, screen.typed(player(chop), choppingDraft.copy(typing = Typing("tile")), 5))
     }
 
     @Test
@@ -915,5 +914,177 @@ class BuilderScreenTest {
         val banking = StepDraft(1, StepSettings("bank"), new = false)
 
         assertEquals(BuilderAnswer.Ignored, click(player(chop, StepSettings("bank")), BuilderWidgets.listAdd(1), banking))
+    }
+
+    private val eatTrout = ReflexSettings(1, mapOf("foods" to "333"))
+    private val runAway = ReflexSettings(2, mapOf("do" to "run"))
+
+    private fun withReflexes(vararg reflexes: ReflexSettings, steps: List<StepSettings> = listOf(chop)) =
+        FakeAutopilotPlayer("maxime", IdleState(steps = steps, reflexes = reflexes.toList()))
+
+    private fun reflexDraft(slot: Int, reflex: ReflexSettings, new: Boolean = false) =
+        StepDraft(slot, REFLEX_FORM.settings(reflex), new = new, subject = DraftSubject.REFLEX)
+
+    private val newReflex = reflexDraft(0, ReflexSettings(), new = true)
+
+    @Test
+    fun `the tabs show the steps or the reflexes`() {
+        assertEquals(
+            listOf(BuilderAnswer.Show(BuilderPage.OVERVIEW), BuilderAnswer.Show(BuilderPage.REFLEXES)),
+            listOf(click(player(), BuilderWidgets.STEPS_TAB), click(player(), BuilderWidgets.REFLEXES_TAB)),
+        )
+    }
+
+    @Test
+    fun `a reflex's row opens its screen`() {
+        assertEquals(BuilderAnswer.Configure(reflexDraft(1, runAway)), click(withReflexes(eatTrout, runAway), BuilderWidgets.reflexRowFace(1)))
+    }
+
+    @Test
+    fun `the row after the last reflex opens a new one`() {
+        assertEquals(BuilderAnswer.Configure(newReflex), click(player(chop), BuilderWidgets.reflexRowFace(0)))
+    }
+
+    @Test
+    fun `a free row and the padlock open nothing`() {
+        assertEquals(
+            listOf(BuilderAnswer.Ignored, BuilderAnswer.Ignored),
+            listOf(click(player(chop), BuilderWidgets.reflexRowFace(1)), click(withReflexes(eatTrout, runAway), BuilderWidgets.reflexRowFace(2))),
+        )
+    }
+
+    @Test
+    fun `no reflex is added while the flow runs`() {
+        assertEquals(BuilderAnswer.Show(message = BuilderScreen.STOP_FIRST), click(running(), BuilderWidgets.reflexRowFace(0)))
+    }
+
+    @Test
+    fun `back from a reflex's screen returns to the Reflexes tab`() {
+        assertEquals(BuilderAnswer.Show(BuilderPage.REFLEXES), click(player(chop), BuilderWidgets.BACK, newReflex))
+    }
+
+    @Test
+    fun `saving a new reflex adds it to the flow with an id`() {
+        val player = player(chop)
+
+        val answer = click(player, BuilderWidgets.SAVE, newReflex.with("below", "30"))
+
+        assertEquals(BuilderAnswer.Show(BuilderPage.REFLEXES, "Autopilot: reflex 1 saved."), answer)
+        assertEquals(listOf(ReflexSettings(1, mapOf("below" to "30"))), player.idleState.reflexes)
+    }
+
+    @Test
+    fun `saving a reflex replaces the one it edits`() {
+        val player = withReflexes(eatTrout, runAway)
+
+        click(player, BuilderWidgets.SAVE, reflexDraft(0, eatTrout).with("below", "40"))
+
+        assertEquals(listOf(eatTrout.copy(values = mapOf("foods" to "333", "below" to "40")), runAway), player.idleState.reflexes)
+    }
+
+    @Test
+    fun `a new reflex finds no room in a full flow`() {
+        val draft = reflexDraft(2, ReflexSettings(), new = true)
+
+        assertEquals(
+            BuilderAnswer.Configure(draft, "Autopilot: the flow has room for 2 reflexes."),
+            click(withReflexes(eatTrout, runAway), BuilderWidgets.SAVE, draft.copy(typing = Typing("below"))),
+        )
+    }
+
+    @Test
+    fun `no reflex is saved while the flow runs`() {
+        val draft = reflexDraft(0, eatTrout)
+
+        assertEquals(BuilderAnswer.Configure(draft, BuilderScreen.STOP_FIRST), click(running(), BuilderWidgets.SAVE, draft))
+    }
+
+    @Test
+    fun `deleting a reflex takes it off every step it was attached to`() {
+        val player = withReflexes(eatTrout, runAway, steps = listOf(chop.copy(reflexes = listOf(2, 1)), drop.copy(reflexes = listOf(1))))
+
+        val answer = click(player, BuilderWidgets.DELETE, reflexDraft(0, eatTrout))
+
+        assertEquals(BuilderAnswer.Show(BuilderPage.REFLEXES, "Autopilot: reflex 1 deleted."), answer)
+        assertEquals(listOf(runAway), player.idleState.reflexes)
+        assertEquals(listOf(listOf(2), emptyList()), player.idleState.steps.map { it.reflexes })
+    }
+
+    @Test
+    fun `deleting a reflex gone since its screen opened goes back to the Reflexes tab`() {
+        assertEquals(BuilderAnswer.Show(BuilderPage.REFLEXES), click(player(chop), BuilderWidgets.DELETE, reflexDraft(3, eatTrout)))
+    }
+
+    @Test
+    fun `no reflex is deleted while the flow runs`() {
+        val draft = reflexDraft(0, eatTrout)
+
+        assertEquals(BuilderAnswer.Configure(draft, BuilderScreen.STOP_FIRST), click(running(), BuilderWidgets.DELETE, draft))
+    }
+
+    @Test
+    fun `a reflex row dragged onto another moves there`() {
+        val player = withReflexes(eatTrout, runAway)
+
+        assertEquals(BuilderAnswer.Show(), screen.arrangeReflexes(player, 0, 1))
+        assertEquals(listOf(runAway, eatTrout), player.idleState.reflexes)
+    }
+
+    @Test
+    fun `dragging a row that holds no reflex does nothing`() {
+        assertEquals(BuilderAnswer.Ignored, screen.arrangeReflexes(withReflexes(eatTrout), 1, 0))
+    }
+
+    @Test
+    fun `no reflex moves while the flow runs`() {
+        val player = running().apply { idleState = idleState.copy(reflexes = listOf(eatTrout, runAway)) }
+
+        assertEquals(BuilderAnswer.Show(message = BuilderScreen.STOP_FIRST), screen.arrangeReflexes(player, 0, 1))
+    }
+
+    @Test
+    fun `a reflex's Do toggle switches what it does`() {
+        assertEquals(BuilderAnswer.Configure(newReflex.with("do", "run")), click(player(chop), BuilderWidgets.toggleFace(0, 2, 1), newReflex))
+    }
+
+    @Test
+    fun `a reflex's When is typed`() {
+        assertEquals(BuilderAnswer.Amount(newReflex.copy(typing = Typing("below"))), click(player(chop), BuilderWidgets.rowFace(1), newReflex))
+    }
+
+    @Test
+    fun `a typed When out of range says its rule`() {
+        val answer = screen.typed(player(chop), newReflex.copy(typing = Typing("below")), 100)
+
+        assertEquals(BuilderAnswer.Configure(newReflex, "Autopilot: hitpoints below takes 1 to 99 percent."), answer)
+    }
+
+    @Test
+    fun `a reflex's food list opens the search over food that stays open`() {
+        val answer = click(player(chop), BuilderWidgets.listAdd(0), newReflex) as BuilderAnswer.Several
+
+        assertEquals(listOf<Any>("foods", OptionContext(settings = newReflex.settings, input = InputSource.BANK)), listOf(answer.field.key, answer.context))
+    }
+
+    @Test
+    fun `a jump's step is searched among the flow's steps`() {
+        val jumping = reflexDraft(0, ReflexSettings(1, mapOf("do" to "run", "then" to "jump")))
+
+        val answer = click(player(chop.copy(id = 4)), BuilderWidgets.rowFace(3), jumping) as BuilderAnswer.Search
+
+        assertEquals(listOf("4"), answer.field.target.source.options(answer.context).map { it.value })
+    }
+
+    @Test
+    fun `dragging from before the first row does nothing`() {
+        assertEquals(BuilderAnswer.Ignored, screen.arrangeReflexes(withReflexes(eatTrout), -1, 0))
+    }
+
+    @Test
+    fun `a reflex removed since its screen opened is saved after the last`() {
+        val player = withReflexes(eatTrout)
+
+        assertEquals(BuilderAnswer.Show(BuilderPage.REFLEXES, "Autopilot: reflex 2 saved."), click(player, BuilderWidgets.SAVE, reflexDraft(4, runAway)))
+        assertEquals(listOf(eatTrout, runAway), player.idleState.reflexes)
     }
 }

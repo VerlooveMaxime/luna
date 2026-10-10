@@ -15,10 +15,10 @@ import game.idle.flow.ReflexKeys.THEN
 
 /**
  * Checks a flow's reflexes against its steps (S07c): a jump becomes the index of the step whose id it holds, so it
- * follows that step wherever it moved, and a step that was deleted makes the reflex unable to work. [edible] are the
- * item ids Luna can eat.
+ * follows that step wherever it moved, and a step that was deleted makes the reflex unable to work. [portions] maps
+ * every item id Luna can eat to the ids of its food's every portion, so a reflex picking a cake eats its slices too.
  */
-class ReflexResolver(private val edible: Set<Int>) {
+class ReflexResolver(private val portions: Map<Int, Set<Int>>) {
 
     /**
      * For each of [steps], the reflexes attached to it resolved, in its order; throws [FlowError] naming the first
@@ -60,11 +60,8 @@ class ReflexResolver(private val edible: Set<Int>) {
             else -> throw FlowError("'$what' is not something a reflex does")
         }
 
-    private fun foods(reflex: ReflexSettings): Set<Int> {
-        val ids = StepItems.parse(reflex[FOODS]).map { it.id }
-        ids.firstOrNull { it !in edible }?.let { throw FlowError("item $it is not something you can eat") }
-        return ids.toSet()
-    }
+    private fun foods(reflex: ReflexSettings): Set<Int> =
+        StepItems.parse(reflex[FOODS]).flatMap { portions[it.id] ?: throw FlowError("item ${it.id} is not something you can eat") }.toSet()
 
     private fun then(reflex: ReflexSettings, steps: List<StepSettings>): ReflexThen =
         when (val then = reflex[THEN] ?: STOP) {

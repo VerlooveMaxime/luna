@@ -3,6 +3,7 @@ package game.idle.ui
 import game.idle.IdleState
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowResolver
+import game.idle.flow.ReflexSettings
 import game.idle.flow.StepField
 import game.idle.flow.StepSettings
 import game.idle.flow.option.FakeNames
@@ -18,7 +19,7 @@ class BuilderConfigureTest {
 
     /** Five pixels a glyph: a field holds 20 characters, a note 32, a warning line 98. */
     private val font = ClientFont(IntArray(256) { 5 })
-    private val configure = BuilderConfigure(FlowResolver(CONFIGURED_TYPES), FakeNames(), font)
+    private val configure = BuilderConfigure(FlowResolver(CONFIGURED_TYPES), REFLEXES, REFLEX_FORM, FakeNames(), font)
 
     private val oak = step("chop", "oak")
     private val facts = OptionFacts(levels = mapOf(Skill.WOODCUTTING to 15))
@@ -261,6 +262,7 @@ class BuilderConfigureTest {
         assertFalse(chopping.sameStep(chopping.copy(slot = 1)))
         assertFalse(chopping.sameStep(chopping.copy(new = true)))
         assertFalse(chopping.sameStep(StepDraft(0, step("drop"), new = false)))
+        assertFalse(chopping.sameStep(chopping.copy(subject = DraftSubject.REFLEX)))
     }
 
     @Test
@@ -432,7 +434,7 @@ class BuilderConfigureTest {
     @Test
     fun `a withdrawal's name is fitted to the room the amount box leaves`() {
         val long = stocking.copy(settings = StepSettings("stock", mapOf("withdraw" to "1511")))
-        val configure = BuilderConfigure(FlowResolver(CONFIGURED_TYPES), FakeNames(mapOf(1511 to "Logs of a very long name")), font)
+        val configure = BuilderConfigure(FlowResolver(CONFIGURED_TYPES), REFLEXES, REFLEX_FORM, FakeNames(mapOf(1511 to "Logs of a very long name")), font)
 
         val name = configure.updates(IdleState(), long, facts).filterIsInstance<WidgetUpdate.Text>().single { it.id == BuilderWidgets.lineName(0, 0) }
 
@@ -493,5 +495,88 @@ class BuilderConfigureTest {
     @Test
     fun `a draft of a step deleted since goes after the flow's steps`() {
         assertEquals(listOf(oak) to 0, StepDraft(2, oak, new = false).inFlow(emptyList()))
+    }
+
+    private val troutReflex = ReflexSettings(1, mapOf("foods" to "333"))
+    private val eating = StepDraft(0, REFLEX_FORM.settings(troutReflex), new = false, subject = DraftSubject.REFLEX)
+    private val running = StepDraft(0, REFLEX_FORM.settings(ReflexSettings(1, mapOf("do" to "run", "then" to "jump", "step" to "5"))), new = false, subject = DraftSubject.REFLEX)
+    private val cows = IdleState(steps = listOf(step("chop", "oak").copy(id = 5)), reflexes = listOf(troutReflex))
+
+    @Test
+    fun `a reflex's header shows its first food, its number and what it does`() {
+        assertEquals(
+            listOf<Any>(WidgetPicture.Item(333), false, "Reflex 1: Eat", "Eats when hitpoints fall below a share of full."),
+            listOf(
+                picture(eating, BuilderWidgets.HEADER_PICTURE),
+                visible(eating, BuilderWidgets.HEADER_CORNER_LAYER),
+                text(eating, BuilderWidgets.HEADER_NAME, cows),
+                text(eating, BuilderWidgets.HEADER_DESCRIPTION, cows),
+            ),
+        )
+    }
+
+    @Test
+    fun `a new reflex is numbered after the flow's reflexes`() {
+        val new = StepDraft(1, REFLEX_FORM.settings(ReflexSettings()), new = true, subject = DraftSubject.REFLEX)
+
+        assertEquals("Reflex 2: Eat", text(new, BuilderWidgets.HEADER_NAME, cows))
+    }
+
+    @Test
+    fun `an eat reflex's rows are its Do toggle, its When and its food list`() {
+        assertEquals(
+            listOf<Any>("@whi@Eat", "Run away", "Hitpoints below 50%", WidgetUpdate.Placement(0, firstRow = 2, rows = 4, lines = 2), "item 333"),
+            listOf(
+                text(eating, BuilderWidgets.toggleText(0, 2, 0), cows),
+                text(eating, BuilderWidgets.toggleText(0, 2, 1), cows),
+                text(eating, BuilderWidgets.rowPlainText(1), cows),
+                updates(eating, cows).getValue(placementKey(0)),
+                text(eating, BuilderWidgets.lineName(0, 0), cows),
+            ),
+        )
+    }
+
+    @Test
+    fun `an eat reflex with no food picked offers to pick some`() {
+        val anyFood = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1)))
+
+        assertEquals("+ Any food: pick some...", text(anyFood, BuilderWidgets.listAddText(0), cows))
+    }
+
+    @Test
+    fun `a reflex that jumps shows Then and the step it jumps to`() {
+        assertEquals(
+            listOf("@whi@Jump to a step", "Step 1: Chop label"),
+            listOf(text(running, BuilderWidgets.toggleText(2, 2, 1), cows), text(running, BuilderWidgets.rowText(3), cows)),
+        )
+    }
+
+    @Test
+    fun `a reflex that jumps to a deleted step says so in red`() {
+        assertEquals("@red@! jumps to a step that was deleted", text(running, BuilderWidgets.warning(0), IdleState(reflexes = listOf(troutReflex))))
+    }
+
+    @Test
+    fun `a jump to a deleted step says so in its field`() {
+        assertEquals("Deleted step", text(running, BuilderWidgets.rowText(3), IdleState(reflexes = listOf(troutReflex))))
+    }
+
+    @Test
+    fun `a new reflex is checked in the place it would take`() {
+        val new = running.copy(slot = 1, new = true)
+
+        assertEquals("@gre@No warnings.", text(new, BuilderWidgets.warning(0), cows))
+    }
+
+    @Test
+    fun `an eat reflex whose food is neither carried nor withdrawn warns in yellow`() {
+        assertEquals("@yel@! You carry no food and no bank step withdraws any.", text(eating, BuilderWidgets.warning(0), cows))
+    }
+
+    @Test
+    fun `an eat reflex whose food is carried has no warning`() {
+        val carried = configure.updates(cows, eating, facts.copy(bag = setOf(333))).filterIsInstance<WidgetUpdate.Text>()
+
+        assertEquals("@gre@No warnings.", carried.single { it.id == BuilderWidgets.warning(0) }.text)
     }
 }
