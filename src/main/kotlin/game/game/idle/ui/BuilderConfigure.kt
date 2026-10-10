@@ -208,7 +208,7 @@ class BuilderConfigure(private val resolver: FlowResolver, private val names: Ga
         val block = state.blocked?.takeIf { running }?.let(AutopilotStatus::reason)
         val reason = block ?: resolver.problems(state.steps.take(draft.slot) + draft.settings).last()
         val red = listOfNotNull(reason).flatMap { warning(it, "@red@") }
-        val yellow = stepWarnings.of(flow, index, facts).flatMap { warning(it, "@yel@") }
+        val yellow = stepWarnings.of(flow, index, facts, state.reflexes).flatMap { warning(it, "@yel@") }
         val lines = (red + yellow).ifEmpty { listOf(NO_WARNINGS) }
         return (0 until BuilderWidgets.WARNING_LINES).map { WidgetUpdate.Text(BuilderWidgets.warning(it), lines.getOrNull(it).orEmpty()) }
     }

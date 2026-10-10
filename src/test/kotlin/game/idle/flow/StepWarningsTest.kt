@@ -30,6 +30,12 @@ class StepWarningsTest {
         override fun activity(player: Player, runTile: Tile): StepActivity = error("not run")
     }
 
+    /** A step that fights, needing nothing in the bag. */
+    private data object FakeFight : ResolvedStep, Fights {
+
+        override fun activity(player: Player, runTile: Tile): StepActivity = error("not run")
+    }
+
     private val axe = ToolNeed("axe", mapOf(bronzeAxe to 1, runeAxe to 41), Skill.WOODCUTTING)
 
     private fun ids(settings: StepSettings, key: String): Set<Int> = settings[key].orEmpty().split(",").mapNotNull(String::toIntOrNull).toSet()
@@ -49,6 +55,7 @@ class StepWarningsTest {
                 needing("make", StepNeeds(listOf(ToolNeed(word = null, mapOf(knife to 1))), listOf(flour)), StepNeeds(inputs = listOf(jug))),
                 needing("walk"),
                 FakeStepType("bank", resolved = { FakeBank(ids(it, "withdraw"), ids(it, "banks")) }),
+                FakeStepType("fight", resolved = { FakeFight }),
             ),
         ),
     )
@@ -60,7 +67,8 @@ class StepWarningsTest {
 
     private fun bank(vararg values: Pair<String, String>) = StepSettings("bank", values.toMap())
 
-    private fun of(steps: List<StepSettings>, index: Int = 0, facts: OptionFacts = woodcutter) = warnings.of(steps, index, facts)
+    private fun of(steps: List<StepSettings>, index: Int = 0, facts: OptionFacts = woodcutter, reflexes: List<ReflexSettings> = emptyList()) =
+        warnings.of(steps, index, facts, reflexes)
 
     @Test
     fun `a step that does not resolve has no warnings, its reason shows instead`() {
@@ -161,5 +169,24 @@ class StepWarningsTest {
     @Test
     fun `the step warned about is the one at the index given`() {
         assertEquals(listOf("You carry no axe and no bank step withdraws one."), of(listOf(step("walk"), step("chop")), index = 1))
+    }
+
+    @Test
+    fun `a fight step with no reflex attached warns that nothing eats or runs`() {
+        assertEquals(listOf("No reflex eats or runs during this step."), of(listOf(step("fight"))))
+    }
+
+    @Test
+    fun `a fight step with a reflex attached does not warn`() {
+        val fight = step("fight").copy(reflexes = listOf(2))
+
+        assertEquals(emptyList<String>(), of(listOf(fight), reflexes = listOf(ReflexSettings(2))))
+    }
+
+    @Test
+    fun `a fight step attached to a reflex the flow does not hold still warns`() {
+        val fight = step("fight").copy(reflexes = listOf(5))
+
+        assertEquals(listOf(StepWarnings.NO_SURVIVAL), of(listOf(fight), reflexes = listOf(ReflexSettings(2))))
     }
 }

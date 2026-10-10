@@ -4,6 +4,7 @@ import game.idle.autopilot.firemaking.LightDecision.Blocked
 import game.idle.autopilot.firemaking.LightDecision.Done
 import game.idle.autopilot.firemaking.LightDecision.Light
 import game.idle.autopilot.firemaking.LightDecision.MoveToFreeTile
+import game.idle.flow.CountsAmount
 import game.idle.flow.StepActivity
 
 /** What the light step can see and do for one player. [LunaLighter] is the in-game one. */
@@ -65,7 +66,7 @@ object LightPlanner {
  * none is left. A log counts as used once it leaves the inventory, which happens as the tinderbox strikes; the step
  * waits for that fire to catch before it ends, so a log is never left unlit on the ground.
  */
-class LightActivity(private val lighter: Lighter, private val amount: Int? = null) : StepActivity {
+class LightActivity(private val lighter: Lighter, private val amount: Int? = null) : StepActivity, CountsAmount {
 
     private var logsAtStart: Int? = null
     private var lastDecision: LightDecision? = null
@@ -76,6 +77,8 @@ class LightActivity(private val lighter: Lighter, private val amount: Int? = nul
     override fun isDone(): Boolean = done
 
     override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+
+    override fun amountDone(): Int = logsAtStart?.let { it - lighter.look().logs } ?: 0
 
     override fun act() {
         val view = lighter.look()

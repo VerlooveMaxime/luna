@@ -101,6 +101,23 @@ class RequestBody(private val json: JsonObject) {
         return element.asJsonArray.map { RequestBody(it.asJsonObject) }
     }
 
+    /** An array of JSON objects that may be left out: missing or null, it is empty. */
+    fun optionalObjects(name: String): List<RequestBody> =
+        if (json.get(name)?.isJsonNull ?: true) emptyList() else objects(name)
+
+    /** An array of integers; a missing array is empty. */
+    fun ints(name: String): List<Int> {
+        val element = json.get(name)?.takeIf { !it.isJsonNull } ?: return emptyList()
+        val notInts = HarnessException(400, "field '$name' must be an array of integers")
+        if (!element.isJsonArray) throw notInts
+        return element.asJsonArray.map { wholeNumber(it) ?: throw notInts }
+    }
+
+    private fun wholeNumber(element: JsonElement): Int? {
+        val number = element.takeIf { it.isJsonPrimitive }?.asJsonPrimitive?.takeIf { it.isNumber } ?: return null
+        return number.asInt.takeIf { it.toDouble() == number.asDouble }
+    }
+
     /** An object of single values read as text (`5` and `"5"` alike); a missing object is empty. */
     fun strings(name: String): Map<String, String> {
         val element = json.get(name)?.takeIf { !it.isJsonNull } ?: return emptyMap()

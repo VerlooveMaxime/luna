@@ -14,9 +14,16 @@ class FlowError(override val message: String) : RuntimeException(message)
 /**
  * One step of a flow as the player set it up: its kind and its settings by name, as text. This is what a save
  * keeps, so it stays Gson-friendly (every field has a default) and a setting a step has no value for reads as its
- * default: settings added later need no conversion of older saves. An empty value is never kept.
+ * default: settings added later need no conversion of older saves. An empty value is never kept. [id] stays put while
+ * the steps move, so a reflex's jump follows its step (0 until the flow gives it one, [FlowIds]); [reflexes] are the
+ * ids of the flow's reflexes attached to the step, in the order it checks them (S07c).
  */
-data class StepSettings(val kind: String = "", val values: Map<String, String> = emptyMap()) {
+data class StepSettings(
+    val kind: String = "",
+    val values: Map<String, String> = emptyMap(),
+    val id: Int = 0,
+    val reflexes: List<Int> = emptyList(),
+) {
 
     operator fun get(key: String): String? = values[key]
 
@@ -238,6 +245,9 @@ interface ResolvedStep {
     /** The activity that carries this step out for [player], whose flow was started on [runTile]. */
     fun activity(player: Player, runTile: Tile): StepActivity
 }
+
+/** A step that fights: its configure screen warns when no reflex attached to it eats or runs (S07c). */
+interface Fights
 
 /**
  * What a step needs in the bag to work one way: its [tools] (kept), and [inputs] (item ids used up), which a step taking

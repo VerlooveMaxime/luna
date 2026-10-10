@@ -1,5 +1,6 @@
 package game.idle
 
+import game.idle.flow.ReflexSettings
 import game.idle.flow.StepSettings
 import game.idle.location.Tile
 import io.luna.game.model.mob.attr.Attribute
@@ -30,6 +31,27 @@ class IdleStateTest {
         val changed = state.withFlow(listOf(drop))
 
         assertEquals(IdleState(steps = listOf(drop), stepIndex = 0, running = false, stage = 3, resets = 2), changed)
+    }
+
+    @Test
+    fun `a new flow of steps alone keeps the reflexes`() {
+        val reflexes = listOf(ReflexSettings(1))
+
+        assertEquals(reflexes, state.copy(reflexes = reflexes).withFlow(listOf(chop)).reflexes)
+    }
+
+    @Test
+    fun `a new flow takes the reflexes it is given`() {
+        val reflexes = listOf(ReflexSettings(2, mapOf("do" to "run")))
+
+        assertEquals(reflexes, state.withFlow(listOf(chop), reflexes).reflexes)
+    }
+
+    @Test
+    fun `reflexes and the steps they attach to are saved and read back`() {
+        val saving = state.copy(steps = listOf(chop.copy(id = 3, reflexes = listOf(1))), reflexes = listOf(ReflexSettings(1, mapOf("below" to "40"))))
+
+        assertEquals(saving, GsonUtils.GSON.fromJson(GsonUtils.GSON.toJson(saving), IdleState::class.java))
     }
 
     @Test

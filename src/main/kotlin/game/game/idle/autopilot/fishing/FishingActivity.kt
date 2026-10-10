@@ -4,6 +4,7 @@ import game.idle.autopilot.fishing.FishingDecision.Blocked
 import game.idle.autopilot.fishing.FishingDecision.Fish
 import game.idle.autopilot.fishing.FishingDecision.WalkTo
 import game.idle.autopilot.fishing.FishingDecision.WalkToLocation
+import game.idle.flow.CountsAmount
 import game.idle.flow.StepActivity
 import io.luna.game.model.Position
 
@@ -100,7 +101,7 @@ object FishingPlanner {
  * that gets the same decision twice in a row (fished without a catch filling the inventory, or walked to but still
  * out of reach; spots move) is skipped for as long as the step runs.
  */
-class FishingActivity(private val fisher: Fisher, private val amount: Int? = null) : StepActivity {
+class FishingActivity(private val fisher: Fisher, private val amount: Int? = null) : StepActivity, CountsAmount {
 
     private val skippedSpots = mutableSetOf<Position>()
     private var lastDecision: FishingDecision? = null
@@ -131,10 +132,9 @@ class FishingActivity(private val fisher: Fisher, private val amount: Int? = nul
         lastDecision = decision
     }
 
-    private fun amountReached(): Boolean {
-        val start = catchesAtStart ?: return false
-        return amount != null && fisher.catches() - start >= amount
-    }
+    override fun amountDone(): Int = catchesAtStart?.let { fisher.catches() - it } ?: 0
+
+    private fun amountReached(): Boolean = amount != null && amountDone() >= amount
 
     private fun carryOut(decision: FishingDecision) = when (decision) {
         // A block does nothing here (the autopilot tells it); as the last arm its empty body would leave JaCoCo a branch

@@ -1,5 +1,7 @@
 package game.harness
 
+import game.idle.flow.FlowIds
+import game.idle.flow.ReflexSettings
 import game.idle.flow.StepSettings
 import game.idle.ui.SearchPrompt
 
@@ -64,12 +66,17 @@ fun harnessRoutes(api: HarnessApi): List<Route> {
         Route("GET", "/content/audit") { api.contentAudit() },
         Route("GET", "/player/{name}/flow") { call -> api.flow(call.path("name")) },
         Route("POST", "/player/{name}/flow") { call ->
-            val steps = call.body().objects("steps").map { step ->
-                StepSettings(step.string("kind"), step.strings("values").filterValues { it.isNotEmpty() })
+            val body = call.body()
+            val steps = body.objects("steps").map { step ->
+                StepSettings(step.string("kind"), settings(step), step.int("id", FlowIds.NONE), step.ints("reflexes"))
             }
-            api.replaceFlow(call.path("name"), steps)
+            val reflexes = body.optionalObjects("reflexes").map { reflex -> ReflexSettings(reflex.int("id", FlowIds.NONE), settings(reflex)) }
+            api.replaceFlow(call.path("name"), steps, reflexes)
         },
     )
     val index = Route("GET", "/") { endpoints.map { "${it.method} ${it.pattern}" } }
     return listOf(index) + endpoints
 }
+
+/** A posted step's or reflex's settings, read as text; an empty value is never kept. */
+private fun settings(body: RequestBody): Map<String, String> = body.strings("values").filterValues { it.isNotEmpty() }

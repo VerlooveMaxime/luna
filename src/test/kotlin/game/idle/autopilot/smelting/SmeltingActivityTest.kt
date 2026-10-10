@@ -219,4 +219,18 @@ class SmeltingActivityTest {
 
         assertTrue(SmeltingActivity(smelter, BarType.BRONZE, amount = 1).isBusy())
     }
+
+    @Test
+    fun `before its first act the step has done nothing`() {
+        assertEquals(0, SmeltingActivity(smelter, BarType.BRONZE).amountDone())
+    }
+
+    @Test
+    fun `its amount done is the bars smelted since the step began`() {
+        val counting = SmeltingActivity(smelter, BarType.BRONZE)
+        counting.act()
+        smelter.bars = 2
+
+        assertEquals(2, counting.amountDone())
+    }
 }

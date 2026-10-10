@@ -101,6 +101,15 @@ data class ActionView(val player: String, val action: String, val detail: String
 /** The content audit report, file name to text, as `.memory/artifacts/content-audit/` keeps it. */
 data class ContentAuditView(val files: Map<String, String>)
 
-data class FlowStepView(val kind: String, val values: Map<String, String>, val summary: String)
+/** A step of a flow: its [id], kind and settings, the ids of the [reflexes] attached to it in its order, and how it reads. */
+data class FlowStepView(val id: Int, val kind: String, val values: Map<String, String>, val reflexes: List<Int>, val summary: String)
 
-data class FlowView(val player: String, val running: Boolean, val stepIndex: Int, val steps: List<FlowStepView>)
+data class FlowReflexView(val id: Int, val values: Map<String, String>)
+
+data class FlowView(
+    val player: String,
+    val running: Boolean,
+    val stepIndex: Int,
+    val steps: List<FlowStepView>,
+    val reflexes: List<FlowReflexView>,
+)

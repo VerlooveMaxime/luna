@@ -13,7 +13,7 @@ class AutopilotConfigTest {
 
     @Test
     fun `the default decision delay is two ticks`() {
-        assertEquals(AutopilotConfig(decisionDelayTicks = 2, stepSlots = 4, savedFlowSlots = 2), AutopilotConfig())
+        assertEquals(AutopilotConfig(decisionDelayTicks = 2, stepSlots = 4, savedFlowSlots = 2, reflexSlots = 4), AutopilotConfig())
     }
 
     @Test
@@ -23,11 +23,12 @@ class AutopilotConfigTest {
               // comment lines are allowed
               "decision_delay_ticks": 5,
               "step_slots": 6,
-              "saved_flow_slots": 3
+              "saved_flow_slots": 3,
+              "reflex_slots": 7
             }
         """
 
-        assertEquals(AutopilotConfig(decisionDelayTicks = 5, stepSlots = 6, savedFlowSlots = 3), AutopilotConfig.parse(jsonc))
+        assertEquals(AutopilotConfig(decisionDelayTicks = 5, stepSlots = 6, savedFlowSlots = 3, reflexSlots = 7), AutopilotConfig.parse(jsonc))
     }
 
     @Test
@@ -55,6 +56,11 @@ class AutopilotConfigTest {
     @Test
     fun `a flow without step slots is rejected`() {
         assertThrows<IllegalArgumentException> { AutopilotConfig(stepSlots = 0).validated() }
+    }
+
+    @Test
+    fun `a flow without reflex slots is rejected`() {
+        assertThrows<IllegalArgumentException> { AutopilotConfig(reflexSlots = 0).validated() }
     }
 
     @Test

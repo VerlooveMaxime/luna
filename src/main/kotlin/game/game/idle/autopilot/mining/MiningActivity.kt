@@ -5,6 +5,7 @@ import game.idle.autopilot.mining.MiningDecision.Mine
 import game.idle.autopilot.mining.MiningDecision.OnRock
 import game.idle.autopilot.mining.MiningDecision.WalkTo
 import game.idle.autopilot.mining.MiningDecision.WalkToLocation
+import game.idle.flow.CountsAmount
 import game.idle.flow.StepActivity
 import game.skill.mining.Ore
 import io.luna.game.model.Position
@@ -36,7 +37,7 @@ interface Miner {
  * same decision twice in a row with no ore mined in between (walked to but still out of reach, or clicked without
  * mining starting) is skipped for as long as the step runs, so an unreachable rock cannot trap the player.
  */
-class MiningActivity(private val miner: Miner, private val ore: Ore, private val amount: Int? = null) : StepActivity {
+class MiningActivity(private val miner: Miner, private val ore: Ore, private val amount: Int? = null) : StepActivity, CountsAmount {
 
     private val skippedRocks = mutableSetOf<Position>()
     private var lastDecision: MiningDecision? = null
@@ -69,10 +70,9 @@ class MiningActivity(private val miner: Miner, private val ore: Ore, private val
         oresAtLastDecision = miner.ores()
     }
 
-    private fun amountReached(): Boolean {
-        val start = oresAtStart ?: return false
-        return amount != null && miner.ores() - start >= amount
-    }
+    override fun amountDone(): Int = oresAtStart?.let { miner.ores() - it } ?: 0
+
+    private fun amountReached(): Boolean = amount != null && amountDone() >= amount
 
     private fun carryOut(decision: MiningDecision) = when (decision) {
         // A block does nothing here (the autopilot tells it); as the last arm its empty body would leave JaCoCo a branch

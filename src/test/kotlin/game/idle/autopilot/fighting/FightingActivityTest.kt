@@ -9,8 +9,6 @@ import org.junit.jupiter.api.Test
 
 class FightingActivityTest {
 
-    private val full = Health(10, 10)
-    private val low = Health(4, 10)
     private val near = target(3100, 9510, distance = 2)
     private val far = target(3104, 9510, distance = 6)
     private val inReach = near.copy(distance = 0, usableFromHere = true)
@@ -18,22 +16,11 @@ class FightingActivityTest {
     private fun target(x: Int, y: Int, distance: Int, usable: Boolean = false) =
         TargetCandidate(npcIndex = x, position = Position(x, y), distance, usable, approach = Position(x, y + 1))
 
-    private fun view(
-        health: Health = full,
-        foodSlot: Int? = null,
-        threats: Int = 0,
-        atLocation: Boolean = true,
-        targets: List<TargetCandidate> = listOf(near, far),
-    ) = FightView(health, foodSlot, threats, atLocation, targets)
+    private fun view(atLocation: Boolean = true, targets: List<TargetCandidate> = listOf(near, far)) = FightView(atLocation, targets)
 
     private val fighter = FakeFighter(view())
 
-    private fun activity(amount: Int? = null) = FightingActivity(fighter, eatBelow = 50, amount)
-
-    private fun lowOnHealth(foodSlot: Int? = null, threats: Int = 0) {
-        fighter.health = low
-        fighter.view = view(health = low, foodSlot = foodSlot, threats = threats)
-    }
+    private fun activity(amount: Int? = null) = FightingActivity(fighter, amount)
 
     @Test
     fun `an npc in reach is attacked`() {
@@ -112,73 +99,6 @@ class FightingActivityTest {
     }
 
     @Test
-    fun `below the barrier food is eaten`() {
-        lowOnHealth(foodSlot = 3)
-
-        activity().act()
-
-        assertEquals(listOf("eat 3"), fighter.steps)
-    }
-
-    @Test
-    fun `at the barrier the player fights on`() {
-        fighter.view = view(health = Health(5, 10), foodSlot = 3, targets = listOf(inReach))
-
-        activity().act()
-
-        assertEquals(listOf("attack 3100,9510"), fighter.steps)
-    }
-
-    @Test
-    fun `below the barrier with no food the player runs from what attacks them`() {
-        lowOnHealth(threats = 1)
-
-        activity().act()
-
-        assertEquals(listOf("flee"), fighter.steps)
-    }
-
-    @Test
-    fun `running away keeps the flow going`() {
-        lowOnHealth(threats = 1)
-        val activity = activity()
-
-        activity.act()
-
-        assertNull(activity.stopReason())
-    }
-
-    @Test
-    fun `with nowhere to run the flow stops`() {
-        lowOnHealth(threats = 1)
-        fighter.canFlee = false
-        val activity = activity()
-
-        activity.act()
-
-        assertEquals("Autopilot: stopped, out of food at 4/10 hitpoints.", activity.stopReason())
-    }
-
-    @Test
-    fun `below the barrier with no food and nothing attacking the flow stops`() {
-        lowOnHealth()
-        val activity = activity()
-
-        activity.act()
-
-        assertEquals("Autopilot: stopped, out of food at 4/10 hitpoints.", activity.stopReason())
-    }
-
-    @Test
-    fun `out of food nothing more is attacked`() {
-        lowOnHealth()
-
-        activity().act()
-
-        assertEquals(emptyList<String>(), fighter.steps)
-    }
-
-    @Test
     fun `an idle player lets the step act`() {
         assertFalse(activity().isBusy())
     }
@@ -188,14 +108,6 @@ class FightingActivityTest {
         fighter.busy = true
 
         assertTrue(activity().isBusy())
-    }
-
-    @Test
-    fun `falling below the barrier mid-fight lets the step act`() {
-        fighter.busy = true
-        fighter.health = low
-
-        assertFalse(activity().isBusy())
     }
 
     @Test
@@ -236,9 +148,16 @@ class FightingActivityTest {
     }
 
     @Test
+    fun `its amount done is the kills since the step began`() {
+        fighter.kills = 2
+
+        assertEquals(2, activity().amountDone())
+    }
+
+    @Test
     fun `a nonstop fight never ends`() {
         fighter.kills = 1000
-        val activity = FightingActivity(fighter, eatBelow = 50)
+        val activity = FightingActivity(fighter)
 
         activity.act()
 
@@ -336,25 +255,5 @@ class FightingActivityTest {
         activity.act()
 
         assertEquals("attack 3100,9510", fighter.steps.last())
-    }
-
-    @Test
-    fun `an npc attacked after a meal is not a retry`() {
-        fighter.view = view(targets = listOf(inReach))
-        val activity = activity()
-        activity.act()
-        lowOnHealth(foodSlot = 0)
-        activity.act()
-        fighter.health = full
-        fighter.view = view(targets = listOf(inReach))
-
-        activity.act()
-
-        assertEquals(listOf("attack 3100,9510", "eat 0", "attack 3100,9510"), fighter.steps)
-    }
-
-    @Test
-    fun `health below a share compares against full hitpoints`() {
-        assertTrue(Health(7, 10).below(75))
     }
 }

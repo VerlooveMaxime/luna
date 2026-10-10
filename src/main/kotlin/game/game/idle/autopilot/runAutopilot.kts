@@ -4,6 +4,8 @@ import api.predef.*
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.FlowRunner
+import game.idle.flow.ReflexResolver
+import game.idle.flow.ResolvedFlow
 import game.idle.flow.SavedFlows
 import game.idle.idleState
 import game.idle.flow.option.LunaGameNames
@@ -18,6 +20,7 @@ import game.idle.ui.IdleTab
 import game.idle.ui.IdleUi
 import game.idle.ui.LunaBuilderUi
 import game.idle.ui.MapPickEvent
+import game.player.item.consume.food.Food
 import io.luna.game.event.impl.ArrangeItemEvent
 import io.luna.game.event.impl.ButtonClickEvent
 import io.luna.game.event.impl.LoginEvent
@@ -28,6 +31,7 @@ val config = AutopilotConfig.load(AutopilotConfig.PATH)
 // Loaded at boot so a typo in a data file stops the server instead of surfacing at the first step that uses it.
 val steps = IdleSteps.load()
 val resolver = FlowResolver(steps.types)
+val reflexResolver = ReflexResolver(Food.ID_TO_FOOD.keys)
 val font = ClientFont.fromCache(ctx.cache)
 val savedFlows = SavedFlows(config.savedFlowSlots)
 val builderWindow = BuilderWindow(
@@ -41,14 +45,14 @@ logger.info("Loaded {} kinds of idle step.", steps.types.all.size)
 val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world)) { autopilotPlayer ->
     val state = autopilotPlayer.idleState
     val resolved = try {
-        resolver.resolve(state.steps)
+        ResolvedFlow(resolver.resolve(state.steps), reflexResolver.resolve(state.steps, state.reflexes))
     } catch (e: FlowError) {
         null
     }
     resolved?.let { AutopilotDriver(FlowRunner(it, state.stepIndex, autopilotPlayer), config.decisionDelayTicks) }
 }
 
-val builderUi = LunaBuilderUi(BuilderScreen(autopilot, resolver, LunaGameNames, config.stepSlots, savedFlows), builderWindow, ui, font)
+val builderUi = LunaBuilderUi(BuilderScreen(autopilot, resolver, reflexResolver, LunaGameNames, config.stepSlots, savedFlows), builderWindow, ui, font)
 
 on(LoginEvent::class)
     .filter { !plr.isBot }

@@ -3,7 +3,9 @@ package game.idle.ui
 import game.idle.autopilot.Autopilot
 import game.idle.autopilot.AutopilotPlayer
 import game.idle.flow.FlowError
+import game.idle.flow.FlowIds
 import game.idle.flow.FlowResolver
+import game.idle.flow.ReflexResolver
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
@@ -70,6 +72,7 @@ sealed interface BuilderAnswer {
 class BuilderScreen<P : AutopilotPlayer>(
     private val autopilot: Autopilot<P>,
     private val resolver: FlowResolver,
+    private val reflexes: ReflexResolver,
     private val names: GameNames,
     private val slots: Int,
     private val savedFlows: SavedFlows,
@@ -227,6 +230,8 @@ class BuilderScreen<P : AutopilotPlayer>(
         if (steps.isEmpty()) return say(EMPTY_FLOW)
         val cannot = resolver.problems(steps).indexOfFirst { it != null }
         if (cannot >= 0) return BuilderAnswer.Show(message = Autopilot.cannotWork(cannot + 1))
+        val reflex = reflexes.problems(steps, player.idleState.reflexes).indexOfFirst { it != null }
+        if (reflex >= 0) return say("reflex ${reflex + 1} cannot work yet. See its row in the builder.")
         player.idleState = player.idleState.fromStart()
         autopilot.start(player)
         return say("running from step 1.")
@@ -237,10 +242,11 @@ class BuilderScreen<P : AutopilotPlayer>(
         return say("stopped.")
     }
 
+    /** A cleared flow is a new one: no step and no reflex. */
     private fun clear(player: P): BuilderAnswer {
         if (autopilot.isRunning(player)) return BuilderAnswer.Show(message = STOP_FIRST)
-        if (player.idleState.steps.isEmpty()) return BuilderAnswer.Show()
-        player.idleState = player.idleState.withFlow(emptyList())
+        if (player.idleState.steps.isEmpty() && player.idleState.reflexes.isEmpty()) return BuilderAnswer.Show()
+        player.idleState = player.idleState.withFlow(emptyList(), emptyList())
         return say("flow cleared.")
     }
 
@@ -326,7 +332,7 @@ class BuilderScreen<P : AutopilotPlayer>(
         if (!replacing && steps.size >= slots) return BuilderAnswer.Configure(draft.notTyping(), "$PREFIX the flow has room for $slots steps.")
         val slot = if (replacing) draft.slot else steps.size
         val saved = if (replacing) steps.toMutableList().apply { set(slot, draft.settings) } else steps + draft.settings
-        player.idleState = player.idleState.withFlow(saved)
+        player.idleState = player.idleState.withFlow(FlowIds.steps(saved))
         return BuilderAnswer.Show(BuilderPage.OVERVIEW, "$PREFIX step ${slot + 1} saved.")
     }
 

@@ -26,14 +26,14 @@ class FightStepTypeTest {
 
     @Test
     fun `a fight step reads as its npc, its defaults left out`() {
-        assertEquals("fight cow", type.summary(fight("npc" to "cow", "within" to "10", "eatBelow" to "50")))
+        assertEquals("fight cow", type.summary(fight("npc" to "cow", "within" to "10")))
     }
 
     @Test
     fun `a fight step writes every setting that is not the default`() {
-        val settings = fight("npc" to "giant rat", "amount" to "3", "within" to "5", "eatBelow" to "75")
+        val settings = fight("npc" to "giant rat", "amount" to "3", "within" to "5")
 
-        assertEquals("fight 3 giant rat within 5 eat below 75%", type.summary(settings))
+        assertEquals("fight 3 giant rat within 5", type.summary(settings))
     }
 
     @Test
@@ -44,24 +44,16 @@ class FightStepTypeTest {
 
     @Test
     fun `a fight step fights around the work spot, whatever the case`() {
-        val step = type.resolve(fight("npc" to "Giant Rat", "amount" to "3", "within" to "15", "eatBelow" to "75"), FlowContext(workSpot = walkedTo))
+        val step = type.resolve(fight("npc" to "Giant Rat", "amount" to "3", "within" to "15"), FlowContext(workSpot = walkedTo))
 
-        assertEquals(FightStep(rats, 15, walkedTo, amount = 3, eatBelow = 75), step)
+        assertEquals(FightStep(rats, 15, walkedTo, amount = 3), step)
     }
 
     @Test
-    fun `a fight step without an amount fights nonstop and eats below half`() {
+    fun `a fight step without an amount fights nonstop`() {
         val step = type.resolve(fight("npc" to "cow"), FlowContext()) as FightStep
 
         assertNull(step.amount)
-        assertEquals(50, step.eatBelow)
-    }
-
-    @Test
-    fun `when to eat is a share of hitpoints from 1 to 99 percent`() {
-        assertRejected("eat below takes 1 to 99 percent, not 'half'") { type.resolve(fight("npc" to "cow", "eatBelow" to "half"), FlowContext()) }
-        assertRejected("eat below takes 1 to 99 percent, not '0'") { type.resolve(fight("npc" to "cow", "eatBelow" to "0"), FlowContext()) }
-        assertRejected("eat below takes 1 to 99 percent, not '100'") { type.resolve(fight("npc" to "cow", "eatBelow" to "100"), FlowContext()) }
     }
 
     @Test
@@ -72,26 +64,15 @@ class FightStepTypeTest {
     }
 
     @Test
-    fun `the configure screen searches the npc, types the kills, eat below and the radius`() {
+    fun `the configure screen searches the npc, types the kills and the radius`() {
         assertEquals(
             listOf(
                 "Npc (left): search npc, 'What would you like to fight?'",
                 "Kills (left): typed amount 1..2147483647, button 'No end'",
-                "Eat below (left): typed eatBelow 1..99",
                 "Within (right): typed within 1..32",
             ),
             described(type.fields(FakeNames())),
         )
-    }
-
-    @Test
-    fun `the configure screen shows eat below as a share of hitpoints, half without one`() {
-        assertEquals(listOf("75% hitpoints", "50% hitpoints"), listOf(EatBelow.field().shown("75"), EatBelow.field().shown(null)))
-    }
-
-    @Test
-    fun `a typed eat below out of range is refused with its rule`() {
-        assertEquals("eat below takes 1 to 99 percent", EatBelow.field().rule)
     }
 
     @Test
@@ -118,26 +99,13 @@ class FightStepTypeTest {
     }
 
     @Test
-    fun `a fight step's slot says its kills per lap and when it eats`() {
-        assertEquals(
-            listOf("5 kills per lap", "eat below 25%"),
-            type.details(fight("npc" to "cow", "amount" to "5", "eatBelow" to "25", "within" to "15"), FlowContext()),
-        )
+    fun `a fight step's slot says its kills per lap`() {
+        assertEquals(listOf("5 kills per lap"), type.details(fight("npc" to "cow", "amount" to "5", "within" to "15"), FlowContext()))
     }
 
     @Test
-    fun `a fight step without a count fights with no end, eating below the default`() {
-        assertEquals(listOf("no end", "eat below 50%"), type.details(fight(), FlowContext()))
-    }
-
-    @Test
-    fun `eat below reads as the share it eats below`() {
-        assertEquals("eat below 75%", EatBelow.detail(fight("eatBelow" to "75")))
-    }
-
-    @Test
-    fun `eat below without a share reads as the default`() {
-        assertEquals("eat below 50%", EatBelow.detail(fight()))
+    fun `a fight step without a count fights with no end`() {
+        assertEquals(listOf("no end"), type.details(fight(), FlowContext()))
     }
 
     @Test

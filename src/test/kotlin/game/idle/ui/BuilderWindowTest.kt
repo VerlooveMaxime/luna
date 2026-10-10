@@ -9,6 +9,7 @@ import game.idle.autopilot.FakeTickScheduler
 import game.idle.autopilot.LunaAutopilotPlayer
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowResolver
+import game.idle.flow.ReflexResolver
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepSettings
 import game.idle.flow.option.FakeNames
@@ -31,7 +32,7 @@ class BuilderWindowTest {
     private val window = BuilderWindow(BuilderOverview(resolver, FakeNames(), font, SavedFlows(2)), BuilderConfigure(resolver, FakeNames(), font), slots = 4)
     private val idleUi = IdleUi({ it.kind }, idleTab(), window)
     private val autopilot = Autopilot<LunaAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
-    private val ui = LunaBuilderUi(BuilderScreen(autopilot, resolver, FakeNames(), slots = 4, SavedFlows(2)), window, idleUi, font)
+    private val ui = LunaBuilderUi(BuilderScreen(autopilot, resolver, ReflexResolver(emptySet()), FakeNames(), slots = 4, SavedFlows(2)), window, idleUi, font)
 
     private val oak = step("chop", "oak")
 
@@ -220,7 +221,7 @@ class BuilderWindowTest {
 
         ui.click(player, BuilderWidgets.SAVE)
 
-        assertEquals(listOf(step("drop")), player.idleState.steps)
+        assertEquals(listOf(step("drop").copy(id = 1)), player.idleState.steps)
         assertEquals(listOf("Autopilot: step 1 saved."), TestWorld.chatbox(player))
     }
 

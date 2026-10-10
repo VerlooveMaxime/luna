@@ -1,7 +1,9 @@
 package game.idle.autopilot
 
 import game.idle.IdleState
+import game.idle.autopilot.reflex.LunaReflexBody
 import game.idle.flow.FlowPlayer
+import game.idle.flow.ReflexBody
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.idleState
@@ -27,6 +29,8 @@ class LunaAutopilotPlayer(val player: Player, private val ui: IdleUi) : Autopilo
 
     override val tile: Tile
         get() = Tile.of(player.position)
+
+    override val body: ReflexBody = LunaReflexBody(player)
 
     override fun tell(message: String) {
         player.sendMessage(message)

@@ -10,6 +10,8 @@ import game.idle.content.audit.LunaRegistries
 import game.idle.content.audit.zoneOfRegion
 import game.idle.flow.FlowCheck
 import game.idle.flow.FlowError
+import game.idle.flow.FlowIds
+import game.idle.flow.ReflexSettings
 import game.idle.flow.StepSettings
 import game.idle.idleState
 import game.idle.movement.navigateToReach
@@ -108,23 +110,25 @@ class LunaHarnessApi(
     override fun flow(name: String): FlowView = gameThread.run { flowView(online(name)) }
 
     /** The autopilot owns a running flow's state, so a running flow is never replaced under it. */
-    override fun replaceFlow(name: String, steps: List<StepSettings>): FlowView = gameThread.run {
+    override fun replaceFlow(name: String, steps: List<StepSettings>, reflexes: List<ReflexSettings>): FlowView = gameThread.run {
         val player = online(name)
         if (player.isBot) throw HarnessException(409, "${player.username} is a bot and has no flow")
         if (player.idleState.running) throw HarnessException(409, "${player.username}'s flow is running: click Stop first")
+        val identified = FlowIds.steps(steps)
+        val identifiedReflexes = FlowIds.reflexes(reflexes)
         try {
-            flows.check(steps)
+            flows.check(identified, identifiedReflexes)
         } catch (e: FlowError) {
             throw HarnessException(400, e.message)
         }
-        player.idleState = player.idleState.withFlow(steps)
+        player.idleState = player.idleState.withFlow(identified, identifiedReflexes)
         flowView(player)
     }
 
     private fun flowView(player: Player): FlowView {
         val state = player.idleState
-        val steps = state.steps.map { FlowStepView(it.kind, it.values, flows.resolver.types.summary(it)) }
-        return FlowView(player.username, state.running, state.stepIndex, steps)
+        val steps = state.steps.map { FlowStepView(it.id, it.kind, it.values, it.reflexes, flows.resolver.types.summary(it)) }
+        return FlowView(player.username, state.running, state.stepIndex, steps, state.reflexes.map { FlowReflexView(it.id, it.values) })
     }
 
     private fun perform(player: Player, action: PlayerAction): ActionView =

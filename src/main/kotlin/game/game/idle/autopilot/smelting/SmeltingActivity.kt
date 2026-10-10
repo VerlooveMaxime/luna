@@ -7,6 +7,7 @@ import game.idle.autopilot.smelting.SmeltingDecision.OnFurnace
 import game.idle.autopilot.smelting.SmeltingDecision.Smelt
 import game.idle.autopilot.smelting.SmeltingDecision.WalkTo
 import game.idle.autopilot.smelting.SmeltingDecision.WalkToLocation
+import game.idle.flow.CountsAmount
 import game.idle.flow.StepActivity
 import game.skill.smithing.BarType
 import io.luna.game.model.Position
@@ -95,7 +96,7 @@ object SmeltingPlanner {
  * bar made in between (used without smelting starting, or walked to but still out of reach) is skipped for as long
  * as the step runs.
  */
-class SmeltingActivity(private val smelter: Smelter, private val bar: BarType, private val amount: Int? = null) : StepActivity {
+class SmeltingActivity(private val smelter: Smelter, private val bar: BarType, private val amount: Int? = null) : StepActivity, CountsAmount {
 
     private val skippedFurnaces = mutableSetOf<Position>()
     private var lastDecision: SmeltingDecision? = null
@@ -122,10 +123,9 @@ class SmeltingActivity(private val smelter: Smelter, private val bar: BarType, p
         barsAtLastDecision = smelter.bars()
     }
 
-    private fun amountReached(): Boolean {
-        val start = barsAtStart ?: return false
-        return amount != null && smelter.bars() - start >= amount
-    }
+    override fun amountDone(): Int = barsAtStart?.let { smelter.bars() - it } ?: 0
+
+    private fun amountReached(): Boolean = amount != null && amountDone() >= amount
 
     private fun carryOut(decision: SmeltingDecision) = when (decision) {
         // A block does nothing here (the autopilot tells it); as the last arm its empty body would leave JaCoCo a branch

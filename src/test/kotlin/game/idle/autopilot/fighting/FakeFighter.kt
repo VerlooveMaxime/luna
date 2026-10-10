@@ -5,13 +5,9 @@ class FakeFighter(var view: FightView) : Fighter {
 
     var busy = false
     var kills = 0
-    var canFlee = true
-    var health: Health = view.health
     val steps = mutableListOf<String>()
 
     override fun isBusy(): Boolean = busy
-
-    override fun health(): Health = health
 
     override fun look(): FightView = view
 
@@ -21,15 +17,6 @@ class FakeFighter(var view: FightView) : Fighter {
 
     override fun walkTo(target: TargetCandidate) {
         steps += "walk to ${target.position.x},${target.position.y}"
-    }
-
-    override fun eat(slot: Int) {
-        steps += "eat $slot"
-    }
-
-    override fun flee(): Boolean {
-        steps += "flee"
-        return canFlee
     }
 
     override fun walkToLocation() {

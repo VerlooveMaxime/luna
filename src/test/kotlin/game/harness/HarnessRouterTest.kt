@@ -316,6 +316,39 @@ class HarnessRouterTest {
     }
 
     @Test
+    fun `body optional objects of a missing or null array is empty`() {
+        assertEquals(emptyList<RequestBody>(), call(body = "{}").body().optionalObjects("reflexes"))
+        assertEquals(emptyList<RequestBody>(), call(body = """{"reflexes": null}""").body().optionalObjects("reflexes"))
+    }
+
+    @Test
+    fun `body optional objects reads an array of objects`() {
+        val objects = call(body = """{"reflexes": [{"id": 2}]}""").body().optionalObjects("reflexes")
+
+        assertEquals(listOf(2), objects.map { it.int("id") })
+    }
+
+    @Test
+    fun `body ints reads an array of integers`() {
+        assertEquals(listOf(2, 1), call(body = """{"reflexes": [2, 1]}""").body().ints("reflexes"))
+    }
+
+    @Test
+    fun `body ints of a missing or null array is empty`() {
+        assertEquals(emptyList<Int>(), call(body = "{}").body().ints("reflexes"))
+        assertEquals(emptyList<Int>(), call(body = """{"reflexes": null}""").body().ints("reflexes"))
+    }
+
+    @Test
+    fun `body ints rejects anything but an array of whole numbers`() {
+        val bodies = listOf("""{"r": 2}""", """{"r": ["2"]}""", """{"r": [{"id": 2}]}""", """{"r": [1.5]}""")
+
+        val messages = bodies.map { body -> assertThrows<HarnessException> { call(body = body).body().ints("r") }.message }
+
+        assertEquals(List(4) { "field 'r' must be an array of integers" }, messages)
+    }
+
+    @Test
     fun `parse query of nothing is empty`() {
         assertEquals(emptyMap<String, String>(), parseQuery(null))
     }

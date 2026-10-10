@@ -212,4 +212,18 @@ class MiningActivityTest {
 
         assertTrue(MiningActivity(miner, Ore.COPPER, amount = 1).isBusy())
     }
+
+    @Test
+    fun `before its first act the step has done nothing`() {
+        assertEquals(0, MiningActivity(miner, Ore.COPPER).amountDone())
+    }
+
+    @Test
+    fun `its amount done is the ores mined since the step began`() {
+        val counting = MiningActivity(miner, Ore.COPPER)
+        counting.act()
+        miner.ores = 2
+
+        assertEquals(2, counting.amountDone())
+    }
 }

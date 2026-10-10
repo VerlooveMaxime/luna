@@ -1,5 +1,6 @@
 package game.harness
 
+import game.idle.flow.ReflexSettings
 import game.idle.flow.StepSettings
 import game.idle.ui.SearchPrompt
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -252,6 +253,23 @@ class HarnessRoutesTest {
         val steps = listOf(StepSettings("chop", mapOf("tree" to "oak", "amount" to "5")), StepSettings("drop"))
         assertEquals(HarnessResponse(200, api.flowView), response)
         assertEquals(listOf("agent_a" to steps), api.replacedFlows)
+    }
+
+    @Test
+    fun `a posted flow carries its steps' ids and attached reflexes, and its reflexes`() {
+        val body = """{"steps": [{"id": 4, "kind": "fight", "reflexes": [2, 1]}], "reflexes": [{"id": 1, "values": {"do": "eat"}}, {"values": {"do": "run", "then": ""}}]}"""
+
+        post("/player/agent_a/flow", body)
+
+        assertEquals(listOf("agent_a" to listOf(StepSettings("fight", id = 4, reflexes = listOf(2, 1)))), api.replacedFlows)
+        assertEquals(listOf(listOf(ReflexSettings(1, mapOf("do" to "eat")), ReflexSettings(0, mapOf("do" to "run")))), api.replacedReflexes)
+    }
+
+    @Test
+    fun `a flow posted without reflexes has none`() {
+        post("/player/agent_a/flow", """{"steps": []}""")
+
+        assertEquals(listOf(emptyList<ReflexSettings>()), api.replacedReflexes)
     }
 
     @Test

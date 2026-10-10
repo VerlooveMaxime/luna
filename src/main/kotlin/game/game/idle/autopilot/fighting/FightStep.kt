@@ -2,6 +2,7 @@ package game.idle.autopilot.fighting
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.Fights
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
@@ -18,41 +19,9 @@ import game.idle.location.Tile
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
-/** When the fight step eats: a share of the player's full hitpoints, so a flow keeps working after a reset brings them back to 10. */
-object EatBelow {
-
-    const val KEY = "eatBelow"
-
-    const val DEFAULT = 50
-
-    const val RULE = "eat below takes 1 to 99 percent"
-
-    /** The configure screen's Eat below, typed as a percentage. */
-    fun field(): StepField.Typed =
-        StepField.Typed(KEY, "Eat below", 1..99, RULE, shown = { "${it ?: DEFAULT}% hitpoints" })
-
-    /** The share [settings] hold, [DEFAULT] without one; throws [FlowError] when it is not 1 to 99. */
-    fun read(settings: StepSettings): Int {
-        val text = settings[KEY] ?: return DEFAULT
-        val percent = text.toIntOrNull()
-        if (percent == null || percent !in 1..99) {
-            throw FlowError("$RULE, not '$text'")
-        }
-        return percent
-    }
-
-    /** The builder's slot line: "eat below 50%". */
-    fun detail(settings: StepSettings): String = "eat below ${settings[KEY] ?: DEFAULT}%"
-
-    /** The end of a summary: nothing for the default. */
-    fun suffix(settings: StepSettings): String =
-        settings[KEY]?.takeIf { it != DEFAULT.toString() }?.let { " eat below $it%" } ?: ""
-}
-
 /**
  * Fight: fights the npcs of a [FightTargetCatalog] target around the work spot one at a time, a count of kills or,
- * without one, until stopped. Food in the inventory is eaten once hitpoints fall below a share of full; with none left
- * the player runs from what attacks them and the flow stops.
+ * without one, until stopped. Eating and running away are the flow's reflexes since S07c (Maxime, 2026-10-10).
  */
 class FightStepType(private val catalog: FightTargetCatalog) : StepType {
 
@@ -60,31 +29,30 @@ class FightStepType(private val catalog: FightTargetCatalog) : StepType {
 
     override val label = "fight"
 
-    override val description = "Fights one kind of npc, eats, flees when out of food."
+    override val description = "Fights one kind of npc, a count of kills or with no end."
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.ATTACK)
 
     override fun target(names: GameNames): StepTarget = StepTarget(NPC, FightOptions(catalog))
 
     override fun details(settings: StepSettings, context: FlowContext): List<String> =
-        listOf(StepAmount.detail(settings, unbounded = "no end", counted = "kills"), EatBelow.detail(settings))
+        listOf(StepAmount.detail(settings, unbounded = "no end", counted = "kills"))
 
     override fun fields(names: GameNames): List<StepField> =
         listOf(
             StepField.Search("Npc", target(names), "What would you like to fight?"),
             StepAmount.field("Kills", unbounded = "no end", button = "No end"),
-            EatBelow.field(),
             StepRadius.field(),
         )
 
     override fun summary(settings: StepSettings): String =
-        "fight ${StepAmount.prefix(settings)}${settings[NPC] ?: "?"}${StepRadius.suffix(settings)}${EatBelow.suffix(settings)}"
+        "fight ${StepAmount.prefix(settings)}${settings[NPC] ?: "?"}${StepRadius.suffix(settings)}"
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val name = settings[NPC]?.lowercase() ?: throw FlowError("fight needs an npc")
         val target = catalog.find(name)
             ?: throw FlowError("'$name' is not something you can fight")
-        return FightStep(target, StepRadius.read(settings), context.workSpot, StepAmount.read(settings), EatBelow.read(settings))
+        return FightStep(target, StepRadius.read(settings), context.workSpot, StepAmount.read(settings))
     }
 
     companion object {
@@ -92,17 +60,11 @@ class FightStepType(private val catalog: FightTargetCatalog) : StepType {
     }
 }
 
-/** A fight step resolved: [amount] kills (null for no end), eating below [eatBelow] % of full hitpoints. */
-data class FightStep(
-    val target: FightTarget,
-    val radius: Int,
-    val workSpot: WorkSpot,
-    val amount: Int? = null,
-    val eatBelow: Int = EatBelow.DEFAULT,
-) : ResolvedStep {
+/** A fight step resolved: [amount] kills, null for no end. */
+data class FightStep(val target: FightTarget, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, Fights {
 
     override fun after(context: FlowContext): FlowContext = context.copy(fought = target.npcs)
 
     override fun activity(player: Player, runTile: Tile): StepActivity =
-        FightingActivity(LunaFighter(player, target, Area(workSpot.tile(runTile), radius)), eatBelow, amount)
+        FightingActivity(LunaFighter(player, target, Area(workSpot.tile(runTile), radius)), amount)
 }

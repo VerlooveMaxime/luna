@@ -8,6 +8,7 @@ import game.idle.autopilot.smithing.SmithingDecision.OnAnvil
 import game.idle.autopilot.smithing.SmithingDecision.UseOn
 import game.idle.autopilot.smithing.SmithingDecision.WalkTo
 import game.idle.autopilot.smithing.SmithingDecision.WalkToLocation
+import game.idle.flow.CountsAmount
 import game.idle.flow.StepActivity
 import io.luna.game.model.Position
 
@@ -111,7 +112,7 @@ object SmithingPlanner {
  * at once. An anvil that gets the same decision twice in a row with nothing made in between (used without the window
  * opening, or walked to but still out of reach) is skipped for as long as the step runs.
  */
-class SmithingActivity(private val smither: Smither, private val level: Int, private val amount: Int? = null) : StepActivity {
+class SmithingActivity(private val smither: Smither, private val level: Int, private val amount: Int? = null) : StepActivity, CountsAmount {
 
     private val skippedAnvils = mutableSetOf<Position>()
     private var lastDecision: SmithingDecision? = null
@@ -139,10 +140,9 @@ class SmithingActivity(private val smither: Smither, private val level: Int, pri
         madeAtLastDecision = smither.made()
     }
 
-    private fun amountReached(): Boolean {
-        val start = madeAtStart ?: return false
-        return amount != null && smither.made() - start >= amount
-    }
+    override fun amountDone(): Int = madeAtStart?.let { smither.made() - it } ?: 0
+
+    private fun amountReached(): Boolean = amount != null && amountDone() >= amount
 
     private fun carryOut(decision: SmithingDecision) = when (decision) {
         // A block does nothing here (the autopilot tells it); as the last arm its empty body would leave JaCoCo a branch

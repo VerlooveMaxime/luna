@@ -5,7 +5,6 @@ import game.idle.flow.WorkSpot
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.testworld.TestWorld
-import io.luna.game.event.impl.ItemClickEvent.ItemFirstClickEvent
 import io.luna.game.event.impl.NpcClickEvent.AttackNpcEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
@@ -31,10 +30,7 @@ class LunaFighterTest {
     private val cow = 81
     private val runescapeGuide = 945
     private val chickens = FightTarget("chicken", setOf(chicken, runescapeGuide), "Chicken", 1..1)
-    private val bread = 2309
-    private val logs = 1511
     private val shortbow = 841
-    private val deadTree = 1286
 
     @AfterEach
     fun resetWorld() = TestWorld.reset()
@@ -106,31 +102,6 @@ class LunaFighterTest {
         player.overlays.open(StandardInterface(5292))
 
         assertTrue(fighter(player).isBusy())
-    }
-
-    @Test
-    fun `health is the player's hitpoints out of their full hitpoints`() {
-        val player = login()
-        player.health = 6
-
-        assertEquals(Health(6, 10), fighter(player).health())
-    }
-
-    @Test
-    fun `the view finds the first food in the inventory`() {
-        val player = login()
-        player.inventory.set(0, Item(logs))
-        player.inventory.set(2, Item(bread))
-
-        assertEquals(2, fighter(player).look().foodSlot)
-    }
-
-    @Test
-    fun `without food the view has no food slot`() {
-        val player = login()
-        player.inventory.add(Item(logs))
-
-        assertEquals(null, fighter(player).look().foodSlot)
     }
 
     @Test
@@ -214,42 +185,6 @@ class LunaFighterTest {
     }
 
     @Test
-    fun `an npc fighting the player with an open way is a threat`() {
-        val player = login()
-        TestWorld.spawnNpc(chicken, Position(3203, 3200)).combat.target = player
-
-        assertEquals(1, fighter(player).look().threats)
-    }
-
-    @Test
-    fun `an npc fighting the player but fenced in is no threat`() {
-        val player = login()
-        val npc = TestWorld.spawnNpc(chicken, Position(3205, 3200))
-        Direction.ALL_EXCEPT_NONE.forEach { TestWorld.place(deadTree, npc.position.translate(1, it)) }
-        npc.combat.target = player
-
-        assertEquals(0, fighter(player).look().threats)
-    }
-
-    @Test
-    fun `an npc fighting someone else is no threat`() {
-        val player = login()
-        TestWorld.spawnNpc(chicken, Position(3203, 3200)).combat.target = TestWorld.login("other", Position(3204, 3200))
-
-        assertEquals(0, fighter(player).look().threats)
-    }
-
-    @Test
-    fun `a dead npc is no threat`() {
-        val player = login()
-        val npc = TestWorld.spawnNpc(chicken, Position(3203, 3200))
-        npc.combat.target = player
-        kill(npc, killer = null)
-
-        assertEquals(0, fighter(player).look().threats)
-    }
-
-    @Test
     fun `attacking clicks the npc like the client`() {
         val player = login()
         val clicked = attackClicks()
@@ -305,78 +240,6 @@ class LunaFighterTest {
         TestWorld.tick()
 
         assertEquals(emptyList<Int>(), clicked)
-    }
-
-    @Test
-    fun `eating clicks the food like the client`() {
-        val player = login()
-        player.inventory.set(4, Item(bread))
-        val eaten = mutableListOf<Pair<Int, Int>>()
-        TestWorld.listen(ItemFirstClickEvent::class.java) { eaten += it.id to it.index }
-
-        fighter(player).eat(4)
-
-        assertEquals(listOf(bread to 4), eaten)
-    }
-
-    @Test
-    fun `an empty slot is not eaten`() {
-        val player = login()
-        val eaten = mutableListOf<Int>()
-        TestWorld.listen(ItemFirstClickEvent::class.java) { eaten += it.id }
-
-        fighter(player).eat(4)
-
-        assertEquals(emptyList<Int>(), eaten)
-    }
-
-    @Test
-    fun `a locked player does not eat`() {
-        val player = login()
-        player.inventory.set(4, Item(bread))
-        player.lock()
-        val eaten = mutableListOf<Int>()
-        TestWorld.listen(ItemFirstClickEvent::class.java) { eaten += it.id }
-
-        fighter(player).eat(4)
-
-        assertEquals(emptyList<Int>(), eaten)
-    }
-
-    @Test
-    fun `with nothing attacking there is nowhere to run`() {
-        assertFalse(fighter(login()).flee())
-    }
-
-    @Test
-    fun `fleeing runs from the attacker`() {
-        val player = login()
-        TestWorld.spawnNpc(chicken, Position(3199, 3200)).combat.target = player
-
-        fighter(player).flee()
-        TestWorld.tick()
-
-        assertFalse(player.walking.isEmpty)
-    }
-
-    @Test
-    fun `fleeing says there was somewhere to run`() {
-        val player = login()
-        TestWorld.spawnNpc(chicken, Position(3199, 3200)).combat.target = player
-
-        assertTrue(fighter(player).flee())
-    }
-
-    @Test
-    fun `fleeing stops the player's own fighting`() {
-        val player = login()
-        TestWorld.spawnNpc(chicken, Position(3199, 3200)).combat.target = player
-        player.submitAction(EndlessAction(player))
-
-        fighter(player).flee()
-        TestWorld.tick()
-
-        assertEquals(null, player.actions.first(EndlessAction::class.java))
     }
 
     @Test

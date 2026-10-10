@@ -22,7 +22,7 @@ class SavedFlows(val slots: Int) {
         if (trimmed.length !in 1..MAX_NAME) throw FlowError("A flow's name is 1 to $MAX_NAME characters")
         if (trimmed.any { it !in NAME_CHARACTERS }) throw FlowError("A flow's name is letters, digits, spaces and punctuation")
         if (state.steps.isEmpty()) throw FlowError("The flow is empty: add a step before saving it")
-        val saved = SavedFlow(slot, trimmed, state.steps)
+        val saved = SavedFlow(slot, trimmed, state.steps, state.reflexes)
         return state.copy(savedFlows = (state.savedFlows.filter { it.slot != slot } + saved).sortedBy { it.slot }, savedSlot = slot)
     }
 
@@ -30,14 +30,14 @@ class SavedFlows(val slots: Int) {
     fun load(state: IdleState, slot: Int): IdleState {
         checkSlot(slot)
         val saved = state.savedFlows.firstOrNull { it.slot == slot } ?: throw FlowError("Saved-flow slot ${slot + 1} is empty")
-        return state.withFlow(saved.steps).copy(savedSlot = slot)
+        return state.withFlow(saved.steps, saved.reflexes).copy(savedSlot = slot)
     }
 
     /** An empty current flow belonging to the empty [slot], saved there on its first save; throws [FlowError]. */
     fun startNew(state: IdleState, slot: Int): IdleState {
         checkSlot(slot)
         if (state.savedFlows.any { it.slot == slot }) throw FlowError("Saved-flow slot ${slot + 1} holds a flow")
-        return state.withFlow(emptyList()).copy(savedSlot = slot)
+        return state.withFlow(emptyList(), emptyList()).copy(savedSlot = slot)
     }
 
     /**
@@ -47,14 +47,14 @@ class SavedFlows(val slots: Int) {
     fun empty(state: IdleState, slot: Int): IdleState {
         checkSlot(slot)
         val emptied = state.copy(savedFlows = state.savedFlows.filter { it.slot != slot })
-        return if (state.savedSlot == slot) emptied.withFlow(emptyList()).copy(savedSlot = null) else emptied
+        return if (state.savedSlot == slot) emptied.withFlow(emptyList(), emptyList()).copy(savedSlot = null) else emptied
     }
 
     /** The saved flow the current flow was last loaded from or saved to, null when none holds it. */
     fun current(state: IdleState): SavedFlow? = state.savedSlot?.let { slot -> state.savedFlows.firstOrNull { it.slot == slot } }
 
     /** Whether the current flow differs from the saved flow it came from; false when it came from none. */
-    fun changedSinceSaved(state: IdleState): Boolean = current(state)?.let { it.steps != state.steps } ?: false
+    fun changedSinceSaved(state: IdleState): Boolean = current(state)?.let { !same(it, state) } ?: false
 
     /**
      * The current flow as the player sees it named: "Willows", "Willows (changed)", "new flow" in a slot it is not saved
@@ -62,8 +62,11 @@ class SavedFlows(val slots: Int) {
      */
     fun label(state: IdleState): String? {
         val saved = current(state) ?: return state.savedSlot?.let { NEW_FLOW }
-        return if (saved.steps != state.steps) "${saved.name} (changed)" else saved.name
+        return if (same(saved, state)) saved.name else "${saved.name} (changed)"
     }
+
+    /** Whether [saved] holds the current flow as it is, its steps and reflexes alike. */
+    private fun same(saved: SavedFlow, state: IdleState): Boolean = saved.steps == state.steps && saved.reflexes == state.reflexes
 
     /** The first slot holding no flow, null when every slot holds one. */
     fun firstEmpty(state: IdleState): Int? = (0 until slots).firstOrNull { slot -> state.savedFlows.none { it.slot == slot } }

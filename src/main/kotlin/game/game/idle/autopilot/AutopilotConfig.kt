@@ -11,11 +11,13 @@ data class AutopilotConfig(
     val decisionDelayTicks: Int = 2,
     val stepSlots: Int = 4,
     val savedFlowSlots: Int = 2,
+    val reflexSlots: Int = 4,
 ) {
 
     fun validated(): AutopilotConfig {
         require(decisionDelayTicks > 0) { "decision_delay_ticks must be positive, got $decisionDelayTicks" }
         require(stepSlots > 0) { "step_slots must be positive, got $stepSlots" }
+        require(reflexSlots > 0) { "reflex_slots must be positive, got $reflexSlots" }
         require(savedFlowSlots in 1..FlowWidgets.MOST_SAVED_SLOTS) {
             "saved_flow_slots must be 1 to ${FlowWidgets.MOST_SAVED_SLOTS}, got $savedFlowSlots"
         }

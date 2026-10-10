@@ -7,6 +7,7 @@ import game.idle.autopilot.cooking.CookingDecision.UseOn
 import game.idle.autopilot.cooking.CookingDecision.WalkTo
 import game.idle.autopilot.cooking.CookingDecision.WalkToLocation
 import game.idle.autopilot.PlaceCandidate
+import game.idle.flow.CountsAmount
 import game.idle.flow.StepActivity
 import io.luna.game.model.Position
 
@@ -98,7 +99,7 @@ object CookingPlanner {
  * row (used without the window opening, or walked to but still out of reach; fires burn out) is skipped for as long
  * as the step runs.
  */
-class CookingActivity(private val cooker: Cooker, private val amount: Int? = null) : StepActivity {
+class CookingActivity(private val cooker: Cooker, private val amount: Int? = null) : StepActivity, CountsAmount {
 
     private val skippedPlaces = mutableSetOf<Position>()
     private var lastDecision: CookingDecision? = null
@@ -123,10 +124,9 @@ class CookingActivity(private val cooker: Cooker, private val amount: Int? = nul
         lastDecision = decision
     }
 
-    private fun amountReached(): Boolean {
-        val start = rawAtStart ?: return false
-        return amount != null && start - cooker.raw() >= amount
-    }
+    override fun amountDone(): Int = rawAtStart?.let { it - cooker.raw() } ?: 0
+
+    private fun amountReached(): Boolean = amount != null && amountDone() >= amount
 
     private fun carryOut(decision: CookingDecision) = when (decision) {
         // A block does nothing here (the autopilot tells it); as the last arm its empty body would leave JaCoCo a branch

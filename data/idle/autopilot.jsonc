@@ -4,5 +4,7 @@
   // Steps a flow can hold and flows a player can save. Every player has these until unlocks exist (prestige,
   // construction); the builder shows the next slot as locked.
   "step_slots": 4,
-  "saved_flow_slots": 2
+  "saved_flow_slots": 2,
+  // Reflexes a flow can hold ("when hitpoints fall below 50%, eat"), the next one shown locked like a step slot.
+  "reflex_slots": 4
 }

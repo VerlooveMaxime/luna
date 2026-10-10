@@ -238,4 +238,20 @@ class WoodcuttingActivityTest {
 
         assertEquals(BlockedReason.NO_TREE.message, activity.blocked())
     }
+
+    @Test
+    fun `before its first act the step has done nothing`() {
+        assertEquals(0, WoodcuttingActivity(woodcutter, anyTree).amountDone())
+    }
+
+    @Test
+    fun `its amount done is the logs cut since the step began`() {
+        val counting = WoodcuttingActivity(woodcutter, anyTree)
+        woodcutter.logs = 3
+        woodcutter.view = view(listOf(nearTreeInReach))
+        counting.act()
+        woodcutter.logs = 5
+
+        assertEquals(2, counting.amountDone())
+    }
 }

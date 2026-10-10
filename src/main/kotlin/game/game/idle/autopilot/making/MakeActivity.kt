@@ -4,6 +4,7 @@ import game.idle.autopilot.making.MakeDecision.Blocked
 import game.idle.autopilot.making.MakeDecision.Choose
 import game.idle.autopilot.making.MakeDecision.Done
 import game.idle.autopilot.making.MakeDecision.Use
+import game.idle.flow.CountsAmount
 import game.idle.flow.StepActivity
 
 /** What the make step can see and do for one player. [LunaMaker] is the in-game one. */
@@ -74,7 +75,7 @@ object MakePlanner {
  * out. Making that reaches the amount is stopped at once. Combining twice in a row with nothing made and no window in
  * between means it cannot be made, and the step blocks instead of trying forever.
  */
-class MakeActivity(private val maker: Maker, private val recipe: Recipe, private val amount: Int? = null) : StepActivity {
+class MakeActivity(private val maker: Maker, private val recipe: Recipe, private val amount: Int? = null) : StepActivity, CountsAmount {
 
     private var productsAtStart: Int? = null
     private var productsAtLastUse = 0
@@ -97,10 +98,9 @@ class MakeActivity(private val maker: Maker, private val recipe: Recipe, private
         lastDecision = carryOut(MakePlanner.decide(maker.look(), madeSome = maker.products() > start), start)
     }
 
-    private fun amountReached(): Boolean {
-        val start = productsAtStart ?: return false
-        return amount != null && maker.products() - start >= amount
-    }
+    override fun amountDone(): Int = productsAtStart?.let { maker.products() - it } ?: 0
+
+    private fun amountReached(): Boolean = amount != null && amountDone() >= amount
 
     /** What was done: a second fruitless use blocks instead. */
     private fun carryOut(decision: MakeDecision, start: Int): MakeDecision = when (decision) {

@@ -192,4 +192,20 @@ class CookingActivityTest {
 
         assertEquals(listOf("walk to 3100,3095", "use 2 on 3100,3095"), cooker.steps)
     }
+
+    @Test
+    fun `before its first act the step has done nothing`() {
+        assertEquals(0, CookingActivity(cooker).amountDone())
+    }
+
+    @Test
+    fun `its amount done is the raw food used since the step began`() {
+        val counting = CookingActivity(cooker)
+        cooker.raw = 3
+        cooker.view = view(windowOpen = true)
+        counting.act()
+        cooker.raw = 1
+
+        assertEquals(2, counting.amountDone())
+    }
 }

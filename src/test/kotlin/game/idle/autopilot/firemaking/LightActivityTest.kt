@@ -140,4 +140,18 @@ class LightActivityTest {
 
         assertTrue(activity.isBusy())
     }
+
+    @Test
+    fun `before its first act the step has done nothing`() {
+        assertEquals(0, LightActivity(lighter).amountDone())
+    }
+
+    @Test
+    fun `its amount done is the logs used since the step began`() {
+        val counting = LightActivity(lighter)
+        counting.act()
+        lighter.view = ready.copy(logs = 1)
+
+        assertEquals(2, counting.amountDone())
+    }
 }

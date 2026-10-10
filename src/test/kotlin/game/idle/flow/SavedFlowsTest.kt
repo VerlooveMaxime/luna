@@ -16,6 +16,7 @@ class SavedFlowsTest {
     private val chopFlow = listOf(step("chop", "oak"), step("drop"))
     private val fishFlow = listOf(step("fish"))
     private val current = IdleState(steps = chopFlow)
+    private val eat = listOf(ReflexSettings(1, mapOf("below" to "40")))
 
     @Test
     fun `saving copies the current flow into the slot under its name`() {
@@ -217,5 +218,39 @@ class SavedFlowsTest {
 
     private fun assertRejected(message: String, action: () -> Unit) {
         assertEquals(message, assertThrows<FlowError> { action() }.message)
+    }
+
+    @Test
+    fun `saving keeps the flow's reflexes with its steps`() {
+        val state = saved.save(current.copy(reflexes = eat), slot = 1, name = "Cows")
+
+        assertEquals(listOf(SavedFlow(1, "Cows", chopFlow, eat)), state.savedFlows)
+    }
+
+    @Test
+    fun `loading takes the saved flow's reflexes`() {
+        val before = current.copy(reflexes = emptyList(), savedFlows = listOf(SavedFlow(0, "Cows", fishFlow, eat)))
+
+        assertEquals(eat, saved.load(before, slot = 0).reflexes)
+    }
+
+    @Test
+    fun `a new flow has no reflexes`() {
+        assertEquals(emptyList<ReflexSettings>(), saved.startNew(current.copy(reflexes = eat), slot = 1).reflexes)
+    }
+
+    @Test
+    fun `emptying the current flow's slot empties its reflexes`() {
+        val before = current.copy(reflexes = eat, savedFlows = listOf(SavedFlow(1, "Cows", chopFlow, eat)), savedSlot = 1)
+
+        assertEquals(emptyList<ReflexSettings>(), saved.empty(before, slot = 1).reflexes)
+    }
+
+    @Test
+    fun `a flow whose reflexes changed since it was saved has changed`() {
+        val state = saved.save(current, slot = 0, name = "Cows").copy(reflexes = eat)
+
+        assertTrue(saved.changedSinceSaved(state))
+        assertEquals("Cows (changed)", saved.label(state))
     }
 }

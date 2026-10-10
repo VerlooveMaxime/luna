@@ -12,8 +12,10 @@ object StepItems {
     /** A list holds at most a bag's worth of items. */
     const val MOST = 28
 
-    fun read(settings: StepSettings, key: String): List<StepItem> =
-        settings[key].orEmpty().split(",").mapNotNull(::item).distinctBy { it.id }
+    fun read(settings: StepSettings, key: String): List<StepItem> = parse(settings[key])
+
+    /** The items [text] holds, none for null. */
+    fun parse(text: String?): List<StepItem> = text.orEmpty().split(",").mapNotNull(::item).distinctBy { it.id }
 
     fun ids(settings: StepSettings, key: String): List<Int> = read(settings, key).map { it.id }
 

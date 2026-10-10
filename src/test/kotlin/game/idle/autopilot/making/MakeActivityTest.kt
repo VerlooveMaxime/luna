@@ -165,4 +165,18 @@ class MakeActivityTest {
         assertTrue(MakeActivity(maker, dough, amount = 1).isBusy())
         assertFalse(MakeActivity(FakeMaker(ingredients), dough).isBusy())
     }
+
+    @Test
+    fun `before its first act the step has done nothing`() {
+        assertEquals(0, MakeActivity(maker, dough).amountDone())
+    }
+
+    @Test
+    fun `its amount done is the products made since the step began`() {
+        val counting = MakeActivity(maker, dough)
+        counting.act()
+        maker.products = 2
+
+        assertEquals(2, counting.amountDone())
+    }
 }

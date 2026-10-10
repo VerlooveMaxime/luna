@@ -9,7 +9,10 @@ import game.idle.autopilot.FakeAutopilotPlayer
 import game.idle.autopilot.FakeTickScheduler
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowContext
+import game.idle.flow.FlowIds
 import game.idle.flow.FlowResolver
+import game.idle.flow.ReflexResolver
+import game.idle.flow.ReflexSettings
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepSettings
 import game.idle.flow.option.FakeNames
@@ -24,13 +27,16 @@ import org.junit.jupiter.api.Test
 class BuilderScreenTest {
 
     private val autopilot = Autopilot<FakeAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
-    private val screen = BuilderScreen(autopilot, FlowResolver(CONFIGURED_TYPES), FakeNames(), slots = 3, SavedFlows(2))
+    private val screen = BuilderScreen(autopilot, FlowResolver(CONFIGURED_TYPES), ReflexResolver(emptySet()), FakeNames(), slots = 3, SavedFlows(2))
 
     private val chop = step("chop", "oak")
     private val drop = step("drop")
     private val walk = step("walk")
 
     private fun player(vararg steps: StepSettings) = FakeAutopilotPlayer("maxime", IdleState(steps = steps.toList()))
+
+    /** [steps] as a save through the builder keeps them, each given an id. */
+    private fun numbered(vararg steps: StepSettings) = FlowIds.steps(steps.toList())
 
     private fun running(): FakeAutopilotPlayer = player(chop, drop).also { autopilot.start(it) }
 
@@ -79,6 +85,14 @@ class BuilderScreenTest {
     }
 
     @Test
+    fun `run refuses a reflex that cannot work, pointing at its row`() {
+        val player = player(chop).apply { idleState = idleState.copy(reflexes = listOf(ReflexSettings(1), ReflexSettings(2, mapOf("below" to "0")))) }
+
+        assertEquals(say("reflex 2 cannot work yet. See its row in the builder."), click(player, BuilderWidgets.RUN))
+        assertFalse(autopilot.isRunning(player))
+    }
+
+    @Test
     fun `stop stops the flow`() {
         val player = running()
 
@@ -92,6 +106,22 @@ class BuilderScreenTest {
 
         assertEquals(say("flow cleared."), click(player, BuilderWidgets.CLEAR))
         assertEquals(listOf<Any>(), player.idleState.steps)
+    }
+
+    @Test
+    fun `clear empties the reflexes too, a cleared flow being a new one`() {
+        val player = player(chop).apply { idleState = idleState.copy(reflexes = listOf(ReflexSettings(1))) }
+
+        click(player, BuilderWidgets.CLEAR)
+
+        assertEquals(listOf<Any>(), player.idleState.reflexes)
+    }
+
+    @Test
+    fun `a flow of reflexes alone is cleared`() {
+        val player = player().apply { idleState = idleState.copy(reflexes = listOf(ReflexSettings(1))) }
+
+        assertEquals(say("flow cleared."), click(player, BuilderWidgets.CLEAR))
     }
 
     @Test
@@ -212,7 +242,7 @@ class BuilderScreenTest {
         val answer = click(player, BuilderWidgets.SAVE, choppingDraft.with("word", "willow"))
 
         assertEquals(BuilderAnswer.Show(BuilderPage.OVERVIEW, "Autopilot: step 1 saved."), answer)
-        assertEquals(listOf(step("chop", "willow"), drop), player.idleState.steps)
+        assertEquals(numbered(step("chop", "willow"), drop), player.idleState.steps)
     }
 
     @Test
@@ -221,7 +251,16 @@ class BuilderScreenTest {
 
         click(player, BuilderWidgets.SAVE, StepDraft(1, drop, new = true))
 
-        assertEquals(listOf(chop, drop), player.idleState.steps)
+        assertEquals(numbered(chop, drop), player.idleState.steps)
+    }
+
+    @Test
+    fun `a new step gets the id after the highest of the flow`() {
+        val player = player(chop.copy(id = 4))
+
+        click(player, BuilderWidgets.SAVE, StepDraft(1, drop, new = true))
+
+        assertEquals(listOf(4, 5), player.idleState.steps.map { it.id })
     }
 
     @Test
@@ -230,7 +269,7 @@ class BuilderScreenTest {
 
         click(player, BuilderWidgets.SAVE, StepDraft(1, step("drop", "bad"), new = true))
 
-        assertEquals(listOf(chop, step("drop", "bad")), player.idleState.steps)
+        assertEquals(numbered(chop, step("drop", "bad")), player.idleState.steps)
     }
 
     @Test
@@ -238,7 +277,7 @@ class BuilderScreenTest {
         val player = player(chop)
 
         assertEquals(BuilderAnswer.Show(BuilderPage.OVERVIEW, "Autopilot: step 2 saved."), click(player, BuilderWidgets.SAVE, StepDraft(4, drop, new = false)))
-        assertEquals(listOf(chop, drop), player.idleState.steps)
+        assertEquals(numbered(chop, drop), player.idleState.steps)
     }
 
     @Test

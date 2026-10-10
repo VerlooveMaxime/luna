@@ -5,6 +5,7 @@ import game.idle.autopilot.woodcutting.WoodcuttingDecision.Chop
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.OnTree
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkTo
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkToLocation
+import game.idle.flow.CountsAmount
 import game.idle.flow.StepActivity
 import io.luna.game.model.Position
 
@@ -40,7 +41,7 @@ class WoodcuttingActivity(
     private val woodcutter: Woodcutter,
     private val action: ChopAction,
     private val amount: Int? = null,
-) : StepActivity {
+) : StepActivity, CountsAmount {
 
     private val skippedTrees = mutableSetOf<Position>()
     private var lastDecision: WoodcuttingDecision? = null
@@ -71,10 +72,9 @@ class WoodcuttingActivity(
         lastDecision = decision
     }
 
-    private fun amountReached(): Boolean {
-        val start = logsAtStart ?: return false
-        return amount != null && woodcutter.logs() - start >= amount
-    }
+    override fun amountDone(): Int = logsAtStart?.let { woodcutter.logs() - it } ?: 0
+
+    private fun amountReached(): Boolean = amount != null && amountDone() >= amount
 
     private fun carryOut(decision: WoodcuttingDecision) = when (decision) {
         // A block does nothing here (the autopilot tells it); as the last arm its empty body would leave JaCoCo a branch

@@ -235,4 +235,18 @@ class SmithingActivityTest {
 
         assertTrue(SmithingActivity(smither, level = 1, amount = 1).isBusy())
     }
+
+    @Test
+    fun `before its first act the step has done nothing`() {
+        assertEquals(0, SmithingActivity(smither, level = 1).amountDone())
+    }
+
+    @Test
+    fun `its amount done is the items smithed since the step began`() {
+        val counting = SmithingActivity(smither, level = 1)
+        counting.act()
+        smither.made = 2
+
+        assertEquals(2, counting.amountDone())
+    }
 }

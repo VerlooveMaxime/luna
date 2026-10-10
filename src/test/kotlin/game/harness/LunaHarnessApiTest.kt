@@ -4,6 +4,8 @@ import game.idle.IdleState
 import game.idle.flow.FakeStepType
 import game.idle.flow.FlowCheck
 import game.idle.flow.FlowResolver
+import game.idle.flow.ReflexResolver
+import game.idle.flow.ReflexSettings
 import game.idle.flow.StepTypes
 import game.idle.idleState
 import game.testworld.TestWorld
@@ -61,7 +63,7 @@ class LunaHarnessApiTest {
         override fun run(): Boolean = false
     }
 
-    private val flows = FlowCheck(FlowResolver(StepTypes(listOf(FakeStepType("chop"), FakeStepType("drop")))), maxSteps = 2)
+    private val flows = FlowCheck(FlowResolver(StepTypes(listOf(FakeStepType("chop"), FakeStepType("drop")))), ReflexResolver(setOf(333)), maxSteps = 2, maxReflexes = 2)
 
     private fun api() = LunaHarnessApi(
         TestWorld.world,
@@ -841,13 +843,15 @@ class LunaHarnessApiTest {
     }
 
     @Test
-    fun `a player's flow reads as its steps, each with how it reads`() {
-        agent().idleState = IdleState(steps = listOf(step("chop", "oak"), step("drop")), stepIndex = 1)
+    fun `a player's flow reads as its steps, each with how it reads, and its reflexes`() {
+        val chop = step("chop", "oak").copy(id = 1, reflexes = listOf(3))
+        val reflex = ReflexSettings(3, mapOf("do" to "run"))
+        agent().idleState = IdleState(steps = listOf(chop, step("drop").copy(id = 2)), reflexes = listOf(reflex), stepIndex = 1)
 
         val view = api().flow("agent_a")
 
-        val steps = listOf(FlowStepView("chop", mapOf("word" to "oak"), "chop oak"), FlowStepView("drop", emptyMap(), "drop"))
-        assertEquals(FlowView("agent_a", running = false, stepIndex = 1, steps = steps), view)
+        val steps = listOf(FlowStepView(1, "chop", mapOf("word" to "oak"), listOf(3), "chop oak"), FlowStepView(2, "drop", emptyMap(), emptyList(), "drop"))
+        assertEquals(FlowView("agent_a", running = false, stepIndex = 1, steps = steps, reflexes = listOf(FlowReflexView(3, mapOf("do" to "run")))), view)
     }
 
     @Test
@@ -855,24 +859,46 @@ class LunaHarnessApiTest {
         val player = agent()
         player.idleState = IdleState(steps = listOf(step("drop")), stepIndex = 1, laps = 3, stage = 2)
 
-        val view = api().replaceFlow("agent_a", listOf(step("chop", "oak"), step("drop")))
+        val view = api().replaceFlow("agent_a", listOf(step("chop", "oak").copy(id = 1), step("drop").copy(id = 2)), emptyList())
 
-        assertEquals(IdleState(steps = listOf(step("chop", "oak"), step("drop")), stage = 2), player.idleState)
+        assertEquals(IdleState(steps = listOf(step("chop", "oak").copy(id = 1), step("drop").copy(id = 2)), stage = 2), player.idleState)
         assertEquals(listOf("chop oak", "drop"), view.steps.map { it.summary })
+    }
+
+    @Test
+    fun `replacing a flow gives its steps and reflexes without an id one`() {
+        val player = agent()
+        val fight = step("chop").copy(reflexes = listOf(1))
+
+        api().replaceFlow("agent_a", listOf(fight, step("drop").copy(id = 1)), listOf(ReflexSettings()))
+
+        assertEquals(listOf(2, 1), player.idleState.steps.map { it.id })
+        assertEquals(listOf(1), player.idleState.reflexes.map { it.id })
+    }
+
+    @Test
+    fun `a flow with a reflex the builder would refuse is a 400 with the reason`() {
+        agent()
+
+        val thrown = assertThrows<HarnessException> {
+            api().replaceFlow("agent_a", listOf(step("drop")), listOf(ReflexSettings(1, mapOf("do" to "pray"))))
+        }
+
+        assertEquals(400 to "Reflex 1: 'pray' is not something a reflex does", thrown.status to thrown.message)
     }
 
     @Test
     fun `a running flow is not replaced`() {
         agent().idleState = IdleState(steps = listOf(step("drop")), running = true)
 
-        assertEquals(409, status { api().replaceFlow("agent_a", emptyList()) })
+        assertEquals(409, status { api().replaceFlow("agent_a", emptyList(), emptyList()) })
     }
 
     @Test
     fun `a flow the builder would refuse is a 400 with the reason`() {
         val player = agent()
 
-        val thrown = assertThrows<HarnessException> { api().replaceFlow("agent_a", listOf(step("chop", "bad"))) }
+        val thrown = assertThrows<HarnessException> { api().replaceFlow("agent_a", listOf(step("chop", "bad")), emptyList()) }
 
         assertEquals(400 to "Step 1: 'bad' is refused", thrown.status to thrown.message)
         assertEquals(IdleState(), player.idleState)
@@ -882,7 +908,7 @@ class LunaHarnessApiTest {
     fun `a bot has no flow to replace`() {
         TestWorld.bot("botty", spawn)
 
-        assertEquals(409, status { api().replaceFlow("botty", emptyList()) })
+        assertEquals(409, status { api().replaceFlow("botty", emptyList(), emptyList()) })
     }
 
     @Test

@@ -4,12 +4,31 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class FlowRunnerTest {
 
     private val player = FakeFlowPlayer()
+    private val body = player.body
+    private val low = Health(4, 20)
 
-    private fun runner(vararg names: String, startAt: Int = 0) = FlowRunner(names.map { FakeStep(it) }, startAt, player)
+    private fun runner(vararg names: String, startAt: Int = 0) = FlowRunner(ResolvedFlow(names.map { FakeStep(it) }), startAt, player)
+
+    /** A flow of [names] whose first step has a reflex that runs away, then jumps to the step at [to]. */
+    private fun jumping(vararg names: String, to: Int): FlowRunner {
+        val runAway = ResolvedReflex(1, ReflexTrigger.HitpointsBelow(50), ReflexAction.RunAway(ReflexThen.JumpTo(to)))
+        val steps = names.map { FakeStep(it) }
+        return FlowRunner(ResolvedFlow(steps, listOf(listOf(runAway)) + steps.drop(1).map { emptyList() }), 0, player)
+    }
+
+    /** The first step's reflex fires on the next act. */
+    private fun hurt() {
+        body.health = low
+    }
+
+    private fun healed() {
+        body.health = Health(20, 20)
+    }
 
     @Test
     fun `the first act starts the first step and acts on it`() {
@@ -184,5 +203,158 @@ class FlowRunnerTest {
 
         assertFalse(runner.isBusy())
         assertEquals(emptyList<String>(), player.log)
+    }
+
+    @Test
+    fun `a step's reflexes guard it`() {
+        val runner = jumping("fight", "bank", to = 1)
+        hurt()
+
+        runner.act()
+
+        assertEquals(emptyList<String>(), player.log)
+    }
+
+    @Test
+    fun `a step without reflexes acts at any hitpoints`() {
+        val runner = runner("fight")
+        hurt()
+
+        runner.act()
+
+        assertEquals(listOf("fight:1"), player.log)
+    }
+
+    @Test
+    fun `a reflex's jump goes on from the step it names`() {
+        val runner = jumping("fight", "walk", "bank", to = 2)
+        hurt()
+        runner.act()
+
+        runner.act()
+
+        assertEquals(listOf("bank:1"), player.log)
+        assertEquals(listOf(2), player.savedSteps)
+    }
+
+    @Test
+    fun `a jump says why`() {
+        hurt()
+
+        jumping("fight", "bank", to = 1).act()
+
+        assertEquals(listOf("Autopilot: reflex 1 ran at 4/20 hitpoints, jumping to step 2."), player.told)
+    }
+
+    @Test
+    fun `a jump back to the first step counts no lap`() {
+        val runner = jumping("fight", "bank", to = 0)
+        hurt()
+
+        runner.act()
+
+        assertEquals(0, player.laps)
+        assertEquals(listOf(0), player.savedSteps)
+    }
+
+    @Test
+    fun `a step cut short again before it made progress stops the flow`() {
+        val runner = jumping("fight", "bank", to = 1)
+        hurt()
+        runner.act()
+        runner.act()
+        player.started[1].done = true
+        runner.act()
+
+        runner.act()
+
+        assertEquals("Autopilot: stopped, step 1 was cut short again before it made progress.", runner.stopReason())
+    }
+
+    @Test
+    fun `a step cut short again stops the flow without jumping`() {
+        val runner = jumping("fight", "bank", to = 1)
+        hurt()
+        runner.act()
+        runner.act()
+        player.started[1].done = true
+        runner.act()
+
+        runner.act()
+
+        assertEquals(listOf(1, 0), player.savedSteps)
+        assertEquals(1, player.told.size)
+    }
+
+    @Test
+    fun `a step that made progress before it was cut short again goes on`() {
+        val runner = jumping("fight", "bank", to = 1)
+        hurt()
+        runner.act()
+        runner.act()
+        player.started[1].done = true
+        runner.act()
+        healed()
+        runner.act()
+        player.started[2].amountDone = 1
+        hurt()
+
+        runner.act()
+
+        assertEquals(null, runner.stopReason())
+        assertEquals(listOf(1, 0, 1), player.savedSteps)
+    }
+
+    @Test
+    fun `a step that ended by itself since it was cut short starts afresh`() {
+        val runner = jumping("fight", "bank", to = 1)
+        hurt()
+        runner.act()
+        runner.act()
+        player.started[1].done = true
+        runner.act()
+        healed()
+        runner.act()
+        player.started[2].done = true
+        runner.act()
+        runner.act()
+        player.started[3].done = true
+        runner.act()
+        hurt()
+
+        runner.act()
+
+        assertEquals(null, runner.stopReason())
+    }
+
+    @Test
+    fun `a reflex that stops the flow stops it`() {
+        val stop = ResolvedReflex(2, ReflexTrigger.HitpointsBelow(50), ReflexAction.RunAway(ReflexThen.StopFlow))
+        val runner = FlowRunner(ResolvedFlow(listOf(FakeStep("fight")), listOf(listOf(stop))), 0, player)
+        hurt()
+
+        runner.act()
+
+        assertEquals("Autopilot: stopped by reflex 2 at 4/20 hitpoints.", runner.stopReason())
+    }
+
+    @Test
+    fun `the player's death stops the flow`() {
+        val runner = runner("fight")
+        runner.act()
+
+        body.dead = true
+
+        assertEquals(FlowRunner.DIED, runner.stopReason())
+    }
+
+    @Test
+    fun `a flow resolved without reflexes has none for each step`() {
+        assertEquals(listOf(emptyList<ResolvedReflex>()), ResolvedFlow(listOf(FakeStep("chop"))).reflexes)
+    }
+
+    @Test
+    fun `a flow resolved with reflexes for some steps only is refused`() {
+        assertThrows<IllegalArgumentException> { ResolvedFlow(listOf(FakeStep("chop"), FakeStep("drop")), listOf(emptyList())) }
     }
 }

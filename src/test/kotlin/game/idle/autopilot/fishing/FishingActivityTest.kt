@@ -247,4 +247,19 @@ class FishingActivityTest {
 
         assertEquals(listOf("walk to 3100,3092", "fish 3100,3092"), fisher.steps)
     }
+
+    @Test
+    fun `before its first act the step has done nothing`() {
+        assertEquals(0, FishingActivity(fisher).amountDone())
+    }
+
+    @Test
+    fun `its amount done is the fish caught since the step began`() {
+        val counting = FishingActivity(fisher)
+        fisher.view = view(listOf(inReach))
+        counting.act()
+        fisher.catches = 1
+
+        assertEquals(1, counting.amountDone())
+    }
 }

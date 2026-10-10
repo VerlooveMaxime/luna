@@ -7,23 +7,28 @@ import game.idle.flow.option.OptionFacts
 /**
  * The configure screen's warnings that never stop a flow (S07b): a tool or bait a step needs that the player neither
  * carries nor has a bank step withdraw, and an input a step takes from the bank that no bank step withdraws. Bank steps
- * anywhere in the flow count, since it loops (Maxime, 2026-10-10). Items are named with [names].
+ * anywhere in the flow count, since it loops (Maxime, 2026-10-10). A step that fights with no reflex attached that eats
+ * or runs warns too (S07c). Items are named with [names].
  */
 class StepWarnings(private val resolver: FlowResolver, private val names: GameNames) {
 
     /**
      * The warnings for the step at [index] of [steps], none when it does not resolve (its reason shows instead); [facts]
-     * say what the player carries and wears. A step that can work several ways is warned about the first way, unless
-     * one of them needs no warning.
+     * say what the player carries and wears, [reflexes] are the flow's. A step that can work several ways is warned about
+     * the first way, unless one of them needs no warning.
      */
-    fun of(steps: List<StepSettings>, index: Int, facts: OptionFacts): List<String> {
+    fun of(steps: List<StepSettings>, index: Int, facts: OptionFacts, reflexes: List<ReflexSettings>): List<String> {
         val resolved = resolver.resolvedEach(steps)
         val step = resolved.getOrNull(index) ?: return emptyList()
         val banking = resolved.withIndex().mapNotNull { (at, other) -> (other as? BankMoves)?.let { Banking(at + 1, it) } }
         val fromBank = resolver.types.input(steps[index], resolver.contextBefore(steps, index)) == InputSource.BANK
         val ways = step.needs().map { way -> warnings(way, banking, facts, fromBank) }
-        return if (ways.any { it.isEmpty() }) emptyList() else ways.firstOrNull().orEmpty()
+        val needs = if (ways.any { it.isEmpty() }) emptyList() else ways.firstOrNull().orEmpty()
+        return needs + listOfNotNull(NO_SURVIVAL.takeIf { step is Fights && !survives(steps[index], reflexes) })
     }
+
+    /** Whether a reflex attached to [step] eats or runs: every reflex S07c builds does one or the other. */
+    private fun survives(step: StepSettings, reflexes: List<ReflexSettings>): Boolean = reflexes.any { it.id in step.reflexes }
 
     private fun warnings(needs: StepNeeds, banking: List<Banking>, facts: OptionFacts, fromBank: Boolean): List<String> {
         val inputs = needs.inputs.filter { fromBank && banking.none { bank -> it in bank.moves.withdraws } }
@@ -48,4 +53,8 @@ class StepWarnings(private val resolver: FlowResolver, private val names: GameNa
 
     /** A bank step of the flow and its [number] there (from 1). */
     private data class Banking(val number: Int, val moves: BankMoves)
+
+    companion object {
+        const val NO_SURVIVAL = "No reflex eats or runs during this step."
+    }
 }
