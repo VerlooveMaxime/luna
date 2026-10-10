@@ -13,8 +13,14 @@ interface ReflexBody {
     /** Whether anything that can get at the player attacks them. */
     fun underAttack(): Boolean
 
-    /** Runs from what attacks the player; false when there is nowhere to run. */
-    fun flee(): Boolean
+    /**
+     * Runs from what attacks the player, running while run energy lasts (Maxime, 2026-10-10); stays put when no tile
+     * gets farther from them.
+     */
+    fun flee()
+
+    /** The flight is over: running goes back to the player's own run toggle. */
+    fun calm()
 
     fun dead(): Boolean
 }
@@ -40,8 +46,8 @@ sealed interface ReflexOutcome {
  * The running [step]'s activity with the [reflexes] attached to it, in its order (S07c). At each decision the first
  * reflex whose When holds and whose Do can be done fires, else the step acts as usual; the step is not busy while one
  * would fire, so the driver decides after its pause, mid-fight included. Eating leaves the step going, as a 2006 player's
- * meal did. Running away owns the step until nothing attacks the player or there is nowhere to run, then its Then: the
- * flow stops or jumps (Maxime, 2026-10-10).
+ * meal did. Running away owns the step until nothing attacks the player, cornered or not, then its Then: the flow
+ * stops or jumps (Maxime, 2026-10-10: never while attacked).
  */
 class ReflexGuard(private val step: StepActivity, private val reflexes: List<ResolvedReflex>, private val body: ReflexBody) : StepActivity {
 
@@ -76,8 +82,12 @@ class ReflexGuard(private val step: StepActivity, private val reflexes: List<Res
     private fun runAway(run: Firing.RunAway) {
         val started = running ?: Running(run, body.health())
         running = started
-        if (body.underAttack() && body.flee()) return
+        if (body.underAttack()) {
+            body.flee()
+            return
+        }
         running = null
+        body.calm()
         outcome = then(run, started.health)
     }
 

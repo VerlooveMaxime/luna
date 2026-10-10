@@ -60,6 +60,16 @@ class FleePlannerTest {
     }
 
     @Test
+    fun `cornered, the run goes past the attacker to open ground`() {
+        // A corridor running west from the player, walled on every other side; the attacker stands in it, next to them.
+        val corridor = (3190..3200).map { Position(it, 3200) }.toSet()
+        val around = TileBounds.around(here, FleePlanner.MAX_STEPS)
+        val walls = (around.minX..around.maxX).flatMap { x -> (around.minY..around.maxY).map { y -> Position(x, y) } }.toSet() - corridor
+
+        assertEquals(Position(3190, 3200), FleePlanner.pick(here, listOf(Position(3199, 3200)), terrain(walls)))
+    }
+
+    @Test
     fun `boxed in there is nowhere to run`() {
         val box = Direction.ALL_EXCEPT_NONE.map { here.translate(1, it) }.toSet()
 

@@ -141,7 +141,6 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
 
     val bag = mutableMapOf<Int, Int>()
     var attacked = false
-    var canFlee = true
     var dead = false
     val done = mutableListOf<String>()
 
@@ -156,9 +155,12 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
 
     override fun underAttack(): Boolean = attacked
 
-    override fun flee(): Boolean {
+    override fun flee() {
         done += "flee"
-        return canFlee
+    }
+
+    override fun calm() {
+        done += "calm"
     }
 
     override fun dead(): Boolean = dead

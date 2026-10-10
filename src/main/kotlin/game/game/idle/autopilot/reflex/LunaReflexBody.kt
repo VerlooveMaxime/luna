@@ -1,5 +1,8 @@
 package game.idle.autopilot.reflex
 
+import api.attr.Attr
+import api.attr.getValue
+import api.attr.setValue
 import game.idle.autopilot.LunaClicks
 import game.idle.flow.Health
 import game.idle.flow.ReflexBody
@@ -12,6 +15,9 @@ import io.luna.game.model.Position
 import io.luna.game.model.mob.Npc
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
+
+/** The player's run toggle as it was before a flight turned running on, while the flight goes on; never saved. */
+private var Player.runToggleBeforeFlight by Attr.nullableObj(Boolean::class)
 
 /**
  * [ReflexBody] for a logged-in player. A meal goes through the same event as the client's click, so Luna's eating runs
@@ -41,14 +47,25 @@ class LunaReflexBody(private val player: Player) : ReflexBody {
 
     /**
      * The walk is found on the game thread, not another, so the player is on the move from the next tick and does not
-     * turn to fight back; the reflex runs again at each decision until nothing attacks.
+     * turn to fight back; the reflex runs again at each decision until nothing attacks. Running is turned on once, at
+     * the flight's start and only with energy left (Maxime, 2026-10-10: no loop of turning it on); once Luna turns it
+     * off, the energy gone, the flight walks.
      */
-    override fun flee(): Boolean {
-        val tile = FleePlanner.pick(player.position, threats().map { it.position }, ::canStep) ?: return false
+    override fun flee() {
+        val tile = FleePlanner.pick(player.position, threats().map { it.position }, ::canStep) ?: return
+        if (player.runToggleBeforeFlight == null) {
+            player.runToggleBeforeFlight = player.isRunning
+            if (player.runEnergy > 0.0) player.isRunning = true
+        }
         player.actions.interruptWeak()
         player.overlays.closeWindows(false)
         player.navigator.navigate(tile, false)
-        return true
+    }
+
+    override fun calm() {
+        val before = player.runToggleBeforeFlight ?: return
+        player.isRunning = before
+        player.runToggleBeforeFlight = null
     }
 
     override fun dead(): Boolean = player.health == 0

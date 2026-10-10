@@ -138,8 +138,13 @@ class LunaReflexBodyTest {
     }
 
     @Test
-    fun `with nothing attacking there is nowhere to run`() {
-        assertFalse(LunaReflexBody(login()).flee())
+    fun `with nothing attacking the player stays put and keeps their run toggle`() {
+        val player = login()
+
+        LunaReflexBody(player).flee()
+        TestWorld.tick()
+
+        assertEquals(listOf(true, false), listOf(player.walking.isEmpty, player.isRunning))
     }
 
     @Test
@@ -154,11 +159,56 @@ class LunaReflexBodyTest {
     }
 
     @Test
-    fun `fleeing says there was somewhere to run`() {
+    fun `fleeing runs, the run toggle on`() {
         val player = login()
         attackedBy(player, Position(3199, 3200))
 
-        assertTrue(LunaReflexBody(player).flee())
+        LunaReflexBody(player).flee()
+
+        assertTrue(player.isRunning)
+    }
+
+    @Test
+    fun `with no run energy the flight walks, the run toggle left alone`() {
+        val player = login().apply { setRunEnergy(0.0, true) }
+        attackedBy(player, Position(3199, 3200))
+
+        LunaReflexBody(player).flee()
+
+        assertFalse(player.isRunning)
+    }
+
+    @Test
+    fun `running is turned on once a flight, so a flight out of energy walks on`() {
+        val player = login()
+        attackedBy(player, Position(3199, 3200))
+        LunaReflexBody(player).flee()
+        player.isRunning = false
+
+        LunaReflexBody(player).flee()
+
+        assertFalse(player.isRunning)
+    }
+
+    @Test
+    fun `once calm the run toggle is back as it was before the flight`() {
+        val player = login()
+        attackedBy(player, Position(3199, 3200))
+        LunaReflexBody(player).flee()
+        LunaReflexBody(player).flee()
+
+        LunaReflexBody(player).calm()
+
+        assertFalse(player.isRunning)
+    }
+
+    @Test
+    fun `calm without a flight leaves the run toggle alone`() {
+        val player = login().apply { isRunning = true }
+
+        LunaReflexBody(player).calm()
+
+        assertTrue(player.isRunning)
     }
 
     @Test

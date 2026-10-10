@@ -36,8 +36,12 @@ class LunaAutopilotPlayer(val player: Player, private val ui: IdleUi) : Autopilo
         player.sendMessage(message)
     }
 
-    /** Every walk of the autopilot goes through Luna's navigator, and a walk the player clicks never does. */
+    /**
+     * Every walk of the autopilot goes through Luna's navigator, and a walk the player clicks never does; a flight's
+     * running ends with it.
+     */
     override fun endWalk() {
+        body.calm()
         if (player.navigator.isActive) {
             player.navigator.cancel()
             player.walking.clear()

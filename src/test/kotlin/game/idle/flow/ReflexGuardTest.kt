@@ -174,20 +174,21 @@ class ReflexGuardTest {
 
         guard.act()
 
-        assertEquals(emptyList<String>(), body.done)
+        assertEquals(listOf("calm"), body.done)
         assertEquals("Autopilot: stopped by reflex 2 at 9/20 hitpoints.", guard.stopReason())
     }
 
     @Test
-    fun `with nowhere to run a run goes straight to its then`() {
+    fun `a run that ends puts the player's running back before its then`() {
         val guard = guard(runAway())
         body.attacked = true
-        body.canFlee = false
         hurt()
+        guard.act()
+        body.attacked = false
 
         guard.act()
 
-        assertEquals("Autopilot: stopped by reflex 2 at 9/20 hitpoints.", guard.stopReason())
+        assertEquals(listOf("flee", "calm"), body.done)
     }
 
     @Test

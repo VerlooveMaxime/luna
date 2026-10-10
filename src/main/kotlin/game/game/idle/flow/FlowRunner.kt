@@ -36,7 +36,8 @@ data class ResolvedFlow(val steps: List<ResolvedStep>, val reflexes: List<List<R
  * Runs a flow step by step: each tick the current step's activity, guarded by its reflexes, acts until it says it is
  * done, then the next one starts, and after the last step the first one again, which counts as a lap. A reflex's jump
  * goes on from the step it names and never counts a lap (Maxime, 2026-10-10); a step cut short by a jump and cut short
- * again on its next turn before it made progress stops the flow, as does the player's death. The step index is saved
+ * again on its next turn before it made progress stops the flow, as does the player's death. A stop while something
+ * attacks the player waits: they run until nothing does, then the flow stops (Maxime, 2026-10-10). The step index is saved
  * whenever it changes so a relog resumes where it was.
  */
 class FlowRunner(
@@ -53,15 +54,23 @@ class FlowRunner(
     /** The steps a jump cut short on their last turn. */
     private val cutShort = mutableSetOf<Int>()
 
-    override fun isBusy(): Boolean = current?.isBusy() ?: false
+    /** Why the flow stops, once nothing attacks the player. */
+    private var stopped: String? = null
 
-    override fun stopReason(): String? = if (player.body.dead()) DIED else stopReason ?: current?.stopReason()
+    override fun isBusy(): Boolean = stopping() == null && current?.isBusy() ?: false
+
+    override fun stopReason(): String? = if (player.body.dead()) DIED else stopped
 
     /** The current step's block; none between two steps. */
     override fun blocked(): String? = current?.blocked()
 
     override fun act() {
         if (steps.isEmpty()) return
+        if (stopping() == null) step()
+        stopping()?.let(::leave)
+    }
+
+    private fun step() {
         val activity = current ?: startStep()
         if (activity.isDone()) {
             advance()
@@ -69,6 +78,18 @@ class FlowRunner(
         }
         activity.act()
         activity.jump()?.let { jump(activity, it) }
+    }
+
+    /** Why the flow or its step wants to stop, held while the player runs from what attacks them. */
+    private fun stopping(): String? = stopReason ?: current?.stopReason()
+
+    private fun leave(reason: String) {
+        if (player.body.underAttack()) {
+            player.body.flee()
+            return
+        }
+        player.body.calm()
+        stopped = reason
     }
 
     private fun startStep(): ReflexGuard {

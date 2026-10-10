@@ -14,22 +14,22 @@ object FleePlanner {
 
     /**
      * The tile the player can walk to within [MAX_STEPS] tiles of [here] that lies farthest from the nearest of
-     * [threats], as the crow flies; only tiles away from every threat count, so the run never passes one. Fewer steps
-     * first on a tie, then west to east and south to north; null when no tile gets farther from them than [here].
+     * [threats], as the crow flies: first among the tiles away from every threat, so a run in the open never passes
+     * one; cornered that way, among every tile, the run going past a threat (npcs do not block tiles), as a player kept
+     * fleeing would (Maxime, 2026-10-10). Fewer steps first on a tie, then west to east and south to north; null when no
+     * tile gets farther from them than [here].
      */
     fun pick(here: Position, threats: List<Position>, canStep: (Position, Direction) -> Boolean): Position? {
         if (threats.isEmpty()) return null
         val distances = WalkingDistances.from(here, TileBounds.around(here, MAX_STEPS), canStep)
-        // The player's own tile is always reachable and away from every threat, so there is a best tile.
-        val best = distances.reachable
-            .filter { tile -> threats.all { away(here, tile, it) } }
-            .minWith(
-                compareByDescending<Position> { safety(it, threats) }
-                    .thenBy { distances[it] }
-                    .thenBy { it.x }
-                    .thenBy { it.y },
-            )
-        return best.takeIf { safety(it, threats) > safety(here, threats) }
+        val order = compareByDescending<Position> { safety(it, threats) }
+            .thenBy { distances[it] }
+            .thenBy { it.x }
+            .thenBy { it.y }
+        // The player's own tile is always reachable and away from every threat, so both sets have a best tile.
+        val away = distances.reachable.filter { tile -> threats.all { away(here, tile, it) } }.minWith(order)
+        val anywhere = distances.reachable.minWith(order)
+        return listOf(away, anywhere).firstOrNull { safety(it, threats) > safety(here, threats) }
     }
 
     /**

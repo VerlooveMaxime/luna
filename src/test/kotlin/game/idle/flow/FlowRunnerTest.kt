@@ -61,10 +61,62 @@ class FlowRunnerTest {
     fun `the current step's reason to stop is the flow's`() {
         val runner = runner("fight")
         runner.act()
+        player.started.single().stop = "out of food"
+
+        runner.act()
+
+        assertEquals("out of food", runner.stopReason())
+    }
+
+    @Test
+    fun `a stop while the player is attacked waits, the player running`() {
+        val runner = runner("fight")
+        runner.act()
+        player.started.single().stop = "out of food"
+        body.attacked = true
+
+        runner.act()
+
+        assertEquals(null, runner.stopReason())
+        assertEquals(listOf("flee"), body.done)
+    }
+
+    @Test
+    fun `once nothing attacks a stop that waited stops the flow, the player's running back as before`() {
+        val runner = runner("fight")
+        runner.act()
+        player.started.single().stop = "out of food"
+        body.attacked = true
+        runner.act()
+        body.attacked = false
+
+        runner.act()
+
+        assertEquals("out of food", runner.stopReason())
+        assertEquals(listOf("flee", "calm"), body.done)
+    }
+
+    @Test
+    fun `a flow waiting to stop acts at each decision, its step busy or not`() {
+        val runner = runner("fight")
+        runner.act()
+        player.started.single().busy = true
 
         player.started.single().stop = "out of food"
 
-        assertEquals("out of food", runner.stopReason())
+        assertFalse(runner.isBusy())
+    }
+
+    @Test
+    fun `a flow waiting to stop no longer works its step`() {
+        val runner = runner("fight")
+        runner.act()
+        player.started.single().stop = "out of food"
+        body.attacked = true
+
+        runner.act()
+
+        assertEquals(listOf("fight:1"), player.log)
     }
 
     @Test

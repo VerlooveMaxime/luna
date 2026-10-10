@@ -204,6 +204,17 @@ class LunaAutopilotPlayerTest {
     }
 
     @Test
+    fun `ending the walk ends a flight's running, the run toggle back as it was`() {
+        val autopilot = autopilotPlayer()
+        TestWorld.spawnNpc(41, Position(3199, 3200)).combat.target = autopilot.player
+        autopilot.body.flee()
+
+        autopilot.endWalk()
+
+        assertFalse(autopilot.player.isRunning)
+    }
+
+    @Test
     fun `ending the walk leaves a walk the player clicked alone`() {
         val autopilot = autopilotPlayer()
         autopilot.player.walking.replacePath(ArrayDeque(listOf(Position(3200, 3205))))
