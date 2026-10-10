@@ -6,10 +6,14 @@ import game.idle.flow.option.OptionFacts
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.StepOption
 import game.player.item.consume.food.Food
+import game.testworld.TestWorld
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class FightOptionsTest {
+
+    /** Luna's `Food` names its items from the cache at class load, so the test world's definitions come first. */
+    private val context = TestWorld.context
 
     private val cows = FightTarget("cow", setOf(397, 81), "Cow", 2..2)
     private val rats = FightTarget("giant rat", setOf(86, 87), "Giant rat", 3..6)
