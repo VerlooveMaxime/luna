@@ -68,7 +68,7 @@ sealed interface ReflexRowView {
  * the resolver refuses, or the running step's block); then the status line, the levels toggle and the buttons. Texts
  * are fitted to the client's small font, [font]; a reason takes the last lines, up to three, the details giving way to
  * it. The Reflexes tab (S07c) shows a row per reflex slot, each reflex as [form] words it, red when [reflexes] refuses
- * it.
+ * it; the Steps tab's "Attach all reflexes" (S07c2b) is greyed unless a stopped flow holds steps and reflexes.
  */
 class BuilderOverview(
     private val resolver: FlowResolver,
@@ -145,6 +145,7 @@ class BuilderOverview(
             WidgetUpdate.Colour(BuilderWidgets.STEPS_TAB_FRAME, frame(lit = !reflexTab)),
             WidgetUpdate.Text(BuilderWidgets.REFLEXES_TAB, lit("Reflexes", reflexTab)),
             WidgetUpdate.Colour(BuilderWidgets.REFLEXES_TAB_FRAME, frame(lit = reflexTab)),
+            WidgetUpdate.Visible(BuilderWidgets.ATTACH_ALL_REFLEXES_LAYER, visible = !reflexTab),
             WidgetUpdate.Visible(BuilderWidgets.KINDS, visible = page == BuilderPage.KINDS),
             WidgetUpdate.Visible(BuilderWidgets.CONFIGURE, visible = page == BuilderPage.CONFIGURE),
         )
@@ -227,6 +228,10 @@ class BuilderOverview(
             WidgetUpdate.Text(BuilderWidgets.RUN, usable("Run", state.steps.isNotEmpty())),
             WidgetUpdate.Text(BuilderWidgets.STOP, usable("Stop", state.running)),
             WidgetUpdate.Text(BuilderWidgets.CLEAR, usable("Clear", editable)),
+            WidgetUpdate.Text(
+                BuilderWidgets.ATTACH_ALL_REFLEXES,
+                usable("Attach all reflexes", !state.running && state.steps.isNotEmpty() && state.reflexes.isNotEmpty()),
+            ),
         )
     }
 

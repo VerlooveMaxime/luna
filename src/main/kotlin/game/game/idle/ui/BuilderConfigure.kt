@@ -6,6 +6,7 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowResolver
 import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexResolver
+import game.idle.flow.ReflexSettings
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepItem
@@ -25,10 +26,14 @@ data class Typing(val key: String, val item: Int? = null)
 /** What a configure screen edits: a step, or a reflex (S07c), which its screen edits as settings like a step's. */
 enum class DraftSubject { STEP, REFLEX }
 
+/** The page a step's configure screen shows (S07c2b): its settings, or the reflexes attached to it. */
+enum class StepTab { SETTINGS, REFLEXES }
+
 /**
- * The step a player configures: the one in flow slot [slot], or a [new] one to go there, with its [settings] as edited;
- * they reach the flow only on Save (Maxime, 2026-10-09). [typing] is what the "Enter amount" prompt is open for, its
- * field framed yellow. A [subject] of [DraftSubject.REFLEX] is the flow's reflex [slot] instead (`ReflexForm.settings`).
+ * The step a player configures: the one in flow slot [slot], or a [new] one to go there, with its [settings] as edited,
+ * the reflexes attached to it included; they reach the flow only on Save (Maxime, 2026-10-09). [typing] is what the
+ * "Enter amount" prompt is open for, its field framed yellow; [tab] the page shown. A [subject] of
+ * [DraftSubject.REFLEX] is the flow's reflex [slot] instead (`ReflexForm.settings`), whose screen has no tabs.
  */
 data class StepDraft(
     val slot: Int,
@@ -36,6 +41,7 @@ data class StepDraft(
     val new: Boolean,
     val typing: Typing? = null,
     val subject: DraftSubject = DraftSubject.STEP,
+    val tab: StepTab = StepTab.SETTINGS,
 ) {
 
     /** The draft with [key] set to [value] ("" for none) and nothing being typed. */
@@ -44,9 +50,18 @@ data class StepDraft(
     /** The draft once a click closed the client's "Enter amount" prompt. */
     fun notTyping(): StepDraft = copy(typing = null)
 
-    /** Whether [other] configures the same step or reflex, whatever was edited since. */
+    /** Whether [other] configures the same step or reflex, whatever was edited or shown since. */
     fun sameStep(other: StepDraft): Boolean =
         slot == other.slot && new == other.new && settings.kind == other.settings.kind && subject == other.subject
+
+    /** The draft with its attached reflexes now [reflexes] (ids, in the step's order) and nothing being typed. */
+    fun attaching(reflexes: List<Int>): StepDraft = copy(settings = settings.copy(reflexes = reflexes), typing = null)
+
+    /**
+     * Where the reflexes attached to this step stand among the flow's [reflexes], in the step's order; an id the flow
+     * does not hold is left out.
+     */
+    fun attached(reflexes: List<ReflexSettings>): List<Int> = settings.reflexes.map { id -> reflexes.indexOfFirst { it.id == id } }.filter { it >= 0 }
 
     /** [steps] with this step in its place, replacing the one it edits or added after them, and its index there. */
     fun inFlow(steps: List<StepSettings>): Pair<List<StepSettings>, Int> =
@@ -86,8 +101,11 @@ object ConfigureRows {
  * typed framed yellow, a choice as a row of buttons and several items as a list (S07a), a withdrawal's with its amount
  * (S07b); the reason it cannot work, checked on the settings as edited (the running step's block first), then the
  * warnings that never stop it in yellow (S07b), else "No warnings." (Maxime, 2026-10-09); then Delete, Back and Save,
- * greyed when they cannot be used. A reflex's screen (S07c) is the same screen over [reflexes]: its picture, number and
- * what it does, its rows, the reason it cannot work and its food warning.
+ * greyed when they cannot be used. A step's screen has two tabs (S07c2b): Settings, those rows, and Reflexes, the
+ * reflexes attached to it as numbered sentences, red when they cannot work, with the line that attaches or detaches
+ * them and Attach all; the warnings band and buttons stay under both. A reflex's screen (S07c) is the same screen over
+ * [reflexes], without tabs: its picture, number and what it does, its rows, the reason it cannot work and its food
+ * warning.
  */
 class BuilderConfigure(
     private val resolver: FlowResolver,
@@ -102,7 +120,8 @@ class BuilderConfigure(
 
     fun updates(state: IdleState, draft: StepDraft, facts: OptionFacts): List<WidgetUpdate> {
         val screen = if (draft.subject == DraftSubject.REFLEX) reflexScreen(state, draft, facts) else stepScreen(state, draft, facts)
-        val fields = ConfigureRows.shown(screen.fields, draft.settings)
+        val reflexPage = draft.subject == DraftSubject.STEP && draft.tab == StepTab.REFLEXES
+        val fields = if (reflexPage) emptyList() else ConfigureRows.shown(screen.fields, draft.settings)
         val rows = ConfigureRows.of(fields)
         return listOf(
             WidgetUpdate.Picture(BuilderWidgets.HEADER_PICTURE, screen.pictures.picture),
@@ -112,7 +131,46 @@ class BuilderConfigure(
             WidgetUpdate.Text(BuilderWidgets.HEADER_DESCRIPTION, font.fit(screen.description, BuilderWidgets.DESCRIPTION_ROOM)),
         ) + (0 until BuilderWidgets.ROWS).flatMap { row -> row(row, rows[row], draft, screen.before) } +
             (0 until BuilderWidgets.LISTS).flatMap { list(it, rows, ConfigureRows.list(fields, it), draft) } +
-            warnings(screen.reason, screen.warnings) + buttons(state, draft)
+            tabs(draft) + attached(state, draft, reflexPage) + warnings(screen.reason, screen.warnings) + buttons(state, draft)
+    }
+
+    /** A step's Settings and Reflexes tabs, the one shown lit as the overview's tabs are; a reflex's screen has none. */
+    private fun tabs(draft: StepDraft): List<WidgetUpdate> {
+        if (draft.subject == DraftSubject.REFLEX) return listOf(WidgetUpdate.Visible(BuilderWidgets.STEP_TABS, visible = false))
+        val reflexPage = draft.tab == StepTab.REFLEXES
+        return listOf(
+            WidgetUpdate.Visible(BuilderWidgets.STEP_TABS, visible = true),
+            WidgetUpdate.Text(BuilderWidgets.SETTINGS_TAB, lit("Settings", !reflexPage)),
+            WidgetUpdate.Colour(BuilderWidgets.SETTINGS_TAB_FRAME, tabFrame(lit = !reflexPage)),
+            WidgetUpdate.Text(BuilderWidgets.STEP_REFLEXES_TAB, lit("Reflexes", reflexPage)),
+            WidgetUpdate.Colour(BuilderWidgets.STEP_REFLEXES_TAB_FRAME, tabFrame(lit = reflexPage)),
+        )
+    }
+
+    /**
+     * The Reflexes page, shown on its tab: placed over the rows' area, sized to its lines; the line that attaches or
+     * detaches and Attach all, greyed while the flow holds no reflex or runs; then each attached reflex's number in the
+     * flow, picture and sentence, red when it cannot work, as the overview's rows show it.
+     */
+    private fun attached(state: IdleState, draft: StepDraft, shown: Boolean): List<WidgetUpdate> {
+        if (!shown) return listOf(WidgetUpdate.Visible(BuilderWidgets.ATTACHED, visible = false))
+        val attached = draft.attached(state.reflexes)
+        val problems = reflexes.problems(state.steps, state.reflexes)
+        val usable = state.reflexes.isNotEmpty() && !state.running
+        return listOf(
+            WidgetUpdate.Visible(BuilderWidgets.ATTACHED, visible = true),
+            WidgetUpdate.Placement(BuilderWidgets.ATTACHED_LIST, firstRow = 0, rows = BuilderWidgets.ROWS_PER_COLUMN, lines = attached.size + 1),
+            WidgetUpdate.Text(BuilderWidgets.ATTACH_TEXT, usable(ATTACH, usable)),
+            WidgetUpdate.Text(BuilderWidgets.ATTACH_ALL_TEXT, usable(ATTACH_ALL, usable)),
+        ) + attached.withIndex().flatMap { (line, index) ->
+            val reflex = state.reflexes[index]
+            val sentence = font.fit(form.sentence(reflex, state.steps), BuilderWidgets.SENTENCE_ROOM)
+            listOf(
+                WidgetUpdate.Text(BuilderWidgets.attachedNumber(line), "${index + 1}"),
+                WidgetUpdate.Picture(BuilderWidgets.attachedPicture(line), WidgetPicture.of(form.icon(reflex))),
+                WidgetUpdate.Text(BuilderWidgets.attachedSentence(line), if (problems[index] != null) "@red@$sentence" else sentence),
+            )
+        }
     }
 
     /** What sets a step's screen apart from a reflex's: its header, fields, what the steps before set up and its warnings. */
@@ -281,6 +339,10 @@ class BuilderConfigure(
 
     private fun fittedField(text: String): String = font.fit(text, BuilderWidgets.FIELD_ROOM)
 
+    private fun lit(text: String, on: Boolean): String = if (on) "@whi@$text" else text
+
+    private fun tabFrame(lit: Boolean): Int = if (lit) BuilderWidgets.LIT else BuilderWidgets.UNLIT
+
     private fun usable(text: String, can: Boolean): String = if (can) text else "@gry@$text"
 
     private companion object {
@@ -288,6 +350,8 @@ class BuilderConfigure(
         const val PICK_ON_MAP = "@gry@Pick on the world map"
         const val NO_WARNINGS = "@gre@No warnings."
         const val ALL = "All"
+        const val ATTACH = "+ Attach or detach reflexes..."
+        const val ATTACH_ALL = "Attach all"
 
         /** A toggle shows two or three buttons. */
         val TOGGLE_SIZES = listOf(2, 3)

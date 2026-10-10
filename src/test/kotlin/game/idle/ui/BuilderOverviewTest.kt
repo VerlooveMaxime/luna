@@ -432,6 +432,35 @@ class BuilderOverviewTest {
         )
     }
 
+    @Test
+    fun `the Steps tab shows Attach all reflexes and the Reflexes tab hides it`() {
+        assertEquals(
+            listOf(true, false),
+            listOf(BuilderPage.OVERVIEW, BuilderPage.REFLEXES).map { page ->
+                overview.page(page).filterIsInstance<WidgetUpdate.Visible>().single { it.id == BuilderWidgets.ATTACH_ALL_REFLEXES_LAYER }.visible
+            },
+        )
+    }
+
+    private fun attachAll(state: IdleState): String = (updates(state).getValue(BuilderWidgets.ATTACH_ALL_REFLEXES) as WidgetUpdate.Text).text
+
+    @Test
+    fun `a stopped flow of steps and reflexes can attach all reflexes`() {
+        assertEquals("Attach all reflexes", attachAll(IdleState(steps = listOf(oak), reflexes = listOf(trout))))
+    }
+
+    @Test
+    fun `attach all reflexes is greyed while running, without a step or without a reflex`() {
+        assertEquals(
+            List(3) { "@gry@Attach all reflexes" },
+            listOf(
+                attachAll(IdleState(steps = listOf(oak), reflexes = listOf(trout), running = true)),
+                attachAll(IdleState(reflexes = listOf(trout))),
+                attachAll(IdleState(steps = listOf(oak))),
+            ),
+        )
+    }
+
     private val trout = ReflexSettings(1, mapOf("foods" to "333"))
 
     private fun rowTexts(state: IdleState, row: Int): List<Any> {

@@ -86,6 +86,10 @@ on(ArrangeItemEvent::class)
     .filter { widgetId == BuilderWidgets.REFLEX_ROWS }
     .then { builderUi.arrangeReflexes(plr, fromIndex, toIndex) }
 
+on(ArrangeItemEvent::class)
+    .filter { widgetId == BuilderWidgets.ATTACHED }
+    .then { builderUi.arrangeAttached(plr, fromIndex, toIndex) }
+
 on(MapPickEvent::class) {
     builderUi.picked(plr, tile)
 }

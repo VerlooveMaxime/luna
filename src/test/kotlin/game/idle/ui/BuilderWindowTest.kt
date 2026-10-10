@@ -318,6 +318,68 @@ class BuilderWindowTest {
         assertEquals("0 Logs / item 1511", fields(player, "SearchRowsMessageWriter").last()["rows"])
     }
 
+    /** The window open on step 1's Reflexes page, the flow holding reflexes 1 (eat trout) and 2 (run away), 2 attached. */
+    private fun attaching(): Player =
+        opened(oak.copy(id = 1, reflexes = listOf(2))).also {
+            it.idleState = it.idleState.copy(reflexes = listOf(ReflexSettings(1, mapOf("foods" to "333")), ReflexSettings(2, mapOf("do" to "run"))))
+            ui.click(it, BuilderWidgets.slotFace(0))
+            ui.click(it, BuilderWidgets.STEP_REFLEXES_TAB)
+        }
+
+    private fun attachSearch(player: Player): Int {
+        ui.click(player, BuilderWidgets.ATTACH)
+        return checkNotNull(SearchPrompts.opened(player, SearchPrompt::class.java)).serial
+    }
+
+    @Test
+    fun `the attach line opens the search that stays open over the flow's reflexes, the attached ones chosen first`() {
+        val player = attaching()
+        attachSearch(player)
+
+        assertEquals(
+            listOf<Any>("Which reflexes should step 1 use?", "SEVERAL", "0 2 Hitpoints below 50%: run away, then stop the flow / chosen / item 1061; " +
+                "1 1 Hitpoints below 50%: eat trout / item 333"),
+            listOf(
+                fields(player, "SearchOpenMessageWriter").single().getValue("title"),
+                fields(player, "SearchOpenMessageWriter").single().getValue("mode"),
+                fields(player, "SearchRowsMessageWriter").last().getValue("rows"),
+            ),
+        )
+    }
+
+    @Test
+    fun `a pick in the attach search attaches the reflex to the step being configured, the search staying open`() {
+        val player = attaching()
+
+        SearchPrompts.pick(player, attachSearch(player), 1)
+
+        assertEquals(listOf(2, 1), window.draft(player)?.settings?.reflexes)
+        assertEquals("1 1 Hitpoints below 50%: eat trout / chosen / item 333", fields(player, "SearchRowsMessageWriter").last()["rows"])
+        assertTrue(player.overlays.has(SearchPrompt::class.java))
+    }
+
+    @Test
+    fun `the attach search shows nothing chosen once the step is no longer configured`() {
+        val player = attaching()
+        val serial = attachSearch(player)
+        ui.click(player, BuilderWidgets.BACK)
+
+        SearchPrompts.page(player, serial, offset = 0, count = 1, query = "")
+
+        assertEquals("0 2 Hitpoints below 50%: run away, then stop the flow / item 1061", fields(player, "SearchRowsMessageWriter").last()["rows"])
+    }
+
+    @Test
+    fun `a drag on the Reflexes page reorders the step being configured, shown at once`() {
+        val player = attaching()
+        ui.click(player, BuilderWidgets.ATTACH_ALL)
+
+        ui.arrangeAttached(player, from = 0, to = 1)
+
+        assertEquals(listOf(2, 1), window.draft(player)?.settings?.reflexes)
+        assertEquals("2", texts(player)[BuilderWidgets.attachedNumber(0)])
+    }
+
     @Test
     fun `the configure screen places its list for the client`() {
         val player = configuring(0, light)

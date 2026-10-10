@@ -1087,4 +1087,149 @@ class BuilderScreenTest {
         assertEquals(BuilderAnswer.Show(BuilderPage.REFLEXES, "Autopilot: reflex 2 saved."), click(player, BuilderWidgets.SAVE, reflexDraft(4, runAway)))
         assertEquals(listOf(eatTrout, runAway), player.idleState.reflexes)
     }
+
+    @Test
+    fun `attach all reflexes gives every step the flow's reflexes in its order`() {
+        val player = withReflexes(runAway, eatTrout, steps = listOf(chop.copy(reflexes = listOf(1)), drop))
+
+        assertEquals(say("every step uses every reflex now."), click(player, BuilderWidgets.ATTACH_ALL_REFLEXES))
+        assertEquals(listOf(listOf(2, 1), listOf(2, 1)), player.idleState.steps.map { it.reflexes })
+    }
+
+    @Test
+    fun `attach all reflexes with no step or no reflex does nothing`() {
+        assertEquals(
+            listOf(BuilderAnswer.Show(), BuilderAnswer.Show()),
+            listOf(click(withReflexes(eatTrout, steps = emptyList()), BuilderWidgets.ATTACH_ALL_REFLEXES), click(player(chop), BuilderWidgets.ATTACH_ALL_REFLEXES)),
+        )
+    }
+
+    @Test
+    fun `attach all reflexes waits for the flow to stop`() {
+        val player = running().apply { idleState = idleState.copy(reflexes = listOf(eatTrout)) }
+
+        assertEquals(BuilderAnswer.Show(message = BuilderScreen.STOP_FIRST), click(player, BuilderWidgets.ATTACH_ALL_REFLEXES))
+        assertEquals(listOf(emptyList<Int>(), emptyList()), player.idleState.steps.map { it.reflexes })
+    }
+
+    /** Step 1, the chop, on its Reflexes page with reflex 2 then 1 attached. */
+    private val guardedDraft = StepDraft(0, chop.copy(reflexes = listOf(2, 1)), new = false, tab = StepTab.REFLEXES)
+
+    @Test
+    fun `a step's tabs show its settings or its reflexes, typing stopped`() {
+        val typing = choppingDraft.copy(typing = Typing("amount"))
+
+        assertEquals(
+            listOf(BuilderAnswer.Configure(choppingDraft), BuilderAnswer.Configure(choppingDraft.copy(tab = StepTab.REFLEXES))),
+            listOf(click(player(chop), BuilderWidgets.SETTINGS_TAB, typing), click(player(chop), BuilderWidgets.STEP_REFLEXES_TAB, typing)),
+        )
+    }
+
+    @Test
+    fun `a step's tabs work while the flow runs, to look`() {
+        assertEquals(BuilderAnswer.Configure(choppingDraft.copy(tab = StepTab.REFLEXES)), click(running(), BuilderWidgets.STEP_REFLEXES_TAB, choppingDraft))
+    }
+
+    @Test
+    fun `a reflex's screen has no step tabs or Reflexes page`() {
+        assertEquals(BuilderAnswer.Ignored, click(withReflexes(eatTrout), BuilderWidgets.STEP_REFLEXES_TAB, reflexDraft(0, eatTrout)))
+    }
+
+    @Test
+    fun `the attach line opens the search that stays open over the flow's reflexes`() {
+        val player = withReflexes(eatTrout, runAway)
+
+        assertEquals(
+            BuilderAnswer.Attach(guardedDraft, "Which reflexes should step 1 use?", REFLEX_FORM.attachOptions(listOf(eatTrout, runAway), listOf(chop))),
+            click(player, BuilderWidgets.ATTACH, guardedDraft.copy(typing = Typing("amount"))),
+        )
+    }
+
+    @Test
+    fun `the attach line of a flow without reflexes says where to add them`() {
+        assertEquals(
+            BuilderAnswer.Configure(choppingDraft, "Autopilot: the flow has no reflexes yet. Add them on the Reflexes tab."),
+            click(player(chop), BuilderWidgets.ATTACH, choppingDraft),
+        )
+    }
+
+    @Test
+    fun `attach all makes the step's reflexes the flow's, in its order`() {
+        assertEquals(
+            BuilderAnswer.Configure(guardedDraft.attaching(listOf(1, 2))),
+            click(withReflexes(eatTrout, runAway), BuilderWidgets.ATTACH_ALL, guardedDraft),
+        )
+    }
+
+    @Test
+    fun `a line's x detaches its reflex`() {
+        assertEquals(BuilderAnswer.Configure(guardedDraft.attaching(listOf(1))), click(withReflexes(eatTrout, runAway), BuilderWidgets.detachFace(0), guardedDraft))
+    }
+
+    @Test
+    fun `an x past the attached reflexes does nothing`() {
+        assertEquals(BuilderAnswer.Ignored, click(withReflexes(eatTrout, runAway), BuilderWidgets.detachFace(2), guardedDraft))
+    }
+
+    @Test
+    fun `nothing is attached or detached while the flow runs`() {
+        val player = running().apply { idleState = idleState.copy(reflexes = listOf(eatTrout, runAway)) }
+        val stopFirst = BuilderAnswer.Configure(guardedDraft, BuilderScreen.STOP_FIRST)
+
+        assertEquals(
+            List(3) { stopFirst },
+            listOf(BuilderWidgets.ATTACH, BuilderWidgets.ATTACH_ALL, BuilderWidgets.detachFace(0)).map { click(player, it, guardedDraft) },
+        )
+    }
+
+    @Test
+    fun `a row clicked in the attach search attaches its reflex after the others`() {
+        assertEquals(BuilderAnswer.Configure(choppingDraft.attaching(listOf(2))), screen.toggledReflex(choppingDraft, choppingDraft, "2"))
+    }
+
+    @Test
+    fun `a row clicked again detaches its reflex`() {
+        assertEquals(BuilderAnswer.Configure(guardedDraft.attaching(listOf(1))), screen.toggledReflex(guardedDraft, choppingDraft, "2"))
+    }
+
+    @Test
+    fun `a row clicked for another step, once the screen closed, or naming no reflex changes nothing`() {
+        assertEquals(
+            List(3) { BuilderAnswer.Ignored },
+            listOf(
+                screen.toggledReflex(StepDraft(1, drop, new = false), choppingDraft, "2"),
+                screen.toggledReflex(null, choppingDraft, "2"),
+                screen.toggledReflex(choppingDraft, choppingDraft, "two"),
+            ),
+        )
+    }
+
+    @Test
+    fun `a line dragged onto another changes the step's order, not the flow's`() {
+        val player = withReflexes(eatTrout, runAway)
+
+        assertEquals(BuilderAnswer.Configure(guardedDraft.attaching(listOf(1, 2))), screen.arrangeAttached(player, guardedDraft, 0, 1))
+        assertEquals(listOf(emptyList<Int>()), player.idleState.steps.map { it.reflexes })
+    }
+
+    @Test
+    fun `dragging from before or past the attached reflexes, or with no step configured, does nothing`() {
+        val player = withReflexes(eatTrout, runAway)
+
+        assertEquals(
+            List(3) { BuilderAnswer.Ignored },
+            listOf(
+                screen.arrangeAttached(player, guardedDraft, -1, 0),
+                screen.arrangeAttached(player, guardedDraft, 2, 0),
+                screen.arrangeAttached(player, null, 0, 1),
+            ),
+        )
+    }
+
+    @Test
+    fun `no line moves while the flow runs`() {
+        val player = running().apply { idleState = idleState.copy(reflexes = listOf(eatTrout, runAway)) }
+
+        assertEquals(BuilderAnswer.Configure(guardedDraft, BuilderScreen.STOP_FIRST), screen.arrangeAttached(player, guardedDraft.copy(typing = Typing("amount")), 0, 1))
+    }
 }

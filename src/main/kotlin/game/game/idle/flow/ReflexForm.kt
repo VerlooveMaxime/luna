@@ -14,7 +14,9 @@ import game.idle.flow.ReflexKeys.STOP
 import game.idle.flow.ReflexKeys.THEN
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.JumpTargetOptions
+import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
+import game.idle.flow.option.StepOption
 import game.idle.flow.option.StepTarget
 
 /**
@@ -74,6 +76,15 @@ class ReflexForm(
         val what = if (doing(reflex[DO]) == EAT) "eat ${eats(reflex)}" else "run away, then ${afterwards(reflex, steps)}"
         return "Hitpoints below ${reflex[BELOW] ?: DEFAULT_BELOW}%: $what"
     }
+
+    /**
+     * The flow's [reflexes] as a step's attach search offers them (S07c2b), by id in the flow's order: "1 Hitpoints below
+     * 50%: eat trout" with its picture, a jump numbered as the step stands in [steps].
+     */
+    fun attachOptions(reflexes: List<ReflexSettings>, steps: List<StepSettings>): List<StepOption> =
+        reflexes.withIndex().map { (index, reflex) ->
+            StepOption(reflex.id.toString(), "${index + 1} ${sentence(reflex, steps)}", OptionIcon.of(icon(reflex)), group = index)
+        }
 
     /** What an eat reflex needs carried or withdrawn: one of its foods, any food when it lists none; null for a run. */
     fun need(reflex: ReflexSettings): ToolNeed? {

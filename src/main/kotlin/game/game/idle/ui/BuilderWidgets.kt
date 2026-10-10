@@ -13,7 +13,8 @@ import io.netty.buffer.ByteBuf
  * Ids of the flow builder's screens the IdleRS client defines in code (`idlers.BuilderWidgets` in `luna-client`, the
  * layout lives there): one root with a layer per screen, the overview's step slots from [SLOT_BASE], as many as the
  * player has, then the padlock; its reflex rows from [REFLEX_ROWS] the same way (S07c); the configure screen's rows
- * from [ROW_BASE]. Both files must agree on every id.
+ * from [ROW_BASE], and a step's Reflexes page from [ATTACHED] (S07c2b), a line per reflex slot. Both files must agree
+ * on every id.
  */
 object BuilderWidgets {
 
@@ -43,6 +44,9 @@ object BuilderWidgets {
     const val STEPS_TAB_FRAME = 30723
     const val REFLEXES_TAB = 30724
     const val REFLEXES_TAB_FRAME = 30725
+    /** The layer of the Steps tab's "Attach all reflexes" (S07c2b), hidden on the Reflexes tab. */
+    const val ATTACH_ALL_REFLEXES_LAYER = 30726
+    const val ATTACH_ALL_REFLEXES = 30727
 
     const val KINDS = 30730
     const val KINDS_TITLE = 30731
@@ -63,6 +67,12 @@ object BuilderWidgets {
     const val DELETE = 30813
     const val BACK = 30814
     const val SAVE = 30815
+    /** A step screen's tabs (S07c2b): the layer hiding them on a reflex's screen, then a button and a frame each. */
+    const val STEP_TABS = 30816
+    const val SETTINGS_TAB = 30817
+    const val SETTINGS_TAB_FRAME = 30818
+    const val STEP_REFLEXES_TAB = 30819
+    const val STEP_REFLEXES_TAB_FRAME = 30820
 
     /** The configure screen's rows: six a column (Maxime, 2026-10-10), the left column's first. */
     const val ROWS_PER_COLUMN = 6
@@ -100,11 +110,24 @@ object BuilderWidgets {
     private const val REFLEX_ROW_BASE = 40016
     private const val REFLEX_ROW_STRIDE = 8
 
+    /**
+     * A step's Reflexes page (S07c2b): a scrolling list placed as the configure lists are, under list index
+     * [ATTACHED_LIST], its first line opening the attach search beside Attach all, then a line per reflex attached.
+     */
+    const val ATTACHED_LIST = 2
+    const val ATTACHED = 40900
+    const val ATTACH = 40902
+    const val ATTACH_TEXT = 40904
+    const val ATTACH_ALL = 40905
+    const val ATTACH_ALL_TEXT = 40907
+    private const val ATTACHED_LINE_BASE = 40910
+    private const val ATTACHED_LINE_STRIDE = 8
+
     /** As many step slots as fit below the reflex rows' ids, the padlock included. */
     const val MOST_STEP_SLOTS = (REFLEX_ROWS - SLOT_BASE) / SLOT_STRIDE - 1
     const val MOST_REFLEX_SLOTS = 99
 
-    /** Room for a reflex row's sentence, as the client lays it out. */
+    /** Room for a reflex's sentence on a reflex row or a step's Reflexes page, as the client lays them out. */
     const val SENTENCE_ROOM = 420
 
     /** Room for a line of a slot, as the client lays it out. */
@@ -169,6 +192,21 @@ object BuilderWidgets {
 
     /** The row's sentence, or "+ Add reflex" on the first free row. */
     fun reflexRowText(row: Int): Int = reflexRow(row) + 5
+
+    /** The layer of the Reflexes page's [line]th reflex; lines past the last lie outside the list. */
+    private fun attachedLine(line: Int): Int = ATTACHED_LINE_BASE + line * ATTACHED_LINE_STRIDE
+
+    /** The line's face, which drags it onto another line (packet 123 names [ATTACHED]). */
+    fun attachedFace(line: Int): Int = attachedLine(line) + 1
+
+    fun attachedNumber(line: Int): Int = attachedLine(line) + 2
+
+    fun attachedPicture(line: Int): Int = attachedLine(line) + 3
+
+    fun attachedSentence(line: Int): Int = attachedLine(line) + 4
+
+    /** The x that detaches the line's reflex from the step. */
+    fun detachFace(line: Int): Int = attachedLine(line) + 5
 
     fun warning(line: Int): Int = WARNING_BASE + line
 
@@ -279,9 +317,15 @@ object BuilderWidgets {
     /** The kind button whose face [widgetId] is, or null. */
     fun kindOf(widgetId: Int): Int? = (0 until KIND_BUTTONS).firstOrNull { kindFace(it) == widgetId }
 
-    /** The reflex row whose face [widgetId] is, or null. */
+    /** The reflex row whose face [widgetId] is, or null; the Reflexes page's ids are past every row's. */
     fun reflexRowOf(widgetId: Int): Int? =
-        ((widgetId - REFLEX_ROW_BASE) / REFLEX_ROW_STRIDE).takeIf { widgetId >= REFLEX_ROW_BASE && reflexRowFace(it) == widgetId }
+        ((widgetId - REFLEX_ROW_BASE) / REFLEX_ROW_STRIDE).takeIf {
+            widgetId >= REFLEX_ROW_BASE && widgetId < ATTACHED && reflexRowFace(it) == widgetId
+        }
+
+    /** The Reflexes page's line whose x [widgetId] is, or null. */
+    fun detachOf(widgetId: Int): Int? =
+        ((widgetId - ATTACHED_LINE_BASE) / ATTACHED_LINE_STRIDE).takeIf { widgetId >= ATTACHED_LINE_BASE && detachFace(it) == widgetId }
 }
 
 /** A change the server makes to a widget the client defines in code. */

@@ -15,6 +15,7 @@ import game.idle.flow.StepItems
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionContext
+import game.idle.flow.option.StepOption
 import game.idle.location.Tile
 
 /** What the game shows after a click on the builder's screens or the Idle tab. */
@@ -47,6 +48,12 @@ sealed interface BuilderAnswer {
      * offers in [context] (the caller adds the player's facts and tile): each row clicked is added or taken out.
      */
     data class Several(val draft: StepDraft, val field: StepField.Items, val context: OptionContext) : BuilderAnswer
+
+    /**
+     * Shows [draft] and opens the search that stays open, headed [title], over the flow's reflexes [options] (S07c2b):
+     * each row clicked attaches its reflex to the step, or detaches it.
+     */
+    data class Attach(val draft: StepDraft, val title: String, val options: List<StepOption>) : BuilderAnswer
 
     /** Shows [draft], the field it types framed, and opens the client's "Enter amount" prompt. */
     data class Amount(val draft: StepDraft) : BuilderAnswer
@@ -97,6 +104,7 @@ class BuilderScreen<P : AutopilotPlayer>(
             BuilderWidgets.BOOSTED_LEVELS -> levels(player, boosted = true)
             BuilderWidgets.KINDS_BACK, BuilderWidgets.STEPS_TAB -> BuilderAnswer.Show(BuilderPage.OVERVIEW)
             BuilderWidgets.REFLEXES_TAB -> BuilderAnswer.Show(BuilderPage.REFLEXES)
+            BuilderWidgets.ATTACH_ALL_REFLEXES -> attachAllReflexes(player)
             else -> BuilderWidgets.slotOf(widgetId)?.let { slot(player, it) }
                 ?: BuilderWidgets.kindOf(widgetId)?.let { kind(player, it) }
                 ?: BuilderWidgets.reflexRowOf(widgetId)?.let { reflexRow(player, it) }
@@ -142,6 +150,18 @@ class BuilderScreen<P : AutopilotPlayer>(
         return BuilderAnswer.Show()
     }
 
+    /**
+     * A line of the step's Reflexes page dragged onto another (S07c2b): the reflexes attached to [draft], the step
+     * configured now, change order as the slots do; the flow changes on Save.
+     */
+    fun arrangeAttached(player: P, draft: StepDraft?, from: Int, to: Int): BuilderAnswer {
+        val current = draft ?: return BuilderAnswer.Ignored
+        val ids = attachedIds(player, current)
+        if (from !in ids.indices) return BuilderAnswer.Ignored
+        if (autopilot.isRunning(player)) return BuilderAnswer.Configure(current.notTyping(), STOP_FIRST)
+        return BuilderAnswer.Configure(current.attaching(moved(ids, from, to)))
+    }
+
     /** [all] with the one at [from] moved to [to], those in between shifting by one; past the end it goes last. */
     private fun <T> moved(all: List<T>, from: Int, to: Int): List<T> =
         all.toMutableList().apply { add(to.coerceAtMost(all.lastIndex).coerceAtLeast(0), removeAt(from)) }
@@ -163,6 +183,17 @@ class BuilderScreen<P : AutopilotPlayer>(
         val ids = StepItems.ids(current.settings, key)
         if (id !in ids && ids.size >= StepItems.MOST) return BuilderAnswer.Configure(current, "$PREFIX the list holds ${StepItems.MOST} items.")
         return BuilderAnswer.Configure(current.copy(settings = StepItems.toggled(current.settings, key, id), typing = null))
+    }
+
+    /**
+     * A row clicked in the attach search [opened] asked for (S07c2b): the reflex whose id [value] holds is attached to
+     * the step configured now, after the others, or detached when it is.
+     */
+    fun toggledReflex(draft: StepDraft?, opened: StepDraft, value: String): BuilderAnswer {
+        val current = draft?.takeIf { it.sameStep(opened) } ?: return BuilderAnswer.Ignored
+        val id = value.toIntOrNull() ?: return BuilderAnswer.Ignored
+        val ids = current.settings.reflexes
+        return BuilderAnswer.Configure(current.attaching(if (id in ids) ids - id else ids + id))
     }
 
     /**
@@ -269,6 +300,16 @@ class BuilderScreen<P : AutopilotPlayer>(
         return say("flow cleared.")
     }
 
+    /** Every step's reflexes become the flow's, in the flow's order (Maxime, 2026-10-10). */
+    private fun attachAllReflexes(player: P): BuilderAnswer {
+        val state = player.idleState
+        if (state.steps.isEmpty() || state.reflexes.isEmpty()) return BuilderAnswer.Show()
+        if (autopilot.isRunning(player)) return BuilderAnswer.Show(message = STOP_FIRST)
+        val ids = state.reflexes.map { it.id }
+        player.idleState = state.withFlow(state.steps.map { it.copy(reflexes = ids) })
+        return say("every step uses every reflex now.")
+    }
+
     private fun levels(player: P, boosted: Boolean): BuilderAnswer {
         player.idleState = player.idleState.copy(countBoostedLevels = boosted)
         return BuilderAnswer.Show()
@@ -317,7 +358,8 @@ class BuilderScreen<P : AutopilotPlayer>(
                 reflex -> deleteReflex(player, draft)
                 else -> delete(player, draft)
             }
-            else -> BuilderWidgets.fieldOf(widgetId)?.let { row -> if (running) stopFirst else field(player, draft, row) }
+            else -> stepPage(player, widgetId, draft, running)
+                ?: BuilderWidgets.fieldOf(widgetId)?.let { row -> if (running) stopFirst else field(player, draft, row) }
                 ?: BuilderWidgets.buttonOf(widgetId)?.let { row -> if (running) stopFirst else unbounded(player, draft, row) }
                 ?: BuilderWidgets.toggleOf(widgetId)?.let { (row, button) -> if (running) stopFirst else toggle(player, draft, row, button) }
                 ?: BuilderWidgets.listAddOf(widgetId)?.let { list -> if (running) stopFirst else addOrRemove(player, draft, list) }
@@ -325,6 +367,45 @@ class BuilderScreen<P : AutopilotPlayer>(
                 ?: BuilderWidgets.lineAmountOf(widgetId)?.let { (list, line) -> if (running) stopFirst else lineAmount(player, draft, list, line) }
                 ?: BuilderWidgets.lineAllOf(widgetId)?.let { (list, line) -> if (running) stopFirst else lineAll(player, draft, list, line) }
         }
+    }
+
+    /**
+     * A click on a step screen's tabs or its Reflexes page (S07c2b), null for another widget; a reflex's screen has
+     * neither. The tabs only show, so they work while the flow runs; what attaches or detaches edits the draft.
+     */
+    private fun stepPage(player: P, widgetId: Int, draft: StepDraft, running: Boolean): BuilderAnswer? {
+        if (draft.subject == DraftSubject.REFLEX) return null
+        val stopFirst = BuilderAnswer.Configure(draft.notTyping(), STOP_FIRST)
+        return when (widgetId) {
+            BuilderWidgets.SETTINGS_TAB -> BuilderAnswer.Configure(draft.copy(tab = StepTab.SETTINGS, typing = null))
+            BuilderWidgets.STEP_REFLEXES_TAB -> BuilderAnswer.Configure(draft.copy(tab = StepTab.REFLEXES, typing = null))
+            BuilderWidgets.ATTACH -> if (running) stopFirst else attach(player, draft)
+            BuilderWidgets.ATTACH_ALL -> if (running) stopFirst else BuilderAnswer.Configure(draft.attaching(player.idleState.reflexes.map { it.id }))
+            else -> BuilderWidgets.detachOf(widgetId)?.let { line -> if (running) stopFirst else detach(player, draft, line) }
+        }
+    }
+
+    /**
+     * The attach search over the flow's reflexes; a flow without any says where they are added (Maxime, 2026-10-10),
+     * the line being greyed.
+     */
+    private fun attach(player: P, draft: StepDraft): BuilderAnswer {
+        val state = player.idleState
+        if (state.reflexes.isEmpty()) return BuilderAnswer.Configure(draft.notTyping(), "$PREFIX the flow has no reflexes yet. Add them on the Reflexes tab.")
+        return BuilderAnswer.Attach(draft.notTyping(), "Which reflexes should step ${draft.slot + 1} use?", form.attachOptions(state.reflexes, state.steps))
+    }
+
+    /** A line's x detaches its reflex from the step. */
+    private fun detach(player: P, draft: StepDraft, line: Int): BuilderAnswer? {
+        val ids = attachedIds(player, draft)
+        val id = ids.getOrNull(line) ?: return null
+        return BuilderAnswer.Configure(draft.attaching(ids - id))
+    }
+
+    /** The ids of the reflexes attached to [draft] that the flow holds, as its Reflexes page lists them. */
+    private fun attachedIds(player: P, draft: StepDraft): List<Int> {
+        val reflexes = player.idleState.reflexes
+        return draft.attached(reflexes).map { reflexes[it].id }
     }
 
     /** A toggle's button: its choice is kept. */

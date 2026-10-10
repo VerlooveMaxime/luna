@@ -184,8 +184,26 @@ class SearchPromptTest {
     }
 
     @Test
-    fun `a third of the chatbox leaves 122 pixels of text and half 199, as the client's grid`() {
-        assertEquals(listOf(122, 199), listOf(SearchColumns.textRoom(3), SearchColumns.textRoom(2)))
+    fun `a label wider than half the chatbox makes one column`() {
+        assertEquals(1, SearchColumns.of(listOf(oak, tree.copy(label = "x".repeat(40))), font))
+    }
+
+    @Test
+    fun `a search with no rows shows three columns`() {
+        assertEquals(3, SearchColumns.of(emptyList(), font))
+    }
+
+    @Test
+    fun `a third of the chatbox leaves 122 pixels of text, half 199 and the whole 431, as the client's grid`() {
+        assertEquals(listOf(122, 199, 431), listOf(SearchColumns.textRoom(3), SearchColumns.textRoom(2), SearchColumns.textRoom(1)))
+    }
+
+    @Test
+    fun `a row wider than its one column is cut to fit`() {
+        val player = login()
+        SearchPrompts.open(player, "Which reflexes?", listOf(oak.copy(label = "x".repeat(90), note = "y".repeat(90))), font) { _, _ -> }
+
+        assertEquals("0 ${"x".repeat(84)}.. / ${"y".repeat(84)}.. / item 1521", fields(player, "SearchRowsMessageWriter")["rows"])
     }
 
     @Test

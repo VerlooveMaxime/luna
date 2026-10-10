@@ -1,5 +1,7 @@
 package game.idle.flow.option
 
+import game.idle.flow.StepIcon
+
 /** The picture a search row shows left of its label. */
 sealed interface OptionIcon {
 
@@ -14,6 +16,16 @@ sealed interface OptionIcon {
 
     /** Sprite [index] of [name] in the client's media archive (a kind of step's icon, S07c). */
     data class Media(val name: String, val index: Int) : OptionIcon
+
+    companion object {
+        /** A step's or a reflex's icon as a search row shows it. */
+        fun of(icon: StepIcon): OptionIcon =
+            when (icon) {
+                is StepIcon.Skill -> Skill(icon.skill)
+                is StepIcon.Media -> Media(icon.name, icon.index)
+                is StepIcon.Item -> Item(icon.id)
+            }
+    }
 }
 
 /**

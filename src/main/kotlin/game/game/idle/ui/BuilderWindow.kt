@@ -105,6 +105,10 @@ class LunaBuilderUi(
 
     fun arrangeReflexes(player: Player, from: Int, to: Int) = answer(player, screen.arrangeReflexes(autopilotPlayer(player), from, to))
 
+    /** A line of the step's Reflexes page dragged onto another. */
+    fun arrangeAttached(player: Player, from: Int, to: Int) =
+        answer(player, screen.arrangeAttached(autopilotPlayer(player), window.draft(player), from, to))
+
     /** A tile the player picked on the world map the configure screen opened. */
     fun picked(player: Player, tile: Tile) = answer(player, screen.pickedTile(autopilotPlayer(player), window.draft(player), tile))
 
@@ -120,6 +124,7 @@ class LunaBuilderUi(
             is BuilderAnswer.Configure -> configure(player, answer.draft, answer.message)
             is BuilderAnswer.Search -> search(player, answer)
             is BuilderAnswer.Several -> several(player, answer)
+            is BuilderAnswer.Attach -> attach(player, answer)
             is BuilderAnswer.Amount -> amount(player, answer.draft)
             is BuilderAnswer.PickTile -> pickTile(player, answer)
             is BuilderAnswer.Replaced -> replaced(player, answer.message)
@@ -156,6 +161,15 @@ class LunaBuilderUi(
         val chosen = { plr: Player -> window.draft(plr)?.let { StepItems.ids(it.settings, field.key) }.orEmpty().map(Int::toString).toSet() }
         SearchPrompts.openSeveral(player, field.title, field.source.options(context), font, chosen) { plr, option ->
             answer(plr, screen.toggledItem(window.draft(plr), answer.draft, field.key, option.value))
+        }
+    }
+
+    /** The attach search: rows show "chosen" for the reflexes the step being configured now has attached. */
+    private fun attach(player: Player, answer: BuilderAnswer.Attach) {
+        configure(player, answer.draft, message = "")
+        val chosen = { plr: Player -> window.draft(plr)?.settings?.reflexes.orEmpty().map(Int::toString).toSet() }
+        SearchPrompts.openSeveral(player, answer.title, answer.options, font, chosen) { plr, option ->
+            answer(plr, screen.toggledReflex(window.draft(plr), answer.draft, option.value))
         }
     }
 

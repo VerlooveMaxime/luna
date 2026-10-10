@@ -3,6 +3,7 @@ package game.idle.ui
 import game.idle.IdleState
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowResolver
+import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexSettings
 import game.idle.flow.StepField
 import game.idle.flow.StepSettings
@@ -578,5 +579,124 @@ class BuilderConfigureTest {
         val carried = configure.updates(cows, eating, facts.copy(bag = setOf(333))).filterIsInstance<WidgetUpdate.Text>()
 
         assertEquals("@gre@No warnings.", carried.single { it.id == BuilderWidgets.warning(0) }.text)
+    }
+
+    private val runAway = ReflexSettings(2, mapOf("do" to "run", "then" to "jump", "step" to "9"))
+    private val guarded = IdleState(steps = listOf(oak), reflexes = listOf(troutReflex, runAway))
+    private val attaching = StepDraft(0, oak.copy(reflexes = listOf(2, 1)), new = false, tab = StepTab.REFLEXES)
+
+    @Test
+    fun `a step's screen shows its tabs, Settings lit by default, and hides the Reflexes page`() {
+        val sent = updates(chopping)
+
+        assertEquals(
+            listOf<Any>(true, "@whi@Settings", BuilderWidgets.LIT, "Reflexes", BuilderWidgets.UNLIT, false),
+            listOf(
+                (sent.getValue(BuilderWidgets.STEP_TABS) as WidgetUpdate.Visible).visible,
+                (sent.getValue(BuilderWidgets.SETTINGS_TAB) as WidgetUpdate.Text).text,
+                (sent.getValue(BuilderWidgets.SETTINGS_TAB_FRAME) as WidgetUpdate.Colour).rgb,
+                (sent.getValue(BuilderWidgets.STEP_REFLEXES_TAB) as WidgetUpdate.Text).text,
+                (sent.getValue(BuilderWidgets.STEP_REFLEXES_TAB_FRAME) as WidgetUpdate.Colour).rgb,
+                (sent.getValue(BuilderWidgets.ATTACHED) as WidgetUpdate.Visible).visible,
+            ),
+        )
+    }
+
+    @Test
+    fun `the Reflexes tab lights its tab, hides the rows and lists and shows the page`() {
+        val sent = updates(attaching, guarded)
+
+        assertEquals(
+            listOf<Any>("Settings", "@whi@Reflexes", BuilderWidgets.LIT, List(BuilderWidgets.ROWS + 2) { false }, true),
+            listOf(
+                (sent.getValue(BuilderWidgets.SETTINGS_TAB) as WidgetUpdate.Text).text,
+                (sent.getValue(BuilderWidgets.STEP_REFLEXES_TAB) as WidgetUpdate.Text).text,
+                (sent.getValue(BuilderWidgets.STEP_REFLEXES_TAB_FRAME) as WidgetUpdate.Colour).rgb,
+                ((0 until BuilderWidgets.ROWS).map(BuilderWidgets::row) + BuilderWidgets.list(0) + BuilderWidgets.list(1)).map {
+                    (sent.getValue(it) as WidgetUpdate.Visible).visible
+                },
+                (sent.getValue(BuilderWidgets.ATTACHED) as WidgetUpdate.Visible).visible,
+            ),
+        )
+    }
+
+    @Test
+    fun `a reflex's screen hides the tabs and the Reflexes page`() {
+        val sent = updates(eating, cows)
+
+        assertEquals(
+            listOf(false, false),
+            listOf(BuilderWidgets.STEP_TABS, BuilderWidgets.ATTACHED).map { (sent.getValue(it) as WidgetUpdate.Visible).visible },
+        )
+    }
+
+    @Test
+    fun `the Reflexes page is placed over the rows, a line to attach then one per reflex attached`() {
+        assertEquals(
+            WidgetUpdate.Placement(BuilderWidgets.ATTACHED_LIST, firstRow = 0, rows = 6, lines = 3),
+            updates(attaching, guarded).getValue(placementKey(BuilderWidgets.ATTACHED_LIST)),
+        )
+    }
+
+    @Test
+    fun `a reflex attached shows its number in the flow, its picture and its sentence, in the step's order`() {
+        val sent = updates(attaching, guarded)
+
+        assertEquals(
+            listOf<Any>("2", WidgetPicture.Item(ReflexForm.LEATHER_BOOTS), "1", WidgetPicture.Item(333), "Hitpoints below 50%: eat trout"),
+            listOf(
+                (sent.getValue(BuilderWidgets.attachedNumber(0)) as WidgetUpdate.Text).text,
+                (sent.getValue(BuilderWidgets.attachedPicture(0)) as WidgetUpdate.Picture).picture,
+                (sent.getValue(BuilderWidgets.attachedNumber(1)) as WidgetUpdate.Text).text,
+                (sent.getValue(BuilderWidgets.attachedPicture(1)) as WidgetUpdate.Picture).picture,
+                (sent.getValue(BuilderWidgets.attachedSentence(1)) as WidgetUpdate.Text).text,
+            ),
+        )
+    }
+
+    @Test
+    fun `a reflex attached that cannot work shows in red`() {
+        assertEquals(
+            "@red@Hitpoints below 50%: run away, then jump to a deleted step",
+            text(attaching, BuilderWidgets.attachedSentence(0), guarded),
+        )
+    }
+
+    @Test
+    fun `a flow with reflexes lets the page attach or detach them, and attach all`() {
+        assertEquals(
+            listOf("+ Attach or detach reflexes...", "Attach all"),
+            listOf(text(attaching, BuilderWidgets.ATTACH_TEXT, guarded), text(attaching, BuilderWidgets.ATTACH_ALL_TEXT, guarded)),
+        )
+    }
+
+    @Test
+    fun `the page's line and Attach all are greyed without reflexes or while the flow runs`() {
+        assertEquals(
+            listOf("@gry@+ Attach or detach reflexes...", "@gry@Attach all"),
+            listOf(
+                text(attaching, BuilderWidgets.ATTACH_TEXT, IdleState(steps = listOf(oak))),
+                text(attaching, BuilderWidgets.ATTACH_ALL_TEXT, guarded.copy(running = true)),
+            ),
+        )
+    }
+
+    @Test
+    fun `a step's attached reflexes stand where the flow holds them, in the step's order, unknown ones left out`() {
+        val draft = StepDraft(0, oak.copy(reflexes = listOf(2, 7, 1)), new = false)
+
+        assertEquals(listOf(1, 0), draft.attached(guarded.reflexes))
+    }
+
+    @Test
+    fun `attaching sets the step's reflexes and stops typing`() {
+        val typing = chopping.copy(typing = Typing("amount"))
+
+        assertEquals(chopping.copy(settings = oak.copy(reflexes = listOf(3))), typing.attaching(listOf(3)))
+    }
+
+    @Test
+    fun `a draft shown on another tab is the same step`() {
+        assertTrue(chopping.sameStep(attaching))
     }
 }

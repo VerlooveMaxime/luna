@@ -170,4 +170,17 @@ class ReflexFormTest {
     fun `a run away reflex needs nothing`() {
         assertNull(form.need(reflex("do" to "run")))
     }
+
+    @Test
+    fun `the attach search offers the flow's reflexes by id, numbered sentences in the flow's order`() {
+        val options = form.attachOptions(listOf(reflex("foods" to "$trout"), ReflexSettings(5, mapOf("do" to "run", "then" to "jump", "step" to "7"))), steps)
+
+        assertEquals(
+            listOf(
+                StepOption("2", "1 Hitpoints below 50%: eat trout", OptionIcon.Item(trout), group = 0),
+                StepOption("5", "2 Hitpoints below 50%: run away, then jump to step 2", OptionIcon.Item(ReflexForm.LEATHER_BOOTS), group = 1),
+            ),
+            options,
+        )
+    }
 }

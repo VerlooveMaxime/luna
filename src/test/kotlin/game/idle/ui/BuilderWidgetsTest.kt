@@ -83,6 +83,40 @@ class BuilderWidgetsTest {
     }
 
     @Test
+    fun `the Reflexes page's ids are no reflex row, though they fall on a row's stride`() {
+        assertNull(BuilderWidgets.reflexRowOf(BuilderWidgets.ATTACH_ALL))
+    }
+
+    @Test
+    fun `the most reflex rows and their padlock end below the Reflexes page`() {
+        assertTrue(BuilderWidgets.reflexRowText(BuilderWidgets.MOST_REFLEX_SLOTS) < BuilderWidgets.ATTACHED)
+    }
+
+    @Test
+    fun `the Reflexes page mirrors the client's ids`() {
+        assertEquals(
+            listOf(30726, 30727, 30816, 30817, 30818, 30819, 30820, 40900, 40902, 40904, 40905, 40907, 40919, 40920, 40921, 40922, 40923),
+            listOf(
+                BuilderWidgets.ATTACH_ALL_REFLEXES_LAYER, BuilderWidgets.ATTACH_ALL_REFLEXES, BuilderWidgets.STEP_TABS,
+                BuilderWidgets.SETTINGS_TAB, BuilderWidgets.SETTINGS_TAB_FRAME, BuilderWidgets.STEP_REFLEXES_TAB,
+                BuilderWidgets.STEP_REFLEXES_TAB_FRAME, BuilderWidgets.ATTACHED, BuilderWidgets.ATTACH, BuilderWidgets.ATTACH_TEXT,
+                BuilderWidgets.ATTACH_ALL, BuilderWidgets.ATTACH_ALL_TEXT, BuilderWidgets.attachedFace(1), BuilderWidgets.attachedNumber(1),
+                BuilderWidgets.attachedPicture(1), BuilderWidgets.attachedSentence(1), BuilderWidgets.detachFace(1),
+            ),
+        )
+    }
+
+    @Test
+    fun `a line's x names its line`() {
+        assertEquals(3, BuilderWidgets.detachOf(BuilderWidgets.detachFace(3)))
+    }
+
+    @Test
+    fun `a line's face and ids below the lines are no x`() {
+        assertEquals(listOf(null, null), listOf(BuilderWidgets.detachOf(BuilderWidgets.attachedFace(3)), BuilderWidgets.detachOf(BuilderWidgets.ATTACH_ALL)))
+    }
+
+    @Test
     fun `the most step slots end below the reflex rows`() {
         assertEquals(BuilderWidgets.REFLEX_ROWS, BuilderWidgets.SLOT_BASE + (BuilderWidgets.MOST_STEP_SLOTS + 1) * 16)
     }

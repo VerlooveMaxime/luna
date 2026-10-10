@@ -24,6 +24,9 @@ data class SearchRow(
     val chosen: Boolean = false,
 ) {
 
+    /** The row with its label and note cut to [room] pixels of [font], so a text wider than one column ends in "..". */
+    fun fitted(font: ClientFont, room: Int): SearchRow = copy(label = font.fit(label, room), note = font.fit(note, room))
+
     /** What the harness log shows of the row. */
     fun describe(): String =
         listOfNotNull("$index $label", note.ifEmpty { null }, PictureEncoding.describe(picture), "greyed".takeIf { greyed })
@@ -96,7 +99,10 @@ class SearchPrompt(
         }
         val candidates = results.positions.drop(offset).take(count.coerceAtMost(MAX_PAGE))
         val chosenNow = chosen?.invoke(player).orEmpty()
-        val rows = candidates.take(PACKET.fit(candidates.map(ordered::get)).size).map { SearchRow.of(it, ordered[it], ordered[it].value in chosenNow) }
+        val room = SearchColumns.textRoom(results.columns)
+        val rows = candidates.take(PACKET.fit(candidates.map(ordered::get)).size).map {
+            SearchRow.of(it, ordered[it], ordered[it].value in chosenNow).fitted(font, room)
+        }
         player.queue(SearchRowsMessageWriter(serial, query, results.positions.size, results.columns, offset, rows))
     }
 
@@ -168,8 +174,9 @@ class NamePrompt(
 
 /**
  * The columns of the client's search grid: 3, or 2 when a row's label or note is wider than a third of the chatbox
- * leaves, so no text is cut; chosen once per list or per search, so the grid never changes while scrolling (Maxime,
- * 2026-10-09). The sizes mirror the client's `SearchGrid`.
+ * leaves, or 1 when wider than half (Maxime, 2026-10-10: the attach search's sentences), so no text is cut; chosen once
+ * per list or per search, so the grid never changes while scrolling (Maxime, 2026-10-09). The sizes mirror the
+ * client's `SearchGrid`.
  */
 object SearchColumns {
 
@@ -182,10 +189,14 @@ object SearchColumns {
 
     fun textRoom(columns: Int): Int = WIDTH / columns - TEXT_X - PAD
 
-    fun of(options: List<StepOption>, font: ClientFont): Int =
-        if (options.all { fits(font.width(it.label)) && fits(font.width(it.blocked ?: it.note)) }) 3 else 2
-
-    private fun fits(width: Int): Boolean = width <= textRoom(3)
+    fun of(options: List<StepOption>, font: ClientFont): Int {
+        val widest = options.maxOfOrNull { maxOf(font.width(it.label), font.width(it.blocked ?: it.note)) } ?: 0
+        return when {
+            widest <= textRoom(3) -> 3
+            widest <= textRoom(2) -> 2
+            else -> 1
+        }
+    }
 }
 
 /** The last serial a player's search prompts got, so each new one differs from the one before. */

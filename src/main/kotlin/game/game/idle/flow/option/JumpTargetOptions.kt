@@ -1,6 +1,5 @@
 package game.idle.flow.option
 
-import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.StepTypes
 
@@ -16,17 +15,10 @@ class JumpTargetOptions(private val steps: List<StepSettings>, private val types
                 StepOption(
                     value = step.id.toString(),
                     label = "Step ${index + 1}: ${type.label.take(1).uppercase()}${type.label.drop(1)}",
-                    icon = icon(type.icon(step)),
+                    icon = OptionIcon.of(type.icon(step)),
                     note = type.pick(step, names)?.label.orEmpty(),
                     group = index,
                 )
             }
-        }
-
-    private fun icon(icon: StepIcon): OptionIcon =
-        when (icon) {
-            is StepIcon.Skill -> OptionIcon.Skill(icon.skill)
-            is StepIcon.Media -> OptionIcon.Media(icon.name, icon.index)
-            is StepIcon.Item -> OptionIcon.Item(icon.id)
         }
 }
