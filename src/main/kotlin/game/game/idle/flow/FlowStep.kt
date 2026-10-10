@@ -2,6 +2,7 @@ package game.idle.flow
 
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
+import game.idle.flow.option.OptionFacts
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
 import game.idle.flow.option.StepTarget
@@ -90,7 +91,16 @@ interface StepType {
 enum class FieldColumn { LEFT, RIGHT }
 
 /** What a step picked as the builder shows it: [label] (null when nothing is picked yet) and [icon]. */
-data class StepPick(val label: String?, val icon: OptionIcon?)
+data class StepPick(val label: String?, val icon: OptionIcon?) {
+
+    companion object {
+        /** Several items picked, named with [names]: "Oak logs, willow logs" with the first one's picture; no label for none. */
+        fun items(ids: List<Int>, names: GameNames): StepPick {
+            val label = ids.mapIndexed { index, id -> names.item(id).let { if (index == 0) it else it.lowercase() } }.joinToString(", ")
+            return StepPick(label.ifEmpty { null }, ids.firstOrNull()?.let(OptionIcon::Item))
+        }
+    }
+}
 
 /**
  * A setting of a step on the builder's configure screen, on a row under [label], taking [rows] rows; [visible] says
@@ -257,6 +267,13 @@ interface ResolvedStep {
 
 /** A step that fights: its configure screen warns when no reflex attached to it eats or runs (S07c). */
 interface Fights
+
+/** A kind of step whose configure screen has warnings of its own, besides tools and inputs (S07d: a pick-up step's items). */
+interface OwnWarnings {
+
+    /** The warnings, which never stop the flow, for [settings] after what the steps [before] it set up, the player as [facts] say. */
+    fun warnings(settings: StepSettings, before: FlowContext, facts: OptionFacts): List<String>
+}
 
 /**
  * What a step needs in the bag to work one way: its [tools] (kept), and [inputs] (item ids used up), which a step taking

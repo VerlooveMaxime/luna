@@ -7,6 +7,7 @@ import game.idle.flow.WorkSpot
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.ItemCatalog
 import game.idle.flow.option.OptionContext
+import game.idle.flow.option.OptionFacts
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.StepOption
 import game.idle.location.Tile
@@ -42,6 +43,18 @@ class PickUpOptionsTest {
     }
 
     @Test
+    fun `a noted drop is listed as its item, once`() {
+        val notedBones = 527
+        val source = PickUpOptions(
+            { setOf(bones, notedBones) }, spawns, ItemCatalog(mapOf(bones to "Bones"), notes = mapOf(notedBones to bones)), names,
+        )
+
+        val rows = source.options(OptionContext(before = FlowContext(fought = setOf(cow))))
+
+        assertEquals(listOf(row(bones, "Bones", "Cow drop", -2)), rows.filter { it.group == -2 })
+    }
+
+    @Test
     fun `items that spawn within the step's distance of the walk step's tile follow`() {
         val context = OptionContext(settings = StepSettings("pickup", mapOf("within" to "5")), before = FlowContext(WorkSpot.At(pen)))
 
@@ -50,7 +63,7 @@ class PickUpOptionsTest {
 
     @Test
     fun `without a walk step the spawns are those around the player`() {
-        val context = OptionContext(here = Tile(3201, 3201))
+        val context = OptionContext(facts = OptionFacts(here = Tile(3201, 3201)))
 
         assertEquals(row(bucket, "Bucket", "spawns here", -1), source.options(context).first())
     }

@@ -3,6 +3,7 @@ package game.idle.flow
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
+import game.idle.flow.option.OptionFacts
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -65,5 +66,26 @@ class StepTypesTest {
     @Test
     fun `a step of a kind no type knows takes from the bank`() {
         assertEquals(InputSource.BANK, StepTypes(listOf(FakeStepType("light"))).input(StepSettings("gone"), FlowContext()))
+    }
+
+    @Test
+    fun `a step's own warnings are its kind's`() {
+        val types = StepTypes(listOf(WarningStepType("pickup")))
+
+        assertEquals(listOf("pickup warns"), types.warnings(StepSettings("pickup"), FlowContext(), OptionFacts()))
+    }
+
+    @Test
+    fun `a kind without warnings of its own gives none`() {
+        assertEquals(emptyList<String>(), types.warnings(step("walk"), FlowContext(), OptionFacts()))
+    }
+
+    @Test
+    fun `a step of a kind no type knows has no warnings of its own`() {
+        assertEquals(emptyList<String>(), types.warnings(StepSettings("gone"), FlowContext(), OptionFacts()))
+    }
+
+    private class WarningStepType(kind: String) : StepType by FakeStepType(kind), OwnWarnings {
+        override fun warnings(settings: StepSettings, before: FlowContext, facts: OptionFacts): List<String> = listOf("${settings.kind} warns")
     }
 }

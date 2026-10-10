@@ -26,6 +26,9 @@ interface Fighter {
     /** How many of the step's npcs the player has killed since the step began. */
     fun kills(): Int
 
+    /** Whether the npc killed last is still dying: its drop lands on the ground when its death is over. */
+    fun lastKillDying(): Boolean
+
     /** Stops the fighting in progress. */
     fun stop()
 }
@@ -96,7 +99,8 @@ object FightingPlanner {
 
 /**
  * The fight step: fights until [amount] npcs were killed or, without an amount, until the flow is stopped; the flow's
- * reflexes eat and run (S07c). An npc attacked or walked to twice in a row on the same tile with no kill in between
+ * reflexes eat and run (S07c). The kill that reaches [amount] ends the step once its death is over, so a pick-up step
+ * after it finds the drop (S07d). An npc attacked or walked to twice in a row on the same tile with no kill in between
  * (out of reach after all, or taken by someone else) is skipped until the next kill, or until every npc around was
  * skipped: npcs wander, so one out of reach now may not be later.
  */
@@ -107,7 +111,7 @@ class FightingActivity(private val fighter: Fighter, private val amount: Int? = 
     private var killsAtLastAttack = 0
     private var done = false
 
-    override fun isBusy(): Boolean = fighter.isBusy() && !amountReached()
+    override fun isBusy(): Boolean = if (amountReached()) fighter.lastKillDying() else fighter.isBusy()
 
     override fun isDone(): Boolean = done
 

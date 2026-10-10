@@ -128,6 +128,14 @@ class FightingActivityTest {
     }
 
     @Test
+    fun `the kill that reached the kills keeps the player busy until its drop lands`() {
+        fighter.kills = 3
+        fighter.lastKillDying = true
+
+        assertTrue(activity(amount = 3).isBusy())
+    }
+
+    @Test
     fun `reaching the kills stops the fighting`() {
         fighter.kills = 3
 

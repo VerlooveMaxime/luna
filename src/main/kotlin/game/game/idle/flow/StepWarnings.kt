@@ -7,8 +7,8 @@ import game.idle.flow.option.OptionFacts
 /**
  * The configure screen's warnings that never stop a flow (S07b): a tool or bait a step needs that the player neither
  * carries nor has a bank step withdraw, and an input a step takes from the bank that no bank step withdraws. Bank steps
- * anywhere in the flow count, since it loops (Maxime, 2026-10-10). A step that fights with no reflex attached that eats
- * or runs warns too (S07c). Items are named with [names].
+ * anywhere in the flow count, since it loops (Maxime, 2026-10-10). Then a kind's own ([OwnWarnings], S07d), and a
+ * step that fights with no reflex attached that eats or runs (S07c). Items are named with [names].
  */
 class StepWarnings(private val resolver: FlowResolver, private val names: GameNames) {
 
@@ -21,10 +21,12 @@ class StepWarnings(private val resolver: FlowResolver, private val names: GameNa
         val resolved = resolver.resolvedEach(steps)
         val step = resolved.getOrNull(index) ?: return emptyList()
         val banking = banking(resolved)
-        val fromBank = resolver.types.input(steps[index], resolver.contextBefore(steps, index)) == InputSource.BANK
+        val before = resolver.contextBefore(steps, index)
+        val fromBank = resolver.types.input(steps[index], before) == InputSource.BANK
         val ways = step.needs().map { way -> warnings(way, banking, facts, fromBank) }
         val needs = if (ways.any { it.isEmpty() }) emptyList() else ways.firstOrNull().orEmpty()
-        return needs + listOfNotNull(NO_SURVIVAL.takeIf { step is Fights && !survives(steps[index], reflexes) })
+        val own = resolver.types.warnings(steps[index], before, facts)
+        return needs + own + listOfNotNull(NO_SURVIVAL.takeIf { step is Fights && !survives(steps[index], reflexes) })
     }
 
     /**

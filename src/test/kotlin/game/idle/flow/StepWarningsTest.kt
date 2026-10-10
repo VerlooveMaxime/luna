@@ -56,9 +56,16 @@ class StepWarningsTest {
                 needing("walk"),
                 FakeStepType("bank", resolved = { FakeBank(ids(it, "withdraw"), ids(it, "banks")) }),
                 FakeStepType("fight", resolved = { FakeFight }),
+                PickUpLike,
             ),
         ),
     )
+
+    /** A kind with a warning of its own, which says how many steps came before it. */
+    private object PickUpLike : StepType by FakeStepType("pickup"), OwnWarnings {
+        override fun warnings(settings: StepSettings, before: FlowContext, facts: OptionFacts): List<String> =
+            listOf("${before.gatheredBy.size} items before")
+    }
     private val warnings = StepWarnings(resolver, FakeNames(
         mapOf(net to "Small fishing net", bait to "Fishing bait", logs to "Logs", tinderbox to "Tinderbox", knife to "Knife", flour to "Pot of flour", jug to "Jug of water"),
     ))
@@ -73,6 +80,11 @@ class StepWarningsTest {
     @Test
     fun `a step that does not resolve has no warnings, its reason shows instead`() {
         assertEquals(emptyList<String>(), of(listOf(step("chop", "bad"))))
+    }
+
+    @Test
+    fun `a kind's own warnings come after what the steps before it set up`() {
+        assertEquals(listOf("0 items before"), of(listOf(step("pickup"))))
     }
 
     @Test

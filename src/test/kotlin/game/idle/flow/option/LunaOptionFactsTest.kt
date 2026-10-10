@@ -2,6 +2,7 @@ package game.idle.flow.option
 
 import game.idle.IdleState
 import game.idle.idleState
+import game.idle.location.Tile
 import game.testworld.TestWorld
 import io.luna.game.model.Position
 import io.luna.game.model.item.Equipment
@@ -69,6 +70,11 @@ class LunaOptionFactsTest {
         player.equipment.set(Equipment.WEAPON, Item(1351))
 
         assertEquals(setOf(1351), LunaOptionFacts.of(player).worn)
+    }
+
+    @Test
+    fun `the facts hold where the player stands`() {
+        assertEquals(Tile(3200, 3200), LunaOptionFacts.of(boostedWoodcutter()).here)
     }
 
     @Test

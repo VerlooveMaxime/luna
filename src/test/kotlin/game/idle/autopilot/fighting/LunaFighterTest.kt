@@ -295,6 +295,48 @@ class LunaFighterTest {
     }
 
     @Test
+    fun `before any kill nothing is dying`() {
+        assertFalse(fighter(login()).lastKillDying())
+    }
+
+    @Test
+    fun `a kill is dying until its drop lands`() {
+        val player = login()
+        val npc = TestWorld.spawnNpc(chicken, Position(3201, 3200))
+        val fighter = attacked(player, npc)
+
+        kill(npc, player)
+
+        assertTrue(fighter.lastKillDying())
+    }
+
+    @Test
+    fun `a kill taken out of the world is dying no more`() {
+        val player = login()
+        val npc = TestWorld.spawnNpc(chicken, Position(3201, 3200))
+        val fighter = attacked(player, npc)
+        kill(npc, player)
+        fighter.kills()
+
+        TestWorld.world.npcs.remove(npc)
+
+        assertFalse(fighter.lastKillDying())
+    }
+
+    @Test
+    fun `a kill whose death is over is dying no more`() {
+        val player = login()
+        val npc = TestWorld.spawnNpc(chicken, Position(3201, 3200))
+        val fighter = attacked(player, npc)
+        kill(npc, player)
+        fighter.kills()
+
+        TestWorld.tick(times = 8)
+
+        assertFalse(fighter.lastKillDying())
+    }
+
+    @Test
     fun `an npc someone else killed is no kill`() {
         val player = login()
         val npc = TestWorld.spawnNpc(chicken, Position(3201, 3200))

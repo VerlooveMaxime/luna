@@ -7,8 +7,10 @@ import game.idle.movement.ReachScan
 import game.idle.movement.ReachTerrain
 import io.luna.game.event.impl.NpcClickEvent.AttackNpcEvent
 import io.luna.game.model.Direction
+import io.luna.game.model.EntityState
 import io.luna.game.model.EntityType
 import io.luna.game.model.Position
+import io.luna.game.model.mob.MobDeathAction
 import io.luna.game.model.mob.Npc
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.interact.InteractionAction
@@ -26,6 +28,7 @@ class LunaFighter(private val player: Player, private val target: FightTarget, p
     private val anchor: Position = area.anchor.toPosition()
     private val scan = ReachScan(anchor, area.radius)
     private var watched: Npc? = null
+    private var lastKill: Npc? = null
     private var kills = 0
 
     override fun isBusy(): Boolean {
@@ -70,6 +73,13 @@ class LunaFighter(private val player: Player, private val target: FightTarget, p
         return kills
     }
 
+    /** Luna's death drops the loot, then takes the npc out of the world (its respawn is a new npc), its death left queued. */
+    override fun lastKillDying(): Boolean {
+        watchKills()
+        val npc = lastKill ?: return false
+        return npc.state == EntityState.ACTIVE && npc.actions.first(MobDeathAction::class.java) != null
+    }
+
     override fun stop() {
         player.actions.interruptWeak()
     }
@@ -78,7 +88,10 @@ class LunaFighter(private val player: Player, private val target: FightTarget, p
     private fun watchKills() {
         val dead = watched?.takeIf { !it.isAlive }
         if (dead != null) {
-            if (dead.combat.lastDamageReceived?.attacker == player) kills++
+            if (dead.combat.lastDamageReceived?.attacker == player) {
+                kills++
+                lastKill = dead
+            }
             watched = null
         }
         val fighting = player.combat.target as? Npc

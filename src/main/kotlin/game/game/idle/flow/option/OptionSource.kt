@@ -28,26 +28,26 @@ enum class InputSource { EARLIER_STEPS, BANK }
 
 /**
  * What a step's options are worked out from: the player's [facts], the step's own [settings], what the steps [before] it
- * set up, where its [input] comes from, and [here], the player's tile, which stands for the work spot when no walk step
- * comes before (the flow then works where Run is pressed).
+ * set up, and where its [input] comes from.
  */
 data class OptionContext(
     val facts: OptionFacts = OptionFacts(),
     val settings: StepSettings = StepSettings(),
     val before: FlowContext = FlowContext(),
     val input: InputSource = InputSource.EARLIER_STEPS,
-    val here: Tile? = null,
 )
 
 /**
  * The player's levels options grey on, by skill id, what the bank holds, by item id, and what the player carries: the
- * ids in the [bag] and those [worn], which the configure screen's tool warnings read (S07b).
+ * ids in the [bag] and those [worn], which the configure screen's tool warnings read (S07b). [here] is the player's tile,
+ * which stands for the work spot when no walk step comes before (the flow then works where Run is pressed).
  */
 data class OptionFacts(
     val levels: Map<Int, Int> = emptyMap(),
     val bank: Map<Int, Int> = emptyMap(),
     val bag: Set<Int> = emptySet(),
     val worn: Set<Int> = emptySet(),
+    val here: Tile? = null,
 ) {
 
     fun level(skill: Int): Int = levels[skill] ?: 1

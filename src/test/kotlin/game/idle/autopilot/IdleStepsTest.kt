@@ -10,6 +10,8 @@ import game.idle.autopilot.fishing.FishStepType
 import game.idle.autopilot.making.MakeStepType
 import game.idle.autopilot.making.RecipeCatalog
 import game.idle.autopilot.mining.MineStepType
+import game.idle.autopilot.pickup.PickUpStepType
+import game.idle.autopilot.pickup.SpawnCatalog
 import game.idle.autopilot.smelting.SmeltStepType
 import game.idle.autopilot.smithing.SmithStepType
 import game.idle.autopilot.walk.WalkStepType
@@ -28,19 +30,22 @@ class IdleStepsTest {
     private val context = TestWorld.context
 
     private val types =
-        IdleSteps(BankCatalog(emptyList()), RecipeCatalog(emptyList()), FightTargetCatalog(emptyList()), ItemCatalog(emptyMap()), FakeNames()).types.all
+        IdleSteps(
+            BankCatalog(emptyList()), RecipeCatalog(emptyList()), FightTargetCatalog(emptyList()), ItemCatalog(emptyMap()), { emptySet() },
+            SpawnCatalog(emptyList()), FakeNames(),
+        ).types.all
 
     @Test
-    fun `the kind picker shows gathering, processing, fighting, then walking, dropping and banking`() {
+    fun `the kind picker shows gathering, processing, fighting and picking up, then walking, dropping and banking`() {
         assertEquals(listOf(ChopStepType, MineStepType, FishStepType), types.take(3))
         assertEquals(
             listOf(LightStepType::class, CookStepType::class, MakeStepType::class, SmeltStepType::class, SmithStepType::class),
             types.subList(3, 8).map { it::class },
         )
-        assertInstanceOf(FightStepType::class.java, types[8])
-        assertEquals(listOf(WalkStepType, DropStepType), types.subList(9, 11))
-        assertInstanceOf(BankStepType::class.java, types[11])
-        assertEquals(12, types.size)
+        assertEquals(listOf(FightStepType::class, PickUpStepType::class), types.subList(8, 10).map { it::class })
+        assertEquals(listOf(WalkStepType, DropStepType), types.subList(10, 12))
+        assertInstanceOf(BankStepType::class.java, types[12])
+        assertEquals(13, types.size)
     }
 
     @Test

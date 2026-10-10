@@ -147,7 +147,7 @@ class LunaBuilderUi(
     private fun search(player: Player, answer: BuilderAnswer.Search) {
         configure(player, answer.draft, message = "")
         val field = answer.field
-        val context = answer.context.copy(facts = LunaOptionFacts.of(player), here = Tile.of(player.position))
+        val context = answer.context.copy(facts = LunaOptionFacts.of(player))
         SearchPrompts.open(player, field.title, field.target.source.options(context), font) { plr, option ->
             answer(plr, screen.picked(window.draft(plr), answer.draft, field.target.key, option.value))
         }
@@ -157,7 +157,7 @@ class LunaBuilderUi(
     private fun several(player: Player, answer: BuilderAnswer.Several) {
         configure(player, answer.draft, message = "")
         val field = answer.field
-        val context = answer.context.copy(facts = LunaOptionFacts.of(player), here = Tile.of(player.position))
+        val context = answer.context.copy(facts = LunaOptionFacts.of(player))
         val chosen = { plr: Player -> window.draft(plr)?.let { StepItems.ids(it.settings, field.key) }.orEmpty().map(Int::toString).toSet() }
         SearchPrompts.openSeveral(player, field.title, field.source.options(context), font, chosen) { plr, option ->
             answer(plr, screen.toggledItem(window.draft(plr), answer.draft, field.key, option.value))

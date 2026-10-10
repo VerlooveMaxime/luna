@@ -5,6 +5,7 @@ class FakeFighter(var view: FightView) : Fighter {
 
     var busy = false
     var kills = 0
+    var lastKillDying = false
     val steps = mutableListOf<String>()
 
     override fun isBusy(): Boolean = busy
@@ -24,6 +25,8 @@ class FakeFighter(var view: FightView) : Fighter {
     }
 
     override fun kills(): Int = kills
+
+    override fun lastKillDying(): Boolean = lastKillDying
 
     override fun stop() {
         steps += "stop"

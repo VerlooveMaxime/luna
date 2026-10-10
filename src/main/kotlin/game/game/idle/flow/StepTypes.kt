@@ -1,6 +1,7 @@
 package game.idle.flow
 
 import game.idle.flow.option.InputSource
+import game.idle.flow.option.OptionFacts
 
 /** Every kind of step a flow can use, in the order the builder's kind picker shows them, found by [StepType.kind]. */
 class StepTypes(val all: List<StepType>) {
@@ -19,4 +20,8 @@ class StepTypes(val all: List<StepType>) {
 
     /** Where [step] takes what it works on, after what the steps [before] it set up; the bank for a kind no type knows. */
     fun input(step: StepSettings, before: FlowContext): InputSource = find(step.kind)?.input(step, before) ?: InputSource.BANK
+
+    /** [step]'s own warnings after what the steps [before] it set up, the player as [facts] say; none for a kind without. */
+    fun warnings(step: StepSettings, before: FlowContext, facts: OptionFacts): List<String> =
+        (find(step.kind) as? OwnWarnings)?.warnings(step, before, facts).orEmpty()
 }

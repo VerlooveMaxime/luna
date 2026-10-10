@@ -11,6 +11,10 @@ import game.idle.autopilot.making.LunaRecipes
 import game.idle.autopilot.making.MakeStepType
 import game.idle.autopilot.making.RecipeCatalog
 import game.idle.autopilot.mining.MineStepType
+import game.idle.autopilot.pickup.DropLookup
+import game.idle.autopilot.pickup.LunaDrops
+import game.idle.autopilot.pickup.PickUpStepType
+import game.idle.autopilot.pickup.SpawnCatalog
 import game.idle.autopilot.smelting.SmeltStepType
 import game.idle.autopilot.smithing.SmithStepType
 import game.idle.autopilot.walk.WalkStepType
@@ -23,14 +27,23 @@ import game.idle.location.BankCatalog
 
 /**
  * Every kind of step a flow can use, in the order the builder's kind picker shows them, items named with [names]; a bank
- * step withdraws any of [items].
+ * step withdraws any of [items], a pick-up step takes them, its options reading [drops] and [spawns].
  */
-class IdleSteps(banks: BankCatalog, recipes: RecipeCatalog, fightTargets: FightTargetCatalog, items: ItemCatalog, names: GameNames) {
+class IdleSteps(
+    banks: BankCatalog,
+    recipes: RecipeCatalog,
+    fightTargets: FightTargetCatalog,
+    items: ItemCatalog,
+    drops: DropLookup,
+    spawns: SpawnCatalog,
+    names: GameNames,
+) {
 
     val types = StepTypes(
         listOf(
             ChopStepType, MineStepType, FishStepType, LightStepType(names), CookStepType(names), MakeStepType(recipes, names),
-            SmeltStepType(names), SmithStepType(names), FightStepType(fightTargets), WalkStepType, DropStepType, BankStepType(banks, items, names),
+            SmeltStepType(names), SmithStepType(names), FightStepType(fightTargets), PickUpStepType(drops, spawns, items, names), WalkStepType,
+            DropStepType, BankStepType(banks, items, names),
         ),
     )
 
@@ -39,7 +52,7 @@ class IdleSteps(banks: BankCatalog, recipes: RecipeCatalog, fightTargets: FightT
         fun load(): IdleSteps =
             IdleSteps(
                 BankCatalog.load(BankCatalog.PATH), LunaRecipes(LunaGameNames).catalog(), FightTargetCatalog.fromCache(), ItemCatalog.fromCache(),
-                LunaGameNames,
+                LunaDrops, SpawnCatalog.load(), LunaGameNames,
             )
     }
 }

@@ -2,7 +2,6 @@ package game.idle.flow
 
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
-import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
 
 /**
@@ -28,11 +27,7 @@ class ProcessKinds(
     }
 
     /** "Oak logs, willow logs" with the first kind's picture; no label when none is picked. */
-    fun pick(settings: StepSettings): StepPick {
-        val ids = ids(settings)
-        val label = ids.mapIndexed { index, id -> names.item(id).let { if (index == 0) it else it.lowercase() } }.joinToString(", ")
-        return StepPick(label.ifEmpty { null }, ids.firstOrNull()?.let(OptionIcon::Item))
-    }
+    fun pick(settings: StepSettings): StepPick = StepPick.items(ids(settings), names)
 
     /** The list on the configure screen, over [source], under [label]. */
     fun field(label: String, source: OptionSource, title: String): StepField.Items =
