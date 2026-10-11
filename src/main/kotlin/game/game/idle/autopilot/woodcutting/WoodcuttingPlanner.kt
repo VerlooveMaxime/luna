@@ -1,16 +1,16 @@
 package game.idle.autopilot.woodcutting
 
-import game.idle.autopilot.woodcutting.WoodcuttingDecision.Blocked
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Chop
+import game.idle.autopilot.woodcutting.WoodcuttingDecision.Settled
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkTo
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkToLocation
-import game.idle.flow.Reason
+import game.idle.flow.Aim
+import game.idle.flow.Aimed
+import game.idle.flow.StepOutcome
 import game.idle.flow.Target
-import game.idle.flow.ToolNeed
-import game.skill.woodcutting.cutTree.Axe
+import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
 import io.luna.game.model.Position
-import io.luna.game.model.mob.Skill
 
 /** What the player asked to chop. */
 data class ChopAction(val trees: Set<Tree>) {
@@ -30,23 +30,22 @@ data class TreeCandidate(
     val distance: Int,
     val usableFromHere: Boolean,
     val approach: Position,
-)
+) {
+    val aim: Aim get() = Aim(objectId, Tile.of(position))
+}
 
-/** What the woodcutting autopilot knows about the player when it decides. */
-data class WoodcuttingView(
-    val woodcuttingLevel: Int,
-    val hasUsableAxe: Boolean,
-    val inventoryFull: Boolean,
-    val logsInInventory: Int,
-    val atLocation: Boolean,
-    val trees: List<TreeCandidate>,
-)
+/** What the chop step sees when it decides: whether the player is inside the step's area, and the trees in reach. */
+data class WoodcuttingView(val atLocation: Boolean, val trees: List<TreeCandidate>)
 
 sealed interface WoodcuttingDecision {
 
     /** A decision aimed at one tree. */
-    sealed interface OnTree : WoodcuttingDecision {
+    sealed interface OnTree : WoodcuttingDecision, Aimed {
         val tree: TreeCandidate
+
+        override val aim: Aim get() = tree.aim
+
+        override val distance: Int get() = tree.distance
     }
 
     data class Chop(override val tree: TreeCandidate) : OnTree
@@ -55,17 +54,16 @@ sealed interface WoodcuttingDecision {
 
     data object WalkToLocation : WoodcuttingDecision
 
-    data class Blocked(val reason: Reason) : WoodcuttingDecision
+    /** A decision that is one of the outcomes every kind shares. */
+    data class Settled(val outcome: StepOutcome) : WoodcuttingDecision
 }
 
 /**
- * Cut the highest-level wanted tree the player can, and walk back to the work spot when nothing is in reach from
- * outside it. A full inventory is the chop step's end ([WoodcuttingActivity]); here it only blocks.
+ * Cut the highest-level wanted tree in reach, leaving out the trees [game.idle.flow.RetrySkip] set aside, and walk back to the work
+ * spot when nothing is in reach from outside it. The axe, the level and a full bag are the shared turn's to check
+ * ([game.idle.flow.StepTurn]); with every tree a stump the step waits for one to grow back (Maxime, 2026-10-11).
  */
 object WoodcuttingPlanner {
-
-    /** Any axe, each with the Woodcutting level it takes; what the step needs and blocks on. */
-    val AXE = ToolNeed("axe", Axe.entries.associate { it.id to it.level }, Skill.WOODCUTTING)
 
     private val preferredFirst: Comparator<TreeCandidate> =
         compareByDescending<TreeCandidate> { it.tree.level }
@@ -74,15 +72,12 @@ object WoodcuttingPlanner {
             .thenBy { it.position.x }
             .thenBy { it.position.y }
 
-    fun decide(view: WoodcuttingView, action: ChopAction): WoodcuttingDecision {
-        val best = view.trees
-            .filter { it.tree in action.trees && it.tree.level <= view.woodcuttingLevel }
-            .minWithOrNull(preferredFirst)
+    fun decide(view: WoodcuttingView, action: ChopAction, skipped: Set<Aim>): WoodcuttingDecision {
+        val wanted = view.trees.filter { it.tree in action.trees }
+        val best = wanted.filterNot { it.aim in skipped }.minWithOrNull(preferredFirst)
         return when {
-            !view.hasUsableAxe -> Blocked(Reason.NeedsTool(AXE))
-            view.inventoryFull -> Blocked(Reason.BagFull(emptyList()))
             best == null && !view.atLocation -> WalkToLocation
-            best == null -> Blocked(Reason.NoneInReach(Target.TREE))
+            best == null -> Settled(StepOutcome.noneInReach(Target.TREE, setAside = wanted.isNotEmpty()))
             best.usableFromHere -> Chop(best)
             else -> WalkTo(best)
         }

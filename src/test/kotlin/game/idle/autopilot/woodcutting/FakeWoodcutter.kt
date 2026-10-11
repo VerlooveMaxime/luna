@@ -1,7 +1,9 @@
 package game.idle.autopilot.woodcutting
 
-/** Records each step as readable text, for example `walk to 3170,3454`. */
-class FakeWoodcutter(var view: WoodcuttingView) : Woodcutter {
+import game.idle.location.Tile
+
+/** Records each step as readable text, for example `walk to 3170,3454`; [anchor] is the step's area anchor. */
+class FakeWoodcutter(var view: WoodcuttingView, private val anchor: Tile = Tile(3200, 3200)) : Woodcutter {
 
     var busy = false
     var logs = 0
@@ -19,13 +21,11 @@ class FakeWoodcutter(var view: WoodcuttingView) : Woodcutter {
         steps += "walk to ${tree.position.x},${tree.position.y}"
     }
 
-    override fun walkToLocation() {
-        steps += "walk to location"
-    }
+    override fun anchor(): Tile = anchor
 
     override fun logs(): Int = logs
 
-    override fun stop() {
-        steps += "stop"
+    override fun interrupt() {
+        steps += "interrupt"
     }
 }

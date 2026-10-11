@@ -8,7 +8,6 @@ import game.idle.flow.FlowContext
 import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepNeeds
@@ -25,7 +24,6 @@ import game.idle.flow.option.OptionSource
 import game.idle.flow.option.StepOption
 import game.idle.flow.option.StepTarget
 import game.idle.location.Tile
-import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
 /** The fake kinds' tree target, kept under their one setting: oak, with its logs' icon. */
@@ -51,8 +49,6 @@ val WENT_TO = Tile(3086, 3233)
 private object WentThere : ResolvedStep {
 
     override fun after(context: FlowContext): FlowContext = context.copy(workSpot = WorkSpot.At(WENT_TO))
-
-    override fun activity(player: Player, runTile: Tile): StepActivity = error("configure tests never run steps")
 }
 
 /** Two logs a list can hold: logs and oak logs, by item id. */

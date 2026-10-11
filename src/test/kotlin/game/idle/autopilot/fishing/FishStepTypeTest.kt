@@ -2,6 +2,7 @@ package game.idle.autopilot.fishing
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.StepIcon
 import game.idle.flow.StepNeeds
 import game.idle.flow.StepPick
@@ -172,8 +173,10 @@ class FishStepTypeTest {
     }
 
     @Test
-    fun `a fish step needs its method's tool`() {
-        assertEquals(listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(303 to 1))))), FishStep(FishingMethod(Tool.SMALL_NET), 10, walkedTo).needs())
+    fun `a fish step needs its method's tool in the bag and the tool's level`() {
+        val needs = FishStep(FishingMethod(Tool.SMALL_NET), 10, walkedTo).needs()
+
+        assertEquals(listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(303 to 1))), level = LevelNeed(Skill.FISHING, 1))), needs)
     }
 
     @Test

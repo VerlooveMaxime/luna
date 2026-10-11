@@ -17,11 +17,4 @@ fun tree(
     approach: Position = Position(x - 1, y, 0),
 ): TreeCandidate = TreeCandidate(TREE_OBJECT_ID, Position(x, y, 0), kind, distance, usableFromHere, approach)
 
-fun view(
-    trees: List<TreeCandidate>,
-    woodcuttingLevel: Int = 1,
-    hasUsableAxe: Boolean = true,
-    inventoryFull: Boolean = false,
-    logsInInventory: Int = 0,
-    atLocation: Boolean = true,
-): WoodcuttingView = WoodcuttingView(woodcuttingLevel, hasUsableAxe, inventoryFull, logsInInventory, atLocation, trees)
+fun view(trees: List<TreeCandidate>, atLocation: Boolean = true): WoodcuttingView = WoodcuttingView(atLocation, trees)

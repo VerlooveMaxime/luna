@@ -2,6 +2,7 @@ package game.idle.autopilot.woodcutting
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.StepIcon
 import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
@@ -132,10 +133,15 @@ class ChopStepTypeTest {
     }
 
     @Test
-    fun `a chop step needs an axe its Woodcutting level allows`() {
+    fun `a chop step needs an axe its Woodcutting level allows, worn or carried`() {
         val axe = ChopStep(Tree.NORMAL, 10, walkedTo).needs().single().tools.single()
 
-        assertEquals(listOf("axe", 1, 41, Skill.WOODCUTTING), listOf(axe.word, axe.items[1351], axe.items[1359], axe.skill))
+        assertEquals(listOf("axe", 1, 41, Skill.WOODCUTTING, true), listOf(axe.word, axe.items[1351], axe.items[1359], axe.skill, axe.worn))
+    }
+
+    @Test
+    fun `a chop step needs the tree's Woodcutting level`() {
+        assertEquals(LevelNeed(Skill.WOODCUTTING, 15), ChopStep(Tree.OAK, 10, walkedTo).needs().single().level)
     }
 
     @Test

@@ -7,7 +7,7 @@ import game.idle.autopilot.fighting.FightDecision.WalkToLocation
 import game.idle.flow.CountsAmount
 import game.idle.flow.Reason
 import game.idle.flow.Said
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepStop
 import game.idle.flow.Target
 import io.luna.game.model.Position
@@ -104,7 +104,7 @@ object FightingPlanner {
  * (out of reach after all, or taken by someone else) is skipped until the next kill, or until every npc around was
  * skipped: npcs wander, so one out of reach now may not be later.
  */
-class FightingActivity(private val fighter: Fighter, private val amount: Int? = null) : StepActivity, CountsAmount {
+class FightingActivity(private val fighter: Fighter, private val amount: Int? = null) : LegacyActivity, CountsAmount {
 
     private val skippedTargets = mutableSetOf<Int>()
     private var lastDecision: FightDecision? = null

@@ -10,7 +10,7 @@ import game.idle.autopilot.PlaceCandidate
 import game.idle.flow.CountsAmount
 import game.idle.flow.Reason
 import game.idle.flow.Said
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepStop
 import game.idle.flow.Supply
 import game.idle.flow.Target
@@ -99,7 +99,7 @@ object CookingPlanner {
  * row (used without the window opening, or walked to but still out of reach; fires burn out) is skipped for as long
  * as the step runs.
  */
-class CookingActivity(private val cooker: Cooker, private val amount: Int? = null) : StepActivity, CountsAmount {
+class CookingActivity(private val cooker: Cooker, private val amount: Int? = null) : LegacyActivity, CountsAmount {
 
     private val skippedPlaces = mutableSetOf<Position>()
     private var lastDecision: CookingDecision? = null

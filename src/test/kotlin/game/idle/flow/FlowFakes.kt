@@ -4,9 +4,7 @@ import game.idle.flow.option.FakeNames
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
-import game.idle.location.Tile
 import game.idle.ui.EVEN_FONT
-import io.luna.game.model.mob.Player
 
 /**
  * A resolved step that names itself; whatever it lists in [gathers] the steps after it can rely on, and it needs what
@@ -17,8 +15,6 @@ data class FakeStep(val name: String, val gathers: Set<Int> = emptySet(), val ne
     override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + gathers)
 
     override fun needs(): List<StepNeeds> = needs
-
-    override fun activity(player: Player, runTile: Tile): StepActivity = error("fake steps start through FakeFlowPlayer")
 }
 
 /**
@@ -103,16 +99,20 @@ fun words(names: GameNames = FakeNames()): StepWords = StepWords(names, EVEN_FON
 
 /**
  * Records acts as `<name>:<n>`; [done] ends the step, [amountDone] is what its Amount counts so far, [said] is given
- * once as a real step gives it.
+ * once as a real step gives it, [ended] counts the turns ended early. It counts as having [worked] unless a test says
+ * otherwise, so flows lap as they did before the idle-lap stop.
  */
-class FakeStepActivity(private val name: String, val log: MutableList<String>) : StepActivity, CountsAmount {
+class FakeStepActivity(private val name: String, val log: MutableList<String>) : StepActivity {
 
     var busy = false
     var done = false
     var stop: StepStop? = null
     var blocked: Reason? = null
+    var waiting: Reason? = null
     var said: Said? = null
     var amountDone = 0
+    var worked = true
+    var ended = 0
     private var acts = 0
 
     override fun amountDone(): Int = amountDone
@@ -123,14 +123,68 @@ class FakeStepActivity(private val name: String, val log: MutableList<String>) :
 
     override fun blocked(): Reason? = blocked
 
+    override fun waiting(): Reason? = waiting
+
     override fun said(): Said? = said.also { said = null }
 
     override fun isDone(): Boolean = done
+
+    override fun worked(): Boolean = worked
+
+    override fun endTurn() {
+        ended++
+    }
 
     override fun act() {
         acts++
         log += "$name:$acts"
     }
+}
+
+/**
+ * A kind's work for the turn's own tests: each act gives the next of [outcomes] (the last one again once they run
+ * out), [done] records what it was asked, [reading] is what its meter reads.
+ */
+class FakeStepWork(vararg outcomes: StepOutcome, meter: ((() -> Int) -> Meter)? = Meter::Rises) : StepWork {
+
+    private val outcomes = outcomes.toList()
+    val done = mutableListOf<String>()
+    var busy = false
+    var finishing = false
+    var reading = 0
+    private var acts = 0
+
+    override val meter: Meter = meter?.invoke { reading } ?: Meter.None
+
+    override fun isBusy(): Boolean = busy
+
+    override fun finishing(): Boolean = finishing
+
+    override fun interrupt() {
+        done += "interrupt"
+    }
+
+    override fun act(left: Int?): StepOutcome {
+        done += "act $left"
+        return outcomes[minOf(acts++, outcomes.lastIndex)]
+    }
+}
+
+/** What the player has on them in a test: the level in [levels] (1 without one), the [bag] and [worn] item ids, [full]. */
+class FakeCarried : Carried {
+
+    val levels = mutableMapOf<Int, Int>()
+    val bag = mutableSetOf<Int>()
+    val worn = mutableSetOf<Int>()
+    var full = false
+
+    override fun level(skill: Int): Int = levels[skill] ?: 1
+
+    override fun holds(id: Int): Boolean = id in bag
+
+    override fun wears(id: Int): Boolean = id in worn
+
+    override fun bagFull(): Boolean = full
 }
 
 /** A kind's configure fields in words, so a test compares them at a glance. */

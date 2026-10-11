@@ -1,6 +1,5 @@
 package game.idle.autopilot.fishing
 
-import api.predef.fishing
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
@@ -24,7 +23,6 @@ class LunaFisherTest {
 
     private val anchor = Position(3200, 3200)
     private val area = Area(Tile(3200, 3200), radius = 10)
-    private val smallNet = 303
     private val rawShrimps = 317
     private val rawAnchovies = 321
     private val netSpot = 316
@@ -61,16 +59,15 @@ class LunaFisherTest {
     }
 
     @Test
-    fun `the view sees the net, the level, the room and the spots of the method`() {
+    fun `the view sees the player in the area and the spots of the method`() {
         val player = login()
-        player.inventory.add(Item(smallNet))
         val spot = TestWorld.spawnNpc(netSpot, Position(3201, 3200))
         TestWorld.spawnNpc(rodSpot, Position(3203, 3200))
 
         val view = fisher(player).look()
 
         assertEquals(
-            FishingView(hasTool = true, hasLevel = true, hasBait = true, inventoryFull = false, atLocation = true, spots = listOf(
+            FishingView(atLocation = true, spots = listOf(
                 SpotCandidate(spot.index, Position(3201, 3200), distance = 0, usableFromHere = true, approach = anchor),
             )),
             view,
@@ -98,37 +95,8 @@ class LunaFisherTest {
     }
 
     @Test
-    fun `without a net the view says so`() {
-        assertFalse(fisher(login()).look().hasTool)
-    }
-
-    @Test
-    fun `below the tool's level the view says so`() {
-        val player = login()
-        player.fishing.level = 19
-
-        assertFalse(fisher(player, Tool.FLY_FISHING_ROD).look().hasLevel)
-    }
-
-    @Test
-    fun `at the tool's level the view has the level`() {
-        val player = login()
-        player.fishing.level = 20
-
-        assertTrue(fisher(player, Tool.FLY_FISHING_ROD).look().hasLevel)
-    }
-
-    @Test
-    fun `a rod without bait in the inventory has no bait`() {
-        assertFalse(fisher(login(), Tool.FISHING_ROD).look().hasBait)
-    }
-
-    @Test
-    fun `a rod with fishing bait in the inventory has bait`() {
-        val player = login()
-        player.inventory.add(Item(fishingBait, 5))
-
-        assertTrue(fisher(player, Tool.FISHING_ROD).look().hasBait)
+    fun `a player outside the area is not at the location`() {
+        assertFalse(fisher(login(Position(3220, 3200))).look().atLocation)
     }
 
     @Test
@@ -229,12 +197,8 @@ class LunaFisherTest {
     }
 
     @Test
-    fun `walking back heads for the anchor`() {
-        val player = login(Position(3220, 3200))
-
-        fisher(player).walkToLocation()
-
-        assertEquals(anchor, player.navigator.currentTarget)
+    fun `a walk back goes to the area's anchor`() {
+        assertEquals(Tile(3200, 3200), fisher(login(Position(3220, 3200))).anchor())
     }
 
     @Test
@@ -248,12 +212,12 @@ class LunaFisherTest {
     }
 
     @Test
-    fun `stopping ends the fishing in progress`() {
+    fun `interrupting breaks off the fishing in progress`() {
         val player = login()
         player.submitAction(EndlessAction(player))
         TestWorld.tick()
 
-        fisher(player).stop()
+        fisher(player).interrupt()
         TestWorld.tick()
 
         assertFalse(LunaClicks.isActing(player))

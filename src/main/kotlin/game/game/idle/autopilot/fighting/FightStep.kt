@@ -4,8 +4,8 @@ import game.idle.flow.Fights
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.OwnSpot
-import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyKind
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -51,7 +51,7 @@ class FightStepType(private val catalog: FightTargetCatalog) : StepType {
     override fun summary(settings: StepSettings): String =
         "fight ${StepAmount.prefix(settings)}${settings[NPC] ?: "?"}${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
 
-    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+    override fun resolve(settings: StepSettings, context: FlowContext): LegacyKind {
         val name = settings[NPC]?.lowercase() ?: throw FlowError("fight needs an npc")
         val target = catalog.find(name)
             ?: throw FlowError("'$name' is not something you can fight")
@@ -64,12 +64,12 @@ class FightStepType(private val catalog: FightTargetCatalog) : StepType {
 }
 
 /** A fight step resolved: [amount] kills, null for no end. */
-data class FightStep(val target: FightTarget, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot, Fights {
+data class FightStep(val target: FightTarget, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : LegacyKind, OwnSpot, Fights {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
     override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(fought = target.npcs))
 
-    override fun activity(player: Player, runTile: Tile): StepActivity =
+    override fun activity(player: Player, runTile: Tile): LegacyActivity =
         FightingActivity(LunaFighter(player, target, Area(workSpot.tile(runTile), radius)), amount)
 }

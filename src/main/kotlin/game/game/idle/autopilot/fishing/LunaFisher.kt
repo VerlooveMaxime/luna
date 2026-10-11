@@ -1,8 +1,8 @@
 package game.idle.autopilot.fishing
 
-import api.predef.fishing
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
+import game.idle.location.Tile
 import game.idle.movement.Footprint
 import game.idle.movement.ReachScan
 import game.idle.movement.ReachTerrain
@@ -28,16 +28,12 @@ class LunaFisher(private val player: Player, private val method: FishingMethod, 
 
     /**
      * Out of bait, the player is never busy: Luna's fishing then opens a dialogue that would hold the step, and the
-     * step has to say why it stopped.
+     * step has to block on the bait.
      */
     override fun isBusy(): Boolean = (LunaClicks.isActing(player) || LunaClicks.hasBlockingWindow(player)) && hasBait()
 
     override fun look(): FishingView =
         FishingView(
-            hasTool = player.inventory.contains(method.tool.id),
-            hasLevel = player.fishing.level >= method.tool.level,
-            hasBait = hasBait(),
-            inventoryFull = player.inventory.isFull,
             atLocation = scan.atLocation(player.position),
             spots = scan.reachable(player.position, spots(), { Footprint(it.position, it.size(), it.size()) }, terrain = this)
                 .map { (npc, reach) -> SpotCandidate(npc.index, npc.position, reach.distance, reach.usableFromHere, reach.approach) },
@@ -54,18 +50,16 @@ class LunaFisher(private val player: Player, private val method: FishingMethod, 
 
     override fun walkTo(spot: SpotCandidate) = walkTo(spot.approach)
 
-    override fun walkToLocation() = walkTo(anchor)
-
     private fun walkTo(tile: Position) {
         player.overlays.closeWindows(false)
         player.navigator.navigate(tile, true)
     }
 
+    override fun anchor(): Tile = area.anchor
+
     override fun catches(): Int = method.catchIds.sumOf { player.inventory.computeAmountForId(it) }
 
-    override fun stop() {
-        player.actions.interruptWeak()
-    }
+    override fun interrupt() = LunaClicks.interrupt(player)
 
     private fun hasBait(): Boolean = method.tool.bait?.let { player.inventory.contains(it) } ?: true
 

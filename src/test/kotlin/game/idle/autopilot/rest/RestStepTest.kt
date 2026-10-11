@@ -1,5 +1,6 @@
 package game.idle.autopilot.rest
 
+import game.idle.flow.StepOutcome
 import game.idle.location.Tile
 import game.testworld.TestWorld
 import io.luna.game.model.Position
@@ -18,11 +19,11 @@ class RestStepTest {
         val player = TestWorld.login("rester", Position(3200, 3200))
         val hitpoints = player.skill(Skill.HITPOINTS)
         hitpoints.level = hitpoints.staticLevel - 1
-        val activity = RestStep(100).activity(player, Tile(3200, 3200))
+        val work = RestStep(100).work(player, Tile(3200, 3200))
 
-        val waiting = activity.isDone()
+        val resting = work.act(null)
         hitpoints.level = hitpoints.staticLevel
 
-        assertEquals(listOf(false, true), listOf(waiting, activity.isDone()))
+        assertEquals(listOf(StepOutcome.Worked, StepOutcome.Finished), listOf(resting, work.act(null)))
     }
 }

@@ -4,8 +4,8 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
-import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyKind
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -68,7 +68,7 @@ class SmeltStepType(private val names: GameNames) : StepType {
     override fun summary(settings: StepSettings): String =
         "smelt ${StepAmount.prefix(settings)}${settings[BAR] ?: "?"}${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
 
-    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+    override fun resolve(settings: StepSettings, context: FlowContext): LegacyKind {
         val name = settings[BAR] ?: throw FlowError("smelt needs a bar")
         val bar = bar(settings) ?: throw FlowError("'$name' is not a bar to smelt")
         ProcessInput.requireGathered(input(settings, context), context, ores(bar).map { it.id }, names)
@@ -91,7 +91,7 @@ class SmeltStepType(private val names: GameNames) : StepType {
 }
 
 /** A smelt step resolved: the bar, where, and how many ([amount], null for all). Later steps know it makes that bar. */
-data class SmeltStep(val bar: BarType, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot {
+data class SmeltStep(val bar: BarType, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : LegacyKind, OwnSpot {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
@@ -100,6 +100,6 @@ data class SmeltStep(val bar: BarType, val radius: Int, val workSpot: WorkSpot, 
     override fun needs(): List<StepNeeds> =
         listOf(StepNeeds(inputs = listOfNotNull(bar.oreRequired.first, bar.oreRequired.second).map { it.id }))
 
-    override fun activity(player: Player, runTile: Tile): StepActivity =
+    override fun activity(player: Player, runTile: Tile): LegacyActivity =
         SmeltingActivity(LunaSmelter(player, bar, Area(workSpot.tile(runTile), radius)), bar, amount)
 }

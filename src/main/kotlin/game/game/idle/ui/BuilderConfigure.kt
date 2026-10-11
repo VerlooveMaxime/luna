@@ -192,6 +192,7 @@ class BuilderConfigure(
         val level = type?.skill(settings)?.let { " @gry@(${Skill.getName(it)} ${facts.level(it)})" }.orEmpty()
         val running = state.running && !draft.new && state.stepIndex == draft.slot
         val block = state.blocked?.takeIf { running }
+        val waiting = state.waiting?.takeIf { running }
         return Screen(
             pictures = StepPictures.of(icon, type?.pick(settings, names)?.icon),
             name = "Step ${draft.slot + 1}: ${capitalised(type?.label ?: settings.kind)}$level",
@@ -199,7 +200,7 @@ class BuilderConfigure(
             fields = type?.fields(names).orEmpty(),
             before = resolver.contextBefore(flow, index),
             reason = block ?: resolver.problems(state.steps.take(draft.slot) + settings).last(),
-            warnings = stepWarnings.of(flow, index, facts, state.reflexes),
+            warnings = listOfNotNull(waiting) + stepWarnings.of(flow, index, facts, state.reflexes),
         )
     }
 

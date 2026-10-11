@@ -1,11 +1,12 @@
 package game.idle.autopilot.fishing
 
-import game.idle.flow.FillsBag
+import game.idle.flow.Counts
+import game.idle.flow.Gathers
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
 import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -14,7 +15,10 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepSpot
 import game.idle.flow.StepType
+import game.idle.flow.StepWork
+import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
+import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
@@ -40,6 +44,12 @@ data class FishingMethod(val tool: Tool) {
 
     /** What the fish setting keeps: the method's first fish, `shrimp` for the small net as the tutorial says. */
     val word: String = tool.fish.first().name.lowercase()
+
+    /** The tool, which Luna's fishing counts in the bag only. */
+    val toolNeed: ToolNeed = ToolNeed(word = null, mapOf(tool.id to 1))
+
+    /** The bait, when the method takes any (S03b: bait like tools), counted in the bag only and not one by one. */
+    val baitNeed: ToolNeed? = tool.bait?.let { ToolNeed(word = null, mapOf(it to 1), countable = false) }
 
     companion object {
 
@@ -90,7 +100,12 @@ object FishStepType : StepType {
 }
 
 /** A fish step resolved. Later steps know it gathers its catches. */
-data class FishStep(val method: FishingMethod, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot, FillsBag {
+data class FishStep(
+    val method: FishingMethod,
+    val radius: Int,
+    val workSpot: WorkSpot,
+    override val amount: Int? = null,
+) : Works, OwnSpot, Gathers, Counts {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
@@ -98,9 +113,9 @@ data class FishStep(val method: FishingMethod, val radius: Int, val workSpot: Wo
 
     override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + fills))
 
-    /** The method's tool and its bait, if it takes any (S03b: bait like tools). */
-    override fun needs(): List<StepNeeds> = FishingNeeds.of(method).let { listOf(StepNeeds(tools = listOfNotNull(it.tool, it.bait))) }
+    /** The method's tool, its bait if it takes any, and the tool's level. */
+    override fun needs(): List<StepNeeds> =
+        listOf(StepNeeds(tools = listOfNotNull(method.toolNeed, method.baitNeed), level = LevelNeed(Skill.FISHING, method.tool.level)))
 
-    override fun activity(player: Player, runTile: Tile): StepActivity =
-        FishingActivity(LunaFisher(player, method, Area(workSpot.tile(runTile), radius)), FishingNeeds.of(method), amount)
+    override fun work(player: Player, runTile: Tile): StepWork = FishingWork(LunaFisher(player, method, Area(workSpot.tile(runTile), radius)))
 }

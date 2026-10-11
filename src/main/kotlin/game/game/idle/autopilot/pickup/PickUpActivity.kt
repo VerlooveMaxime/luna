@@ -8,7 +8,7 @@ import game.idle.autopilot.pickup.PickUpDecision.WalkToLocation
 import game.idle.flow.CountsAmount
 import game.idle.flow.Reason
 import game.idle.flow.Said
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepStop
 import io.luna.game.model.Position
 
@@ -84,7 +84,7 @@ object PickUpPlanner {
  * for the rest of the step, and the walk to the area is made once. A full bag ends the step, which says what it left
  * (Maxime, 2026-10-11).
  */
-class PickUpActivity(private val picker: Picker, private val amount: Int?) : StepActivity, CountsAmount {
+class PickUpActivity(private val picker: Picker, private val amount: Int?) : LegacyActivity, CountsAmount {
 
     private val skipped = mutableSetOf<Pair<Int, Position>>()
     private var lastDecision: PickUpDecision? = null

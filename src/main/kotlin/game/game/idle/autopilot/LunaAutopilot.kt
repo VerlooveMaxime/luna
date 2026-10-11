@@ -3,14 +3,21 @@ package game.idle.autopilot
 import game.idle.IdleState
 import game.idle.autopilot.reflex.LunaReflexBody
 import game.idle.autopilot.walk.LunaWalker
-import game.idle.autopilot.walk.WalkActivity
+import game.idle.autopilot.walk.WalkWork
+import game.idle.flow.Counts
+import game.idle.flow.Gathers
 import game.idle.flow.FlowPlayer
+import game.idle.flow.LegacyKind
+import game.idle.flow.LegacyStep
 import game.idle.flow.OwnSpot
 import game.idle.flow.Place
 import game.idle.flow.ReflexBody
 import game.idle.flow.ResolvedStep
 import game.idle.flow.SpotWalk
 import game.idle.flow.StepActivity
+import game.idle.flow.StepTurn
+import game.idle.flow.StepWork
+import game.idle.flow.Works
 import game.idle.idleState
 import game.idle.location.Tile
 import game.idle.ui.IdleUi
@@ -37,6 +44,8 @@ class LunaAutopilotPlayer(val player: Player, private val ui: IdleUi) : Autopilo
 
     override val body: ReflexBody = LunaReflexBody(player)
 
+    private val carried = LunaCarried(player)
+
     override fun tell(message: String) {
         player.sendMessage(message)
     }
@@ -47,10 +56,7 @@ class LunaAutopilotPlayer(val player: Player, private val ui: IdleUi) : Autopilo
      */
     override fun endWalk() {
         body.calm()
-        if (player.navigator.isActive) {
-            player.navigator.cancel()
-            player.walking.clear()
-        }
+        LunaClicks.endWalk(player)
     }
 
     override fun saveStep(index: Int) {
@@ -63,12 +69,31 @@ class LunaAutopilotPlayer(val player: Player, private val ui: IdleUi) : Autopilo
 
     /**
      * A flow is started before its first activity, so the run tile is set; the player's tile only guards a gap. A step
-     * with its own work spot starting outside its area walks there first (S07e).
+     * with its own work spot starting outside its area walks there first (S07e). The one place a step's turn is put
+     * together: a converted kind's work inside [StepTurn], a kind not yet converted as it was.
      */
     override fun activity(step: ResolvedStep): StepActivity =
-        SpotWalk.of(tile, (step as? OwnSpot)?.ownArea, ::walkToSpot) { step.activity(player, idleState.runTile ?: tile) }
+        SpotWalk.of(tile, (step as? OwnSpot)?.ownArea, ::walkToSpot) { turn(step) }
 
-    private fun walkToSpot(spot: Tile): StepActivity = WalkActivity(LunaWalker(player, spot), spot, Place.WORK_SPOT)
+    private fun turn(step: ResolvedStep): StepActivity =
+        if (step is Works) converted(step) else LegacyStep((step as LegacyKind).activity(player, runTile()))
+
+    private fun converted(step: Works): StepTurn =
+        StepTurn(
+            step.work(player, runTile()),
+            amount = if (step is Counts) step.amount else null,
+            needs = step.needs(),
+            carried = carried,
+            fillsBag = step is Gathers,
+            walkBack = ::walkBack,
+        )
+
+    private fun walkToSpot(spot: Tile): StepActivity =
+        StepTurn(walkBack(spot), amount = null, needs = emptyList(), carried = carried, fillsBag = false, walkBack = ::walkBack)
+
+    private fun walkBack(to: Tile): StepWork = WalkWork(LunaWalker(player, to), to, Place.WORK_SPOT)
+
+    private fun runTile(): Tile = idleState.runTile ?: tile
 }
 
 class WorldTickScheduler(private val world: World) : TickScheduler {

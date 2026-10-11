@@ -1,11 +1,12 @@
 package game.idle.autopilot.mining
 
-import game.idle.flow.FillsBag
+import game.idle.flow.Counts
+import game.idle.flow.Gathers
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
 import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -14,12 +15,16 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepSpot
 import game.idle.flow.StepType
+import game.idle.flow.StepWork
+import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
+import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.mining.Ore
+import game.skill.mining.Pickaxe
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
@@ -32,6 +37,9 @@ object MineStepType : StepType {
     val MINEABLE: List<Ore> by lazy {
         Ore.entries.filter { it.rocks.isNotEmpty() && it != Ore.RUNE_ESSENCE }.sortedBy { it.level }
     }
+
+    /** Any pickaxe, each with the Mining level it takes; Luna's mining takes one carried or wielded. */
+    val PICKAXE = ToolNeed("pickaxe", Pickaxe.entries.associate { it.id to it.level }, Skill.MINING, worn = true)
 
     override val kind = "mine"
 
@@ -71,7 +79,12 @@ object MineStepType : StepType {
  * A mine step resolved: which ore, how far from the work spot, and how many ([amount], null for a full inventory).
  * Later steps know it gathers that ore.
  */
-data class MineStep(val ore: Ore, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot, FillsBag {
+data class MineStep(
+    val ore: Ore,
+    val radius: Int,
+    val workSpot: WorkSpot,
+    override val amount: Int? = null,
+) : Works, OwnSpot, Gathers, Counts {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
@@ -79,9 +92,9 @@ data class MineStep(val ore: Ore, val radius: Int, val workSpot: WorkSpot, val a
 
     override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + fills))
 
-    /** Any pickaxe the player's Mining level allows, as Luna's mining takes one carried or wielded. */
-    override fun needs(): List<StepNeeds> = listOf(StepNeeds(tools = listOf(MiningPlanner.PICKAXE)))
+    /** A pickaxe the player's Mining level allows, and the ore's level. */
+    override fun needs(): List<StepNeeds> =
+        listOf(StepNeeds(tools = listOf(MineStepType.PICKAXE), level = LevelNeed(Skill.MINING, ore.level)))
 
-    override fun activity(player: Player, runTile: Tile): StepActivity =
-        MiningActivity(LunaMiner(player, ore, Area(workSpot.tile(runTile), radius)), ore, amount)
+    override fun work(player: Player, runTile: Tile): StepWork = MiningWork(LunaMiner(player, ore, Area(workSpot.tile(runTile), radius)))
 }

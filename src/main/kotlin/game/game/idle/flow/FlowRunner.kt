@@ -31,9 +31,10 @@ data class ResolvedFlow(val steps: List<ResolvedStep>, val reflexes: List<List<R
  * done, then the next one starts, and after the last step the first one again, which counts as a lap. A reflex's jump
  * goes on from the step it names and never counts a lap (Maxime, 2026-10-10); a step cut short by a jump and cut short
  * again on its next turn before it made progress stops the flow, as does the player's death. A stop while something
- * attacks the player waits: they run until nothing does, then the flow stops (Maxime, 2026-10-10). The step index is saved
- * whenever it changes so a relog resumes where it was. What the steps report is put into [words] here, the one place
- * that knows their numbers.
+ * attacks the player waits: they run until nothing does, then the flow stops (Maxime, 2026-10-10). A whole lap in
+ * which no step worked stops the flow too, so a flow with nothing to do never spins (Maxime, 2026-10-11). The step index
+ * is saved whenever it changes so a relog resumes where it was. What the steps report is put into [words] here, the
+ * one place that knows their numbers.
  */
 class FlowRunner(
     private val flow: ResolvedFlow,
@@ -50,6 +51,9 @@ class FlowRunner(
     /** The steps a jump cut short on their last turn. */
     private val cutShort = mutableSetOf<Int>()
 
+    /** Whether any step worked in the lap under way. */
+    private var lapWorked = false
+
     /** Why the flow stops, once nothing attacks the player. */
     private var stopped: String? = null
 
@@ -60,6 +64,9 @@ class FlowRunner(
     /** The current step's block; none between two steps. */
     override fun blocked(): String? = current?.blocked()?.let(words::block)
 
+    /** What the current step waits for, in the block's words; none between two steps. */
+    override fun waiting(): String? = current?.waiting()?.let(words::block)
+
     override fun act() {
         if (steps.isEmpty()) return
         if (stopping() == null) step()
@@ -69,7 +76,7 @@ class FlowRunner(
     private fun step() {
         val activity = current ?: startStep()
         if (activity.isDone()) {
-            advance()
+            advance(activity)
             return
         }
         activity.act()
@@ -95,21 +102,37 @@ class FlowRunner(
         return started
     }
 
-    private fun advance() {
+    private fun advance(over: StepActivity) {
         cutShort -= index
+        noteWork(over)
         current = null
         index = (index + 1) % steps.size
-        if (index == 0) player.lapCompleted()
+        if (index == 0) endLap()
         player.saveStep(index)
     }
 
+    private fun noteWork(over: StepActivity) {
+        if (over.worked()) lapWorked = true
+    }
+
+    /** An idle lap is not counted: the flow stops instead. */
+    private fun endLap() {
+        if (lapWorked) {
+            player.lapCompleted()
+            lapWorked = false
+        } else {
+            stopReason = StepWords.IDLE_LAP
+        }
+    }
+
     private fun jump(activity: ReflexGuard, jump: ReflexOutcome.Jump) {
-        if (index in cutShort && activity.progress() == 0) {
+        if (index in cutShort && activity.amountDone() == 0) {
             stopReason = words.cutShort(index + 1)
             return
         }
         player.tell(words.jump(jump.number, jump.health, jump.index + 1))
         cutShort += index
+        noteWork(activity)
         current = null
         index = jump.index
         player.saveStep(index)

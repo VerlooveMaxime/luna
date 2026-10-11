@@ -12,6 +12,8 @@ class LunaItemDropper(private val player: Player, private val itemIds: Set<Int>)
 
     override fun hasItems(): Boolean = items().isNotEmpty()
 
+    override fun interrupt() = LunaClicks.interrupt(player)
+
     override fun dropItems() {
         for ((slot, item) in items()) {
             val event = DropItemEvent(player, item.id, INVENTORY_WIDGET, slot)

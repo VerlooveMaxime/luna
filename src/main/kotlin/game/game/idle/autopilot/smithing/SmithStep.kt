@@ -4,8 +4,8 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
-import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyKind
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -72,7 +72,7 @@ class SmithStepType(private val names: GameNames) : StepType {
         return "smith ${StepAmount.prefix(settings)}$name${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
     }
 
-    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+    override fun resolve(settings: StepSettings, context: FlowContext): LegacyKind {
         val item = settings[ITEM] ?: throw FlowError("smith needs an item")
         val (table, smithed) = smithed(settings) ?: throw FlowError("'$item' is not an item to smith")
         ProcessInput.requireGathered(input(settings, context), context, listOf(smithed.barType.id), names)
@@ -105,7 +105,7 @@ data class SmithStep(
     val radius: Int,
     val workSpot: WorkSpot,
     val amount: Int? = null,
-) : ResolvedStep, OwnSpot {
+) : LegacyKind, OwnSpot {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
@@ -116,6 +116,6 @@ data class SmithStep(
     override fun needs(): List<StepNeeds> =
         listOf(StepNeeds(tools = listOf(SmithingPlanner.HAMMER), inputs = listOf(metal.id)))
 
-    override fun activity(player: Player, runTile: Tile): StepActivity =
+    override fun activity(player: Player, runTile: Tile): LegacyActivity =
         SmithingActivity(LunaSmither(player, metal, table, Area(workSpot.tile(runTile), radius)), made.level, amount)
 }

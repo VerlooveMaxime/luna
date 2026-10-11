@@ -851,16 +851,16 @@ class LunaHarnessApiTest {
         val view = api().flow("agent_a")
 
         val steps = listOf(FlowStepView(1, "chop", mapOf("word" to "oak"), listOf(3), "chop oak", null), FlowStepView(2, "drop", emptyMap(), emptyList(), "drop", null))
-        assertEquals(FlowView("agent_a", running = false, stepIndex = 1, blocked = null, steps = steps, reflexes = listOf(FlowReflexView(3, mapOf("do" to "run")))), view)
+        assertEquals(FlowView("agent_a", running = false, stepIndex = 1, blocked = null, waiting = null, steps = steps, reflexes = listOf(FlowReflexView(3, mapOf("do" to "run")))), view)
     }
 
     @Test
     fun `a flow's running block and each step's problem read as the builder shows them`() {
-        agent().idleState = IdleState(steps = listOf(step("chop", "oak"), step("chop", "bad")), running = true, blocked = "Needs an axe you can use")
+        agent().idleState = IdleState(steps = listOf(step("chop", "oak"), step("chop", "bad")), running = true, blocked = "Needs an axe you can use", waiting = "No tree in reach")
 
         val view = api().flow("agent_a")
 
-        assertEquals("Needs an axe you can use" to listOf(null, "'bad' is refused"), view.blocked to view.steps.map { it.problem })
+        assertEquals(listOf("Needs an axe you can use", "No tree in reach", listOf(null, "'bad' is refused")), listOf(view.blocked, view.waiting, view.steps.map { it.problem }))
     }
 
     @Test

@@ -144,6 +144,28 @@ class FlowRunnerTest {
     }
 
     @Test
+    fun `what the current step waits for is the flow's, in the block's words`() {
+        val runner = runner("chop")
+        runner.act()
+
+        player.started.single().waiting = Reason.NoneInReach(Target.TREE)
+
+        assertEquals("No tree in reach", runner.waiting())
+    }
+
+    @Test
+    fun `nothing is waited for between two steps`() {
+        val runner = runner("chop", "drop")
+        runner.act()
+        player.started.single().waiting = Reason.NoneInReach(Target.TREE)
+        player.started.single().done = true
+
+        runner.act()
+
+        assertEquals(null, runner.waiting())
+    }
+
+    @Test
     fun `nothing is blocked between two steps`() {
         val runner = runner("chop", "drop")
         runner.act()
@@ -235,6 +257,94 @@ class FlowRunnerTest {
         runner.act()
 
         assertEquals(1, player.laps)
+    }
+
+    @Test
+    fun `a lap in which no step worked stops the flow instead of counting`() {
+        val runner = runner("chop", "bank", startAt = 1)
+        runner.act()
+        player.started[0].worked = false
+        player.started[0].done = true
+
+        runner.act()
+
+        assertEquals(StepWords.IDLE_LAP to 0, runner.stopReason() to player.laps)
+    }
+
+    @Test
+    fun `a lap in which a step worked is counted and the flow goes on`() {
+        val runner = runner("chop", "bank", startAt = 1)
+        runner.act()
+        player.started[0].worked = true
+        player.started[0].done = true
+
+        runner.act()
+
+        assertEquals(null to 1, runner.stopReason() to player.laps)
+    }
+
+    @Test
+    fun `work earlier in the lap counts for it`() {
+        val runner = runner("chop", "bank")
+        runner.act()
+        player.started[0].done = true
+        runner.act()
+        runner.act()
+        player.started[1].worked = false
+        player.started[1].done = true
+
+        runner.act()
+
+        assertEquals(1, player.laps)
+    }
+
+    @Test
+    fun `each lap is judged on its own`() {
+        val runner = runner("chop")
+        runner.act()
+        player.started[0].done = true
+        runner.act()
+        runner.act()
+        player.started[1].worked = false
+        player.started[1].done = true
+
+        runner.act()
+
+        assertEquals(StepWords.IDLE_LAP to 1, runner.stopReason() to player.laps)
+    }
+
+    @Test
+    fun `work on a step a jump cut short counts for the lap`() {
+        val runner = jumping("fight", "bank", to = 1)
+        runner.act()
+        hurt()
+        runner.act()
+        healed()
+        runner.act()
+        runner.act()
+        player.started[1].worked = false
+        player.started[1].done = true
+
+        runner.act()
+
+        assertEquals(null to 1, runner.stopReason() to player.laps)
+    }
+
+    @Test
+    fun `a step cut short before it worked counts for nothing`() {
+        val runner = jumping("fight", "bank", to = 1)
+        runner.act()
+        player.started[0].worked = false
+        hurt()
+        runner.act()
+        healed()
+        runner.act()
+        player.started[1].worked = false
+        player.started[1].done = true
+
+        runner.act()
+
+        assertEquals(StepWords.IDLE_LAP, runner.stopReason())
     }
 
     @Test

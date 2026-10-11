@@ -223,6 +223,20 @@ class BuilderConfigureTest {
     }
 
     @Test
+    fun `what the running step waits for is its first yellow line`() {
+        val state = IdleState(steps = listOf(oak), running = true, waiting = "No tree in reach")
+
+        assertEquals("@yel@! No tree in reach", text(chopping, BuilderWidgets.warning(0), state))
+    }
+
+    @Test
+    fun `another step's wait is not this one's warning`() {
+        val state = IdleState(steps = listOf(oak, oak), running = true, stepIndex = 1, waiting = "No tree in reach")
+
+        assertEquals("@gre@No warnings.", text(chopping, BuilderWidgets.warning(0), state))
+    }
+
+    @Test
     fun `another step's block is not this one's warning`() {
         val state = IdleState(steps = listOf(oak, oak), running = true, stepIndex = 1, blocked = "Needs an axe you can use")
 

@@ -6,13 +6,14 @@ import game.idle.flow.StepSettings
 /** The lines the status overlay shows for a player's [IdleState], each step worded by [summary]. */
 class AutopilotStatus(private val summary: (StepSettings) -> String) {
 
-    /** Nothing while the autopilot is off; a blocked step adds why in red. */
+    /** Nothing while the autopilot is off; a blocked step adds why in red, a waiting one what it waits for in yellow. */
     fun text(state: IdleState): String {
         if (!state.running) return ""
         val header = "@gre@Autopilot@whi@ step ${state.stepIndex + 1}/${state.steps.size}"
         val step = current(state)?.let { "@yel@${plain(it)}" }
         val blocked = state.blocked?.let { "@red@${plain(it)}" }
-        return listOfNotNull(header, step, blocked).joinToString(StatusOverlayMessageWriter.LINE_SEPARATOR.toString())
+        val waiting = state.waiting?.let { "@yel@${plain(it)}" }
+        return listOfNotNull(header, step, blocked, waiting).joinToString(StatusOverlayMessageWriter.LINE_SEPARATOR.toString())
     }
 
     private fun current(state: IdleState): String? = state.steps.getOrNull(state.stepIndex)?.let(summary)

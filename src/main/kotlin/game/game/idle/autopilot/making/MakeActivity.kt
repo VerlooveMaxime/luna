@@ -7,7 +7,7 @@ import game.idle.autopilot.making.MakeDecision.Use
 import game.idle.flow.CountsAmount
 import game.idle.flow.Reason
 import game.idle.flow.Said
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepStop
 import game.idle.flow.Supply
 
@@ -68,7 +68,7 @@ object MakePlanner {
  * out. Making that reaches the amount is stopped at once. Combining twice in a row with nothing made and no window in
  * between means it cannot be made, and the step blocks instead of trying forever.
  */
-class MakeActivity(private val maker: Maker, private val amount: Int? = null) : StepActivity, CountsAmount {
+class MakeActivity(private val maker: Maker, private val amount: Int? = null) : LegacyActivity, CountsAmount {
 
     private var productsAtStart: Int? = null
     private var productsAtLastUse = 0

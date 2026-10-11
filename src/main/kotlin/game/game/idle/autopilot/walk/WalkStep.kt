@@ -4,13 +4,14 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.Place
 import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivity
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
+import game.idle.flow.StepWork
 import game.idle.flow.TileText
 import game.idle.flow.WorkSpot
+import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
@@ -42,9 +43,9 @@ object WalkStepType : StepType {
 }
 
 /** A walk step resolved: the tile it goes to, the work spot of the steps after it. */
-data class WalkStep(val target: Tile) : ResolvedStep {
+data class WalkStep(val target: Tile) : Works {
 
     override fun after(context: FlowContext): FlowContext = context.copy(workSpot = WorkSpot.At(target))
 
-    override fun activity(player: Player, runTile: Tile): StepActivity = WalkActivity(LunaWalker(player, target), target, Place.TILE)
+    override fun work(player: Player, runTile: Tile): StepWork = WalkWork(LunaWalker(player, target), target, Place.TILE)
 }

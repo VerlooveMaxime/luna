@@ -2,11 +2,12 @@ package game.idle.autopilot.walk
 
 import game.idle.location.Tile
 
-/** Records walks; [here] is where the player stands. */
+/** Records walks and interruptions; [here] is where the player stands. */
 class FakeWalker(var here: Tile) : Walker {
 
     var busy = false
     var walks = 0
+    var interrupted = 0
 
     override fun isBusy(): Boolean = busy
 
@@ -14,5 +15,9 @@ class FakeWalker(var here: Tile) : Walker {
 
     override fun walk() {
         walks++
+    }
+
+    override fun interrupt() {
+        interrupted++
     }
 }

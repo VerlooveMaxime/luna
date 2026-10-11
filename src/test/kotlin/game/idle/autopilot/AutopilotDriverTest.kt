@@ -29,6 +29,13 @@ class AutopilotDriverTest {
     }
 
     @Test
+    fun `what the activity waits for is the driver's`() {
+        activity.waiting = "No tree in reach"
+
+        assertEquals("No tree in reach", driver.waiting())
+    }
+
+    @Test
     fun `nothing happens before the player has been idle for the delay`() {
         driver.tick()
 

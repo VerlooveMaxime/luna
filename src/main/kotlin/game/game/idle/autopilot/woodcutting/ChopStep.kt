@@ -1,11 +1,12 @@
 package game.idle.autopilot.woodcutting
 
-import game.idle.flow.FillsBag
+import game.idle.flow.Counts
+import game.idle.flow.Gathers
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
 import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -14,11 +15,15 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepSpot
 import game.idle.flow.StepType
+import game.idle.flow.StepWork
+import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
+import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.skill.woodcutting.cutTree.Axe
 import game.skill.woodcutting.cutTree.Tree
 import game.skill.woodcutting.cutTree.TreeStump
 import io.luna.game.model.mob.Player
@@ -31,6 +36,9 @@ object ChopStepType : StepType {
 
     /** The kinds Luna has standing trees for, easiest first (teak and mahogany have none yet). */
     val CUTTABLE: List<Tree> = Tree.entries.filter { !TreeStump.ALIVE_TREE_MAP.get(it).isEmpty() }.sortedBy { it.level }
+
+    /** Any axe, each with the Woodcutting level it takes; Luna's woodcutting takes one carried or wielded. */
+    val AXE = ToolNeed("axe", Axe.entries.associate { it.id to it.level }, Skill.WOODCUTTING, worn = true)
 
     override val kind = "chop"
 
@@ -71,7 +79,12 @@ object ChopStepType : StepType {
  * A chop step resolved: what to cut, how far from the work spot, and how many logs ([amount], null for a full
  * inventory). Later steps know it gathers logs.
  */
-data class ChopStep(val tree: Tree, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot, FillsBag {
+data class ChopStep(
+    val tree: Tree,
+    val radius: Int,
+    val workSpot: WorkSpot,
+    override val amount: Int? = null,
+) : Works, OwnSpot, Gathers, Counts {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
@@ -79,11 +92,12 @@ data class ChopStep(val tree: Tree, val radius: Int, val workSpot: WorkSpot, val
 
     override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + fills))
 
-    /** Any axe the player's Woodcutting level allows, as Luna's woodcutting takes one carried or wielded. */
-    override fun needs(): List<StepNeeds> = listOf(StepNeeds(tools = listOf(WoodcuttingPlanner.AXE)))
+    /** An axe the player's Woodcutting level allows, and the tree's level. */
+    override fun needs(): List<StepNeeds> =
+        listOf(StepNeeds(tools = listOf(ChopStepType.AXE), level = LevelNeed(Skill.WOODCUTTING, tree.level)))
 
-    override fun activity(player: Player, runTile: Tile): StepActivity {
+    override fun work(player: Player, runTile: Tile): StepWork {
         val spot = WoodcuttingSpot(tree, Area(workSpot.tile(runTile), radius))
-        return WoodcuttingActivity(LunaWoodcutter(player, spot), ChopAction(setOf(tree)), amount)
+        return WoodcuttingWork(LunaWoodcutter(player, spot), ChopAction(setOf(tree)))
     }
 }

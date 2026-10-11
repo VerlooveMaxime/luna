@@ -116,12 +116,16 @@ data class FlowStepView(
 
 data class FlowReflexView(val id: Int, val values: Map<String, String>)
 
-/** A player's flow; [blocked] is why its running step cannot go on, as the overlay shows it, null while it can. */
+/**
+ * A player's flow; [blocked] is why its running step cannot go on, as the overlay shows it, null while it can, and
+ * [waiting] what it waits for the world to supply, null for nothing.
+ */
 data class FlowView(
     val player: String,
     val running: Boolean,
     val stepIndex: Int,
     val blocked: String?,
+    val waiting: String?,
     val steps: List<FlowStepView>,
     val reflexes: List<FlowReflexView>,
 )

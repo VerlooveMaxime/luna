@@ -125,6 +125,31 @@ class LunaClicksTest {
     }
 
     @Test
+    fun `interrupting breaks off the action in progress`() {
+        val player = player()
+        player.submitAction(Endless(player, ActionType.WEAK))
+        TestWorld.tick()
+
+        LunaClicks.interrupt(player)
+        TestWorld.tick()
+
+        assertFalse(LunaClicks.isActing(player))
+    }
+
+    @Test
+    fun `interrupting ends the walk the autopilot started`() {
+        val player = player()
+        player.navigator.navigate(Position(3220, 3200), false)
+        TestWorld.tick()
+        val stoppedAt = player.position
+
+        LunaClicks.interrupt(player)
+        TestWorld.tick(times = 3)
+
+        assertEquals(stoppedAt, player.position)
+    }
+
+    @Test
     fun `a player who may not act does not click`() {
         val player = player()
         val clicked = recordBoothClicks()

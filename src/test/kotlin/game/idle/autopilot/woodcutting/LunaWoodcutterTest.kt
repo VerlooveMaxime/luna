@@ -1,6 +1,5 @@
 package game.idle.autopilot.woodcutting
 
-import api.predef.woodcutting
 import engine.widget.skill.LevelUpData
 import engine.widget.skill.LevelUpInterface
 import game.idle.location.Area
@@ -32,7 +31,6 @@ class LunaWoodcutterTest {
     private val normalTree = 1276
     private val normalStump = 1342
     private val oakTree = 1281
-    private val bronzeAxe = 1351
     private val logs = 1511
     private val area = Area(Tile(anchor.x, anchor.y), radius = 10)
     private val spot = WoodcuttingSpot(Tree.NORMAL, area)
@@ -84,44 +82,6 @@ class LunaWoodcutterTest {
         player.overlays.open(WalkableInterface(197))
 
         assertFalse(LunaWoodcutter(player, spot).isBusy())
-    }
-
-    @Test
-    fun `the view carries the player's woodcutting level`() {
-        val player = login()
-        player.woodcutting.level = 15
-
-        assertEquals(15, LunaWoodcutter(player, spot).look().woodcuttingLevel)
-    }
-
-    @Test
-    fun `a player without an axe has no usable axe`() {
-        assertFalse(LunaWoodcutter(login(), spot).look().hasUsableAxe)
-    }
-
-    @Test
-    fun `an axe in the inventory is a usable axe`() {
-        val player = login()
-        player.inventory.add(Item(bronzeAxe))
-
-        assertTrue(LunaWoodcutter(player, spot).look().hasUsableAxe)
-    }
-
-    @Test
-    fun `the view counts only the logs in the inventory`() {
-        val player = login()
-        player.inventory.add(Item(bronzeAxe))
-        player.inventory.add(Item(logs, 2))
-
-        assertEquals(2, LunaWoodcutter(player, spot).look().logsInInventory)
-    }
-
-    @Test
-    fun `a full inventory shows in the view`() {
-        val player = login()
-        player.inventory.add(Item(logs, 28))
-
-        assertTrue(LunaWoodcutter(player, spot).look().inventoryFull)
     }
 
     @Test
@@ -223,12 +183,8 @@ class LunaWoodcutterTest {
     }
 
     @Test
-    fun `walking back heads for the location's anchor`() {
-        val player = login(Position(3220, 3200))
-
-        LunaWoodcutter(player, spot).walkToLocation()
-
-        assertEquals(anchor, player.navigator.currentTarget)
+    fun `a walk back goes to the area's anchor`() {
+        assertEquals(Tile(3200, 3200), LunaWoodcutter(login(Position(3220, 3200)), spot).anchor())
     }
 
     @Test
@@ -241,12 +197,12 @@ class LunaWoodcutterTest {
     }
 
     @Test
-    fun `stopping ends the chop in progress`() {
+    fun `interrupting breaks off the chop in progress`() {
         val player = login()
         player.submitAction(EndlessAction(player))
         TestWorld.tick()
 
-        LunaWoodcutter(player, spot).stop()
+        LunaWoodcutter(player, spot).interrupt()
         TestWorld.tick()
 
         assertFalse(LunaClicks.isActing(player))

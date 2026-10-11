@@ -1,5 +1,7 @@
 package game.idle.autopilot.drop
 
+import game.idle.autopilot.EndlessAction
+import game.idle.autopilot.LunaClicks
 import game.testworld.TestWorld
 import io.luna.game.event.impl.DropItemEvent
 import io.luna.game.model.Direction
@@ -88,5 +90,17 @@ class LunaItemDropperTest {
         dropper(player).dropItems()
 
         assertEquals(emptyList<Int>(), droppedSlots)
+    }
+
+    @Test
+    fun `interrupting breaks off the action in progress`() {
+        val player = login()
+        player.submitAction(EndlessAction(player))
+        TestWorld.tick()
+
+        dropper(player).interrupt()
+        TestWorld.tick()
+
+        assertFalse(LunaClicks.isActing(player))
     }
 }

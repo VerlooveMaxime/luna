@@ -3,8 +3,8 @@ package game.idle.autopilot.making
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.ProcessInput
-import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyKind
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -66,7 +66,7 @@ class MakeStepType(private val catalog: RecipeCatalog, private val names: GameNa
         )
     }
 
-    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+    override fun resolve(settings: StepSettings, context: FlowContext): LegacyKind {
         val name = settings[PRODUCT]?.lowercase() ?: throw FlowError("make needs a product")
         val recipe = catalog.find(name) ?: throw FlowError("Nothing called '$name' can be made.")
         // One way taking only what the steps before get is enough; else the first way names what is missing.
@@ -89,7 +89,7 @@ class MakeStepType(private val catalog: RecipeCatalog, private val names: GameNa
 }
 
 /** A make step resolved: the recipe and how many to make ([amount], null for as many as possible). */
-data class MakeStep(val recipe: Recipe, val amount: Int? = null) : ResolvedStep {
+data class MakeStep(val recipe: Recipe, val amount: Int? = null) : LegacyKind {
 
     /** Later steps can cook, drop or bank what was made. */
     override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + recipe.made)
@@ -98,5 +98,5 @@ data class MakeStep(val recipe: Recipe, val amount: Int? = null) : ResolvedStep 
     override fun needs(): List<StepNeeds> =
         recipe.ways.map { way -> StepNeeds(way.tools.map { ToolNeed(word = null, mapOf(it to 1)) }, way.inputs.keys.toList()) }
 
-    override fun activity(player: Player, runTile: Tile): StepActivity = MakeActivity(LunaMaker(player, recipe), amount)
+    override fun activity(player: Player, runTile: Tile): LegacyActivity = MakeActivity(LunaMaker(player, recipe), amount)
 }

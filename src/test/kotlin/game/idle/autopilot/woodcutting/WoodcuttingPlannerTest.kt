@@ -1,10 +1,12 @@
 package game.idle.autopilot.woodcutting
 
-import game.idle.autopilot.woodcutting.WoodcuttingDecision.Blocked
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Chop
+import game.idle.autopilot.woodcutting.WoodcuttingDecision.Settled
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkTo
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkToLocation
+import game.idle.flow.Aim
 import game.idle.flow.Reason
+import game.idle.flow.StepOutcome
 import game.idle.flow.Target
 import game.skill.woodcutting.cutTree.Tree
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -16,7 +18,10 @@ class WoodcuttingPlannerTest {
     private val nextToPlayer = tree(3171, 3444, distance = 0, usableFromHere = true)
     private val acrossThePath = tree(3170, 3454, distance = 8)
 
-    private fun decide(view: WoodcuttingView, action: ChopAction = anyTree) = WoodcuttingPlanner.decide(view, action)
+    private val noTree = Settled(StepOutcome.Waiting(Reason.NoneInReach(Target.TREE)))
+
+    private fun decide(view: WoodcuttingView, action: ChopAction = anyTree, skipped: Set<Aim> = emptySet()) =
+        WoodcuttingPlanner.decide(view, action, skipped)
 
     @Test
     fun `an action needs at least one kind of tree`() {
@@ -24,31 +29,10 @@ class WoodcuttingPlannerTest {
     }
 
     @Test
-    fun `a player without a usable axe is blocked even next to a tree`() {
-        val decision = decide(view(listOf(nextToPlayer), hasUsableAxe = false))
-
-        assertEquals(Blocked(Reason.NeedsTool(WoodcuttingPlanner.AXE)), decision)
-    }
-
-    @Test
-    fun `a full inventory blocks the autopilot`() {
-        val decision = decide(view(listOf(nextToPlayer), inventoryFull = true, logsInInventory = 5))
-
-        assertEquals(Blocked(Reason.BagFull(emptyList())), decision)
-    }
-
-    @Test
-    fun `logs are kept while the inventory has room`() {
-        val decision = decide(view(listOf(nextToPlayer), inventoryFull = false, logsInInventory = 27))
-
-        assertEquals(Chop(nextToPlayer), decision)
-    }
-
-    @Test
-    fun `no tree in sight at the location blocks the autopilot`() {
+    fun `no tree in sight at the location waits for one to grow back`() {
         val decision = decide(view(emptyList(), atLocation = true))
 
-        assertEquals(Blocked(Reason.NoneInReach(Target.TREE)), decision)
+        assertEquals(noTree, decision)
     }
 
     @Test
@@ -69,25 +53,21 @@ class WoodcuttingPlannerTest {
     fun `trees the player did not ask for are ignored`() {
         val decision = decide(view(listOf(nextToPlayer)), ChopAction(setOf(Tree.OAK)))
 
-        assertEquals(Blocked(Reason.NoneInReach(Target.TREE)), decision)
+        assertEquals(noTree, decision)
     }
 
     @Test
-    fun `trees above the player's level are ignored`() {
-        val oak = tree(3171, 3444, distance = 0, usableFromHere = true, kind = Tree.OAK)
+    fun `a tree set aside is left out for the next best`() {
+        val decision = decide(view(listOf(nextToPlayer, acrossThePath)), skipped = setOf(nextToPlayer.aim))
 
-        val decision = decide(view(listOf(oak), woodcuttingLevel = 14))
-
-        assertEquals(Blocked(Reason.NoneInReach(Target.TREE)), decision)
+        assertEquals(WalkTo(acrossThePath), decision)
     }
 
     @Test
-    fun `a tree at exactly the player's level can be cut`() {
-        val oak = tree(3171, 3444, distance = 0, usableFromHere = true, kind = Tree.OAK)
+    fun `with every tree in reach set aside the step blocks instead of waiting`() {
+        val decision = decide(view(listOf(nextToPlayer)), skipped = setOf(nextToPlayer.aim))
 
-        val decision = decide(view(listOf(oak), woodcuttingLevel = 15))
-
-        assertEquals(Chop(oak), decision)
+        assertEquals(Settled(StepOutcome.Blocked(Reason.NoneInReach(Target.TREE))), decision)
     }
 
     @Test
@@ -105,10 +85,10 @@ class WoodcuttingPlannerTest {
     }
 
     @Test
-    fun `the highest level tree the player can cut wins over a nearer one`() {
+    fun `the highest level tree wins over a nearer one`() {
         val oak = tree(3160, 3440, distance = 11, kind = Tree.OAK)
 
-        val decision = decide(view(listOf(nextToPlayer, oak), woodcuttingLevel = 20))
+        val decision = decide(view(listOf(nextToPlayer, oak)))
 
         assertEquals(WalkTo(oak), decision)
     }

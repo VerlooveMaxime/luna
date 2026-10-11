@@ -2,6 +2,8 @@ package game.idle.autopilot.walk
 
 import engine.widget.skill.LevelUpData
 import engine.widget.skill.LevelUpInterface
+import game.idle.autopilot.EndlessAction
+import game.idle.autopilot.LunaClicks
 import game.idle.location.Tile
 import game.idle.movement.approachTiles
 import game.testworld.TestWorld
@@ -103,6 +105,18 @@ class LunaWalkerTest {
         LunaWalker(player, target).walk()
 
         assertEquals(goal, player.navigator.currentTarget)
+    }
+
+    @Test
+    fun `interrupting breaks off the action in progress`() {
+        val player = login()
+        player.submitAction(EndlessAction(player))
+        TestWorld.tick()
+
+        LunaWalker(player, target).interrupt()
+        TestWorld.tick()
+
+        assertFalse(LunaClicks.isActing(player))
     }
 
     @Test

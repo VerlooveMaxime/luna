@@ -5,8 +5,8 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.OwnSpot
 import game.idle.flow.OwnWarnings
-import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyKind
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -57,7 +57,7 @@ class PickUpStepType(drops: DropLookup, spawns: SpawnCatalog, private val items:
         "pick up ${StepAmount.prefix(settings)}${picked(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd() +
             StepRadius.suffix(settings) + StepSpot.suffix(settings)
 
-    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
+    override fun resolve(settings: StepSettings, context: FlowContext): LegacyKind {
         val picked = picked(settings)
         if (picked.isEmpty()) throw FlowError("pick up needs items picked")
         return PickUpStep(picked.flatMap(items::alike).toSet(), StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
@@ -94,7 +94,7 @@ class PickUpStepType(drops: DropLookup, spawns: SpawnCatalog, private val items:
  * notes), within [radius] of its work spot, [amount] pickups or, without one, all lying there. Later steps know what it
  * picks up as gathered (S07 plan: the bank's Gathered banks the loot).
  */
-data class PickUpStep(val itemIds: Set<Int>, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot, FillsBag {
+data class PickUpStep(val itemIds: Set<Int>, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : LegacyKind, OwnSpot, FillsBag {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
@@ -102,6 +102,6 @@ data class PickUpStep(val itemIds: Set<Int>, val radius: Int, val workSpot: Work
 
     override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + fills))
 
-    override fun activity(player: Player, runTile: Tile): StepActivity =
+    override fun activity(player: Player, runTile: Tile): LegacyActivity =
         PickUpActivity(LunaPicker(player, itemIds, Area(workSpot.tile(runTile), radius)), amount)
 }

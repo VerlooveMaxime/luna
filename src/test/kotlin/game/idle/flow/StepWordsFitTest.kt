@@ -2,11 +2,10 @@ package game.idle.flow
 
 import game.idle.autopilot.firemaking.LightPlanner
 import game.idle.autopilot.fishing.FishingMethod
-import game.idle.autopilot.fishing.FishingNeeds
 import game.idle.autopilot.making.LunaRecipes
-import game.idle.autopilot.mining.MiningPlanner
+import game.idle.autopilot.mining.MineStepType
 import game.idle.autopilot.smithing.SmithingPlanner
-import game.idle.autopilot.woodcutting.WoodcuttingPlanner
+import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.flow.option.LunaGameNames
 import game.idle.ui.BuilderWidgets
 import game.idle.ui.ClientFont
@@ -76,14 +75,15 @@ class StepWordsFitTest {
                 words.cutShort(99),
                 words.jump(99, Health(999, 999), 99),
                 StepWords.cannotWork(99),
+                StepWords.IDLE_LAP,
             )
     }
 
     /** The tools and bait the kinds block on, the same values their planners and `needs()` use. */
     private fun tools(): List<ToolNeed> {
-        val fishing = FishingMethod.ALL.map(FishingNeeds::of).flatMap { listOfNotNull(it.tool, it.bait) }
+        val fishing = FishingMethod.ALL.flatMap { listOfNotNull(it.toolNeed, it.baitNeed) }
         val recipeTools = LunaRecipes(LunaGameNames).catalog().recipes.flatMap { recipe -> recipe.ways.flatMap { it.tools } }
-        return listOf(WoodcuttingPlanner.AXE, MiningPlanner.PICKAXE, LightPlanner.TINDERBOX, SmithingPlanner.HAMMER) + fishing +
+        return listOf(ChopStepType.AXE, MineStepType.PICKAXE, LightPlanner.TINDERBOX, SmithingPlanner.HAMMER) + fishing +
             recipeTools.distinct().map { ToolNeed(word = null, mapOf(it to 1)) }
     }
 

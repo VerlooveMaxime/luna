@@ -1,13 +1,12 @@
 package game.idle.autopilot.mining
 
-import api.predef.mining
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
+import game.idle.location.Tile
 import game.idle.movement.ReachScan
 import game.idle.movement.ReachTerrain
 import game.idle.movement.footprintOf
 import game.skill.mining.Ore
-import game.skill.mining.Pickaxe
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.EntityType
@@ -32,9 +31,6 @@ class LunaMiner(private val player: Player, private val ore: Ore, private val ar
 
     override fun look(): MiningView =
         MiningView(
-            miningLevel = player.mining.level,
-            hasUsablePickaxe = Pickaxe.computePickType(player) != null,
-            inventoryFull = player.inventory.isFull,
             atLocation = scan.atLocation(player.position),
             rocks = scan.reachable(player.position, rocks(), ::footprintOf, terrain = this)
                 .map { (rock, reach) -> RockCandidate(rock.id, rock.position, reach.distance, reach.usableFromHere, reach.approach) },
@@ -47,18 +43,16 @@ class LunaMiner(private val player: Player, private val ore: Ore, private val ar
 
     override fun walkTo(rock: RockCandidate) = walkTo(rock.approach)
 
-    override fun walkToLocation() = walkTo(anchor)
-
     private fun walkTo(tile: Position) {
         player.overlays.closeWindows(false)
         player.navigator.navigate(tile, true)
     }
 
+    override fun anchor(): Tile = area.anchor
+
     override fun ores(): Int = player.inventory.computeAmountForId(ore.item)
 
-    override fun stop() {
-        player.actions.interruptWeak()
-    }
+    override fun interrupt() = LunaClicks.interrupt(player)
 
     // Objects found through their chunk are always ACTIVE, so only the id needs checking.
     private fun rocks(): List<GameObject> =

@@ -4,8 +4,6 @@ import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionFacts
-import game.idle.location.Tile
-import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -28,33 +26,24 @@ class StepWarningsTest {
         override fun banks(id: Int): Boolean = id in banked
 
         override fun empties(id: Int): Boolean = banks(id)
-
-        override fun activity(player: Player, runTile: Tile): StepActivity = error("not run")
     }
 
     /** A step that fills the bag with logs, needing nothing. */
     private data object FakeGather : ResolvedStep, FillsBag {
 
         override val fills: Set<Int> = setOf(1511)
-
-        override fun activity(player: Player, runTile: Tile): StepActivity = error("not run")
     }
 
     /** A step that drops [dropped]. */
     private data class FakeDrop(val dropped: Set<Int>) : ResolvedStep, EmptiesBag {
 
         override fun empties(id: Int): Boolean = id in dropped
-
-        override fun activity(player: Player, runTile: Tile): StepActivity = error("not run")
     }
 
     /** A step that fights, needing nothing in the bag. */
-    private data object FakeFight : ResolvedStep, Fights {
+    private data object FakeFight : ResolvedStep, Fights
 
-        override fun activity(player: Player, runTile: Tile): StepActivity = error("not run")
-    }
-
-    private val axe = ToolNeed("axe", mapOf(bronzeAxe to 1, runeAxe to 41), Skill.WOODCUTTING)
+    private val axe = ToolNeed("axe", mapOf(bronzeAxe to 1, runeAxe to 41), Skill.WOODCUTTING, worn = true)
 
     private fun ids(settings: StepSettings, key: String): Set<Int> = settings[key].orEmpty().split(",").mapNotNull(String::toIntOrNull).toSet()
 
@@ -125,6 +114,11 @@ class StepWarningsTest {
     @Test
     fun `a worn tool is enough`() {
         assertEquals(emptyList<String>(), of(listOf(step("chop")), facts = woodcutter.copy(worn = setOf(bronzeAxe))))
+    }
+
+    @Test
+    fun `a tool worn counts only when Luna counts it worn, so a worn net is still warned about`() {
+        assertEquals(listOf("You carry no small fishing net and no bank step withdraws one.", "You carry no fishing bait and no bank step withdraws any."), of(listOf(step("fish")), facts = woodcutter.copy(worn = setOf(net, bait))))
     }
 
     @Test

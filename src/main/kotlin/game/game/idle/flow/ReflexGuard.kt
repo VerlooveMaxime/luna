@@ -25,12 +25,6 @@ interface ReflexBody {
     fun dead(): Boolean
 }
 
-/** A step activity whose Amount counts something: how much of it the step has done in its turn (S07c's progress). */
-interface CountsAmount {
-
-    fun amountDone(): Int
-}
-
 /**
  * What a reflex's run ends with, besides going on with the step: the flow stops, or goes on from the step at [Jump.index].
  * Both say which reflex ([number]) fired and at what [health], for the line the player is told.
@@ -68,11 +62,16 @@ class ReflexGuard(private val step: StepActivity, private val reflexes: List<Res
 
     override fun said(): Said? = step.said()
 
+    override fun waiting(): Reason? = step.waiting()
+
+    override fun amountDone(): Int = step.amountDone()
+
+    override fun worked(): Boolean = step.worked()
+
+    override fun endTurn() = step.endTurn()
+
     /** Where a reflex sends the flow once its run is over; null while the step goes on. */
     fun jump(): ReflexOutcome.Jump? = outcome as? ReflexOutcome.Jump
-
-    /** How much the step has done in its turn, 0 for a step that counts nothing (walk, bank, drop). */
-    fun progress(): Int = (step as? CountsAmount)?.amountDone() ?: 0
 
     override fun act() {
         carryOut(running?.run ?: firing())

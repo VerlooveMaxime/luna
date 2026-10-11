@@ -10,7 +10,7 @@ import game.idle.autopilot.bank.BankDecision.WalkToBooth
 import game.idle.autopilot.bank.BankDecision.Withdraw
 import game.idle.flow.Reason
 import game.idle.flow.Said
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepStop
 
 /** What a deposit or withdrawal at the bank did: whether anything [moved], and the item ids that [failed]. */
@@ -43,7 +43,7 @@ interface Banker {
  * Carries out [BankPlanner] decisions for [order]; the step is over once the planner says [Done], or when it is stuck and
  * skips, saying so (Maxime, S01). Stuck with "Stop the flow", it stops the flow.
  */
-class BankActivity(private val banker: Banker, private val order: BankOrder) : StepActivity {
+class BankActivity(private val banker: Banker, private val order: BankOrder) : LegacyActivity {
 
     private var lastDecision: BankDecision? = null
     private var tries = BankTries()

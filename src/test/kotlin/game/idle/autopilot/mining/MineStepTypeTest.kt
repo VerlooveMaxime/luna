@@ -2,6 +2,7 @@ package game.idle.autopilot.mining
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.StepIcon
 import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
@@ -132,10 +133,18 @@ class MineStepTypeTest {
     }
 
     @Test
-    fun `a mine step needs a pickaxe its Mining level allows`() {
+    fun `a mine step needs a pickaxe its Mining level allows, worn or carried`() {
         val pickaxe = MineStep(Ore.COPPER, 10, walkedTo).needs().single().tools.single()
 
-        assertEquals(listOf("pickaxe", 1, 40, Skill.MINING), listOf(pickaxe.word, pickaxe.items[1265], pickaxe.items[1275], pickaxe.skill))
+        assertEquals(
+            listOf("pickaxe", 1, 40, Skill.MINING, true),
+            listOf(pickaxe.word, pickaxe.items[1265], pickaxe.items[1275], pickaxe.skill, pickaxe.worn),
+        )
+    }
+
+    @Test
+    fun `a mine step needs the ore's Mining level`() {
+        assertEquals(LevelNeed(Skill.MINING, 15), MineStep(Ore.IRON, 10, walkedTo).needs().single().level)
     }
 
     @Test

@@ -1,16 +1,15 @@
 package game.idle.autopilot.mining
 
-import game.idle.autopilot.mining.MiningDecision.Blocked
 import game.idle.autopilot.mining.MiningDecision.Mine
+import game.idle.autopilot.mining.MiningDecision.Settled
 import game.idle.autopilot.mining.MiningDecision.WalkTo
 import game.idle.autopilot.mining.MiningDecision.WalkToLocation
-import game.idle.flow.Reason
+import game.idle.flow.Aim
+import game.idle.flow.Aimed
+import game.idle.flow.StepOutcome
 import game.idle.flow.Target
-import game.idle.flow.ToolNeed
-import game.skill.mining.Ore
-import game.skill.mining.Pickaxe
+import game.idle.location.Tile
 import io.luna.game.model.Position
-import io.luna.game.model.mob.Skill
 
 /** A rock of the step's ore the player can walk to: [distance] walking steps to [approach]. */
 data class RockCandidate(
@@ -19,22 +18,22 @@ data class RockCandidate(
     val distance: Int,
     val usableFromHere: Boolean,
     val approach: Position,
-)
+) {
+    val aim: Aim get() = Aim(objectId, Tile.of(position))
+}
 
-/** What the mine step knows about the player when it decides. [rocks] hold the step's ore. */
-data class MiningView(
-    val miningLevel: Int,
-    val hasUsablePickaxe: Boolean,
-    val inventoryFull: Boolean,
-    val atLocation: Boolean,
-    val rocks: List<RockCandidate>,
-)
+/** What the mine step sees when it decides: whether the player is inside the step's area, and the step's rocks in reach. */
+data class MiningView(val atLocation: Boolean, val rocks: List<RockCandidate>)
 
 sealed interface MiningDecision {
 
     /** A decision aimed at one rock. */
-    sealed interface OnRock : MiningDecision {
+    sealed interface OnRock : MiningDecision, Aimed {
         val rock: RockCandidate
+
+        override val aim: Aim get() = rock.aim
+
+        override val distance: Int get() = rock.distance
     }
 
     data class Mine(override val rock: RockCandidate) : OnRock
@@ -43,17 +42,16 @@ sealed interface MiningDecision {
 
     data object WalkToLocation : MiningDecision
 
-    data class Blocked(val reason: Reason) : MiningDecision
+    /** A decision that is one of the outcomes every kind shares. */
+    data class Settled(val outcome: StepOutcome) : MiningDecision
 }
 
 /**
- * Mine the nearest rock of the step's ore, one in reach first, and walk back to the work spot when none is in reach
- * from outside it. A full inventory is the step's end ([MiningActivity]); here it only blocks.
+ * Mine the nearest rock of the step's ore, one in reach first, leaving out the rocks [game.idle.flow.RetrySkip] set aside, and walk
+ * back to the work spot when none is in reach from outside it. The pickaxe, the level and a full bag are the shared
+ * turn's to check ([game.idle.flow.StepTurn]); with every rock empty the step waits for one to fill again.
  */
 object MiningPlanner {
-
-    /** Any pickaxe, each with the Mining level it takes; what the step needs and blocks on. */
-    val PICKAXE = ToolNeed("pickaxe", Pickaxe.entries.associate { it.id to it.level }, Skill.MINING)
 
     private val preferredFirst: Comparator<RockCandidate> =
         compareByDescending<RockCandidate> { it.usableFromHere }
@@ -61,14 +59,11 @@ object MiningPlanner {
             .thenBy { it.position.x }
             .thenBy { it.position.y }
 
-    fun decide(view: MiningView, ore: Ore): MiningDecision {
-        val best = view.rocks.minWithOrNull(preferredFirst)
+    fun decide(view: MiningView, skipped: Set<Aim>): MiningDecision {
+        val best = view.rocks.filterNot { it.aim in skipped }.minWithOrNull(preferredFirst)
         return when {
-            !view.hasUsablePickaxe -> Blocked(Reason.NeedsTool(PICKAXE))
-            view.miningLevel < ore.level -> Blocked(Reason.NeedsLevel(Skill.MINING, ore.level))
-            view.inventoryFull -> Blocked(Reason.BagFull(emptyList()))
             best == null && !view.atLocation -> WalkToLocation
-            best == null -> Blocked(Reason.NoneInReach(Target.ROCK))
+            best == null -> Settled(StepOutcome.noneInReach(Target.ROCK, setAside = view.rocks.isNotEmpty()))
             best.usableFromHere -> Mine(best)
             else -> WalkTo(best)
         }

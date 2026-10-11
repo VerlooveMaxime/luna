@@ -1,7 +1,9 @@
 package game.idle.autopilot.fishing
 
-/** Records each step as text, for example `fish 3100,3092`. */
-class FakeFisher(var view: FishingView) : Fisher {
+import game.idle.location.Tile
+
+/** Records each step as text, for example `fish 3100,3092`; [anchor] is the step's area anchor. */
+class FakeFisher(var view: FishingView, private val anchor: Tile = Tile(3200, 3200)) : Fisher {
 
     var busy = false
     var catches = 0
@@ -19,13 +21,11 @@ class FakeFisher(var view: FishingView) : Fisher {
         steps += "walk to ${spot.position.x},${spot.position.y}"
     }
 
-    override fun walkToLocation() {
-        steps += "walk to location"
-    }
+    override fun anchor(): Tile = anchor
 
     override fun catches(): Int = catches
 
-    override fun stop() {
-        steps += "stop"
+    override fun interrupt() {
+        steps += "interrupt"
     }
 }

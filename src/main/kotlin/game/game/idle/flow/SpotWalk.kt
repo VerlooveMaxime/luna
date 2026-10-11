@@ -8,21 +8,32 @@ import game.idle.location.Tile
  * step would, blocking as it does when the tile cannot be reached, then the step's [work] begins. The work is built only
  * once the player arrived, so it starts where it works.
  */
-class SpotWalk(private val walk: StepActivity, private val work: () -> StepActivity) : StepActivity, CountsAmount {
+class SpotWalk(private val walk: StepActivity, private val work: () -> StepActivity) : StepActivity {
 
     private var working: StepActivity? = null
+    private var ended = false
 
     override fun isBusy(): Boolean = (working ?: walk).isBusy()
 
-    override fun isDone(): Boolean = working?.isDone() ?: false
+    /** A turn ended while it walks is over without the work ever starting. */
+    override fun isDone(): Boolean = working?.isDone() ?: ended
 
     override fun blocked(): Reason? = (working ?: walk).blocked()
+
+    override fun waiting(): Reason? = working?.waiting()
 
     override fun stopping(): StepStop? = working?.stopping()
 
     override fun said(): Said? = working?.said()
 
-    override fun amountDone(): Int = (working as? CountsAmount)?.amountDone() ?: 0
+    override fun amountDone(): Int = working?.amountDone() ?: 0
+
+    override fun worked(): Boolean = working?.worked() ?: false
+
+    override fun endTurn() {
+        (working ?: walk).endTurn()
+        ended = true
+    }
 
     override fun act() {
         val started = working

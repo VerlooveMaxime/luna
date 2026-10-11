@@ -1,6 +1,5 @@
 package game.idle.autopilot.mining
 
-import api.predef.mining
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
@@ -29,7 +28,6 @@ class LunaMinerTest {
     private val islandCopperRock = 3042
     private val tinRock = 2094
     private val emptyRock = 450
-    private val bronzePickaxe = 1265
     private val copperOre = 436
     private val area = Area(Tile(anchor.x, anchor.y), radius = 10)
     private val rockHere = RockCandidate(copperRock, rockTile, 0, usableFromHere = true, besideRock)
@@ -66,35 +64,6 @@ class LunaMinerTest {
         player.overlays.open(StandardInterface(5292))
 
         assertTrue(miner(player).isBusy())
-    }
-
-    @Test
-    fun `the view carries the player's mining level`() {
-        val player = login()
-        player.mining.level = 15
-
-        assertEquals(15, miner(player).look().miningLevel)
-    }
-
-    @Test
-    fun `a player without a pickaxe has no usable pickaxe`() {
-        assertFalse(miner(login()).look().hasUsablePickaxe)
-    }
-
-    @Test
-    fun `a pickaxe in the inventory is a usable pickaxe`() {
-        val player = login()
-        player.inventory.add(Item(bronzePickaxe))
-
-        assertTrue(miner(player).look().hasUsablePickaxe)
-    }
-
-    @Test
-    fun `a full inventory shows in the view`() {
-        val player = login()
-        player.inventory.add(Item(copperOre, 28))
-
-        assertTrue(miner(player).look().inventoryFull)
     }
 
     @Test
@@ -201,12 +170,8 @@ class LunaMinerTest {
     }
 
     @Test
-    fun `walking back heads for the work spot`() {
-        val player = login(Position(3220, 3200))
-
-        miner(player).walkToLocation()
-
-        assertEquals(anchor, player.navigator.currentTarget)
+    fun `a walk back goes to the area's anchor`() {
+        assertEquals(Tile(3200, 3200), miner(login(Position(3220, 3200))).anchor())
     }
 
     @Test
@@ -219,12 +184,12 @@ class LunaMinerTest {
     }
 
     @Test
-    fun `stopping ends the mining in progress`() {
+    fun `interrupting breaks off the mining in progress`() {
         val player = login()
         player.submitAction(EndlessAction(player))
         TestWorld.tick()
 
-        miner(player).stop()
+        miner(player).interrupt()
         TestWorld.tick()
 
         assertFalse(LunaClicks.isActing(player))

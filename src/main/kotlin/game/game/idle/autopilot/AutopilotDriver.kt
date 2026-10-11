@@ -12,6 +12,9 @@ interface AutopilotActivity {
 
     /** Why the activity cannot go on for now, as the fragment the overlay and the slot show, or null while it can. */
     fun blocked(): String?
+
+    /** What the activity waits for the world to supply, as the fragment the overlay and the slot show in yellow, or null. */
+    fun waiting(): String?
 }
 
 /**
@@ -29,6 +32,8 @@ class AutopilotDriver(private val activity: AutopilotActivity, private val decis
     fun stopReason(): String? = activity.stopReason()
 
     fun blocked(): String? = activity.blocked()
+
+    fun waiting(): String? = activity.waiting()
 
     fun tick() {
         if (activity.isBusy()) {

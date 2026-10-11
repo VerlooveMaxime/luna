@@ -265,24 +265,27 @@ class ReflexGuardTest {
     }
 
     @Test
-    fun `progress is what the step's amount counts`() {
+    fun `the step's count is the guard's`() {
         step.amountDone = 3
 
-        assertEquals(3, guard().progress())
+        assertEquals(3, guard().amountDone())
     }
 
     @Test
-    fun `a step that counts nothing makes no progress`() {
-        val walk = object : StepActivity {
-            override fun isBusy() = false
-            override fun isDone() = false
-            override fun act() = Unit
-            override fun blocked(): Reason? = null
-            override fun stopping(): StepStop? = null
-            override fun said(): Said? = null
-        }
+    fun `the step's wait and whether it worked are the guard's`() {
+        step.waiting = Reason.NoneInReach(Target.NPC)
+        step.worked = false
 
-        assertEquals(0, ReflexGuard(walk, emptyList(), body).progress())
+        val guard = guard()
+
+        assertEquals(Reason.NoneInReach(Target.NPC) to false, guard.waiting() to guard.worked())
+    }
+
+    @Test
+    fun `ending the turn ends the step's`() {
+        guard().endTurn()
+
+        assertEquals(1, step.ended)
     }
 
     @Test

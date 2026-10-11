@@ -143,6 +143,22 @@ class IdleStateTest {
     }
 
     @Test
+    fun `a wait is never saved`() {
+        val json = Attribute.getGsonInstance().toJson(state.copy(waiting = "No tree in reach"))
+
+        assertFalse(json.contains("waiting"))
+    }
+
+    @Test
+    fun `starting, stopping, a new flow and a new step all clear the wait`() {
+        val waiting = state.copy(waiting = "No tree in reach")
+
+        val cleared = listOf(waiting.started(runTile), waiting.stopped(), waiting.withFlow(emptyList()), waiting.atStep(0))
+
+        assertEquals(listOf<String?>(null, null, null, null), cleared.map { it.waiting })
+    }
+
+    @Test
     fun `a new state has options judged on unboosted levels`() {
         assertFalse(IdleState().countBoostedLevels)
     }

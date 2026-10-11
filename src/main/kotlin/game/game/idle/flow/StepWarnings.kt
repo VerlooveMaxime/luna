@@ -51,12 +51,12 @@ class StepWarnings(private val resolver: FlowResolver, private val names: GameNa
     }
 
     /**
-     * Worn or withdrawn is enough; carried is enough unless every carried one is banked by a bank step, which the
-     * warning names (Maxime, 2026-10-10).
+     * Worn (for a tool Luna counts worn, [ToolNeed.worn]) or withdrawn is enough; carried is enough unless every carried
+     * one is banked by a bank step, which the warning names (Maxime, 2026-10-10).
      */
     private fun tool(need: ToolNeed, banking: List<Banking>, facts: OptionFacts): String? {
-        val usable = need.items.filter { (_, level) -> need.skill == null || facts.level(need.skill) >= level }.keys
-        if (usable.any { it in facts.worn || banking.any { bank -> it in bank.moves.withdraws } }) return null
+        val usable = need.allowed(facts::level)
+        if (usable.any { need.worn && it in facts.worn || banking.any { bank -> it in bank.moves.withdraws } }) return null
         val word = need.word ?: names.item(need.items.keys.first()).lowercase()
         val withdrawn = "no bank step withdraws ${if (need.countable) "one" else "any"}."
         val carried = usable.filter { it in facts.bag }

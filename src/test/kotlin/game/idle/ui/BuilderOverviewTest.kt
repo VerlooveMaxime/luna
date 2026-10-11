@@ -174,6 +174,23 @@ class BuilderOverviewTest {
     }
 
     @Test
+    fun `what the running step waits for takes the last line in yellow, the frame still green`() {
+        val state = IdleState(steps = listOf(oak), running = true, waiting = "No tree in reach")
+
+        assertEquals(
+            listOf("Oak", "5 per lap", "@yel@! No tree in reach") to BuilderWidgets.RUNNING,
+            step(state).lines to step(state).frame,
+        )
+    }
+
+    @Test
+    fun `a wait belongs to the running step only`() {
+        val state = IdleState(steps = listOf(oak, oak), stepIndex = 1, running = true, waiting = "No tree in reach")
+
+        assertEquals(listOf("Oak", "5 per lap"), step(state, slot = 0).lines)
+    }
+
+    @Test
     fun `the running step is framed green`() {
         assertEquals(BuilderWidgets.RUNNING, step(IdleState(steps = listOf(oak), running = true)).frame)
     }

@@ -57,9 +57,9 @@ class HarnessViewsTest {
     @Test
     fun `a flow`() {
         val step = FlowStepView(id = 1, kind = "chop", values = mapOf("tree" to "oak"), reflexes = listOf(2), summary = "chop oak", problem = null)
-        val view = FlowView(player = "test", running = true, stepIndex = 0, blocked = "Needs an axe you can use", steps = listOf(step), reflexes = emptyList())
+        val view = FlowView(player = "test", running = true, stepIndex = 0, blocked = "Needs an axe you can use", waiting = "No tree in reach", steps = listOf(step), reflexes = emptyList())
 
-        assertEquals(setOf("player", "running", "step_index", "blocked", "steps", "reflexes"), keysOf(view))
+        assertEquals(setOf("player", "running", "step_index", "blocked", "waiting", "steps", "reflexes"), keysOf(view))
     }
 
     @Test

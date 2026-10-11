@@ -46,6 +46,13 @@ class AutopilotStatusTest {
     }
 
     @Test
+    fun `a waiting step adds what it waits for in yellow`() {
+        val state = IdleState(steps = flow, stepIndex = 0, running = true, waiting = "No tree in reach")
+
+        assertEquals("@yel@No tree in reach", status.text(state).split(StatusOverlayMessageWriter.LINE_SEPARATOR).last())
+    }
+
+    @Test
     fun `separators in a block become spaces`() {
         val state = IdleState(steps = flow, stepIndex = 0, running = true, blocked = "No|way\nhere")
 

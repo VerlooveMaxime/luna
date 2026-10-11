@@ -155,6 +155,63 @@ class AutopilotTest {
     }
 
     @Test
+    fun `what a step waits for goes into the state`() {
+        autopilot.start(idle)
+        activity.waiting = "No tree in reach"
+
+        scheduler.tick()
+
+        assertEquals("No tree in reach", idle.idleState.waiting)
+    }
+
+    @Test
+    fun `a wait tells nothing in the chat box`() {
+        autopilot.start(idle)
+        activity.waiting = "No tree in reach"
+
+        scheduler.tick()
+
+        assertEquals(emptyList<String>(), idle.told)
+    }
+
+    @Test
+    fun `a wait that did not change is not written again`() {
+        autopilot.start(idle)
+        activity.waiting = "No tree in reach"
+        scheduler.tick()
+        val writes = idle.stateWrites
+
+        scheduler.tick()
+
+        assertEquals(writes, idle.stateWrites)
+    }
+
+    @Test
+    fun `a wait leaves the state once the step goes on`() {
+        autopilot.start(idle)
+        activity.waiting = "No tree in reach"
+        scheduler.tick()
+        activity.waiting = null
+
+        scheduler.tick()
+
+        assertEquals(null, idle.idleState.waiting)
+    }
+
+    @Test
+    fun `a block after a wait is told`() {
+        autopilot.start(idle)
+        activity.waiting = "No tree in reach"
+        scheduler.tick()
+        activity.waiting = null
+        activity.blocked = "Needs an axe you can use"
+
+        scheduler.tick()
+
+        assertEquals(1, idle.told.size)
+    }
+
+    @Test
     fun `a flow started without a run tile takes the player's tile`() {
         autopilot.start(idle)
 

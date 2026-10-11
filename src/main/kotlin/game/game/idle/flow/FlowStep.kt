@@ -282,13 +282,27 @@ interface ResolvedStep {
     fun after(context: FlowContext): FlowContext = context
 
     /**
-     * What the step needs in the bag, one entry per way it can work (a make recipe's ways), none for a step that needs
-     * nothing; the configure screen warns about the first way the flow cannot supply (S07b).
+     * What the step needs to work, one entry per way it can work (a make recipe's ways), none for a step that needs
+     * nothing: the configure screen warns about the first way the flow cannot supply (S07b), and the run blocks on the
+     * first lack ([Preconditions]).
      */
     fun needs(): List<StepNeeds> = emptyList()
+}
 
-    /** The activity that carries this step out for [player], whose flow was started on [runTile]. */
-    fun activity(player: Player, runTile: Tile): StepActivity
+/**
+ * A kind of step converted to the shared turn: its [work] is its own part, which [StepTurn] runs. Transitional until
+ * every kind is one (step behaviour refactor Parts 2-4), when it folds into [ResolvedStep].
+ */
+interface Works : ResolvedStep {
+
+    /** The kind's own work for [player], whose flow was started on [runTile]. */
+    fun work(player: Player, runTile: Tile): StepWork
+}
+
+/** A step whose Amount counts something: [amount] is what it asks for, null for as much as it can. */
+interface Counts {
+
+    val amount: Int?
 }
 
 /** A step that fights: its configure screen warns when no reflex attached to it eats or runs (S07c). */
@@ -299,6 +313,12 @@ interface FillsBag {
 
     val fills: Set<Int>
 }
+
+/**
+ * A step whose own work fills the bag until it is full (chop, mine, fish): a full bag ends it before it looks, since it
+ * has nothing to say about what it leaves; a pick-up step fills the bag too but says what it left lying.
+ */
+interface Gathers : FillsBag
 
 /** A step that takes items out of the bag (bank, drop): whether it [empties] the bag of item [id]. */
 interface EmptiesBag {
@@ -323,17 +343,32 @@ interface OwnWarnings {
 }
 
 /**
- * What a step needs in the bag to work one way: its [tools] (kept), and [inputs] (item ids used up), which a step taking
- * its input from the bank relies on a bank step to withdraw.
+ * What a step needs to work one way: its [tools] (kept) and [inputs] (item ids used up) in the bag, which a step taking
+ * its input from the bank relies on a bank step to withdraw, and the [level] the way takes, none for a way any level
+ * works.
  */
-data class StepNeeds(val tools: List<ToolNeed> = emptyList(), val inputs: List<Int> = emptyList())
+data class StepNeeds(val tools: List<ToolNeed> = emptyList(), val inputs: List<Int> = emptyList(), val level: LevelNeed? = null)
+
+/** The [level] in [skill] a step's way takes. */
+data class LevelNeed(val skill: Int, val level: Int)
 
 /**
- * A tool or bait a step needs carried or worn: any one of [items], an item id to the level in [skill] it needs (no skill:
- * any level). [word] names it in a warning or a block ("axe"), null for the first item's own name; a [countable] one is
- * "one", bait "any" ("no bank step withdraws any").
+ * A tool or bait a step needs: any one of [items], an item id to the level in [skill] it needs (no skill: any level),
+ * carried, or [worn] when Luna's own check counts it worn (an axe or a pickaxe wielded; a net, bait, a tinderbox or a
+ * hammer only count in the bag). [word] names it in a warning or a block ("axe"), null for the first item's own name;
+ * a [countable] one is "one", bait "any" ("no bank step withdraws any").
  */
-data class ToolNeed(val word: String?, val items: Map<Int, Int>, val skill: Int? = null, val countable: Boolean = true)
+data class ToolNeed(
+    val word: String?,
+    val items: Map<Int, Int>,
+    val skill: Int? = null,
+    val countable: Boolean = true,
+    val worn: Boolean = false,
+) {
+
+    /** The item ids of this tool the player's levels allow, [level] reading a skill's level. */
+    fun allowed(level: (Int) -> Int): Set<Int> = items.filter { (_, needed) -> skill == null || level(skill) >= needed }.keys
+}
 
 /** A step that moves items between the bag and the bank: the ids it [withdraws], and whether it banks [id] from the bag. */
 interface BankMoves {

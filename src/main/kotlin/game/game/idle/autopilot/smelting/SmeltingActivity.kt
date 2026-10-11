@@ -10,7 +10,7 @@ import game.idle.autopilot.smelting.SmeltingDecision.WalkToLocation
 import game.idle.flow.CountsAmount
 import game.idle.flow.Reason
 import game.idle.flow.Said
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepStop
 import game.idle.flow.Supply
 import game.idle.flow.Target
@@ -96,7 +96,7 @@ object SmeltingPlanner {
  * bar made in between (used without smelting starting, or walked to but still out of reach) is skipped for as long
  * as the step runs.
  */
-class SmeltingActivity(private val smelter: Smelter, private val bar: BarType, private val amount: Int? = null) : StepActivity, CountsAmount {
+class SmeltingActivity(private val smelter: Smelter, private val bar: BarType, private val amount: Int? = null) : LegacyActivity, CountsAmount {
 
     private val skippedFurnaces = mutableSetOf<Position>()
     private var lastDecision: SmeltingDecision? = null

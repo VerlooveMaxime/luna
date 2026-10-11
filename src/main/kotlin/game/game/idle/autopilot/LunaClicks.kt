@@ -29,6 +29,27 @@ object LunaClicks {
     fun hasBlockingWindow(player: Player): Boolean =
         player.overlays.overlayMap.any { (type, overlay) -> type in WINDOW_TYPES && overlay !is LevelUpInterface }
 
+    /**
+     * Breaks off what the autopilot has the player doing: the action in progress as a player's own click would, leaving
+     * a strong one (a death) alone, and the walk it started.
+     */
+    fun interrupt(player: Player) {
+        endWalk(player)
+        player.actions.interruptWeak()
+    }
+
+    /**
+     * Ends the walk the autopilot started, if any: every walk of its goes through the navigator, a walk the player clicks
+     * never does. Cancelling the navigator leaves the path in the walking queue, so that is cleared too; it must come
+     * before the walk's action is interrupted, which ends the request and would hide the walk.
+     */
+    fun endWalk(player: Player) {
+        if (player.navigator.isActive) {
+            player.navigator.cancel()
+            player.walking.clear()
+        }
+    }
+
     /** The checks the packet reader makes before dispatching a click. */
     fun mayAct(player: Player, event: ControllableEvent): Boolean =
         !player.isLocked && player.controllers.checkEvent(event)

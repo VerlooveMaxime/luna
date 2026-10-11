@@ -127,6 +127,11 @@ class StepWordsTest {
     }
 
     @Test
+    fun `an idle lap stops the flow with one line`() {
+        assertEquals("Autopilot: stopped, no step had anything to do.", StepWords.IDLE_LAP)
+    }
+
+    @Test
     fun `a flow that no longer resolves points at the builder`() {
         assertEquals("Autopilot: could not resume your flow. Check it in the flow builder.", StepWords.CANNOT_RESUME)
     }

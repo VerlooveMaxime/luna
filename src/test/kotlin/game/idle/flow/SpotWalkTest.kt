@@ -160,25 +160,48 @@ class SpotWalkTest {
     }
 
     @Test
-    fun `a work that counts nothing counts nothing done`() {
-        val counting = SpotWalk(walk) { NotCounting }
-        walk.done = true
-        counting.act()
+    fun `a walk never waits for the world`() {
+        walk.waiting = Reason.NoneInReach(Target.TREE)
 
-        assertEquals(0, counting.amountDone())
+        assertNull(spotWalk.waiting())
     }
 
-    private object NotCounting : StepActivity {
-        override fun isBusy(): Boolean = false
+    @Test
+    fun `after the walk what the work waits for is the step's`() {
+        arrive()
+        work.waiting = Reason.NoneInReach(Target.TREE)
 
-        override fun isDone(): Boolean = false
+        assertEquals(Reason.NoneInReach(Target.TREE), spotWalk.waiting())
+    }
 
-        override fun act() = Unit
+    @Test
+    fun `a walk is no work`() {
+        walk.worked = true
 
-        override fun blocked(): Reason? = null
+        assertFalse(spotWalk.worked())
+    }
 
-        override fun stopping(): StepStop? = null
+    @Test
+    fun `after the walk whether the work worked is the step's`() {
+        arrive()
+        work.worked = false
 
-        override fun said(): Said? = null
+        assertFalse(spotWalk.worked())
+    }
+
+    @Test
+    fun `a turn ended while it walks ends the walk and is over without the work`() {
+        spotWalk.endTurn()
+
+        assertEquals(listOf<Any>(1, true, emptyList<String>()), listOf(walk.ended, spotWalk.isDone(), built))
+    }
+
+    @Test
+    fun `a turn ended after the walk ends the work`() {
+        arrive()
+
+        spotWalk.endTurn()
+
+        assertEquals(1 to 0, work.ended to walk.ended)
     }
 }

@@ -32,12 +32,12 @@ sealed interface Reason {
     data class NoWay(val place: Place) : Reason
 
     /**
-     * What the bag or the bank holds stands in the way: what a bank step with something to do is stuck on, what blocks
-     * a gather step or ends a pick-up step ([BagFull]); the only reasons a step ends or skips its turn on.
+     * What the bag or the bank holds stands in the way: what a bank step with something to do is stuck on, what ends a
+     * step that fills the bag ([BagFull]); the only reasons a step ends or skips its turn on.
      */
     sealed interface Stuck : Reason
 
-    /** The bag is full; [left] are the item ids a pick-up step left lying because of it, none for the other kinds. */
+    /** The bag is full; [left] are the item ids a pick-up step left lying because of it, none for a kind that fills it itself. */
     data class BagFull(val left: List<Int>) : Stuck
 
     data class NoneLeftInBank(val item: Int) : Stuck

@@ -28,4 +28,6 @@ class LunaWalker(private val player: Player, private val target: Tile) : Walker 
         player.overlays.closeWindows(false)
         player.navigator.navigate(tile, true)
     }
+
+    override fun interrupt() = LunaClicks.interrupt(player)
 }

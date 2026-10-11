@@ -126,6 +126,9 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
 
         const val DIED = "${PREFIX}stopped, you died."
 
+        /** A whole lap went by with no step working (Maxime, 2026-10-11). */
+        const val IDLE_LAP = "${PREFIX}stopped, no step had anything to do."
+
         const val CANNOT_RESUME = "${PREFIX}could not resume your flow. Check it in the flow builder."
 
         /**

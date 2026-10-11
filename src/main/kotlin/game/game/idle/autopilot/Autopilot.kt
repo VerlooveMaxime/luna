@@ -77,25 +77,26 @@ class Autopilot<P : AutopilotPlayer>(
     /**
      * A step that ends the flow (a reflex's Stop the flow, say) stops it and tells the player why. A walk it started
      * goes on: a reflex stops the flow once nothing attacks the player, maybe before their run is over. Otherwise the
-     * current step's block goes into the state, only when it changes, since every state change refreshes the UI; a
-     * step that starts being blocked says so in the chat box, pointing at its slot for the reason.
+     * current step's block and wait go into the state, only when they change, since every state change refreshes the
+     * UI; a step that starts being blocked says so in the chat box, pointing at its slot for the reason, while a wait
+     * for the world is shown and never told (Maxime, 2026-10-11).
      */
     private fun tick(player: P, driver: AutopilotDriver) {
         driver.tick()
         val reason = driver.stopReason()
         if (reason == null) {
-            noteBlocked(player, driver.blocked())
+            noteHeld(player, driver.blocked(), driver.waiting())
             return
         }
         halt(player)
         player.tell(reason)
     }
 
-    private fun noteBlocked(player: P, blocked: String?) {
+    private fun noteHeld(player: P, blocked: String?, waiting: String?) {
         val state = player.idleState
-        if (state.blocked == blocked) return
-        if (state.blocked == null) player.tell(StepWords.cannotWork(state.stepIndex + 1))
-        player.idleState = state.copy(blocked = blocked)
+        if (state.blocked == blocked && state.waiting == waiting) return
+        if (state.blocked == null && blocked != null) player.tell(StepWords.cannotWork(state.stepIndex + 1))
+        player.idleState = state.copy(blocked = blocked, waiting = waiting)
     }
 
     /** Stops the flow and the walk it was taking the player on (to a bank, say), which would carry them far off. */

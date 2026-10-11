@@ -4,8 +4,8 @@ import game.idle.flow.FlowContext
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
 import game.idle.flow.ProcessKinds
-import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyKind
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -71,7 +71,7 @@ class CookStepType(private val names: GameNames) : StepType {
         "cook ${StepAmount.prefix(settings)}${food.ids(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd() +
             StepRadius.suffix(settings) + StepSpot.suffix(settings)
 
-    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep =
+    override fun resolve(settings: StepSettings, context: FlowContext): LegacyKind =
         CookStep(food.resolve(settings, context, input(settings, context)), StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
 
     companion object {
@@ -83,7 +83,7 @@ class CookStepType(private val names: GameNames) : StepType {
  * A cook step resolved: the raw food it cooks, where, and how much ([amount], null for all). Later steps know it makes
  * the cooked food and the burnt (S07b: the bank's Gathered banks them, a drop step drops them).
  */
-data class CookStep(val rawIds: Set<Int>, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot {
+data class CookStep(val rawIds: Set<Int>, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : LegacyKind, OwnSpot {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
@@ -94,6 +94,6 @@ data class CookStep(val rawIds: Set<Int>, val radius: Int, val workSpot: WorkSpo
 
     override fun needs(): List<StepNeeds> = listOf(StepNeeds(inputs = rawIds.toList()))
 
-    override fun activity(player: Player, runTile: Tile): StepActivity =
+    override fun activity(player: Player, runTile: Tile): LegacyActivity =
         CookingActivity(LunaCooker(player, rawIds, Area(workSpot.tile(runTile), radius)), amount)
 }

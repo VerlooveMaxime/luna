@@ -17,8 +17,9 @@ import io.luna.game.model.mob.Player
  * from before the tutorial existed loads as finished. [countBoostedLevels] is the player's choice to have the builder's
  * options judged on boosted levels instead of the unboosted ones; a flow that stops when a boost wears off is theirs.
  * [blocked] is why the running step cannot go on for now, a fragment such as "Needs an axe you can use" (`StepWords`),
- * shown on the overlay and the builder; transient, so a save never holds it, and cleared whenever the flow starts, stops
- * or changes step.
+ * shown in red on the overlay and the builder, and [waiting] what it waits for the world to supply ("No tree in reach"),
+ * shown in yellow; both transient, so a save never holds them, and cleared whenever the flow starts, stops or changes
+ * step.
  *
  * The flow was kept as typed lines under the name `flow` until 2026-10-07; a save still holding them loads with an
  * empty flow, which the next save makes final.
@@ -37,12 +38,13 @@ data class IdleState(
     val savedSlot: Int? = null,
     val countBoostedLevels: Boolean = false,
     @Transient val blocked: String? = null,
+    @Transient val waiting: String? = null,
 ) {
     /** The flow as [steps] and [reflexes], the reflexes kept as they are unless given, stopped and from its first step. */
     fun withFlow(steps: List<StepSettings>, reflexes: List<ReflexSettings> = this.reflexes): IdleState =
-        copy(steps = steps, reflexes = reflexes, stepIndex = 0, running = false, runTile = null, laps = 0, blocked = null)
+        copy(steps = steps, reflexes = reflexes, stepIndex = 0, running = false, runTile = null, laps = 0, blocked = null, waiting = null)
 
-    fun atStep(index: Int): IdleState = copy(stepIndex = index, blocked = null)
+    fun atStep(index: Int): IdleState = copy(stepIndex = index, blocked = null, waiting = null)
 
     /** Back to the first step, to be started from wherever the player then stands. */
     fun fromStart(): IdleState = copy(stepIndex = 0, runTile = null, laps = 0)
@@ -50,9 +52,9 @@ data class IdleState(
     fun lapped(): IdleState = copy(laps = laps + 1)
 
     /** Running, from [here] unless it was started before and is resuming. */
-    fun started(here: Tile): IdleState = copy(running = true, runTile = runTile ?: here, blocked = null)
+    fun started(here: Tile): IdleState = copy(running = true, runTile = runTile ?: here, blocked = null, waiting = null)
 
-    fun stopped(): IdleState = copy(running = false, blocked = null)
+    fun stopped(): IdleState = copy(running = false, blocked = null, waiting = null)
 
     companion object {
         const val TUTORIAL_DONE = 1000

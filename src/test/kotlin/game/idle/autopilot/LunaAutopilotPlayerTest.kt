@@ -7,37 +7,42 @@ import game.idle.autopilot.bank.BankStep
 import game.idle.autopilot.bank.EVERYTHING
 import game.idle.autopilot.cooking.CookStep
 import game.idle.autopilot.cooking.CookingActivity
-import game.idle.autopilot.drop.DropActivity
 import game.idle.autopilot.drop.DropStep
+import game.idle.autopilot.drop.DropWork
 import game.idle.autopilot.firemaking.LightActivity
 import game.idle.autopilot.firemaking.LightStep
 import game.idle.autopilot.fishing.FishStep
-import game.idle.autopilot.fishing.FishingActivity
+import game.idle.autopilot.fishing.FishingWork
 import game.idle.autopilot.fishing.FishingMethod
 import game.idle.autopilot.making.MakeActivity
 import game.idle.autopilot.making.MakeStep
 import game.idle.autopilot.making.BREAD_DOUGH
 import game.idle.autopilot.mining.MineStep
-import game.idle.autopilot.mining.MiningActivity
-import game.idle.autopilot.rest.RestActivity
+import game.idle.autopilot.mining.MiningWork
 import game.idle.autopilot.rest.RestStep
+import game.idle.autopilot.rest.RestWork
 import game.idle.autopilot.smelting.SmeltStep
 import game.idle.autopilot.smelting.SmeltingActivity
 import game.idle.autopilot.smithing.SmithStep
 import game.idle.autopilot.smithing.SmithingActivity
-import game.idle.autopilot.walk.WalkActivity
 import game.idle.autopilot.walk.WalkStep
+import game.idle.autopilot.walk.WalkWork
 import game.idle.autopilot.woodcutting.ChopStep
-import game.idle.autopilot.woodcutting.WoodcuttingActivity
-import game.idle.flow.FakeStepActivity
+import game.idle.autopilot.woodcutting.ChopStepType
+import game.idle.autopilot.woodcutting.WoodcuttingWork
 import game.idle.flow.FakeStepType
 import game.idle.flow.FakeStepType.Companion.step
+import game.idle.flow.FakeStepWork
+import game.idle.flow.LegacyKind
+import game.idle.flow.LegacyStep
 import game.idle.flow.Place
 import game.idle.flow.Reason
-import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivity
+import game.idle.flow.StepOutcome
+import game.idle.flow.StepTurn
 import game.idle.flow.StepTypes
+import game.idle.flow.StepWork
 import game.idle.flow.WorkSpot
+import game.idle.flow.Works
 import game.idle.idleState
 import game.idle.location.Bank
 import game.idle.location.Tile
@@ -50,6 +55,7 @@ import game.skill.smithing.smithBar.SmithingTable
 import game.skill.woodcutting.cutTree.Tree
 import game.testworld.TestWorld
 import io.luna.game.model.Position
+import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -62,17 +68,24 @@ import java.util.ArrayDeque
 class LunaAutopilotPlayerTest {
 
     private val logs = 1511
+    private val bronzeAxe = 1351
     private val runTile = Tile(3190, 3190)
 
     /** Remembers the run tile it was started with. */
-    private class RecordingStep : ResolvedStep {
+    private class RecordingStep : Works {
         var runTile: Tile? = null
 
-        override fun activity(player: Player, runTile: Tile): StepActivity {
+        override fun work(player: Player, runTile: Tile): StepWork {
             this.runTile = runTile
-            return FakeStepActivity("recorded", mutableListOf())
+            return FakeStepWork(StepOutcome.Worked)
         }
     }
+
+    /** The work inside a converted step's turn. */
+    private fun workOf(step: Works): StepWork = (autopilotPlayer().activity(step) as StepTurn).work
+
+    /** The activity inside a step's turn while its kind is not yet converted. */
+    private fun legacyOf(step: LegacyKind) = (autopilotPlayer().activity(step) as LegacyStep).activity
 
     private val ui = IdleUi(StepTypes(listOf(FakeStepType("chop"), FakeStepType("drop")))::summary, idleTab())
 
@@ -240,6 +253,8 @@ class LunaAutopilotPlayerTest {
         override fun stopReason(): String? = null
 
         override fun blocked(): String? = null
+
+        override fun waiting(): String? = null
     }
 
     @Test
@@ -261,69 +276,101 @@ class LunaAutopilotPlayerTest {
     }
 
     @Test
-    fun `a chop step runs as a woodcutting activity`() {
-        val step = ChopStep(Tree.NORMAL, radius = 10, WorkSpot.RunTile)
-
-        assertInstanceOf(WoodcuttingActivity::class.java, autopilotPlayer().activity(step))
+    fun `a chop step runs its woodcutting work in a turn`() {
+        assertInstanceOf(WoodcuttingWork::class.java, workOf(ChopStep(Tree.NORMAL, radius = 10, WorkSpot.RunTile)))
     }
 
     @Test
-    fun `a drop step runs as a drop activity`() {
-        assertInstanceOf(DropActivity::class.java, autopilotPlayer().activity(DropStep(setOf(logs))))
+    fun `a drop step runs its drop work in a turn`() {
+        assertInstanceOf(DropWork::class.java, workOf(DropStep(setOf(logs))))
     }
 
     @Test
-    fun `a rest step runs as a rest activity`() {
-        assertInstanceOf(RestActivity::class.java, autopilotPlayer().activity(RestStep(100)))
+    fun `a rest step runs its rest work in a turn`() {
+        assertInstanceOf(RestWork::class.java, workOf(RestStep(100)))
     }
 
     @Test
     fun `a bank step runs as a bank activity`() {
         val step = BankStep(listOf(Bank("test", "Test bank", Tile(3210, 3200))), EVERYTHING)
 
-        assertInstanceOf(BankActivity::class.java, autopilotPlayer().activity(step))
+        assertInstanceOf(BankActivity::class.java, legacyOf(step))
     }
 
     @Test
     fun `a light step runs as a light activity`() {
-        assertInstanceOf(LightActivity::class.java, autopilotPlayer().activity(LightStep(setOf(logs))))
+        assertInstanceOf(LightActivity::class.java, legacyOf(LightStep(setOf(logs))))
     }
 
     @Test
-    fun `a fish step runs as a fishing activity`() {
-        assertInstanceOf(FishingActivity::class.java, autopilotPlayer().activity(FishStep(FishingMethod(Tool.SMALL_NET), 10, WorkSpot.RunTile)))
+    fun `a fish step runs its fishing work in a turn`() {
+        assertInstanceOf(FishingWork::class.java, workOf(FishStep(FishingMethod(Tool.SMALL_NET), 10, WorkSpot.RunTile)))
     }
 
     @Test
     fun `a cook step runs as a cooking activity`() {
-        assertInstanceOf(CookingActivity::class.java, autopilotPlayer().activity(CookStep(setOf(317), 10, WorkSpot.RunTile)))
+        assertInstanceOf(CookingActivity::class.java, legacyOf(CookStep(setOf(317), 10, WorkSpot.RunTile)))
     }
 
     @Test
-    fun `a mine step runs as a mining activity`() {
-        assertInstanceOf(MiningActivity::class.java, autopilotPlayer().activity(MineStep(Ore.COPPER, 10, WorkSpot.RunTile)))
+    fun `a mine step runs its mining work in a turn`() {
+        assertInstanceOf(MiningWork::class.java, workOf(MineStep(Ore.COPPER, 10, WorkSpot.RunTile)))
     }
 
     @Test
     fun `a smelt step runs as a smelting activity`() {
-        assertInstanceOf(SmeltingActivity::class.java, autopilotPlayer().activity(SmeltStep(BarType.BRONZE, 10, WorkSpot.RunTile)))
+        assertInstanceOf(SmeltingActivity::class.java, legacyOf(SmeltStep(BarType.BRONZE, 10, WorkSpot.RunTile)))
     }
 
     @Test
     fun `a smith step runs as a smithing activity`() {
         val step = SmithStep(BarType.BRONZE, SmithingTable.DAGGER, 10, WorkSpot.RunTile)
 
-        assertInstanceOf(SmithingActivity::class.java, autopilotPlayer().activity(step))
+        assertInstanceOf(SmithingActivity::class.java, legacyOf(step))
     }
 
     @Test
     fun `a make step runs as a make activity`() {
-        assertInstanceOf(MakeActivity::class.java, autopilotPlayer().activity(MakeStep(BREAD_DOUGH)))
+        assertInstanceOf(MakeActivity::class.java, legacyOf(MakeStep(BREAD_DOUGH)))
     }
 
     @Test
-    fun `a walk step runs as a walk activity`() {
-        assertInstanceOf(WalkActivity::class.java, autopilotPlayer().activity(WalkStep(Tile(3210, 3200))))
+    fun `a walk step runs its walk work in a turn`() {
+        assertInstanceOf(WalkWork::class.java, workOf(WalkStep(Tile(3210, 3200))))
+    }
+
+    @Test
+    fun `a step's turn checks what it needs before it looks`() {
+        val turn = autopilotPlayer().activity(ChopStep(Tree.NORMAL, radius = 10, WorkSpot.RunTile))
+
+        turn.act()
+
+        assertEquals(Reason.NeedsTool(ChopStepType.AXE), turn.blocked())
+    }
+
+    @Test
+    fun `a gather step's turn ends on a full bag`() {
+        val autopilot = autopilotPlayer()
+        autopilot.player.inventory.add(Item(bronzeAxe))
+        autopilot.player.inventory.add(Item(logs, 27))
+        val turn = autopilot.activity(ChopStep(Tree.NORMAL, radius = 10, WorkSpot.RunTile))
+
+        turn.act()
+
+        assertTrue(turn.isDone())
+    }
+
+    @Test
+    fun `a counting step's turn ends at its amount`() {
+        val autopilot = autopilotPlayer()
+        autopilot.player.inventory.add(Item(bronzeAxe))
+        val turn = autopilot.activity(ChopStep(Tree.NORMAL, radius = 10, WorkSpot.RunTile, amount = 1))
+        turn.act()
+        autopilot.player.inventory.add(Item(logs))
+
+        turn.act()
+
+        assertTrue(turn.isDone())
     }
 
     @Test
@@ -340,7 +387,7 @@ class LunaAutopilotPlayerTest {
     fun `a step with its own spot starting inside its area works at once`() {
         val step = ChopStep(Tree.NORMAL, radius = 5, WorkSpot.Own(Tile(3205, 3200)))
 
-        assertInstanceOf(WoodcuttingActivity::class.java, autopilotPlayer().activity(step))
+        assertInstanceOf(StepTurn::class.java, autopilotPlayer().activity(step))
     }
 
     @Test

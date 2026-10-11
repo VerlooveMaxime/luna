@@ -7,7 +7,7 @@ import game.idle.autopilot.firemaking.LightDecision.MoveToFreeTile
 import game.idle.flow.CountsAmount
 import game.idle.flow.Reason
 import game.idle.flow.Said
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepStop
 import game.idle.flow.Supply
 import game.idle.flow.Target
@@ -71,7 +71,7 @@ object LightPlanner {
  * none is left. A log counts as used once it leaves the inventory, which happens as the tinderbox strikes; the step
  * waits for that fire to catch before it ends, so a log is never left unlit on the ground.
  */
-class LightActivity(private val lighter: Lighter, private val amount: Int? = null) : StepActivity, CountsAmount {
+class LightActivity(private val lighter: Lighter, private val amount: Int? = null) : LegacyActivity, CountsAmount {
 
     private var logsAtStart: Int? = null
     private var lastDecision: LightDecision? = null

@@ -178,9 +178,10 @@ class BuilderOverview(
         val pick = type?.pick(settings, names)
         val running = state.running && state.stepIndex == slot
         val reason = state.blocked?.takeIf { running } ?: problem
+        val waiting = state.waiting?.takeIf { running }
         val targetLine = pick?.let { it.label?.let(::fitted) ?: NOT_SET }
         val details = (listOfNotNull(targetLine) + type?.details(settings, before).orEmpty().map(::fitted))
-        val reasonLines = reason?.let { font.wrap("! $it", BuilderWidgets.LINE_ROOM, REASON_LINES).map { line -> "@red@$line" } }.orEmpty()
+        val reasonLines = reason?.let { heldLines(it, "@red@") }.orEmpty() + waiting?.let { heldLines(it, "@yel@") }.orEmpty()
         val pictures = StepPictures.of(icon, pick?.icon)
         return SlotView.Step(
             number = slot + 1,
@@ -236,6 +237,10 @@ class BuilderOverview(
     }
 
     private fun fitted(line: String): String = font.fit(line, BuilderWidgets.LINE_ROOM)
+
+    /** A block or a wait under the step's lines, in [colour], on the lines a reason may take. */
+    private fun heldLines(text: String, colour: String): List<String> =
+        font.wrap("! $text", BuilderWidgets.LINE_ROOM, REASON_LINES).map { line -> "$colour$line" }
 
     private fun lit(text: String, on: Boolean): String = if (on) "@whi@$text" else text
 

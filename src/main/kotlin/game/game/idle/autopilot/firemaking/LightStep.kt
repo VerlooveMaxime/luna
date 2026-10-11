@@ -4,8 +4,8 @@ import game.idle.flow.FlowContext
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
 import game.idle.flow.ProcessKinds
-import game.idle.flow.ResolvedStep
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyKind
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -69,7 +69,7 @@ class LightStepType(private val names: GameNames) : StepType {
         "light ${StepAmount.prefix(settings)}${logs.ids(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd() +
             StepSpot.suffix(settings)
 
-    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep =
+    override fun resolve(settings: StepSettings, context: FlowContext): LegacyKind =
         LightStep(logs.resolve(settings, context, input(settings, context)), StepAmount.read(settings), StepSpot.read(settings))
 
     companion object {
@@ -82,7 +82,7 @@ class LightStepType(private val names: GameNames) : StepType {
  * fires starting there, or null to light where it stands, not at the flow's spot (Maxime, 2026-10-10). A picked tile is
  * where the flow went for the steps after it.
  */
-data class LightStep(val logIds: Set<Int>, val amount: Int? = null, val spot: Tile? = null) : ResolvedStep, OwnSpot {
+data class LightStep(val logIds: Set<Int>, val amount: Int? = null, val spot: Tile? = null) : LegacyKind, OwnSpot {
 
     /** Light has no Within: the player walks to the tile unless standing on it. */
     override val ownArea: Area? get() = spot?.let { Area(it, radius = 0) }
@@ -92,6 +92,6 @@ data class LightStep(val logIds: Set<Int>, val amount: Int? = null, val spot: Ti
     override fun needs(): List<StepNeeds> =
         listOf(StepNeeds(tools = listOf(LightPlanner.TINDERBOX), inputs = logIds.toList()))
 
-    override fun activity(player: Player, runTile: Tile): StepActivity =
+    override fun activity(player: Player, runTile: Tile): LegacyActivity =
         LightActivity(LunaLighter(player, logIds, spot?.toPosition() ?: player.position), amount)
 }

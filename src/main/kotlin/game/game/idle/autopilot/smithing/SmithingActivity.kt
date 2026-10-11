@@ -11,7 +11,7 @@ import game.idle.autopilot.smithing.SmithingDecision.WalkToLocation
 import game.idle.flow.CountsAmount
 import game.idle.flow.Reason
 import game.idle.flow.Said
-import game.idle.flow.StepActivity
+import game.idle.flow.LegacyActivity
 import game.idle.flow.StepStop
 import game.idle.flow.Supply
 import game.idle.flow.Target
@@ -116,7 +116,7 @@ object SmithingPlanner {
  * at once. An anvil that gets the same decision twice in a row with nothing made in between (used without the window
  * opening, or walked to but still out of reach) is skipped for as long as the step runs.
  */
-class SmithingActivity(private val smither: Smither, private val level: Int, private val amount: Int? = null) : StepActivity, CountsAmount {
+class SmithingActivity(private val smither: Smither, private val level: Int, private val amount: Int? = null) : LegacyActivity, CountsAmount {
 
     private val skippedAnvils = mutableSetOf<Position>()
     private var lastDecision: SmithingDecision? = null
