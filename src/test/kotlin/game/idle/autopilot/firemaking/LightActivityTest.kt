@@ -1,5 +1,9 @@
 package game.idle.autopilot.firemaking
 
+import game.idle.flow.Reason
+import game.idle.flow.Supply
+import game.idle.flow.Target
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -8,7 +12,7 @@ import org.junit.jupiter.api.Test
 
 class LightActivityTest {
 
-    private val ready = LightView(hasTinderbox = true, logs = 3, lightable = 4, tileFree = true)
+    private val ready = LightView(hasTinderbox = true, logs = 3, lightable = 4, level = 1, tileFree = true)
     private val lighter = FakeLighter(ready)
     private val activity = LightActivity(lighter)
 
@@ -38,7 +42,7 @@ class LightActivityTest {
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(LightBlockedReason.NO_LOGS.message, activity.blocked())
+        assertEquals(Reason.NothingToUse(Supply.LOGS), activity.blocked())
     }
 
     @Test
@@ -81,7 +85,7 @@ class LightActivityTest {
 
         activity.act()
 
-        assertEquals(LightBlockedReason.NO_ROOM.message, activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.FREE_TILE), activity.blocked())
     }
 
     @Test
@@ -90,7 +94,7 @@ class LightActivityTest {
 
         activity.act()
 
-        assertEquals(LightBlockedReason.NO_TINDERBOX.message, activity.blocked())
+        assertEquals(Reason.NeedsTool(LightPlanner.TINDERBOX), activity.blocked())
     }
 
     @Test
@@ -100,7 +104,7 @@ class LightActivityTest {
 
         activity.act()
 
-        assertEquals(LightBlockedReason.NO_ROOM.message, activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.FREE_TILE), activity.blocked())
     }
 
     @Test
@@ -115,23 +119,28 @@ class LightActivityTest {
     }
 
     @Test
-    fun `without a tinderbox the step blocks once with a message`() {
+    fun `without a tinderbox the step blocks`() {
         lighter.view = ready.copy(hasTinderbox = false)
 
         activity.act()
         activity.act()
 
-        assertEquals(LightBlockedReason.NO_TINDERBOX.message, activity.blocked())
+        assertEquals(Reason.NeedsTool(LightPlanner.TINDERBOX), activity.blocked())
         assertFalse(activity.isDone())
     }
 
     @Test
-    fun `logs too hard to light block the step`() {
-        lighter.view = ready.copy(lightable = null)
+    fun `logs too hard to light block the step on the level the easiest of them needs`() {
+        lighter.view = ready.copy(lightable = null, level = 15)
 
         activity.act()
 
-        assertEquals(LightBlockedReason.LEVEL_TOO_LOW.message, activity.blocked())
+        assertEquals(Reason.NeedsLevel(Skill.FIREMAKING, 15), activity.blocked())
+    }
+
+    @Test
+    fun `lighting never stops the flow and has nothing to say`() {
+        assertEquals(listOf(null, null), listOf(activity.stopping(), activity.said()))
     }
 
     @Test

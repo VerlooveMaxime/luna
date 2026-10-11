@@ -8,7 +8,12 @@ import game.idle.autopilot.cooking.CookingDecision.WalkTo
 import game.idle.autopilot.cooking.CookingDecision.WalkToLocation
 import game.idle.autopilot.PlaceCandidate
 import game.idle.flow.CountsAmount
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepActivity
+import game.idle.flow.StepStop
+import game.idle.flow.Supply
+import game.idle.flow.Target
 import io.luna.game.model.Position
 
 /** What the cook step can see and do for one player. [LunaCooker] is the in-game one. */
@@ -60,12 +65,7 @@ sealed interface CookingDecision {
 
     data object Done : CookingDecision
 
-    data class Blocked(val reason: CookingBlockedReason) : CookingDecision
-}
-
-enum class CookingBlockedReason(val message: String) {
-    NO_FIRE("Autopilot: there is no fire or range you can reach here. Put a 'light' step before the cook step."),
-    NOTHING_TO_COOK("Autopilot: you have nothing to cook. Put a fish or make step before the cook step."),
+    data class Blocked(val reason: Reason) : CookingDecision
 }
 
 /**
@@ -83,10 +83,10 @@ object CookingPlanner {
     fun decide(view: CookingView, cookedSome: Boolean): CookingDecision {
         val best = view.places.minWithOrNull(preferredFirst)
         return when {
-            view.rawSlot == null -> if (cookedSome) Done else Blocked(CookingBlockedReason.NOTHING_TO_COOK)
+            view.rawSlot == null -> if (cookedSome) Done else Blocked(Reason.NothingToUse(Supply.RAW_FOOD))
             view.windowOpen -> CookAll
             best == null && !view.atLocation -> WalkToLocation
-            best == null -> Blocked(CookingBlockedReason.NO_FIRE)
+            best == null -> Blocked(Reason.NoneInReach(Target.FIRE_OR_RANGE))
             best.usableFromHere -> UseOn(best, view.rawSlot)
             else -> WalkTo(best)
         }
@@ -110,7 +110,11 @@ class CookingActivity(private val cooker: Cooker, private val amount: Int? = nul
 
     override fun isDone(): Boolean = done
 
-    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+    override fun blocked(): Reason? = (lastDecision as? Blocked)?.reason
+
+    override fun stopping(): StepStop? = null
+
+    override fun said(): Said? = null
 
     override fun act() {
         val start = rawAtStart ?: cooker.raw().also { rawAtStart = it }

@@ -86,17 +86,32 @@ class SpotWalkTest {
 
     @Test
     fun `a walk that cannot get there blocks with its reason`() {
-        walk.blocked = "Autopilot: there is no way to walk to the work spot 3101 3509 from here."
+        walk.blocked = Reason.NoWay(Place.WORK_SPOT)
 
-        assertEquals("Autopilot: there is no way to walk to the work spot 3101 3509 from here.", spotWalk.blocked())
+        assertEquals(Reason.NoWay(Place.WORK_SPOT), spotWalk.blocked())
     }
 
     @Test
     fun `after the walk the block is the work's`() {
         arrive()
-        work.blocked = "Autopilot: there is no tree you can cut here."
+        work.blocked = Reason.NoneInReach(Target.TREE)
 
-        assertEquals("Autopilot: there is no tree you can cut here.", spotWalk.blocked())
+        assertEquals(Reason.NoneInReach(Target.TREE), spotWalk.blocked())
+    }
+
+    @Test
+    fun `a walk never speaks`() {
+        walk.said = Said.Ended(Reason.BagFull(emptyList()))
+
+        assertNull(spotWalk.said())
+    }
+
+    @Test
+    fun `after the walk what the work says is the step's`() {
+        arrive()
+        work.said = Said.Ended(Reason.BagFull(emptyList()))
+
+        assertEquals(Said.Ended(Reason.BagFull(emptyList())), spotWalk.said())
     }
 
     @Test
@@ -116,17 +131,17 @@ class SpotWalkTest {
 
     @Test
     fun `a walk never stops the flow`() {
-        work.stop = "stopped"
+        walk.stop = StepStop.Stuck(Reason.BankFull)
 
-        assertNull(spotWalk.stopReason())
+        assertNull(spotWalk.stopping())
     }
 
     @Test
     fun `after the walk the work may stop the flow`() {
         arrive()
-        work.stop = "stopped"
+        work.stop = StepStop.Stuck(Reason.BankFull)
 
-        assertEquals("stopped", spotWalk.stopReason())
+        assertEquals(StepStop.Stuck(Reason.BankFull), spotWalk.stopping())
     }
 
     @Test
@@ -159,5 +174,11 @@ class SpotWalkTest {
         override fun isDone(): Boolean = false
 
         override fun act() = Unit
+
+        override fun blocked(): Reason? = null
+
+        override fun stopping(): StepStop? = null
+
+        override fun said(): Said? = null
     }
 }

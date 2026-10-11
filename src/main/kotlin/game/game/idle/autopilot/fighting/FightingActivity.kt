@@ -5,7 +5,11 @@ import game.idle.autopilot.fighting.FightDecision.Blocked
 import game.idle.autopilot.fighting.FightDecision.WalkTo
 import game.idle.autopilot.fighting.FightDecision.WalkToLocation
 import game.idle.flow.CountsAmount
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepActivity
+import game.idle.flow.StepStop
+import game.idle.flow.Target
 import io.luna.game.model.Position
 
 /** What the fight step can see and do for one player. [LunaFighter] is the in-game one. */
@@ -65,11 +69,7 @@ sealed interface FightDecision {
 
     data object WalkToLocation : FightDecision
 
-    data class Blocked(val reason: FightBlockedReason) : FightDecision
-}
-
-enum class FightBlockedReason(val message: String) {
-    NO_TARGET("Autopilot: there is nothing to fight here that you can reach."),
+    data class Blocked(val reason: Reason) : FightDecision
 }
 
 /**
@@ -90,7 +90,7 @@ object FightingPlanner {
         val best = view.targets.minWithOrNull(preferredFirst)
         return when {
             best == null && !view.atLocation -> WalkToLocation
-            best == null -> Blocked(FightBlockedReason.NO_TARGET)
+            best == null -> Blocked(Reason.NoneInReach(Target.NPC))
             best.usableFromHere -> Attack(best)
             else -> WalkTo(best)
         }
@@ -115,7 +115,11 @@ class FightingActivity(private val fighter: Fighter, private val amount: Int? = 
 
     override fun isDone(): Boolean = done
 
-    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+    override fun blocked(): Reason? = (lastDecision as? Blocked)?.reason
+
+    override fun stopping(): StepStop? = null
+
+    override fun said(): Said? = null
 
     override fun amountDone(): Int = fighter.kills()
 

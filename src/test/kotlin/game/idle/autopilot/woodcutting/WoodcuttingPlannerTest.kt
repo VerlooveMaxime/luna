@@ -4,6 +4,8 @@ import game.idle.autopilot.woodcutting.WoodcuttingDecision.Blocked
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Chop
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkTo
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkToLocation
+import game.idle.flow.Reason
+import game.idle.flow.Target
 import game.skill.woodcutting.cutTree.Tree
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -25,14 +27,14 @@ class WoodcuttingPlannerTest {
     fun `a player without a usable axe is blocked even next to a tree`() {
         val decision = decide(view(listOf(nextToPlayer), hasUsableAxe = false))
 
-        assertEquals(Blocked(BlockedReason.NO_AXE), decision)
+        assertEquals(Blocked(Reason.NeedsTool(WoodcuttingPlanner.AXE)), decision)
     }
 
     @Test
     fun `a full inventory blocks the autopilot`() {
         val decision = decide(view(listOf(nextToPlayer), inventoryFull = true, logsInInventory = 5))
 
-        assertEquals(Blocked(BlockedReason.INVENTORY_FULL), decision)
+        assertEquals(Blocked(Reason.BagFull(emptyList())), decision)
     }
 
     @Test
@@ -46,7 +48,7 @@ class WoodcuttingPlannerTest {
     fun `no tree in sight at the location blocks the autopilot`() {
         val decision = decide(view(emptyList(), atLocation = true))
 
-        assertEquals(Blocked(BlockedReason.NO_TREE), decision)
+        assertEquals(Blocked(Reason.NoneInReach(Target.TREE)), decision)
     }
 
     @Test
@@ -67,7 +69,7 @@ class WoodcuttingPlannerTest {
     fun `trees the player did not ask for are ignored`() {
         val decision = decide(view(listOf(nextToPlayer)), ChopAction(setOf(Tree.OAK)))
 
-        assertEquals(Blocked(BlockedReason.NO_TREE), decision)
+        assertEquals(Blocked(Reason.NoneInReach(Target.TREE)), decision)
     }
 
     @Test
@@ -76,7 +78,7 @@ class WoodcuttingPlannerTest {
 
         val decision = decide(view(listOf(oak), woodcuttingLevel = 14))
 
-        assertEquals(Blocked(BlockedReason.NO_TREE), decision)
+        assertEquals(Blocked(Reason.NoneInReach(Target.TREE)), decision)
     }
 
     @Test

@@ -6,7 +6,10 @@ import game.idle.autopilot.woodcutting.WoodcuttingDecision.OnTree
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkTo
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkToLocation
 import game.idle.flow.CountsAmount
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepActivity
+import game.idle.flow.StepStop
 import io.luna.game.model.Position
 
 /** What the woodcutting autopilot can see and do for one player. [LunaWoodcutter] is the in-game one. */
@@ -53,7 +56,11 @@ class WoodcuttingActivity(
 
     override fun isDone(): Boolean = done
 
-    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+    override fun blocked(): Reason? = (lastDecision as? Blocked)?.reason
+
+    override fun stopping(): StepStop? = null
+
+    override fun said(): Said? = null
 
     override fun act() {
         if (logsAtStart == null) logsAtStart = woodcutter.logs()

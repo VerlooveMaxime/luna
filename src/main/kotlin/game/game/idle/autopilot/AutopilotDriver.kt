@@ -8,10 +8,10 @@ interface AutopilotActivity {
     fun act()
 
     /** Why the whole autopilot must stop now, or null to carry on. */
-    fun stopReason(): String? = null
+    fun stopReason(): String?
 
-    /** Why the activity cannot go on for now, as a full "Autopilot: ..." line, or null while it can. */
-    fun blocked(): String? = null
+    /** Why the activity cannot go on for now, as the fragment the overlay and the slot show, or null while it can. */
+    fun blocked(): String?
 }
 
 /**

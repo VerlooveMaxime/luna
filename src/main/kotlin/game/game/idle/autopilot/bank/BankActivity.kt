@@ -8,8 +8,10 @@ import game.idle.autopilot.bank.BankDecision.Open
 import game.idle.autopilot.bank.BankDecision.Stuck
 import game.idle.autopilot.bank.BankDecision.WalkToBooth
 import game.idle.autopilot.bank.BankDecision.Withdraw
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepActivity
-import game.idle.flow.option.GameNames
+import game.idle.flow.StepStop
 
 /** What a deposit or withdrawal at the bank did: whether anything [moved], and the item ids that [failed]. */
 data class BankMove(val moved: Boolean, val failed: Set<Int>)
@@ -35,28 +37,28 @@ interface Banker {
     fun withdraw(takes: List<Take>): BankMove
 
     fun close()
-
-    /** Says [message] in the chat box. */
-    fun tell(message: String)
 }
 
 /**
  * Carries out [BankPlanner] decisions for [order]; the step is over once the planner says [Done], or when it is stuck and
- * skips (Maxime, S01). Stuck with "Stop the flow", it stops the flow. Items are named with [names].
+ * skips, saying so (Maxime, S01). Stuck with "Stop the flow", it stops the flow.
  */
-class BankActivity(private val banker: Banker, private val order: BankOrder, private val names: GameNames) : StepActivity {
+class BankActivity(private val banker: Banker, private val order: BankOrder) : StepActivity {
 
     private var lastDecision: BankDecision? = null
     private var tries = BankTries()
-    private var stopReason: String? = null
+    private var stop: StepStop? = null
+    private var said: Said? = null
 
     override fun isBusy(): Boolean = banker.isBusy()
 
     override fun isDone(): Boolean = lastDecision == Done || (lastDecision is Stuck && order.ifStuck == IfStuck.SKIP)
 
-    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+    override fun blocked(): Reason? = (lastDecision as? Blocked)?.reason
 
-    override fun stopReason(): String? = stopReason
+    override fun stopping(): StepStop? = stop
+
+    override fun said(): Said? = said.also { said = null }
 
     override fun act() {
         val view = banker.look()
@@ -78,19 +80,11 @@ class BankActivity(private val banker: Banker, private val order: BankOrder, pri
         is Stuck -> stuck(decision.reason)
     }
 
-    private fun stuck(reason: StuckReason) {
-        val why = words(reason)
+    private fun stuck(reason: Reason.Stuck) {
         if (order.ifStuck == IfStuck.STOP) {
-            stopReason = "Autopilot: stopped, the bank step is stuck: $why."
+            stop = StepStop.Stuck(reason)
         } else {
-            banker.tell("Autopilot: the bank step is stuck ($why): skipped this lap.")
+            said = Said.Skipped(reason)
         }
     }
-
-    private fun words(reason: StuckReason): String =
-        when (reason) {
-            is StuckReason.NoneLeft -> "no ${names.item(reason.id).lowercase()} left in the bank"
-            StuckReason.NoRoom -> "no room in the bag"
-            StuckReason.BankFull -> "the bank is full"
-        }
 }

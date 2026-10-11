@@ -1,5 +1,7 @@
 package game.idle.autopilot.making
 
+import game.idle.flow.Reason
+import game.idle.flow.Supply
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -8,13 +10,12 @@ import org.junit.jupiter.api.Test
 
 class MakeActivityTest {
 
-    private val dough = BREAD_DOUGH
     private val ingredients = MakeView(useSlot = 0, onSlot = 1, windowOpen = false, productOption = null)
     private val window = MakeView(useSlot = 0, onSlot = 1, windowOpen = true, productOption = 0)
     private val empty = MakeView(useSlot = null, onSlot = 1, windowOpen = false, productOption = null)
 
     private val maker = FakeMaker(ingredients)
-    private val activity = MakeActivity(maker, dough)
+    private val activity = MakeActivity(maker)
 
     @Test
     fun `the two ingredients are combined`() {
@@ -34,7 +35,7 @@ class MakeActivityTest {
 
     @Test
     fun `with an amount the window is answered with what is left to make`() {
-        val counting = MakeActivity(maker, dough, amount = 5)
+        val counting = MakeActivity(maker, amount = 5)
         counting.act()
         maker.products = 2
         maker.view = window
@@ -50,7 +51,12 @@ class MakeActivityTest {
 
         activity.act()
 
-        assertEquals("Autopilot: this window does not make bread dough.", activity.blocked())
+        assertEquals(Reason.WrongWindow, activity.blocked())
+    }
+
+    @Test
+    fun `a make step never stops the flow and has nothing to say`() {
+        assertEquals(listOf(null, null), listOf(activity.stopping(), activity.said()))
     }
 
     @Test
@@ -65,13 +71,13 @@ class MakeActivityTest {
     }
 
     @Test
-    fun `a window that does not offer the product blocks once with a message`() {
+    fun `a window that does not offer the product blocks`() {
         maker.view = window.copy(productOption = null)
 
         activity.act()
         activity.act()
 
-        assertEquals("Autopilot: this window does not make bread dough.", activity.blocked())
+        assertEquals(Reason.WrongWindow, activity.blocked())
     }
 
     @Test
@@ -93,7 +99,7 @@ class MakeActivityTest {
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals("Autopilot: you have nothing to make bread dough with.", activity.blocked())
+        assertEquals(Reason.NothingToUse(Supply.INGREDIENTS), activity.blocked())
     }
 
     @Test
@@ -102,7 +108,7 @@ class MakeActivityTest {
 
         activity.act()
 
-        assertEquals("Autopilot: you have nothing to make bread dough with.", activity.blocked())
+        assertEquals(Reason.NothingToUse(Supply.INGREDIENTS), activity.blocked())
     }
 
     @Test
@@ -120,7 +126,7 @@ class MakeActivityTest {
         activity.act()
         activity.act()
 
-        assertEquals("Autopilot: you cannot make bread dough yet.", activity.blocked())
+        assertEquals(Reason.CannotMake, activity.blocked())
     }
 
     @Test
@@ -135,7 +141,7 @@ class MakeActivityTest {
 
     @Test
     fun `with an amount the step stops making and ends once that many were made`() {
-        val counting = MakeActivity(maker, dough, amount = 2)
+        val counting = MakeActivity(maker, amount = 2)
         counting.act()
         maker.products = 2
 
@@ -147,7 +153,7 @@ class MakeActivityTest {
 
     @Test
     fun `making that reaches the amount stops being busy so the step can stop it`() {
-        val counting = MakeActivity(maker, dough, amount = 1)
+        val counting = MakeActivity(maker, amount = 1)
         counting.act()
         maker.busy = true
 
@@ -162,18 +168,18 @@ class MakeActivityTest {
     fun `before its first act a step follows the maker's busy`() {
         maker.busy = true
 
-        assertTrue(MakeActivity(maker, dough, amount = 1).isBusy())
-        assertFalse(MakeActivity(FakeMaker(ingredients), dough).isBusy())
+        assertTrue(MakeActivity(maker, amount = 1).isBusy())
+        assertFalse(MakeActivity(FakeMaker(ingredients)).isBusy())
     }
 
     @Test
     fun `before its first act the step has done nothing`() {
-        assertEquals(0, MakeActivity(maker, dough).amountDone())
+        assertEquals(0, MakeActivity(maker).amountDone())
     }
 
     @Test
     fun `its amount done is the products made since the step began`() {
-        val counting = MakeActivity(maker, dough)
+        val counting = MakeActivity(maker)
         counting.act()
         maker.products = 2
 

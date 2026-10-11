@@ -190,6 +190,13 @@ class BankStepTypeTest {
     }
 
     @Test
+    fun `a bank step empties the bag of what it deposits`() {
+        val step = BankStep(listOf(draynor), BankOrder(DepositRule.Only(setOf(logs)), emptyList(), IfStuck.SKIP))
+
+        assertEquals(listOf(true, false), listOf(step.empties(logs), step.empties(oak)))
+    }
+
+    @Test
     fun `a bank step's slot says what it deposits and withdraws`() {
         assertEquals(listOf("Deposit: gathered", "Withdraw: tinderbox, oak logs"), bank.details(settings("withdraw" to "590:1,1521"), FlowContext()))
     }

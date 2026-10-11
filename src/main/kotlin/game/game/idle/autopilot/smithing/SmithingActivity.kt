@@ -9,8 +9,16 @@ import game.idle.autopilot.smithing.SmithingDecision.UseOn
 import game.idle.autopilot.smithing.SmithingDecision.WalkTo
 import game.idle.autopilot.smithing.SmithingDecision.WalkToLocation
 import game.idle.flow.CountsAmount
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepActivity
+import game.idle.flow.StepStop
+import game.idle.flow.Supply
+import game.idle.flow.Target
+import game.idle.flow.ToolNeed
+import game.skill.smithing.Smithing
 import io.luna.game.model.Position
+import io.luna.game.model.mob.Skill
 
 /** What the smith step can see and do for one player. [LunaSmither] is the in-game one. */
 interface Smither {
@@ -63,14 +71,7 @@ sealed interface SmithingDecision {
 
     data object Done : SmithingDecision
 
-    data class Blocked(val reason: SmithingBlockedReason) : SmithingDecision
-}
-
-enum class SmithingBlockedReason(val message: String) {
-    NOTHING_TO_SMITH("Autopilot: you have no bars for that item. Put a smelt step before the smith step."),
-    NO_HAMMER("Autopilot: you need a hammer in your inventory to smith."),
-    LEVEL_TOO_LOW("Autopilot: your Smithing level is too low for that item."),
-    NO_ANVIL("Autopilot: there is no anvil you can reach here."),
+    data class Blocked(val reason: Reason) : SmithingDecision
 }
 
 /**
@@ -78,6 +79,9 @@ enum class SmithingBlockedReason(val message: String) {
  * out after smithing some. With no bars from the start the step waits instead.
  */
 object SmithingPlanner {
+
+    /** The hammer every smith step needs carried, as the configure screen warns about it too. */
+    val HAMMER = ToolNeed(word = null, mapOf(Smithing.HAMMER to 1))
 
     /** The smithing window's counts, largest first. */
     private val OPTIONS = listOf(10, 5, 1)
@@ -91,12 +95,12 @@ object SmithingPlanner {
     fun decide(view: SmithingView, level: Int, madeSome: Boolean, times: Int): SmithingDecision {
         val best = view.anvils.minWithOrNull(preferredFirst)
         return when {
-            view.barSlot == null -> if (madeSome) Done else Blocked(SmithingBlockedReason.NOTHING_TO_SMITH)
-            !view.hasHammer -> Blocked(SmithingBlockedReason.NO_HAMMER)
-            view.smithingLevel < level -> Blocked(SmithingBlockedReason.LEVEL_TOO_LOW)
+            view.barSlot == null -> if (madeSome) Done else Blocked(Reason.NothingToUse(Supply.BARS))
+            !view.hasHammer -> Blocked(Reason.NeedsTool(HAMMER))
+            view.smithingLevel < level -> Blocked(Reason.NeedsLevel(Skill.SMITHING, level))
             view.windowOpen -> Choose(times)
             best == null && !view.atLocation -> WalkToLocation
-            best == null -> Blocked(SmithingBlockedReason.NO_ANVIL)
+            best == null -> Blocked(Reason.NoneInReach(Target.ANVIL))
             best.usableFromHere -> UseOn(best, view.barSlot)
             else -> WalkTo(best)
         }
@@ -124,7 +128,11 @@ class SmithingActivity(private val smither: Smither, private val level: Int, pri
 
     override fun isDone(): Boolean = done
 
-    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+    override fun blocked(): Reason? = (lastDecision as? Blocked)?.reason
+
+    override fun stopping(): StepStop? = null
+
+    override fun said(): Said? = null
 
     override fun act() {
         val start = madeAtStart ?: smither.made().also { madeAtStart = it }

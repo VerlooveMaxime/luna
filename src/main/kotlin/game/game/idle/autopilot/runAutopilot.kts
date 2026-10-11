@@ -7,6 +7,7 @@ import game.idle.flow.FlowRunner
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ResolvedFlow
 import game.idle.flow.SavedFlows
+import game.idle.flow.StepWords
 import game.idle.idleState
 import game.idle.flow.option.LunaGameNames
 import game.idle.ui.BuilderConfigure
@@ -35,6 +36,7 @@ val resolver = FlowResolver(steps.types)
 val reflexResolver = ReflexResolver(FoodOptions.portions())
 val reflexForm = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames)
 val font = ClientFont.fromCache(ctx.cache)
+val words = StepWords(LunaGameNames, ClientFont.fromCache(ctx.cache, ClientFont.PLAIN))
 val savedFlows = SavedFlows(config.savedFlowSlots)
 val builderWindow = BuilderWindow(
     BuilderOverview(resolver, reflexResolver, reflexForm, LunaGameNames, font, savedFlows),
@@ -52,7 +54,7 @@ val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world)) { auto
     } catch (e: FlowError) {
         null
     }
-    resolved?.let { AutopilotDriver(FlowRunner(it, state.stepIndex, autopilotPlayer), config.decisionDelayTicks) }
+    resolved?.let { AutopilotDriver(FlowRunner(it, state.stepIndex, autopilotPlayer, words), config.decisionDelayTicks) }
 }
 
 val builderUi = LunaBuilderUi(BuilderScreen(autopilot, resolver, reflexResolver, reflexForm, LunaGameNames, config.stepSlots, config.reflexSlots, savedFlows), builderWindow, ui, font)

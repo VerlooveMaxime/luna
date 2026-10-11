@@ -32,6 +32,8 @@ import game.idle.autopilot.woodcutting.WoodcuttingActivity
 import game.idle.flow.FakeStepActivity
 import game.idle.flow.FakeStepType
 import game.idle.flow.FakeStepType.Companion.step
+import game.idle.flow.Place
+import game.idle.flow.Reason
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepActivity
 import game.idle.flow.StepTypes
@@ -234,6 +236,10 @@ class LunaAutopilotPlayerTest {
         override fun act() {
             player.navigator.navigate(tile, false)
         }
+
+        override fun stopReason(): String? = null
+
+        override fun blocked(): String? = null
     }
 
     @Test
@@ -338,11 +344,11 @@ class LunaAutopilotPlayerTest {
     }
 
     @Test
-    fun `a step's walk to its own spot names the spot when it cannot get there`() {
+    fun `a step's walk to its own spot blocks on the spot when it cannot get there`() {
         val activity = autopilotPlayer().activity(ChopStep(Tree.NORMAL, radius = 5, WorkSpot.Own(Tile(3220, 3200, 1))))
 
         activity.act()
 
-        assertEquals("Autopilot: the step cannot change floors to reach the work spot 3220 3200 1.", activity.blocked())
+        assertEquals(Reason.OtherFloor(Place.WORK_SPOT), activity.blocked())
     }
 }

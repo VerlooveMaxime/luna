@@ -8,9 +8,15 @@ import game.idle.autopilot.smelting.SmeltingDecision.Smelt
 import game.idle.autopilot.smelting.SmeltingDecision.WalkTo
 import game.idle.autopilot.smelting.SmeltingDecision.WalkToLocation
 import game.idle.flow.CountsAmount
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepActivity
+import game.idle.flow.StepStop
+import game.idle.flow.Supply
+import game.idle.flow.Target
 import game.skill.smithing.BarType
 import io.luna.game.model.Position
+import io.luna.game.model.mob.Skill
 
 /** What the smelt step can see and do for one player. [LunaSmelter] is the in-game one. */
 interface Smelter {
@@ -56,13 +62,7 @@ sealed interface SmeltingDecision {
 
     data object Done : SmeltingDecision
 
-    data class Blocked(val reason: SmeltingBlockedReason) : SmeltingDecision
-}
-
-enum class SmeltingBlockedReason(val message: String) {
-    NOTHING_TO_SMELT("Autopilot: you have no ore for that bar. Put mine steps before the smelt step."),
-    LEVEL_TOO_LOW("Autopilot: your Smithing level is too low for that bar."),
-    NO_FURNACE("Autopilot: there is no furnace you can reach here."),
+    data class Blocked(val reason: Reason) : SmeltingDecision
 }
 
 /**
@@ -80,10 +80,10 @@ object SmeltingPlanner {
     fun decide(view: SmeltingView, bar: BarType, smeltedSome: Boolean): SmeltingDecision {
         val best = view.furnaces.minWithOrNull(preferredFirst)
         return when {
-            view.oreSlot == null -> if (smeltedSome) Done else Blocked(SmeltingBlockedReason.NOTHING_TO_SMELT)
-            view.smithingLevel < bar.level -> Blocked(SmeltingBlockedReason.LEVEL_TOO_LOW)
+            view.oreSlot == null -> if (smeltedSome) Done else Blocked(Reason.NothingToUse(Supply.ORE))
+            view.smithingLevel < bar.level -> Blocked(Reason.NeedsLevel(Skill.SMITHING, bar.level))
             best == null && !view.atLocation -> WalkToLocation
-            best == null -> Blocked(SmeltingBlockedReason.NO_FURNACE)
+            best == null -> Blocked(Reason.NoneInReach(Target.FURNACE))
             best.usableFromHere -> Smelt(best, view.oreSlot)
             else -> WalkTo(best)
         }
@@ -108,7 +108,11 @@ class SmeltingActivity(private val smelter: Smelter, private val bar: BarType, p
 
     override fun isDone(): Boolean = done
 
-    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+    override fun blocked(): Reason? = (lastDecision as? Blocked)?.reason
+
+    override fun stopping(): StepStop? = null
+
+    override fun said(): Said? = null
 
     override fun act() {
         val start = barsAtStart ?: smelter.bars().also { barsAtStart = it }

@@ -200,9 +200,9 @@ class BuilderWindowTest {
     fun `the configure screen follows the idle state`() {
         val player = configuring(0, oak)
 
-        idleUi.refresh(player, IdleState(steps = listOf(oak), running = true, blocked = "Autopilot: you need an axe."))
+        idleUi.refresh(player, IdleState(steps = listOf(oak), running = true, blocked = "Needs an axe you can use"))
 
-        assertEquals("@red@! You need an axe.", texts(player)[BuilderWidgets.warning(0)])
+        assertEquals("@red@! Needs an axe you can use", texts(player)[BuilderWidgets.warning(0)])
     }
 
     @Test

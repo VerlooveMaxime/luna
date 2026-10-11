@@ -22,30 +22,10 @@ class AutopilotDriverTest {
     }
 
     @Test
-    fun `an activity never stops the autopilot unless it says why`() {
-        val plain = object : AutopilotActivity {
-            override fun isBusy() = false
-            override fun act() = Unit
-        }
-
-        assertEquals(null, plain.stopReason())
-    }
-
-    @Test
     fun `the activity's block is the driver's`() {
-        activity.blocked = "Autopilot: you need an axe."
+        activity.blocked = "Needs an axe you can use"
 
-        assertEquals("Autopilot: you need an axe.", driver.blocked())
-    }
-
-    @Test
-    fun `an activity is never blocked unless it says why`() {
-        val plain = object : AutopilotActivity {
-            override fun isBusy() = false
-            override fun act() = Unit
-        }
-
-        assertEquals(null, plain.blocked())
+        assertEquals("Needs an axe you can use", driver.blocked())
     }
 
     @Test

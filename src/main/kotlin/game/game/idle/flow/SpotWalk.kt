@@ -16,9 +16,11 @@ class SpotWalk(private val walk: StepActivity, private val work: () -> StepActiv
 
     override fun isDone(): Boolean = working?.isDone() ?: false
 
-    override fun blocked(): String? = (working ?: walk).blocked()
+    override fun blocked(): Reason? = (working ?: walk).blocked()
 
-    override fun stopReason(): String? = working?.stopReason()
+    override fun stopping(): StepStop? = working?.stopping()
+
+    override fun said(): Said? = working?.said()
 
     override fun amountDone(): Int = (working as? CountsAmount)?.amountDone() ?: 0
 

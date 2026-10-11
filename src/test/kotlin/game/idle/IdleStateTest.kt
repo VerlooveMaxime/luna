@@ -121,7 +121,7 @@ class IdleStateTest {
 
     @Test
     fun `a block is never saved`() {
-        val json = Attribute.getGsonInstance().toJson(state.copy(blocked = "Autopilot: you need an axe."))
+        val json = Attribute.getGsonInstance().toJson(state.copy(blocked = "Needs an axe you can use"))
 
         assertFalse(json.contains("blocked"))
     }
@@ -130,12 +130,12 @@ class IdleStateTest {
     fun `a state read back has no block`() {
         val gson = Attribute.getGsonInstance()
 
-        assertEquals(state, gson.fromJson(gson.toJson(state.copy(blocked = "Autopilot: you need an axe.")), IdleState::class.java))
+        assertEquals(state, gson.fromJson(gson.toJson(state.copy(blocked = "Needs an axe you can use")), IdleState::class.java))
     }
 
     @Test
     fun `starting, stopping, a new flow and a new step all clear the block`() {
-        val blocked = state.copy(blocked = "Autopilot: you need an axe.")
+        val blocked = state.copy(blocked = "Needs an axe you can use")
 
         val cleared = listOf(blocked.started(runTile), blocked.stopped(), blocked.withFlow(emptyList()), blocked.atStep(0))
 

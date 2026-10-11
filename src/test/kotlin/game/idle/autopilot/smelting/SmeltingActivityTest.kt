@@ -1,7 +1,11 @@
 package game.idle.autopilot.smelting
 
+import game.idle.flow.Reason
+import game.idle.flow.Supply
+import game.idle.flow.Target
 import game.skill.smithing.BarType
 import game.testworld.TestWorld
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -64,7 +68,12 @@ class SmeltingActivityTest {
 
         activity.act()
 
-        assertEquals(SmeltingBlockedReason.NOTHING_TO_SMELT.message, activity.blocked())
+        assertEquals(Reason.NothingToUse(Supply.ORE), activity.blocked())
+    }
+
+    @Test
+    fun `a smelt step never stops the flow and has nothing to say`() {
+        assertEquals(listOf(null, null), listOf(activity.stopping(), activity.said()))
     }
 
     @Test
@@ -85,7 +94,7 @@ class SmeltingActivityTest {
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(SmeltingBlockedReason.NOTHING_TO_SMELT.message, activity.blocked())
+        assertEquals(Reason.NothingToUse(Supply.ORE), activity.blocked())
     }
 
     @Test
@@ -105,7 +114,7 @@ class SmeltingActivityTest {
 
         steel.act()
 
-        assertEquals(SmeltingBlockedReason.LEVEL_TOO_LOW.message, steel.blocked())
+        assertEquals(Reason.NeedsLevel(Skill.SMITHING, BarType.STEEL.level), steel.blocked())
     }
 
     @Test
@@ -124,7 +133,7 @@ class SmeltingActivityTest {
 
         activity.act()
 
-        assertEquals(SmeltingBlockedReason.NO_FURNACE.message, activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.FURNACE), activity.blocked())
     }
 
     @Test

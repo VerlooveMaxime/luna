@@ -1,6 +1,7 @@
 package game.idle.autopilot.drop
 
 import game.idle.flow.Choice
+import game.idle.flow.EmptiesBag
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.ResolvedStep
@@ -85,7 +86,9 @@ class DropStepType(private val items: ItemCatalog, private val names: GameNames)
 }
 
 /** A drop step resolved: [itemIds] is what it drops, the flow's gathered items or every item of the names picked. */
-data class DropStep(val itemIds: Set<Int>) : ResolvedStep {
+data class DropStep(val itemIds: Set<Int>) : ResolvedStep, EmptiesBag {
+
+    override fun empties(id: Int): Boolean = id in itemIds
 
     override fun activity(player: Player, runTile: Tile): StepActivity = DropActivity(LunaItemDropper(player, itemIds))
 }

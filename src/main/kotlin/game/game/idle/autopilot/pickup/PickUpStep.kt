@@ -1,5 +1,6 @@
 package game.idle.autopilot.pickup
 
+import game.idle.flow.FillsBag
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.OwnSpot
@@ -18,7 +19,6 @@ import game.idle.flow.StepType
 import game.idle.flow.WorkSpot
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.ItemCatalog
-import game.idle.flow.option.LunaGameNames
 import game.idle.flow.option.OptionFacts
 import game.idle.location.Area
 import game.idle.location.Tile
@@ -94,12 +94,14 @@ class PickUpStepType(drops: DropLookup, spawns: SpawnCatalog, private val items:
  * notes), within [radius] of its work spot, [amount] pickups or, without one, all lying there. Later steps know what it
  * picks up as gathered (S07 plan: the bank's Gathered banks the loot).
  */
-data class PickUpStep(val itemIds: Set<Int>, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot {
+data class PickUpStep(val itemIds: Set<Int>, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot, FillsBag {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
-    override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + itemIds))
+    override val fills: Set<Int> get() = itemIds
+
+    override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + fills))
 
     override fun activity(player: Player, runTile: Tile): StepActivity =
-        PickUpActivity(LunaPicker(player, itemIds, Area(workSpot.tile(runTile), radius)), amount, LunaGameNames)
+        PickUpActivity(LunaPicker(player, itemIds, Area(workSpot.tile(runTile), radius)), amount)
 }

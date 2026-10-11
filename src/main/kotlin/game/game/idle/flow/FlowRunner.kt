@@ -2,12 +2,6 @@ package game.idle.flow
 
 import game.idle.autopilot.AutopilotActivity
 
-/** An activity that knows when its step is over. */
-interface StepActivity : AutopilotActivity {
-
-    fun isDone(): Boolean
-}
-
 /** The player a flow runs for: where each step's activity comes from and where its progress is saved. */
 interface FlowPlayer {
 
@@ -38,12 +32,14 @@ data class ResolvedFlow(val steps: List<ResolvedStep>, val reflexes: List<List<R
  * goes on from the step it names and never counts a lap (Maxime, 2026-10-10); a step cut short by a jump and cut short
  * again on its next turn before it made progress stops the flow, as does the player's death. A stop while something
  * attacks the player waits: they run until nothing does, then the flow stops (Maxime, 2026-10-10). The step index is saved
- * whenever it changes so a relog resumes where it was.
+ * whenever it changes so a relog resumes where it was. What the steps report is put into [words] here, the one place
+ * that knows their numbers.
  */
 class FlowRunner(
     private val flow: ResolvedFlow,
     startIndex: Int,
     private val player: FlowPlayer,
+    private val words: StepWords,
 ) : AutopilotActivity {
 
     private val steps = flow.steps
@@ -59,10 +55,10 @@ class FlowRunner(
 
     override fun isBusy(): Boolean = stopping() == null && current?.isBusy() ?: false
 
-    override fun stopReason(): String? = if (player.body.dead()) DIED else stopped
+    override fun stopReason(): String? = if (player.body.dead()) StepWords.DIED else stopped
 
     /** The current step's block; none between two steps. */
-    override fun blocked(): String? = current?.blocked()
+    override fun blocked(): String? = current?.blocked()?.let(words::block)
 
     override fun act() {
         if (steps.isEmpty()) return
@@ -77,11 +73,12 @@ class FlowRunner(
             return
         }
         activity.act()
+        activity.said()?.let { player.tell(words.said(index + 1, it)) }
         activity.jump()?.let { jump(activity, it) }
     }
 
     /** Why the flow or its step wants to stop, held while the player runs from what attacks them. */
-    private fun stopping(): String? = stopReason ?: current?.stopReason()
+    private fun stopping(): String? = stopReason ?: current?.stopping()?.let { words.stop(index + 1, it) }
 
     private fun leave(reason: String) {
         if (player.body.underAttack()) {
@@ -108,17 +105,13 @@ class FlowRunner(
 
     private fun jump(activity: ReflexGuard, jump: ReflexOutcome.Jump) {
         if (index in cutShort && activity.progress() == 0) {
-            stopReason = "Autopilot: stopped, step ${index + 1} was cut short again before it made progress."
+            stopReason = words.cutShort(index + 1)
             return
         }
-        player.tell(jump.message)
+        player.tell(words.jump(jump.number, jump.health, jump.index + 1))
         cutShort += index
         current = null
         index = jump.index
         player.saveStep(index)
-    }
-
-    companion object {
-        const val DIED = "Autopilot: stopped, you died."
     }
 }

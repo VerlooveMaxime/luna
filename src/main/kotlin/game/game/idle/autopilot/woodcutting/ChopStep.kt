@@ -1,5 +1,6 @@
 package game.idle.autopilot.woodcutting
 
+import game.idle.flow.FillsBag
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.OwnSpot
@@ -13,13 +14,11 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepSpot
 import game.idle.flow.StepType
-import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
-import game.skill.woodcutting.cutTree.Axe
 import game.skill.woodcutting.cutTree.Tree
 import game.skill.woodcutting.cutTree.TreeStump
 import io.luna.game.model.mob.Player
@@ -72,15 +71,16 @@ object ChopStepType : StepType {
  * A chop step resolved: what to cut, how far from the work spot, and how many logs ([amount], null for a full
  * inventory). Later steps know it gathers logs.
  */
-data class ChopStep(val tree: Tree, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot {
+data class ChopStep(val tree: Tree, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot, FillsBag {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
-    override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + tree.logId))
+    override val fills: Set<Int> get() = setOf(tree.logId)
+
+    override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + fills))
 
     /** Any axe the player's Woodcutting level allows, as Luna's woodcutting takes one carried or wielded. */
-    override fun needs(): List<StepNeeds> =
-        listOf(StepNeeds(tools = listOf(ToolNeed("axe", Axe.entries.associate { it.id to it.level }, Skill.WOODCUTTING))))
+    override fun needs(): List<StepNeeds> = listOf(StepNeeds(tools = listOf(WoodcuttingPlanner.AXE)))
 
     override fun activity(player: Player, runTile: Tile): StepActivity {
         val spot = WoodcuttingSpot(tree, Area(workSpot.tile(runTile), radius))

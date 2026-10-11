@@ -8,6 +8,8 @@ import game.idle.autopilot.bank.BankDecision.Open
 import game.idle.autopilot.bank.BankDecision.Stuck
 import game.idle.autopilot.bank.BankDecision.WalkToBooth
 import game.idle.autopilot.bank.BankDecision.Withdraw
+import game.idle.flow.Reason
+import game.idle.flow.Target
 
 /** An item in a bag slot: its [id] and how many the slot holds. */
 data class Held(val id: Int, val amount: Int)
@@ -24,21 +26,11 @@ data class BankView(
 /** [amount] of item [id] to withdraw. */
 data class Take(val id: Int, val amount: Int)
 
-/** Why a bank step that had something to do can move nothing. */
-sealed interface StuckReason {
-
-    data class NoneLeft(val id: Int) : StuckReason
-
-    data object NoRoom : StuckReason
-
-    data object BankFull : StuckReason
-}
-
 /**
  * What a bank step can still do: the bag slots to [deposits] and the [takes], worked out as if the deposits were made
  * first; [stuck] says why it can move nothing although it had something to do, null when it can or had nothing to do.
  */
-data class BankPlan(val deposits: List<Int>, val takes: List<Take>, val stuck: StuckReason?) {
+data class BankPlan(val deposits: List<Int>, val takes: List<Take>, val stuck: Reason.Stuck?) {
 
     val canMove: Boolean get() = deposits.isNotEmpty() || takes.isNotEmpty()
 }
@@ -67,13 +59,9 @@ sealed interface BankDecision {
 
     data object Done : BankDecision
 
-    data class Stuck(val reason: StuckReason) : BankDecision
+    data class Stuck(val reason: Reason.Stuck) : BankDecision
 
-    data class Blocked(val reason: BankBlockedReason) : BankDecision
-}
-
-enum class BankBlockedReason(val message: String) {
-    NO_BOOTH("Autopilot: there is no bank booth this step can use on this floor."),
+    data class Blocked(val reason: Reason) : BankDecision
 }
 
 /**
@@ -92,7 +80,7 @@ object BankPlanner {
         val bag = kept.groupingBy { it.id }.fold(0) { total, held -> total + held.amount }.toMutableMap()
         var free = view.bag.size - kept.size
         val takes = mutableListOf<Take>()
-        var short: StuckReason? = null
+        var short: Reason.Stuck? = null
         var wanted = false
         for (withdrawal in order.withdrawals) {
             val inBag = bag[withdrawal.id] ?: 0
@@ -104,7 +92,7 @@ object BankPlanner {
             val inBank = if (withdrawal.id in tries.emptied) 0 else view.bank[withdrawal.id] ?: 0
             val take = minOf(want, room, inBank)
             if (take == 0) {
-                short = short ?: if (room == 0) StuckReason.NoRoom else StuckReason.NoneLeft(withdrawal.id)
+                short = short ?: if (room == 0) Reason.BagFull(emptyList()) else Reason.NoneLeftInBank(withdrawal.id)
                 continue
             }
             takes += Take(withdrawal.id, take)
@@ -113,7 +101,7 @@ object BankPlanner {
         }
         val stuck = when {
             deposits.isNotEmpty() || takes.isNotEmpty() -> null
-            depositing.isNotEmpty() -> StuckReason.BankFull
+            depositing.isNotEmpty() -> Reason.BankFull
             wanted -> short
             else -> null
         }
@@ -125,7 +113,7 @@ object BankPlanner {
             view.bankOpen && plan.deposits.isNotEmpty() -> Deposit(plan.deposits)
             view.bankOpen && plan.takes.isNotEmpty() -> Withdraw(plan.takes)
             view.bankOpen -> Close
-            plan.canMove && !view.boothFound -> Blocked(BankBlockedReason.NO_BOOTH)
+            plan.canMove && !view.boothFound -> Blocked(Reason.NoneInReach(Target.BANK_BOOTH))
             plan.canMove && view.boothUsableFromHere -> Open
             plan.canMove -> WalkToBooth
             plan.stuck == null || moved -> Done

@@ -247,15 +247,6 @@ class LunaBankerTest {
     }
 
     @Test
-    fun `the banker tells the player in the chat box`() {
-        val player = login()
-
-        LunaBanker(player, boothTile).tell("Autopilot: hello.")
-
-        assertEquals(listOf("Autopilot: hello."), TestWorld.chatbox(player))
-    }
-
-    @Test
     fun `depositing leaves the slots it is not given`() {
         val player = login()
         holdAxeLogsAndCoins(player)

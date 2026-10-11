@@ -22,8 +22,10 @@ class ReflexGuardTest {
 
     private fun guard(vararg reflexes: ResolvedReflex) = ReflexGuard(step, reflexes.toList(), body)
 
+    private val hurtTo = Health(9, 20)
+
     private fun hurt() {
-        body.health = Health(9, 20)
+        body.health = hurtTo
     }
 
     @Test
@@ -89,7 +91,7 @@ class ReflexGuardTest {
 
         guard.act()
 
-        assertEquals("Autopilot: stopped by reflex 2 at 9/20 hitpoints.", guard.stopReason())
+        assertEquals(StepStop.Reflex(2, hurtTo), guard.stopping())
     }
 
     @Test
@@ -100,7 +102,7 @@ class ReflexGuardTest {
 
         guard.act()
 
-        assertEquals("Autopilot: stopped by reflex 1 at 9/20 hitpoints.", guard.stopReason())
+        assertEquals(StepStop.Reflex(1, hurtTo), guard.stopping())
     }
 
     @Test
@@ -124,7 +126,7 @@ class ReflexGuardTest {
         guard.act()
 
         assertEquals(listOf("flee"), body.done)
-        assertNull(guard.stopReason())
+        assertNull(guard.stopping())
     }
 
     @Test
@@ -150,7 +152,7 @@ class ReflexGuardTest {
 
         guard.act()
 
-        assertEquals(ReflexOutcome.Jump(1, "Autopilot: reflex 2 ran at 9/20 hitpoints, jumping to step 2."), guard.jump())
+        assertEquals(ReflexOutcome.Jump(index = 1, number = 2, health = hurtTo), guard.jump())
     }
 
     @Test
@@ -164,7 +166,7 @@ class ReflexGuardTest {
 
         guard.act()
 
-        assertEquals("Autopilot: stopped by reflex 2 at 9/20 hitpoints.", guard.stopReason())
+        assertEquals(StepStop.Reflex(2, hurtTo), guard.stopping())
     }
 
     @Test
@@ -175,7 +177,7 @@ class ReflexGuardTest {
         guard.act()
 
         assertEquals(listOf("calm"), body.done)
-        assertEquals("Autopilot: stopped by reflex 2 at 9/20 hitpoints.", guard.stopReason())
+        assertEquals(StepStop.Reflex(2, hurtTo), guard.stopping())
     }
 
     @Test
@@ -204,12 +206,19 @@ class ReflexGuardTest {
     @Test
     fun `a step going on has no jump and its own reason to stop`() {
         val guard = guard()
-        step.stop = "Autopilot: stopped, the bank step is stuck."
+        step.stop = StepStop.Stuck(Reason.BankFull)
 
         guard.act()
 
         assertNull(guard.jump())
-        assertEquals("Autopilot: stopped, the bank step is stuck.", guard.stopReason())
+        assertEquals(StepStop.Stuck(Reason.BankFull), guard.stopping())
+    }
+
+    @Test
+    fun `what the step says is the guard's`() {
+        step.said = Said.Skipped(Reason.BankFull)
+
+        assertEquals(Said.Skipped(Reason.BankFull), guard().said())
     }
 
     @Test
@@ -248,11 +257,11 @@ class ReflexGuardTest {
     @Test
     fun `the step's end and block are the guard's`() {
         step.done = true
-        step.blocked = "Autopilot: you need an axe."
+        step.blocked = Reason.NoneInReach(Target.NPC)
 
         val guard = guard()
 
-        assertEquals(true to "Autopilot: you need an axe.", guard.isDone() to guard.blocked())
+        assertEquals(true to Reason.NoneInReach(Target.NPC), guard.isDone() to guard.blocked())
     }
 
     @Test
@@ -268,6 +277,9 @@ class ReflexGuardTest {
             override fun isBusy() = false
             override fun isDone() = false
             override fun act() = Unit
+            override fun blocked(): Reason? = null
+            override fun stopping(): StepStop? = null
+            override fun said(): Said? = null
         }
 
         assertEquals(0, ReflexGuard(walk, emptyList(), body).progress())

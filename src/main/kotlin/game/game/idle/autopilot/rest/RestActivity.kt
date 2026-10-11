@@ -2,7 +2,10 @@ package game.idle.autopilot.rest
 
 import game.idle.flow.CountsAmount
 import game.idle.flow.Health
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepActivity
+import game.idle.flow.StepStop
 
 /**
  * The `rest` step: does nothing until [health] is back up to [percent] of full, which Luna restores by itself (1
@@ -16,6 +19,12 @@ class RestActivity(private val health: () -> Health, private val percent: Int) :
     override fun isBusy(): Boolean = false
 
     override fun isDone(): Boolean = !health().below(percent)
+
+    override fun blocked(): Reason? = null
+
+    override fun stopping(): StepStop? = null
+
+    override fun said(): Said? = null
 
     override fun act() = Unit
 

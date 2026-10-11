@@ -1,5 +1,7 @@
 package game.idle.autopilot.bank
 
+import game.idle.flow.Reason
+import game.idle.flow.Target
 import game.idle.location.Bank
 import game.idle.location.Tile
 import game.testworld.TestWorld
@@ -81,7 +83,7 @@ class BankStepTest {
 
         activity.act()
 
-        assertEquals("Autopilot: there is no bank booth this step can use on this floor.", activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.BANK_BOOTH), activity.blocked())
     }
 }
 

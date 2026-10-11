@@ -15,7 +15,6 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepSpot
 import game.idle.flow.StepType
-import game.idle.flow.ToolNeed
 import game.idle.flow.Uses
 import game.idle.flow.WorkSpot
 import game.idle.flow.option.GameNames
@@ -24,7 +23,6 @@ import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.smithing.BarType
-import game.skill.smithing.Smithing
 import game.skill.smithing.smithBar.SmithingItem
 import game.skill.smithing.smithBar.SmithingTable
 import io.luna.game.model.mob.Player
@@ -116,7 +114,7 @@ data class SmithStep(
     override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + made.item.id))
 
     override fun needs(): List<StepNeeds> =
-        listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(Smithing.HAMMER to 1))), inputs = listOf(metal.id)))
+        listOf(StepNeeds(tools = listOf(SmithingPlanner.HAMMER), inputs = listOf(metal.id)))
 
     override fun activity(player: Player, runTile: Tile): StepActivity =
         SmithingActivity(LunaSmither(player, metal, table, Area(workSpot.tile(runTile), radius)), made.level, amount)

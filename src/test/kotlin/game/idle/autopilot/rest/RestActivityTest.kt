@@ -64,7 +64,7 @@ class RestActivityTest {
     }
 
     @Test
-    fun `resting never blocks or stops the flow`() {
-        assertEquals(listOf(null, null), listOf(resting().blocked(), resting().stopReason()))
+    fun `resting never blocks, stops the flow or has anything to say`() {
+        assertEquals(listOf(null, null, null), listOf(resting().blocked(), resting().stopping(), resting().said()))
     }
 }

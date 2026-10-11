@@ -1,5 +1,6 @@
 package game.idle.flow
 
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -11,14 +12,16 @@ class FlowRunnerTest {
     private val player = FakeFlowPlayer()
     private val body = player.body
     private val low = Health(4, 20)
+    private val noAxe = Reason.NeedsTool(ToolNeed("axe", mapOf(1351 to 1), Skill.WOODCUTTING))
+    private val stuck = StepStop.Stuck(Reason.NoneLeftInBank(1521))
 
-    private fun runner(vararg names: String, startAt: Int = 0) = FlowRunner(ResolvedFlow(names.map { FakeStep(it) }), startAt, player)
+    private fun runner(vararg names: String, startAt: Int = 0) = FlowRunner(ResolvedFlow(names.map { FakeStep(it) }), startAt, player, words())
 
     /** A flow of [names] whose first step has a reflex that runs away, then jumps to the step at [to]. */
     private fun jumping(vararg names: String, to: Int): FlowRunner {
         val runAway = ResolvedReflex(1, ReflexTrigger.HitpointsBelow(50), ReflexAction.RunAway(ReflexThen.JumpTo(to)))
         val steps = names.map { FakeStep(it) }
-        return FlowRunner(ResolvedFlow(steps, listOf(listOf(runAway)) + steps.drop(1).map { emptyList() }), 0, player)
+        return FlowRunner(ResolvedFlow(steps, listOf(listOf(runAway)) + steps.drop(1).map { emptyList() }), 0, player, words())
     }
 
     /** The first step's reflex fires on the next act. */
@@ -58,21 +61,32 @@ class FlowRunnerTest {
     }
 
     @Test
-    fun `the current step's reason to stop is the flow's`() {
+    fun `the current step's reason to stop is the flow's, worded with the step's number`() {
+        val runner = runner("walk", "bank", startAt = 1)
+        runner.act()
+        player.started.single().stop = stuck
+
+        runner.act()
+
+        assertEquals("Autopilot: stopped, step 2 is stuck: no item 1521 left in the bank.", runner.stopReason())
+    }
+
+    @Test
+    fun `a reflex that stops the flow is worded with its number and hitpoints`() {
         val runner = runner("fight")
         runner.act()
-        player.started.single().stop = "out of food"
+        player.started.single().stop = StepStop.Reflex(2, Health(9, 20))
 
         runner.act()
 
-        assertEquals("out of food", runner.stopReason())
+        assertEquals("Autopilot: stopped, reflex 2 ran at 9/20 hitpoints.", runner.stopReason())
     }
 
     @Test
     fun `a stop while the player is attacked waits, the player running`() {
         val runner = runner("fight")
         runner.act()
-        player.started.single().stop = "out of food"
+        player.started.single().stop = stuck
         body.attacked = true
 
         runner.act()
@@ -85,14 +99,14 @@ class FlowRunnerTest {
     fun `once nothing attacks a stop that waited stops the flow, the player's running back as before`() {
         val runner = runner("fight")
         runner.act()
-        player.started.single().stop = "out of food"
+        player.started.single().stop = stuck
         body.attacked = true
         runner.act()
         body.attacked = false
 
         runner.act()
 
-        assertEquals("out of food", runner.stopReason())
+        assertEquals("Autopilot: stopped, step 1 is stuck: no item 1521 left in the bank.", runner.stopReason())
         assertEquals(listOf("flee", "calm"), body.done)
     }
 
@@ -102,7 +116,7 @@ class FlowRunnerTest {
         runner.act()
         player.started.single().busy = true
 
-        player.started.single().stop = "out of food"
+        player.started.single().stop = stuck
 
         assertFalse(runner.isBusy())
     }
@@ -111,7 +125,7 @@ class FlowRunnerTest {
     fun `a flow waiting to stop no longer works its step`() {
         val runner = runner("fight")
         runner.act()
-        player.started.single().stop = "out of food"
+        player.started.single().stop = stuck
         body.attacked = true
 
         runner.act()
@@ -120,20 +134,20 @@ class FlowRunnerTest {
     }
 
     @Test
-    fun `the current step's block is the flow's`() {
+    fun `the current step's block is the flow's, in words`() {
         val runner = runner("chop")
         runner.act()
 
-        player.started.single().blocked = "Autopilot: you need an axe."
+        player.started.single().blocked = noAxe
 
-        assertEquals("Autopilot: you need an axe.", runner.blocked())
+        assertEquals("Needs an axe you can use", runner.blocked())
     }
 
     @Test
     fun `nothing is blocked between two steps`() {
         val runner = runner("chop", "drop")
         runner.act()
-        player.started.single().blocked = "Autopilot: you need an axe."
+        player.started.single().blocked = noAxe
         player.started.single().done = true
 
         runner.act()
@@ -142,14 +156,35 @@ class FlowRunnerTest {
     }
 
     @Test
-    fun `a step never stops the flow unless it says why`() {
-        val plain = object : StepActivity {
-            override fun isBusy() = false
-            override fun isDone() = false
-            override fun act() = Unit
-        }
+    fun `what a step says after it acts is told, worded with its number`() {
+        val runner = runner("fight", "pickup", startAt = 1)
+        runner.act()
+        player.started.single().said = Said.Ended(Reason.BagFull(listOf(526)))
 
-        assertEquals(null, plain.stopReason())
+        runner.act()
+
+        assertEquals(listOf("Autopilot: step 2 ended, the bag is full: item 526 left lying."), player.told)
+    }
+
+    @Test
+    fun `a step that says nothing tells nothing`() {
+        val runner = runner("fight")
+
+        runner.act()
+
+        assertEquals(emptyList<String>(), player.told)
+    }
+
+    @Test
+    fun `a step over before its turn says nothing`() {
+        val runner = runner("bank", "fight")
+        runner.act()
+        player.started.single().done = true
+        player.started.single().said = Said.Skipped(Reason.BankFull)
+
+        runner.act()
+
+        assertEquals(emptyList<String>(), player.told)
     }
 
     @Test
@@ -382,12 +417,12 @@ class FlowRunnerTest {
     @Test
     fun `a reflex that stops the flow stops it`() {
         val stop = ResolvedReflex(2, ReflexTrigger.HitpointsBelow(50), ReflexAction.RunAway(ReflexThen.StopFlow))
-        val runner = FlowRunner(ResolvedFlow(listOf(FakeStep("fight")), listOf(listOf(stop))), 0, player)
+        val runner = FlowRunner(ResolvedFlow(listOf(FakeStep("fight")), listOf(listOf(stop))), 0, player, words())
         hurt()
 
         runner.act()
 
-        assertEquals("Autopilot: stopped by reflex 2 at 4/20 hitpoints.", runner.stopReason())
+        assertEquals("Autopilot: stopped, reflex 2 ran at 4/20 hitpoints.", runner.stopReason())
     }
 
     @Test
@@ -397,7 +432,7 @@ class FlowRunnerTest {
 
         body.dead = true
 
-        assertEquals(FlowRunner.DIED, runner.stopReason())
+        assertEquals(StepWords.DIED, runner.stopReason())
     }
 
     @Test

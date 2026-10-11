@@ -217,28 +217,28 @@ class BuilderConfigureTest {
 
     @Test
     fun `the running step's block is its warning`() {
-        val state = IdleState(steps = listOf(oak), running = true, blocked = "Autopilot: you need an axe.")
+        val state = IdleState(steps = listOf(oak), running = true, blocked = "Needs an axe you can use")
 
-        assertEquals("@red@! You need an axe.", text(chopping, BuilderWidgets.warning(0), state))
+        assertEquals("@red@! Needs an axe you can use", text(chopping, BuilderWidgets.warning(0), state))
     }
 
     @Test
     fun `another step's block is not this one's warning`() {
-        val state = IdleState(steps = listOf(oak, oak), running = true, stepIndex = 1, blocked = "Autopilot: you need an axe.")
+        val state = IdleState(steps = listOf(oak, oak), running = true, stepIndex = 1, blocked = "Needs an axe you can use")
 
         assertEquals("@gre@No warnings.", text(chopping, BuilderWidgets.warning(0), state))
     }
 
     @Test
     fun `a block seen while the flow is stopped is no warning`() {
-        val state = IdleState(steps = listOf(oak), blocked = "Autopilot: you need an axe.")
+        val state = IdleState(steps = listOf(oak), blocked = "Needs an axe you can use")
 
         assertEquals("@gre@No warnings.", text(chopping, BuilderWidgets.warning(0), state))
     }
 
     @Test
     fun `a new step does not take the block of the step it would follow`() {
-        val state = IdleState(steps = listOf(oak), running = true, blocked = "Autopilot: you need an axe.")
+        val state = IdleState(steps = listOf(oak), running = true, blocked = "Needs an axe you can use")
 
         assertEquals("@gre@No warnings.", text(StepDraft(0, oak, new = true), BuilderWidgets.warning(0), state))
     }
@@ -490,10 +490,10 @@ class BuilderConfigureTest {
 
     @Test
     fun `the red reason comes before the yellow warnings`() {
-        val state = IdleState(steps = listOf(StepSettings("saw")), running = true, blocked = "Autopilot: you need a saw.")
+        val state = IdleState(steps = listOf(StepSettings("saw")), running = true, blocked = "Needs a saw")
 
         assertEquals(
-            listOf("@red@! You need a saw.", "@yel@! You carry no saw and no bank step withdraws one."),
+            listOf("@red@! Needs a saw", "@yel@! You carry no saw and no bank step withdraws one."),
             (0 until 2).map { text(sawing.copy(new = false), BuilderWidgets.warning(it), state) },
         )
     }

@@ -5,7 +5,11 @@ import game.idle.autopilot.making.MakeDecision.Choose
 import game.idle.autopilot.making.MakeDecision.Done
 import game.idle.autopilot.making.MakeDecision.Use
 import game.idle.flow.CountsAmount
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepActivity
+import game.idle.flow.StepStop
+import game.idle.flow.Supply
 
 /** What the make step can see and do for one player. [LunaMaker] is the in-game one. */
 interface Maker {
@@ -41,18 +45,7 @@ sealed interface MakeDecision {
 
     data object Done : MakeDecision
 
-    data class Blocked(val reason: MakeBlockedReason) : MakeDecision
-}
-
-enum class MakeBlockedReason {
-    /** Nothing to combine when the step starts. */
-    NO_INGREDIENTS,
-
-    /** The items were combined but nothing came of it: a level too low, or Luna refused. */
-    CANNOT_MAKE,
-
-    /** A make window is open that does not offer the product. */
-    WRONG_WINDOW,
+    data class Blocked(val reason: Reason) : MakeDecision
 }
 
 /**
@@ -64,18 +57,18 @@ object MakePlanner {
     fun decide(view: MakeView, madeSome: Boolean): MakeDecision =
         when {
             view.productOption != null -> Choose(view.productOption)
-            view.windowOpen -> Blocked(MakeBlockedReason.WRONG_WINDOW)
-            view.useSlot == null || view.onSlot == null -> if (madeSome) Done else Blocked(MakeBlockedReason.NO_INGREDIENTS)
+            view.windowOpen -> Blocked(Reason.WrongWindow)
+            view.useSlot == null || view.onSlot == null -> if (madeSome) Done else Blocked(Reason.NothingToUse(Supply.INGREDIENTS))
             else -> Use(view.useSlot, view.onSlot)
         }
 }
 
 /**
- * The make step: makes [recipe]'s product until [amount] were made or, without an amount, until an ingredient runs
+ * The make step: makes the recipe's product until [amount] were made or, without an amount, until an ingredient runs
  * out. Making that reaches the amount is stopped at once. Combining twice in a row with nothing made and no window in
  * between means it cannot be made, and the step blocks instead of trying forever.
  */
-class MakeActivity(private val maker: Maker, private val recipe: Recipe, private val amount: Int? = null) : StepActivity, CountsAmount {
+class MakeActivity(private val maker: Maker, private val amount: Int? = null) : StepActivity, CountsAmount {
 
     private var productsAtStart: Int? = null
     private var productsAtLastUse = 0
@@ -86,7 +79,11 @@ class MakeActivity(private val maker: Maker, private val recipe: Recipe, private
 
     override fun isDone(): Boolean = done
 
-    override fun blocked(): String? = (lastDecision as? Blocked)?.let { message(it.reason) }
+    override fun blocked(): Reason? = (lastDecision as? Blocked)?.reason
+
+    override fun stopping(): StepStop? = null
+
+    override fun said(): Said? = null
 
     override fun act() {
         val start = productsAtStart ?: maker.products().also { productsAtStart = it }
@@ -105,7 +102,7 @@ class MakeActivity(private val maker: Maker, private val recipe: Recipe, private
     /** What was done: a second fruitless use blocks instead. */
     private fun carryOut(decision: MakeDecision, start: Int): MakeDecision = when (decision) {
         is Use -> if (fruitless() && maker.products() == productsAtLastUse) {
-            Blocked(MakeBlockedReason.CANNOT_MAKE)
+            Blocked(Reason.CannotMake)
         } else {
             decision.also {
                 productsAtLastUse = maker.products()
@@ -118,16 +115,10 @@ class MakeActivity(private val maker: Maker, private val recipe: Recipe, private
     }
 
     /** The last use made nothing, or the step already found it cannot make the product and nothing changed since. */
-    private fun fruitless(): Boolean = lastDecision is Use || lastDecision == Blocked(MakeBlockedReason.CANNOT_MAKE)
+    private fun fruitless(): Boolean = lastDecision is Use || lastDecision == Blocked(Reason.CannotMake)
 
     /** As many as are left to make, or a full inventory's worth: Luna stops once an ingredient runs out. */
     private fun times(start: Int): Int = amount?.let { it - (maker.products() - start) } ?: ALL
-
-    private fun message(reason: MakeBlockedReason): String = when (reason) {
-        MakeBlockedReason.NO_INGREDIENTS -> "Autopilot: you have nothing to make ${recipe.name} with."
-        MakeBlockedReason.CANNOT_MAKE -> "Autopilot: you cannot make ${recipe.name} yet."
-        MakeBlockedReason.WRONG_WINDOW -> "Autopilot: this window does not make ${recipe.name}."
-    }
 
     private companion object {
         const val ALL = 28

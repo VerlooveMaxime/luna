@@ -4,8 +4,13 @@ import game.idle.autopilot.woodcutting.WoodcuttingDecision.Blocked
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Chop
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkTo
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkToLocation
+import game.idle.flow.Reason
+import game.idle.flow.Target
+import game.idle.flow.ToolNeed
+import game.skill.woodcutting.cutTree.Axe
 import game.skill.woodcutting.cutTree.Tree
 import io.luna.game.model.Position
+import io.luna.game.model.mob.Skill
 
 /** What the player asked to chop. */
 data class ChopAction(val trees: Set<Tree>) {
@@ -50,13 +55,7 @@ sealed interface WoodcuttingDecision {
 
     data object WalkToLocation : WoodcuttingDecision
 
-    data class Blocked(val reason: BlockedReason) : WoodcuttingDecision
-}
-
-enum class BlockedReason(val message: String) {
-    NO_AXE("Autopilot: you need an axe that you have the Woodcutting level to use."),
-    INVENTORY_FULL("Autopilot: your inventory is full. Put a 'drop' or 'bank nearest' step after the chop."),
-    NO_TREE("Autopilot: there is no tree you can cut here."),
+    data class Blocked(val reason: Reason) : WoodcuttingDecision
 }
 
 /**
@@ -64,6 +63,9 @@ enum class BlockedReason(val message: String) {
  * outside it. A full inventory is the chop step's end ([WoodcuttingActivity]); here it only blocks.
  */
 object WoodcuttingPlanner {
+
+    /** Any axe, each with the Woodcutting level it takes; what the step needs and blocks on. */
+    val AXE = ToolNeed("axe", Axe.entries.associate { it.id to it.level }, Skill.WOODCUTTING)
 
     private val preferredFirst: Comparator<TreeCandidate> =
         compareByDescending<TreeCandidate> { it.tree.level }
@@ -77,10 +79,10 @@ object WoodcuttingPlanner {
             .filter { it.tree in action.trees && it.tree.level <= view.woodcuttingLevel }
             .minWithOrNull(preferredFirst)
         return when {
-            !view.hasUsableAxe -> Blocked(BlockedReason.NO_AXE)
-            view.inventoryFull -> Blocked(BlockedReason.INVENTORY_FULL)
+            !view.hasUsableAxe -> Blocked(Reason.NeedsTool(AXE))
+            view.inventoryFull -> Blocked(Reason.BagFull(emptyList()))
             best == null && !view.atLocation -> WalkToLocation
-            best == null -> Blocked(BlockedReason.NO_TREE)
+            best == null -> Blocked(Reason.NoneInReach(Target.TREE))
             best.usableFromHere -> Chop(best)
             else -> WalkTo(best)
         }

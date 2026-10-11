@@ -294,6 +294,18 @@ interface ResolvedStep {
 /** A step that fights: its configure screen warns when no reflex attached to it eats or runs (S07c). */
 interface Fights
 
+/** A step that fills the bag with the items it [fills] it with (chop, mine, fish, pick up): warned when no step empties them. */
+interface FillsBag {
+
+    val fills: Set<Int>
+}
+
+/** A step that takes items out of the bag (bank, drop): whether it [empties] the bag of item [id]. */
+interface EmptiesBag {
+
+    fun empties(id: Int): Boolean
+}
+
 /**
  * A step that can work at a spot picked for it (S07e): [ownArea] is the area around that tile it works in, null when it
  * works where the flow went. From outside that area the step walks to the tile before it works (Maxime, 2026-10-11).
@@ -318,8 +330,8 @@ data class StepNeeds(val tools: List<ToolNeed> = emptyList(), val inputs: List<I
 
 /**
  * A tool or bait a step needs carried or worn: any one of [items], an item id to the level in [skill] it needs (no skill:
- * any level). [word] names it in a warning ("axe"), null for the first item's own name; a [countable] one is "one", bait
- * "any" ("no bank step withdraws any").
+ * any level). [word] names it in a warning or a block ("axe"), null for the first item's own name; a [countable] one is
+ * "one", bait "any" ("no bank step withdraws any").
  */
 data class ToolNeed(val word: String?, val items: Map<Int, Int>, val skill: Int? = null, val countable: Boolean = true)
 

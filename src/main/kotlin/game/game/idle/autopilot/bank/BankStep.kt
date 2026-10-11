@@ -2,6 +2,7 @@ package game.idle.autopilot.bank
 
 import game.idle.flow.BankMoves
 import game.idle.flow.Choice
+import game.idle.flow.EmptiesBag
 import game.idle.flow.FieldColumn
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
@@ -18,7 +19,6 @@ import game.idle.flow.option.CarriedItemOptions
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.ItemCatalog
 import game.idle.flow.option.ItemOptions
-import game.idle.flow.option.LunaGameNames
 import game.idle.flow.option.StepTarget
 import game.idle.location.Bank
 import game.idle.location.BankCatalog
@@ -170,11 +170,13 @@ interface BankTerrain {
 }
 
 /** A bank step resolved: it uses the nearest of [candidates] when it starts, and does what [order] says there. */
-data class BankStep(val candidates: List<Bank>, val order: BankOrder) : ResolvedStep, BankMoves {
+data class BankStep(val candidates: List<Bank>, val order: BankOrder) : ResolvedStep, BankMoves, EmptiesBag {
 
     override val withdraws: Set<Int> = order.withdrawals.map { it.id }.toSet()
 
     override fun banks(id: Int): Boolean = order.deposit.takes(id)
+
+    override fun empties(id: Int): Boolean = banks(id)
 
     /**
      * The candidate on [from]'s floor that a walk reaches first: a booth across a river can be near in a straight
@@ -191,7 +193,7 @@ data class BankStep(val candidates: List<Bank>, val order: BankOrder) : Resolved
 
     override fun activity(player: Player, runTile: Tile): StepActivity {
         val booth = nearest(player.position, LunaBankTerrain(player.world))?.booth?.toPosition()
-        return BankActivity(LunaBanker(player, booth), order, LunaGameNames)
+        return BankActivity(LunaBanker(player, booth), order)
     }
 
     private fun squared(value: Int): Int = value * value

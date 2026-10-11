@@ -8,7 +8,9 @@ import game.idle.autopilot.bank.BankDecision.Open
 import game.idle.autopilot.bank.BankDecision.Stuck
 import game.idle.autopilot.bank.BankDecision.WalkToBooth
 import game.idle.autopilot.bank.BankDecision.Withdraw
+import game.idle.flow.Reason
 import game.idle.flow.StepItem
+import game.idle.flow.Target
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -140,35 +142,35 @@ class BankPlannerTest {
     fun `a new stack with the bag full has no room`() {
         val plan = plan(view(bag(*logsTimes(28)), bank = mapOf(coins to 100)), order(withdrawals = arrayOf(StepItem(coins, 100))))
 
-        assertEquals(StuckReason.NoRoom, plan.stuck)
+        assertEquals(Reason.BagFull(emptyList()), plan.stuck)
     }
 
     @Test
     fun `a typed withdrawal with the bag full has no room`() {
         val plan = plan(view(bag(*logsTimes(28)), bank = mapOf(oak to 100)), order(withdrawals = arrayOf(StepItem(oak, 5))))
 
-        assertEquals(StuckReason.NoRoom, plan.stuck)
+        assertEquals(Reason.BagFull(emptyList()), plan.stuck)
     }
 
     @Test
     fun `a withdrawal the bank holds none of is stuck on it`() {
         val plan = plan(view(), order(withdrawals = arrayOf(StepItem(oak))))
 
-        assertEquals(StuckReason.NoneLeft(oak), plan.stuck)
+        assertEquals(Reason.NoneLeftInBank(oak), plan.stuck)
     }
 
     @Test
     fun `a withdrawal that got nothing at the booth counts as none left`() {
         val plan = plan(view(bank = mapOf(oak to 5)), order(withdrawals = arrayOf(StepItem(oak))), BankTries(emptied = setOf(oak)))
 
-        assertEquals(StuckReason.NoneLeft(oak), plan.stuck)
+        assertEquals(Reason.NoneLeftInBank(oak), plan.stuck)
     }
 
     @Test
     fun `the first withdrawal that cannot be had says why the step is stuck`() {
         val plan = plan(view(), order(withdrawals = arrayOf(StepItem(oak), StepItem(logs))))
 
-        assertEquals(StuckReason.NoneLeft(oak), plan.stuck)
+        assertEquals(Reason.NoneLeftInBank(oak), plan.stuck)
     }
 
     @Test
@@ -182,7 +184,7 @@ class BankPlannerTest {
     fun `deposits the bank refused with nothing to withdraw mean a full bank`() {
         val plan = plan(view(bag(Held(logs, 1))), order(DepositRule.Everything), BankTries(refused = setOf(logs)))
 
-        assertEquals(StuckReason.BankFull, plan.stuck)
+        assertEquals(Reason.BankFull, plan.stuck)
     }
 
     @Test
@@ -198,7 +200,7 @@ class BankPlannerTest {
     private val depositing = BankPlan(listOf(0, 1), emptyList(), stuck = null)
     private val withdrawing = BankPlan(emptyList(), listOf(Take(oak, 5)), stuck = null)
     private val idle = BankPlan(emptyList(), emptyList(), stuck = null)
-    private val stuck = BankPlan(emptyList(), emptyList(), stuck = StuckReason.NoRoom)
+    private val stuck = BankPlan(emptyList(), emptyList(), stuck = Reason.BagFull(emptyList()))
 
     @Test
     fun `an open bank deposits first`() {
@@ -217,7 +219,7 @@ class BankPlannerTest {
 
     @Test
     fun `something to move and no booth blocks`() {
-        assertEquals(Blocked(BankBlockedReason.NO_BOOTH), BankPlanner.decide(view().copy(boothFound = false), depositing, moved = false))
+        assertEquals(Blocked(Reason.NoneInReach(Target.BANK_BOOTH)), BankPlanner.decide(view().copy(boothFound = false), depositing, moved = false))
     }
 
     @Test
@@ -237,7 +239,7 @@ class BankPlannerTest {
 
     @Test
     fun `stuck before anything moved is stuck`() {
-        assertEquals(Stuck(StuckReason.NoRoom), BankPlanner.decide(view(), stuck, moved = false))
+        assertEquals(Stuck(Reason.BagFull(emptyList())), BankPlanner.decide(view(), stuck, moved = false))
     }
 
     @Test

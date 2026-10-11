@@ -182,4 +182,9 @@ class DropStepTypeTest {
     fun `a drop step needs nothing in the bag`() {
         assertEquals(emptyList<StepNeeds>(), DropStep(setOf(logs)).needs())
     }
+
+    @Test
+    fun `a drop step empties the bag of what it drops`() {
+        assertEquals(listOf(true, false), listOf(DropStep(setOf(logs)).empties(logs), DropStep(setOf(logs)).empties(oak)))
+    }
 }

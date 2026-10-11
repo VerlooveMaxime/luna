@@ -9,6 +9,7 @@ import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ReflexSettings
 import game.idle.flow.SavedFlows
+import game.idle.flow.StepWords
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepItems
@@ -279,7 +280,7 @@ class BuilderScreen<P : AutopilotPlayer>(
         val steps = player.idleState.steps
         if (steps.isEmpty()) return say(EMPTY_FLOW)
         val cannot = resolver.problems(steps).indexOfFirst { it != null }
-        if (cannot >= 0) return BuilderAnswer.Show(message = Autopilot.cannotWork(cannot + 1))
+        if (cannot >= 0) return BuilderAnswer.Show(message = StepWords.cannotWork(cannot + 1))
         val reflex = reflexes.problems(steps, player.idleState.reflexes).indexOfFirst { it != null }
         if (reflex >= 0) return say("reflex ${reflex + 1} cannot work yet. See its row in the builder.")
         player.idleState = player.idleState.fromStart()

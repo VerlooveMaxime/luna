@@ -16,8 +16,9 @@ import io.luna.game.model.mob.Player
  * the one the current flow was last loaded from or saved to. [tutorialStep] is the value of a `TutorialStep`; a save
  * from before the tutorial existed loads as finished. [countBoostedLevels] is the player's choice to have the builder's
  * options judged on boosted levels instead of the unboosted ones; a flow that stops when a boost wears off is theirs.
- * [blocked] is why the running step cannot go on for now (a full "Autopilot: ..." line), shown on the overlay and the
- * builder; transient, so a save never holds it, and cleared whenever the flow starts, stops or changes step.
+ * [blocked] is why the running step cannot go on for now, a fragment such as "Needs an axe you can use" (`StepWords`),
+ * shown on the overlay and the builder; transient, so a save never holds it, and cleared whenever the flow starts, stops
+ * or changes step.
  *
  * The flow was kept as typed lines under the name `flow` until 2026-10-07; a save still holding them loads with an
  * empty flow, which the next save makes final.

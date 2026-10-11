@@ -177,7 +177,7 @@ class BuilderOverview(
         val icon = type?.let { WidgetPicture.of(it.icon(settings)) } ?: WidgetPicture.None
         val pick = type?.pick(settings, names)
         val running = state.running && state.stepIndex == slot
-        val reason = state.blocked?.takeIf { running }?.let(AutopilotStatus::reason) ?: problem
+        val reason = state.blocked?.takeIf { running } ?: problem
         val targetLine = pick?.let { it.label?.let(::fitted) ?: NOT_SET }
         val details = (listOfNotNull(targetLine) + type?.details(settings, before).orEmpty().map(::fitted))
         val reasonLines = reason?.let { font.wrap("! $it", BuilderWidgets.LINE_ROOM, REASON_LINES).map { line -> "@red@$line" } }.orEmpty()

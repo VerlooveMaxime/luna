@@ -1,5 +1,9 @@
 package game.idle.autopilot.smithing
 
+import game.idle.flow.Reason
+import game.idle.flow.Supply
+import game.idle.flow.Target
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -82,7 +86,12 @@ class SmithingActivityTest {
 
         activity.act()
 
-        assertEquals(SmithingBlockedReason.NOTHING_TO_SMITH.message, activity.blocked())
+        assertEquals(Reason.NothingToUse(Supply.BARS), activity.blocked())
+    }
+
+    @Test
+    fun `a smith step never stops the flow and has nothing to say`() {
+        assertEquals(listOf(null, null), listOf(activity.stopping(), activity.said()))
     }
 
     @Test
@@ -103,7 +112,7 @@ class SmithingActivityTest {
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(SmithingBlockedReason.NOTHING_TO_SMITH.message, activity.blocked())
+        assertEquals(Reason.NothingToUse(Supply.BARS), activity.blocked())
     }
 
     @Test
@@ -123,7 +132,7 @@ class SmithingActivityTest {
 
         activity.act()
 
-        assertEquals(SmithingBlockedReason.NO_HAMMER.message, activity.blocked())
+        assertEquals(Reason.NeedsTool(SmithingPlanner.HAMMER), activity.blocked())
     }
 
     @Test
@@ -132,7 +141,7 @@ class SmithingActivityTest {
 
         highLevel.act()
 
-        assertEquals(SmithingBlockedReason.LEVEL_TOO_LOW.message, highLevel.blocked())
+        assertEquals(Reason.NeedsLevel(Skill.SMITHING, 15), highLevel.blocked())
     }
 
     @Test
@@ -151,7 +160,7 @@ class SmithingActivityTest {
 
         activity.act()
 
-        assertEquals(SmithingBlockedReason.NO_ANVIL.message, activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.ANVIL), activity.blocked())
     }
 
     @Test

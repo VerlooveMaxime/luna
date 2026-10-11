@@ -66,10 +66,6 @@ class LunaPicker(private val player: Player, private val itemIds: Set<Int>, priv
         return pickedUp
     }
 
-    override fun tell(message: String) {
-        player.sendMessage(message)
-    }
-
     private fun walk(to: Position) {
         player.overlays.closeWindows(false)
         player.navigator.navigate(to, true)

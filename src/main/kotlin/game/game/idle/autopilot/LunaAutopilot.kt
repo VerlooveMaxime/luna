@@ -6,6 +6,7 @@ import game.idle.autopilot.walk.LunaWalker
 import game.idle.autopilot.walk.WalkActivity
 import game.idle.flow.FlowPlayer
 import game.idle.flow.OwnSpot
+import game.idle.flow.Place
 import game.idle.flow.ReflexBody
 import game.idle.flow.ResolvedStep
 import game.idle.flow.SpotWalk
@@ -67,8 +68,7 @@ class LunaAutopilotPlayer(val player: Player, private val ui: IdleUi) : Autopilo
     override fun activity(step: ResolvedStep): StepActivity =
         SpotWalk.of(tile, (step as? OwnSpot)?.ownArea, ::walkToSpot) { step.activity(player, idleState.runTile ?: tile) }
 
-    private fun walkToSpot(spot: Tile): StepActivity =
-        WalkActivity(LunaWalker(player, spot), spot, place = "the work spot ${spot.text()}", walking = "the step")
+    private fun walkToSpot(spot: Tile): StepActivity = WalkActivity(LunaWalker(player, spot), spot, Place.WORK_SPOT)
 }
 
 class WorldTickScheduler(private val world: World) : TickScheduler {

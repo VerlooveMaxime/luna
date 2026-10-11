@@ -15,13 +15,11 @@ import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.StepSpot
 import game.idle.flow.StepType
-import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.location.Area
 import game.idle.location.Tile
-import game.skill.firemaking.Firemaking
 import game.skill.firemaking.Log
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
@@ -92,7 +90,7 @@ data class LightStep(val logIds: Set<Int>, val amount: Int? = null, val spot: Ti
     override fun after(context: FlowContext): FlowContext = spot?.let { WorkSpot.Own(it).after(context) } ?: context
 
     override fun needs(): List<StepNeeds> =
-        listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(Firemaking.TINDERBOX to 1))), inputs = logIds.toList()))
+        listOf(StepNeeds(tools = listOf(LightPlanner.TINDERBOX), inputs = logIds.toList()))
 
     override fun activity(player: Player, runTile: Tile): StepActivity =
         LightActivity(LunaLighter(player, logIds, spot?.toPosition() ?: player.position), amount)

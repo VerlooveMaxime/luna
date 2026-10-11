@@ -6,7 +6,10 @@ import game.idle.autopilot.mining.MiningDecision.OnRock
 import game.idle.autopilot.mining.MiningDecision.WalkTo
 import game.idle.autopilot.mining.MiningDecision.WalkToLocation
 import game.idle.flow.CountsAmount
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepActivity
+import game.idle.flow.StepStop
 import game.skill.mining.Ore
 import io.luna.game.model.Position
 
@@ -50,7 +53,11 @@ class MiningActivity(private val miner: Miner, private val ore: Ore, private val
 
     override fun isDone(): Boolean = done
 
-    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+    override fun blocked(): Reason? = (lastDecision as? Blocked)?.reason
+
+    override fun stopping(): StepStop? = null
+
+    override fun said(): Said? = null
 
     override fun act() {
         if (oresAtStart == null) oresAtStart = miner.ores()

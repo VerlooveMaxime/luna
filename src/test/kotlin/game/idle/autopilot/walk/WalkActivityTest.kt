@@ -1,5 +1,7 @@
 package game.idle.autopilot.walk
 
+import game.idle.flow.Place
+import game.idle.flow.Reason
 import game.idle.location.Tile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -11,8 +13,8 @@ class WalkActivityTest {
 
     private val target = Tile(3100, 3100)
     private val walker = FakeWalker(Tile(3050, 3050))
-    private val activity = WalkActivity(walker, target)
-    private val noWay = "Autopilot: there is no way to walk to 3100 3100 from here."
+    private val activity = WalkActivity(walker, target, Place.TILE)
+    private val noWay = Reason.NoWay(Place.TILE)
 
     @Test
     fun `away from the target it walks`() {
@@ -115,16 +117,21 @@ class WalkActivityTest {
 
         activity.act()
 
-        assertEquals(listOf<Any?>(0, "Autopilot: the walk step cannot change floors to reach 3100 3100."), listOf(walker.walks, activity.blocked()))
+        assertEquals(listOf<Any?>(0, Reason.OtherFloor(Place.TILE)), listOf(walker.walks, activity.blocked()))
     }
 
     @Test
-    fun `a walk to a step's work spot names the spot when there is no way to it`() {
-        val toSpot = WalkActivity(walker, target, place = "the work spot 3100 3100", walking = "the step")
+    fun `a walk to a step's work spot blocks on the spot when there is no way to it`() {
+        val toSpot = WalkActivity(walker, target, Place.WORK_SPOT)
         toSpot.act()
 
         toSpot.act()
 
-        assertEquals("Autopilot: there is no way to walk to the work spot 3100 3100 from here.", toSpot.blocked())
+        assertEquals(Reason.NoWay(Place.WORK_SPOT), toSpot.blocked())
+    }
+
+    @Test
+    fun `a walk never stops the flow and has nothing to say`() {
+        assertEquals(listOf(null, null), listOf(activity.stopping(), activity.said()))
     }
 }

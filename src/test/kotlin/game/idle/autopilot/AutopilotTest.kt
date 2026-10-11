@@ -2,6 +2,7 @@ package game.idle.autopilot
 
 import game.idle.IdleState
 import game.idle.flow.StepSettings
+import game.idle.flow.StepWords
 import game.idle.location.Tile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -32,7 +33,7 @@ class AutopilotTest {
     @Test
     fun `an activity's reason to stop stops the autopilot`() {
         autopilot.start(idle)
-        activity.stop = "Autopilot: stopped, out of food."
+        activity.stop = "Autopilot: stopped, reflex 1 ran at 9/20 hitpoints."
 
         scheduler.tick()
 
@@ -42,17 +43,17 @@ class AutopilotTest {
     @Test
     fun `an activity's reason to stop is told to the player`() {
         autopilot.start(idle)
-        activity.stop = "Autopilot: stopped, out of food."
+        activity.stop = "Autopilot: stopped, reflex 1 ran at 9/20 hitpoints."
 
         scheduler.tick()
 
-        assertEquals(listOf("Autopilot: stopped, out of food."), idle.told)
+        assertEquals(listOf("Autopilot: stopped, reflex 1 ran at 9/20 hitpoints."), idle.told)
     }
 
     @Test
     fun `an activity's reason to stop saves the flow as stopped`() {
         autopilot.start(idle)
-        activity.stop = "Autopilot: stopped, out of food."
+        activity.stop = "Autopilot: stopped, reflex 1 ran at 9/20 hitpoints."
 
         scheduler.tick()
 
@@ -62,17 +63,17 @@ class AutopilotTest {
     @Test
     fun `a step's block goes into the state`() {
         autopilot.start(idle)
-        activity.blocked = "Autopilot: you need an axe."
+        activity.blocked = "Needs an axe you can use"
 
         scheduler.tick()
 
-        assertEquals("Autopilot: you need an axe.", idle.idleState.blocked)
+        assertEquals("Needs an axe you can use", idle.idleState.blocked)
     }
 
     @Test
     fun `a block that did not change is not written again`() {
         autopilot.start(idle)
-        activity.blocked = "Autopilot: you need an axe."
+        activity.blocked = "Needs an axe you can use"
         scheduler.tick()
         val writes = idle.stateWrites
 
@@ -84,7 +85,7 @@ class AutopilotTest {
     @Test
     fun `a block leaves the state once the step goes on`() {
         autopilot.start(idle)
-        activity.blocked = "Autopilot: you need an axe."
+        activity.blocked = "Needs an axe you can use"
         scheduler.tick()
         activity.blocked = null
 
@@ -97,7 +98,7 @@ class AutopilotTest {
     fun `a step that starts being blocked says so in the chat box, pointing at its slot`() {
         val second = FakeAutopilotPlayer("maxime", IdleState(steps = listOf(LOOP, LOOP), stepIndex = 1))
         autopilot.start(second)
-        activity.blocked = "Autopilot: you need an axe."
+        activity.blocked = "Needs an axe you can use"
 
         scheduler.tick()
 
@@ -107,7 +108,7 @@ class AutopilotTest {
     @Test
     fun `a block that goes on is told once`() {
         autopilot.start(idle)
-        activity.blocked = "Autopilot: you need an axe."
+        activity.blocked = "Needs an axe you can use"
         scheduler.tick()
 
         scheduler.tick()
@@ -118,9 +119,9 @@ class AutopilotTest {
     @Test
     fun `another reason while still blocked tells nothing more`() {
         autopilot.start(idle)
-        activity.blocked = "Autopilot: you need an axe."
+        activity.blocked = "Needs an axe you can use"
         scheduler.tick()
-        activity.blocked = "Autopilot: your inventory is full."
+        activity.blocked = "The bag is full"
 
         scheduler.tick()
 
@@ -130,7 +131,7 @@ class AutopilotTest {
     @Test
     fun `a block that clears tells nothing`() {
         autopilot.start(idle)
-        activity.blocked = "Autopilot: you need an axe."
+        activity.blocked = "Needs an axe you can use"
         scheduler.tick()
         activity.blocked = null
 
@@ -142,11 +143,11 @@ class AutopilotTest {
     @Test
     fun `a new block after one cleared is told again`() {
         autopilot.start(idle)
-        activity.blocked = "Autopilot: you need an axe."
+        activity.blocked = "Needs an axe you can use"
         scheduler.tick()
         activity.blocked = null
         scheduler.tick()
-        activity.blocked = "Autopilot: you need an axe."
+        activity.blocked = "Needs an axe you can use"
 
         scheduler.tick()
 
@@ -217,7 +218,7 @@ class AutopilotTest {
     @Test
     fun `an activity's reason to stop leaves its walk going`() {
         autopilot.start(idle)
-        activity.stop = "Autopilot: stopped, out of food."
+        activity.stop = "Autopilot: stopped, reflex 1 ran at 9/20 hitpoints."
 
         scheduler.tick()
 
@@ -254,7 +255,7 @@ class AutopilotTest {
 
         assertEquals(0, scheduler.activeCount)
         assertFalse(broken.idleState.running)
-        assertEquals(listOf("Autopilot: could not resume your flow. Check it in the flow builder."), broken.told)
+        assertEquals(listOf(StepWords.CANNOT_RESUME), broken.told)
     }
 
     @Test

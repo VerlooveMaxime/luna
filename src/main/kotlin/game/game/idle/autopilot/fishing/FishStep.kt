@@ -1,5 +1,6 @@
 package game.idle.autopilot.fishing
 
+import game.idle.flow.FillsBag
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.OwnSpot
@@ -13,7 +14,6 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepSpot
 import game.idle.flow.StepType
-import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
@@ -90,19 +90,17 @@ object FishStepType : StepType {
 }
 
 /** A fish step resolved. Later steps know it gathers its catches. */
-data class FishStep(val method: FishingMethod, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot {
+data class FishStep(val method: FishingMethod, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : ResolvedStep, OwnSpot, FillsBag {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
-    override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + method.catchIds))
+    override val fills: Set<Int> get() = method.catchIds
+
+    override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + fills))
 
     /** The method's tool and its bait, if it takes any (S03b: bait like tools). */
-    override fun needs(): List<StepNeeds> {
-        val tool = method.tool
-        val bait = tool.bait?.let { ToolNeed(word = null, mapOf(it to 1), countable = false) }
-        return listOf(StepNeeds(tools = listOfNotNull(ToolNeed(word = null, mapOf(tool.id to 1)), bait)))
-    }
+    override fun needs(): List<StepNeeds> = FishingNeeds.of(method).let { listOf(StepNeeds(tools = listOfNotNull(it.tool, it.bait))) }
 
     override fun activity(player: Player, runTile: Tile): StepActivity =
-        FishingActivity(LunaFisher(player, method, Area(workSpot.tile(runTile), radius)), amount)
+        FishingActivity(LunaFisher(player, method, Area(workSpot.tile(runTile), radius)), FishingNeeds.of(method), amount)
 }

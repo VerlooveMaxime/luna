@@ -6,7 +6,6 @@ import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepNeeds
 import game.idle.flow.StepSettings
-import game.idle.flow.ToolNeed
 import game.idle.flow.Uses
 import game.idle.flow.WorkSpot
 import game.idle.flow.described
@@ -177,7 +176,7 @@ class SmithStepTypeTest {
     @Test
     fun `a smith step needs a hammer and the bar`() {
         assertEquals(
-            listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(2347 to 1))), inputs = listOf(2349))),
+            listOf(StepNeeds(tools = listOf(SmithingPlanner.HAMMER), inputs = listOf(2349))),
             SmithStep(BarType.BRONZE, SmithingTable.DAGGER, 10, walkedTo).needs(),
         )
     }

@@ -101,15 +101,27 @@ data class ActionView(val player: String, val action: String, val detail: String
 /** The content audit report, file name to text, as `.memory/artifacts/content-audit/` keeps it. */
 data class ContentAuditView(val files: Map<String, String>)
 
-/** A step of a flow: its [id], kind and settings, the ids of the [reflexes] attached to it in its order, and how it reads. */
-data class FlowStepView(val id: Int, val kind: String, val values: Map<String, String>, val reflexes: List<Int>, val summary: String)
+/**
+ * A step of a flow: its [id], kind and settings, the ids of the [reflexes] attached to it in its order, how it reads, and
+ * its [problem], the red reason the builder's slot shows when the step cannot work, null when it can.
+ */
+data class FlowStepView(
+    val id: Int,
+    val kind: String,
+    val values: Map<String, String>,
+    val reflexes: List<Int>,
+    val summary: String,
+    val problem: String?,
+)
 
 data class FlowReflexView(val id: Int, val values: Map<String, String>)
 
+/** A player's flow; [blocked] is why its running step cannot go on, as the overlay shows it, null while it can. */
 data class FlowView(
     val player: String,
     val running: Boolean,
     val stepIndex: Int,
+    val blocked: String?,
     val steps: List<FlowStepView>,
     val reflexes: List<FlowReflexView>,
 )

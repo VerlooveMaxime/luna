@@ -1,6 +1,7 @@
 package game.idle.autopilot
 
 import game.idle.IdleState
+import game.idle.flow.StepWords
 import game.idle.location.Tile
 
 /** The parts of a player the autopilot switch needs. [LunaAutopilotPlayer] is the in-game one. */
@@ -48,7 +49,7 @@ class Autopilot<P : AutopilotPlayer>(
      */
     fun onLogin(player: P) {
         if (player.idleState.running && !start(player)) {
-            player.tell("Autopilot: could not resume your flow. Check it in the flow builder.")
+            player.tell(StepWords.CANNOT_RESUME)
         }
     }
 
@@ -93,7 +94,7 @@ class Autopilot<P : AutopilotPlayer>(
     private fun noteBlocked(player: P, blocked: String?) {
         val state = player.idleState
         if (state.blocked == blocked) return
-        if (state.blocked == null) player.tell(cannotWork(state.stepIndex + 1))
+        if (state.blocked == null) player.tell(StepWords.cannotWork(state.stepIndex + 1))
         player.idleState = state.copy(blocked = blocked)
     }
 
@@ -110,13 +111,5 @@ class Autopilot<P : AutopilotPlayer>(
         tick?.cancel()
         player.idleState = player.idleState.stopped()
         return tick != null
-    }
-
-    companion object {
-        /**
-         * The chat line for step [number] when it cannot work, at Run or while running: the reason is on the step's
-         * slot, and in full it is often too long for a chat line (Maxime, 2026-10-09).
-         */
-        fun cannotWork(number: Int): String = "Autopilot: step $number cannot work yet. See its slot warning in the builder."
     }
 }

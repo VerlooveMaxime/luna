@@ -4,8 +4,11 @@ import game.idle.autopilot.mining.MiningDecision.Blocked
 import game.idle.autopilot.mining.MiningDecision.Mine
 import game.idle.autopilot.mining.MiningDecision.WalkTo
 import game.idle.autopilot.mining.MiningDecision.WalkToLocation
+import game.idle.flow.Reason
+import game.idle.flow.Target
 import game.skill.mining.Ore
 import game.testworld.TestWorld
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -41,17 +44,17 @@ class MiningPlannerTest {
 
     @Test
     fun `without a pickaxe nothing is mined`() {
-        assertEquals(Blocked(MiningBlockedReason.NO_PICKAXE), MiningPlanner.decide(miningView(listOf(inReach), hasUsablePickaxe = false), Ore.COPPER))
+        assertEquals(Blocked(Reason.NeedsTool(MiningPlanner.PICKAXE)), MiningPlanner.decide(miningView(listOf(inReach), hasUsablePickaxe = false), Ore.COPPER))
     }
 
     @Test
     fun `an ore above the player's level is refused`() {
-        assertEquals(Blocked(MiningBlockedReason.LEVEL_TOO_LOW), MiningPlanner.decide(miningView(listOf(inReach)), Ore.IRON))
+        assertEquals(Blocked(Reason.NeedsLevel(Skill.MINING, 15)), MiningPlanner.decide(miningView(listOf(inReach)), Ore.IRON))
     }
 
     @Test
     fun `a full inventory blocks`() {
-        assertEquals(Blocked(MiningBlockedReason.INVENTORY_FULL), MiningPlanner.decide(miningView(listOf(inReach), inventoryFull = true), Ore.COPPER))
+        assertEquals(Blocked(Reason.BagFull(emptyList())), MiningPlanner.decide(miningView(listOf(inReach), inventoryFull = true), Ore.COPPER))
     }
 
     @Test
@@ -61,6 +64,6 @@ class MiningPlannerTest {
 
     @Test
     fun `with no rock at the work spot, the step blocks`() {
-        assertEquals(Blocked(MiningBlockedReason.NO_ROCK), MiningPlanner.decide(miningView(emptyList()), Ore.COPPER))
+        assertEquals(Blocked(Reason.NoneInReach(Target.ROCK)), MiningPlanner.decide(miningView(emptyList()), Ore.COPPER))
     }
 }

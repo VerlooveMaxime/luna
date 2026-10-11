@@ -1,9 +1,11 @@
 package game.idle.flow
 
+import game.idle.flow.option.FakeNames
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
 import game.idle.location.Tile
+import game.idle.ui.EVEN_FONT
 import io.luna.game.model.mob.Player
 
 /**
@@ -96,13 +98,20 @@ class FakeFlowPlayer(override val body: FakeReflexBody = FakeReflexBody()) : Flo
     }
 }
 
-/** Records acts as `<name>:<n>`; [done] ends the step, [amountDone] is what its Amount counts so far. */
+/** Words over [EVEN_FONT], where every glyph is 5 px wide, so widths are easy to reckon in a test. */
+fun words(names: GameNames = FakeNames()): StepWords = StepWords(names, EVEN_FONT)
+
+/**
+ * Records acts as `<name>:<n>`; [done] ends the step, [amountDone] is what its Amount counts so far, [said] is given
+ * once as a real step gives it.
+ */
 class FakeStepActivity(private val name: String, val log: MutableList<String>) : StepActivity, CountsAmount {
 
     var busy = false
     var done = false
-    var stop: String? = null
-    var blocked: String? = null
+    var stop: StepStop? = null
+    var blocked: Reason? = null
+    var said: Said? = null
     var amountDone = 0
     private var acts = 0
 
@@ -110,9 +119,11 @@ class FakeStepActivity(private val name: String, val log: MutableList<String>) :
 
     override fun isBusy(): Boolean = busy
 
-    override fun stopReason(): String? = stop
+    override fun stopping(): StepStop? = stop
 
-    override fun blocked(): String? = blocked
+    override fun blocked(): Reason? = blocked
+
+    override fun said(): Said? = said.also { said = null }
 
     override fun isDone(): Boolean = done
 

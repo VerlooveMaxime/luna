@@ -1,7 +1,10 @@
 package game.idle.autopilot.bank
 
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepItem
-import game.idle.flow.option.FakeNames
+import game.idle.flow.StepStop
+import game.idle.flow.Target
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -18,7 +21,6 @@ class BankActivityTest {
         var busy = false
         var bankFull = false
         val steps = mutableListOf<String>()
-        val told = mutableListOf<String>()
 
         override fun isBusy() = busy
         override fun look() = view
@@ -46,16 +48,12 @@ class BankActivityTest {
             steps += "close"
             view = view.copy(bankOpen = false)
         }
-
-        override fun tell(message: String) {
-            told += message
-        }
     }
 
     private val bagOfLogs = listOf<Held?>(Held(logs, 1), Held(logs, 1)) + List(26) { null }
     private val banker = FakeBanker(BankView(boothFound = true, boothUsableFromHere = true, bankOpen = false, bagOfLogs, emptyMap()))
 
-    private fun activity(order: BankOrder = EVERYTHING) = BankActivity(banker, order, FakeNames(mapOf(oak to "Oak logs")))
+    private fun activity(order: BankOrder = EVERYTHING) = BankActivity(banker, order)
 
     private fun withdrawing(ifStuck: IfStuck) = BankOrder(DepositRule.Only(emptySet()), listOf(StepItem(oak)), ifStuck)
 
@@ -112,7 +110,7 @@ class BankActivityTest {
 
         repeat(4) { activity.act() }
 
-        assertEquals("Autopilot: stopped, the bank step is stuck: no oak logs left in the bank.", activity.stopReason())
+        assertEquals(StepStop.Stuck(Reason.NoneLeftInBank(oak)), activity.stopping())
     }
 
     @Test
@@ -132,7 +130,7 @@ class BankActivityTest {
 
         repeat(4) { activity.act() }
 
-        assertEquals("Autopilot: stopped, the bank step is stuck: the bank is full.", activity.stopReason())
+        assertEquals(StepStop.Stuck(Reason.BankFull), activity.stopping())
     }
 
     @Test
@@ -142,7 +140,7 @@ class BankActivityTest {
 
         repeat(5) { activity.act() }
 
-        assertEquals(listOf(true, null), listOf(activity.isDone(), activity.stopReason()))
+        assertEquals(listOf(true, null), listOf(activity.isDone(), activity.stopping()))
     }
 
     @Test
@@ -161,18 +159,36 @@ class BankActivityTest {
         activity.act()
 
         assertEquals(
-            listOf(true, listOf("Autopilot: the bank step is stuck (no oak logs left in the bank): skipped this lap."), emptyList<String>()),
-            listOf(activity.isDone(), banker.told, banker.steps),
+            listOf(true, Said.Skipped(Reason.NoneLeftInBank(oak)), emptyList<String>()),
+            listOf(activity.isDone(), activity.said(), banker.steps),
         )
     }
 
     @Test
-    fun `stuck with Stop the flow stops it instead of ending the step`() {
+    fun `what the step said is given once`() {
+        val activity = activity(withdrawing(IfStuck.SKIP))
+        activity.act()
+        activity.said()
+
+        assertNull(activity.said())
+    }
+
+    @Test
+    fun `stuck with Stop the flow stops it instead of ending the step, saying nothing`() {
         val activity = activity(withdrawing(IfStuck.STOP))
 
         activity.act()
 
-        assertEquals(listOf(false, emptyList<String>()), listOf(activity.isDone(), banker.told))
+        assertEquals(listOf(false, null), listOf(activity.isDone(), activity.said()))
+    }
+
+    @Test
+    fun `a step that is not stuck says nothing`() {
+        val activity = activity()
+
+        activity.act()
+
+        assertNull(activity.said())
     }
 
     @Test
@@ -182,12 +198,12 @@ class BankActivityTest {
 
         activity.act()
 
-        assertEquals("Autopilot: stopped, the bank step is stuck: no room in the bag.", activity.stopReason())
+        assertEquals(StepStop.Stuck(Reason.BagFull(emptyList())), activity.stopping())
     }
 
     @Test
     fun `a step that is not stuck stops nothing`() {
-        assertNull(activity().stopReason())
+        assertNull(activity().stopping())
     }
 
     @Test
@@ -197,7 +213,7 @@ class BankActivityTest {
 
         activity.act()
 
-        assertEquals(BankBlockedReason.NO_BOOTH.message, activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.BANK_BOOTH), activity.blocked())
     }
 
     @Test

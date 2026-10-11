@@ -23,6 +23,7 @@ class LunaLighterTest {
     private val tinderbox = 590
     private val logs = 1511
     private val oakLogs = 1521
+    private val willowLogs = 1519
     private val fire = 2732
     private val deadTree = 1286
 
@@ -62,7 +63,24 @@ class LunaLighterTest {
         player.inventory.add(Item(oakLogs))
         player.inventory.add(Item(logs, 2))
 
-        assertEquals(LightView(hasTinderbox = true, logs = 3, lightable = 2, tileFree = true), lighter(player).look())
+        assertEquals(LightView(hasTinderbox = true, logs = 3, lightable = 2, level = 1, tileFree = true), lighter(player).look())
+    }
+
+    @Test
+    fun `the view's level is the one the easiest of the step's logs held needs`() {
+        val player = login()
+        player.inventory.add(Item(oakLogs))
+        player.inventory.add(Item(willowLogs))
+
+        assertEquals(15, lighter(player, logIds = setOf(oakLogs, willowLogs)).look().level)
+    }
+
+    @Test
+    fun `with none of the step's logs held the view's level is one`() {
+        val player = login()
+        player.inventory.add(Item(logs))
+
+        assertEquals(1, lighter(player, logIds = setOf(oakLogs)).look().level)
     }
 
     @Test
@@ -78,7 +96,7 @@ class LunaLighterTest {
         val player = login()
         player.inventory.add(Item(oakLogs))
 
-        assertEquals(LightView(hasTinderbox = false, logs = 1, lightable = null, tileFree = true), lighter(player).look())
+        assertEquals(LightView(hasTinderbox = false, logs = 1, lightable = null, level = 15, tileFree = true), lighter(player).look())
     }
 
     @Test

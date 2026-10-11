@@ -1,9 +1,11 @@
 package game.idle.autopilot.pickup
 
-import game.idle.flow.option.FakeNames
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -14,9 +16,8 @@ class PickUpActivityTest {
     private val bonesUnderfoot = GroundLoot(bones, Position(3200, 3200), distance = 0, fits = true)
     private val cowhideNear = GroundLoot(cowhide, Position(3203, 3200), distance = 3, fits = true)
     private val picker = FakePicker(PickUpView(atLocation = true, items = listOf(bonesUnderfoot)))
-    private val names = FakeNames(items = mapOf(bones to "Bones", cowhide to "Cowhide"))
 
-    private fun activity(amount: Int? = null) = PickUpActivity(picker, amount, names)
+    private fun activity(amount: Int? = null) = PickUpActivity(picker, amount)
 
     @Test
     fun `an idle player lets the step act`() {
@@ -109,10 +110,35 @@ class PickUpActivityTest {
     @Test
     fun `a full bag says what the step left lying`() {
         picker.view = PickUpView(atLocation = true, items = listOf(bonesUnderfoot.copy(fits = false), cowhideNear.copy(fits = false)))
+        val activity = activity()
 
-        activity().act()
+        activity.act()
 
-        assertEquals(listOf("Autopilot: your bag is full, the pick-up step left bones, cowhide lying."), picker.told)
+        assertEquals(Said.Ended(Reason.BagFull(listOf(bones, cowhide))), activity.said())
+    }
+
+    @Test
+    fun `what the step said is given once`() {
+        picker.view = PickUpView(atLocation = true, items = listOf(bonesUnderfoot.copy(fits = false)))
+        val activity = activity()
+        activity.act()
+        activity.said()
+
+        assertNull(activity.said())
+    }
+
+    @Test
+    fun `a step that took something says nothing`() {
+        val activity = activity()
+
+        activity.act()
+
+        assertNull(activity.said())
+    }
+
+    @Test
+    fun `a pick-up step never blocks and never stops the flow`() {
+        assertEquals(listOf(null, null), listOf(activity().blocked(), activity().stopping()))
     }
 
     @Test

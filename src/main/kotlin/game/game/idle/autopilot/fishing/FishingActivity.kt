@@ -5,8 +5,14 @@ import game.idle.autopilot.fishing.FishingDecision.Fish
 import game.idle.autopilot.fishing.FishingDecision.WalkTo
 import game.idle.autopilot.fishing.FishingDecision.WalkToLocation
 import game.idle.flow.CountsAmount
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepActivity
+import game.idle.flow.StepStop
+import game.idle.flow.Target
+import game.idle.flow.ToolNeed
 import io.luna.game.model.Position
+import io.luna.game.model.mob.Skill
 
 /** What the fish step can see and do for one player. [LunaFisher] is the in-game one. */
 interface Fisher {
@@ -37,6 +43,21 @@ data class SpotCandidate(
     val approach: Position,
 )
 
+/**
+ * What a fishing method needs, as the step blocks on them: its [tool], its [bait] when it takes any (S03b: bait like
+ * tools), and the Fishing [level] of the tool.
+ */
+data class FishingNeeds(val tool: ToolNeed, val bait: ToolNeed?, val level: Int) {
+
+    companion object {
+        fun of(method: FishingMethod): FishingNeeds {
+            val tool = method.tool
+            val bait = tool.bait?.let { ToolNeed(word = null, mapOf(it to 1), countable = false) }
+            return FishingNeeds(ToolNeed(word = null, mapOf(tool.id to 1)), bait, tool.level)
+        }
+    }
+}
+
 /** What the fish step knows about the player when it decides. */
 data class FishingView(
     val hasTool: Boolean,
@@ -60,15 +81,7 @@ sealed interface FishingDecision {
 
     data object WalkToLocation : FishingDecision
 
-    data class Blocked(val reason: FishingBlockedReason) : FishingDecision
-}
-
-enum class FishingBlockedReason(val message: String) {
-    NO_TOOL("Autopilot: you need the right fishing tool for this spot."),
-    LEVEL_TOO_LOW("Autopilot: your Fishing level is too low for that fishing method."),
-    NO_BAIT("Autopilot: you need bait for this fishing method."),
-    INVENTORY_FULL("Autopilot: your inventory is full. Put a 'drop' or 'bank nearest' step after the fish step."),
-    NO_SPOT("Autopilot: there is no fishing spot you can reach here."),
+    data class Blocked(val reason: Reason) : FishingDecision
 }
 
 /** Fish at the nearest spot, one in reach first, and walk back to the work spot when none is in reach from outside it. */
@@ -80,15 +93,20 @@ object FishingPlanner {
             .thenBy { it.position.x }
             .thenBy { it.position.y }
 
-    fun decide(view: FishingView): FishingDecision {
+    /**
+     * [needs] are the method's, named when the view lacks one of them; the view of a method without bait always has
+     * bait (`LunaFisher`), so the bait arm reads the need to know whether there is one to name.
+     */
+    fun decide(view: FishingView, needs: FishingNeeds): FishingDecision {
         val best = view.spots.minWithOrNull(preferredFirst)
+        val bait = needs.bait
         return when {
-            !view.hasTool -> Blocked(FishingBlockedReason.NO_TOOL)
-            !view.hasLevel -> Blocked(FishingBlockedReason.LEVEL_TOO_LOW)
-            !view.hasBait -> Blocked(FishingBlockedReason.NO_BAIT)
-            view.inventoryFull -> Blocked(FishingBlockedReason.INVENTORY_FULL)
+            !view.hasTool -> Blocked(Reason.NeedsTool(needs.tool))
+            !view.hasLevel -> Blocked(Reason.NeedsLevel(Skill.FISHING, needs.level))
+            bait != null && !view.hasBait -> Blocked(Reason.NeedsTool(bait))
+            view.inventoryFull -> Blocked(Reason.BagFull(emptyList()))
             best == null && !view.atLocation -> WalkToLocation
-            best == null -> Blocked(FishingBlockedReason.NO_SPOT)
+            best == null -> Blocked(Reason.NoneInReach(Target.FISHING_SPOT))
             best.usableFromHere -> Fish(best)
             else -> WalkTo(best)
         }
@@ -101,7 +119,7 @@ object FishingPlanner {
  * that gets the same decision twice in a row (fished without a catch filling the inventory, or walked to but still
  * out of reach; spots move) is skipped for as long as the step runs.
  */
-class FishingActivity(private val fisher: Fisher, private val amount: Int? = null) : StepActivity, CountsAmount {
+class FishingActivity(private val fisher: Fisher, private val needs: FishingNeeds, private val amount: Int? = null) : StepActivity, CountsAmount {
 
     private val skippedSpots = mutableSetOf<Position>()
     private var lastDecision: FishingDecision? = null
@@ -113,7 +131,11 @@ class FishingActivity(private val fisher: Fisher, private val amount: Int? = nul
 
     override fun isDone(): Boolean = done
 
-    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+    override fun blocked(): Reason? = (lastDecision as? Blocked)?.reason
+
+    override fun stopping(): StepStop? = null
+
+    override fun said(): Said? = null
 
     override fun act() {
         if (catchesAtStart == null) catchesAtStart = fisher.catches()
@@ -156,7 +178,7 @@ class FishingActivity(private val fisher: Fisher, private val amount: Int? = nul
     }
 
     private fun decide(view: FishingView): FishingDecision =
-        FishingPlanner.decide(view.copy(spots = view.spots.filterNot { it.position in skippedSpots }))
+        FishingPlanner.decide(view.copy(spots = view.spots.filterNot { it.position in skippedSpots }), needs)
 
     /** The spot [decision] aims at when the previous decision was the same step on the same spot. */
     private fun retriedSpot(decision: FishingDecision): SpotCandidate? {

@@ -6,8 +6,10 @@ import game.idle.autopilot.pickup.PickUpDecision.Take
 import game.idle.autopilot.pickup.PickUpDecision.WalkTo
 import game.idle.autopilot.pickup.PickUpDecision.WalkToLocation
 import game.idle.flow.CountsAmount
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepActivity
-import game.idle.flow.option.GameNames
+import game.idle.flow.StepStop
 import io.luna.game.model.Position
 
 /** What the pick-up step can see and do for one player. [LunaPicker] is the in-game one. */
@@ -28,9 +30,6 @@ interface Picker {
 
     /** How many items the player took off the ground since the step began, a stack counting one (Maxime, 2026-10-11). */
     fun pickedUp(): Int
-
-    /** Says [message] in the chat box. */
-    fun tell(message: String)
 }
 
 /** An item the step could take: [distance] walking steps to its tile, 0 on it; whether it [fits] the bag. */
@@ -82,20 +81,27 @@ object PickUpPlanner {
 /**
  * The pick-up step (S07d): takes the items until [amount] pickups or, without one, until none is left, then ends. An item
  * aimed at twice in a row with nothing picked up in between (out of reach after all, taken by someone else) is skipped
- * for the rest of the step, and the walk to the area is made once. A full bag ends the step, saying what it left
- * (Maxime, 2026-10-11), the items named with [names].
+ * for the rest of the step, and the walk to the area is made once. A full bag ends the step, which says what it left
+ * (Maxime, 2026-10-11).
  */
-class PickUpActivity(private val picker: Picker, private val amount: Int?, private val names: GameNames) : StepActivity, CountsAmount {
+class PickUpActivity(private val picker: Picker, private val amount: Int?) : StepActivity, CountsAmount {
 
     private val skipped = mutableSetOf<Pair<Int, Position>>()
     private var lastDecision: PickUpDecision? = null
     private var pickedAtLastTry = 0
     private var walkedToLocation = false
     private var done = false
+    private var said: Said? = null
 
     override fun isBusy(): Boolean = picker.isBusy()
 
     override fun isDone(): Boolean = done
+
+    override fun blocked(): Reason? = null
+
+    override fun stopping(): StepStop? = null
+
+    override fun said(): Said? = said.also { said = null }
 
     override fun amountDone(): Int = picker.pickedUp()
 
@@ -133,7 +139,7 @@ class PickUpActivity(private val picker: Picker, private val amount: Int?, priva
     }
 
     private fun bagFull(left: List<Int>) {
-        picker.tell("Autopilot: your bag is full, the pick-up step left ${left.joinToString(", ") { names.item(it).lowercase() }} lying.")
+        said = Said.Ended(Reason.BagFull(left))
         finish()
     }
 

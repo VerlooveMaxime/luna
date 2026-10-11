@@ -55,6 +55,21 @@ class HarnessViewsTest {
     }
 
     @Test
+    fun `a flow`() {
+        val step = FlowStepView(id = 1, kind = "chop", values = mapOf("tree" to "oak"), reflexes = listOf(2), summary = "chop oak", problem = null)
+        val view = FlowView(player = "test", running = true, stepIndex = 0, blocked = "Needs an axe you can use", steps = listOf(step), reflexes = emptyList())
+
+        assertEquals(setOf("player", "running", "step_index", "blocked", "steps", "reflexes"), keysOf(view))
+    }
+
+    @Test
+    fun `a flow's step`() {
+        val view = FlowStepView(id = 1, kind = "chop", values = mapOf("tree" to "oak"), reflexes = listOf(2), summary = "chop oak", problem = "chop needs a tree")
+
+        assertEquals(setOf("id", "kind", "values", "reflexes", "summary", "problem"), keysOf(view))
+    }
+
+    @Test
     fun `a nearby player`() {
         val view = NearbyPlayerView(name = "zezima", index = 2, bot = true, position = here, distance = 4)
 

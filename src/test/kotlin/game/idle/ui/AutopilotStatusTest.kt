@@ -39,21 +39,16 @@ class AutopilotStatusTest {
     }
 
     @Test
-    fun `a blocked step adds why in red, without the chat line's prefix`() {
-        val state = IdleState(steps = flow, stepIndex = 0, running = true, blocked = "Autopilot: you need an axe.")
+    fun `a blocked step adds why in red, as it is`() {
+        val state = IdleState(steps = flow, stepIndex = 0, running = true, blocked = "Needs an axe you can use")
 
-        assertEquals("@red@You need an axe.", status.text(state).split(StatusOverlayMessageWriter.LINE_SEPARATOR).last())
+        assertEquals("@red@Needs an axe you can use", status.text(state).split(StatusOverlayMessageWriter.LINE_SEPARATOR).last())
     }
 
     @Test
     fun `separators in a block become spaces`() {
-        val state = IdleState(steps = flow, stepIndex = 0, running = true, blocked = "Autopilot: no|way\nhere")
+        val state = IdleState(steps = flow, stepIndex = 0, running = true, blocked = "No|way\nhere")
 
         assertEquals("@red@No way here", status.text(state).split(StatusOverlayMessageWriter.LINE_SEPARATOR).last())
-    }
-
-    @Test
-    fun `a block that is not a chat line shows as it is`() {
-        assertEquals("Out of reach", AutopilotStatus.reason("Out of reach"))
     }
 }

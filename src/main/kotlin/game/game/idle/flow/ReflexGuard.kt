@@ -31,15 +31,19 @@ interface CountsAmount {
     fun amountDone(): Int
 }
 
-/** What a reflex ends with, besides going on with the step: the flow stops, or goes on from another step. */
+/**
+ * What a reflex's run ends with, besides going on with the step: the flow stops, or goes on from the step at [Jump.index].
+ * Both say which reflex ([number]) fired and at what [health], for the line the player is told.
+ */
 sealed interface ReflexOutcome {
 
-    val message: String
+    val number: Int
 
-    data class Stop(override val message: String) : ReflexOutcome
+    val health: Health
 
-    /** The flow goes on from the step at [index]; [message] tells the player why. */
-    data class Jump(val index: Int, override val message: String) : ReflexOutcome
+    data class Stop(override val number: Int, override val health: Health) : ReflexOutcome
+
+    data class Jump(val index: Int, override val number: Int, override val health: Health) : ReflexOutcome
 }
 
 /**
@@ -58,9 +62,11 @@ class ReflexGuard(private val step: StepActivity, private val reflexes: List<Res
 
     override fun isDone(): Boolean = step.isDone()
 
-    override fun blocked(): String? = step.blocked()
+    override fun blocked(): Reason? = step.blocked()
 
-    override fun stopReason(): String? = (outcome as? ReflexOutcome.Stop)?.message ?: step.stopReason()
+    override fun stopping(): StepStop? = (outcome as? ReflexOutcome.Stop)?.let { StepStop.Reflex(it.number, it.health) } ?: step.stopping()
+
+    override fun said(): Said? = step.said()
 
     /** Where a reflex sends the flow once its run is over; null while the step goes on. */
     fun jump(): ReflexOutcome.Jump? = outcome as? ReflexOutcome.Jump
@@ -78,7 +84,7 @@ class ReflexGuard(private val step: StepActivity, private val reflexes: List<Res
         is Firing.RunAway -> runAway(firing)
     }
 
-    /** The Then's message gives the hitpoints the reflex fired at, not those the run ended with. */
+    /** The Then's outcome gives the hitpoints the reflex fired at, not those the run ended with. */
     private fun runAway(run: Firing.RunAway) {
         val started = running ?: Running(run, body.health())
         running = started
@@ -93,11 +99,8 @@ class ReflexGuard(private val step: StepActivity, private val reflexes: List<Res
 
     private fun then(run: Firing.RunAway, health: Health): ReflexOutcome =
         when (val then = run.then) {
-            ReflexThen.StopFlow -> ReflexOutcome.Stop("Autopilot: stopped by reflex ${run.number} at ${health.text()} hitpoints.")
-            is ReflexThen.JumpTo -> ReflexOutcome.Jump(
-                then.index,
-                "Autopilot: reflex ${run.number} ran at ${health.text()} hitpoints, jumping to step ${then.index + 1}.",
-            )
+            ReflexThen.StopFlow -> ReflexOutcome.Stop(run.number, health)
+            is ReflexThen.JumpTo -> ReflexOutcome.Jump(then.index, run.number, health)
         }
 
     /** The first reflex whose When holds and whose Do can be done, as what it would do. */

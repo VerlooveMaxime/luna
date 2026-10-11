@@ -98,5 +98,5 @@ data class MakeStep(val recipe: Recipe, val amount: Int? = null) : ResolvedStep 
     override fun needs(): List<StepNeeds> =
         recipe.ways.map { way -> StepNeeds(way.tools.map { ToolNeed(word = null, mapOf(it to 1)) }, way.inputs.keys.toList()) }
 
-    override fun activity(player: Player, runTile: Tile): StepActivity = MakeActivity(LunaMaker(player, recipe), recipe, amount)
+    override fun activity(player: Player, runTile: Tile): StepActivity = MakeActivity(LunaMaker(player, recipe), amount)
 }

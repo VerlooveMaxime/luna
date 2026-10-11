@@ -191,7 +191,7 @@ class BuilderConfigure(
         val icon = type?.let { WidgetPicture.of(it.icon(settings)) } ?: WidgetPicture.None
         val level = type?.skill(settings)?.let { " @gry@(${Skill.getName(it)} ${facts.level(it)})" }.orEmpty()
         val running = state.running && !draft.new && state.stepIndex == draft.slot
-        val block = state.blocked?.takeIf { running }?.let(AutopilotStatus::reason)
+        val block = state.blocked?.takeIf { running }
         return Screen(
             pictures = StepPictures.of(icon, type?.pick(settings, names)?.icon),
             name = "Step ${draft.slot + 1}: ${capitalised(type?.label ?: settings.kind)}$level",

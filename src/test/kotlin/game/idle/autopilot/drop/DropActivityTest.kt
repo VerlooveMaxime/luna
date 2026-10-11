@@ -43,4 +43,11 @@ class DropActivityTest {
         assertEquals(1, dropper.drops)
         assertTrue(activity.isDone())
     }
+
+    @Test
+    fun `dropping never blocks, stops the flow or has anything to say`() {
+        val activity = DropActivity(FakeItemDropper(items = 3))
+
+        assertEquals(listOf(null, null, null), listOf(activity.blocked(), activity.stopping(), activity.said()))
+    }
 }

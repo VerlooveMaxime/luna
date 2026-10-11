@@ -1,5 +1,7 @@
 package game.idle.autopilot.fighting
 
+import game.idle.flow.Reason
+import game.idle.flow.Target
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -81,7 +83,7 @@ class FightingActivityTest {
 
         activity.act()
 
-        assertEquals(FightBlockedReason.NO_TARGET.message, activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.NPC), activity.blocked())
     }
 
     @Test
@@ -104,7 +106,14 @@ class FightingActivityTest {
         activity.act()
         activity.act()
 
-        assertEquals(FightBlockedReason.NO_TARGET.message, activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.NPC), activity.blocked())
+    }
+
+    @Test
+    fun `fighting never stops the flow and has nothing to say`() {
+        val activity = activity()
+
+        assertEquals(listOf(null, null), listOf(activity.stopping(), activity.said()))
     }
 
     @Test

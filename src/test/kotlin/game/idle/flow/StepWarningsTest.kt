@@ -23,9 +23,27 @@ class StepWarningsTest {
     private val jug = 1937
 
     /** A bank step that withdraws [withdraws] and banks [banked] from the bag. */
-    private data class FakeBank(override val withdraws: Set<Int>, val banked: Set<Int>) : ResolvedStep, BankMoves {
+    private data class FakeBank(override val withdraws: Set<Int>, val banked: Set<Int>) : ResolvedStep, BankMoves, EmptiesBag {
 
         override fun banks(id: Int): Boolean = id in banked
+
+        override fun empties(id: Int): Boolean = banks(id)
+
+        override fun activity(player: Player, runTile: Tile): StepActivity = error("not run")
+    }
+
+    /** A step that fills the bag with logs, needing nothing. */
+    private data object FakeGather : ResolvedStep, FillsBag {
+
+        override val fills: Set<Int> = setOf(1511)
+
+        override fun activity(player: Player, runTile: Tile): StepActivity = error("not run")
+    }
+
+    /** A step that drops [dropped]. */
+    private data class FakeDrop(val dropped: Set<Int>) : ResolvedStep, EmptiesBag {
+
+        override fun empties(id: Int): Boolean = id in dropped
 
         override fun activity(player: Player, runTile: Tile): StepActivity = error("not run")
     }
@@ -56,6 +74,8 @@ class StepWarningsTest {
                 needing("walk"),
                 FakeStepType("bank", resolved = { FakeBank(ids(it, "withdraw"), ids(it, "banks")) }),
                 FakeStepType("fight", resolved = { FakeFight }),
+                FakeStepType("mine", resolved = { FakeGather }),
+                FakeStepType("drop", resolved = { FakeDrop(ids(it, "drops")) }),
                 PickUpLike,
             ),
         ),
@@ -181,6 +201,31 @@ class StepWarningsTest {
     @Test
     fun `the step warned about is the one at the index given`() {
         assertEquals(listOf("You carry no axe and no bank step withdraws one."), of(listOf(step("walk"), step("chop")), index = 1))
+    }
+
+    @Test
+    fun `a step that fills the bag warns when no step empties it`() {
+        assertEquals(listOf("No step empties the bag."), of(listOf(step("mine"))))
+    }
+
+    @Test
+    fun `a bank step anywhere in the flow that banks what the step gets empties the bag`() {
+        assertEquals(emptyList<String>(), of(listOf(step("mine"), bank("banks" to "$logs"))))
+    }
+
+    @Test
+    fun `a bank step that banks other items does not empty the bag of what the step gets`() {
+        assertEquals(listOf("No step empties the bag."), of(listOf(step("mine"), bank("banks" to "$bronzeAxe"))))
+    }
+
+    @Test
+    fun `a drop step that drops what the step gets empties the bag`() {
+        assertEquals(emptyList<String>(), of(listOf(StepSettings("drop", mapOf("drops" to "$logs")), step("mine")), index = 1))
+    }
+
+    @Test
+    fun `a drop step of other items does not empty the bag of what the step gets`() {
+        assertEquals(listOf("No step empties the bag."), of(listOf(StepSettings("drop", mapOf("drops" to "$bronzeAxe")), step("mine")), index = 1))
     }
 
     @Test

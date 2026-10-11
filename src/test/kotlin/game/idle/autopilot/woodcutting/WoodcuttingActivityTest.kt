@@ -1,5 +1,7 @@
 package game.idle.autopilot.woodcutting
 
+import game.idle.flow.Reason
+import game.idle.flow.Target
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -42,7 +44,7 @@ class WoodcuttingActivityTest {
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(BlockedReason.INVENTORY_FULL.message, activity.blocked())
+        assertEquals(Reason.BagFull(emptyList()), activity.blocked())
     }
 
     @Test
@@ -158,7 +160,7 @@ class WoodcuttingActivityTest {
 
         activity.act()
 
-        assertEquals(BlockedReason.NO_AXE.message, activity.blocked())
+        assertEquals(Reason.NeedsTool(WoodcuttingPlanner.AXE), activity.blocked())
     }
 
     @Test
@@ -236,7 +238,12 @@ class WoodcuttingActivityTest {
 
         activity.act()
 
-        assertEquals(BlockedReason.NO_TREE.message, activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.TREE), activity.blocked())
+    }
+
+    @Test
+    fun `chopping never stops the flow and has nothing to say`() {
+        assertEquals(listOf(null, null), listOf(activity.stopping(), activity.said()))
     }
 
     @Test

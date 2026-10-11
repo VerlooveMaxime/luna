@@ -5,7 +5,15 @@ import game.idle.autopilot.firemaking.LightDecision.Done
 import game.idle.autopilot.firemaking.LightDecision.Light
 import game.idle.autopilot.firemaking.LightDecision.MoveToFreeTile
 import game.idle.flow.CountsAmount
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepActivity
+import game.idle.flow.StepStop
+import game.idle.flow.Supply
+import game.idle.flow.Target
+import game.idle.flow.ToolNeed
+import game.skill.firemaking.Firemaking
+import io.luna.game.model.mob.Skill
 
 /** What the light step can see and do for one player. [LunaLighter] is the in-game one. */
 interface Lighter {
@@ -22,9 +30,10 @@ interface Lighter {
 
 /**
  * What the light step knows when it decides: [logs] of the step's kinds carried, [lightable] the slot of one the
- * player has the level to light, [tileFree] whether a fire can be lit where the player stands.
+ * player has the level to light, [level] the Firemaking level the easiest of those logs needs (1 with none carried),
+ * [tileFree] whether a fire can be lit where the player stands.
  */
-data class LightView(val hasTinderbox: Boolean, val logs: Int, val lightable: Int?, val tileFree: Boolean)
+data class LightView(val hasTinderbox: Boolean, val logs: Int, val lightable: Int?, val level: Int, val tileFree: Boolean)
 
 sealed interface LightDecision {
 
@@ -34,14 +43,7 @@ sealed interface LightDecision {
 
     data object Done : LightDecision
 
-    data class Blocked(val reason: LightBlockedReason) : LightDecision
-}
-
-enum class LightBlockedReason(val message: String) {
-    NO_TINDERBOX("Autopilot: you need a tinderbox to light the logs."),
-    LEVEL_TOO_LOW("Autopilot: you need a higher Firemaking level to light these logs."),
-    NO_ROOM("Autopilot: there is no free tile to light a fire on here."),
-    NO_LOGS("Autopilot: there are no logs to light. Put a chop step before the light step."),
+    data class Blocked(val reason: Reason) : LightDecision
 }
 
 /**
@@ -51,11 +53,14 @@ enum class LightBlockedReason(val message: String) {
  */
 object LightPlanner {
 
+    /** The tinderbox; what the step needs and blocks on. */
+    val TINDERBOX = ToolNeed(word = null, mapOf(Firemaking.TINDERBOX to 1))
+
     fun decide(view: LightView, litSome: Boolean): LightDecision =
         when {
-            !view.hasTinderbox -> Blocked(LightBlockedReason.NO_TINDERBOX)
-            view.logs == 0 -> if (litSome) Done else Blocked(LightBlockedReason.NO_LOGS)
-            view.lightable == null -> Blocked(LightBlockedReason.LEVEL_TOO_LOW)
+            !view.hasTinderbox -> Blocked(Reason.NeedsTool(TINDERBOX))
+            view.logs == 0 -> if (litSome) Done else Blocked(Reason.NothingToUse(Supply.LOGS))
+            view.lightable == null -> Blocked(Reason.NeedsLevel(Skill.FIREMAKING, view.level))
             !view.tileFree -> MoveToFreeTile
             else -> Light(view.lightable)
         }
@@ -76,7 +81,11 @@ class LightActivity(private val lighter: Lighter, private val amount: Int? = nul
 
     override fun isDone(): Boolean = done
 
-    override fun blocked(): String? = (lastDecision as? Blocked)?.reason?.message
+    override fun blocked(): Reason? = (lastDecision as? Blocked)?.reason
+
+    override fun stopping(): StepStop? = null
+
+    override fun said(): Said? = null
 
     override fun amountDone(): Int = logsAtStart?.let { it - lighter.look().logs } ?: 0
 
@@ -93,7 +102,7 @@ class LightActivity(private val lighter: Lighter, private val amount: Int? = nul
     /** What was done: a move with no free tile close enough blocks instead. */
     private fun carryOut(decision: LightDecision): LightDecision = when (decision) {
         is Light -> decision.also { lighter.light(it.slot) }
-        MoveToFreeTile -> if (lighter.moveToFreeTile()) decision else Blocked(LightBlockedReason.NO_ROOM)
+        MoveToFreeTile -> if (lighter.moveToFreeTile()) decision else Blocked(Reason.NoneInReach(Target.FREE_TILE))
         Done -> decision.also { done = true }
         is Blocked -> decision
     }

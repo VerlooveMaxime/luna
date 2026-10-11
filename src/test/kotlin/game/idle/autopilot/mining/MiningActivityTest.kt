@@ -1,5 +1,7 @@
 package game.idle.autopilot.mining
 
+import game.idle.flow.Reason
+import game.idle.flow.Target
 import game.skill.mining.Ore
 import game.testworld.TestWorld
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -56,7 +58,7 @@ class MiningActivityTest {
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(MiningBlockedReason.INVENTORY_FULL.message, activity.blocked())
+        assertEquals(Reason.BagFull(emptyList()), activity.blocked())
     }
 
     @Test
@@ -128,7 +130,7 @@ class MiningActivityTest {
 
         activity.act()
 
-        assertEquals(MiningBlockedReason.NO_ROCK.message, activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.ROCK), activity.blocked())
     }
 
     @Test
@@ -149,7 +151,7 @@ class MiningActivityTest {
 
         activity.act()
 
-        assertEquals(MiningBlockedReason.NO_ROCK.message, activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.ROCK), activity.blocked())
     }
 
     @Test
@@ -211,6 +213,11 @@ class MiningActivityTest {
         miner.busy = true
 
         assertTrue(MiningActivity(miner, Ore.COPPER, amount = 1).isBusy())
+    }
+
+    @Test
+    fun `mining never stops the flow and has nothing to say`() {
+        assertEquals(listOf(null, null), listOf(activity.stopping(), activity.said()))
     }
 
     @Test

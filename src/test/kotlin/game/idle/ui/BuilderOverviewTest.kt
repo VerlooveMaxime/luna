@@ -158,17 +158,17 @@ class BuilderOverviewTest {
 
     @Test
     fun `a long reason takes up to three red lines, the details giving way`() {
-        val state = IdleState(steps = listOf(oak), running = true, blocked = "Autopilot: you need an axe that you have the level to use.")
+        val state = IdleState(steps = listOf(oak), running = true, blocked = "Needs an axe that you have the level to use")
 
         assertEquals(
-            listOf("Oak", "@red@! You need an axe", "@red@that you have the", "@red@level to use."),
+            listOf("Oak", "@red@! Needs an axe that", "@red@you have the level to", "@red@use"),
             step(state).lines,
         )
     }
 
     @Test
     fun `a reason longer than three lines is cut on the third`() {
-        val state = IdleState(steps = listOf(oak), running = true, blocked = "Autopilot: " + "word ".repeat(20))
+        val state = IdleState(steps = listOf(oak), running = true, blocked = "word ".repeat(20).trim())
 
         assertEquals("@red@word word word word..", step(state).lines.last())
     }
@@ -180,12 +180,12 @@ class BuilderOverviewTest {
 
     @Test
     fun `a running step that is blocked is framed red`() {
-        assertEquals(BuilderWidgets.PROBLEM, step(IdleState(steps = listOf(oak), running = true, blocked = "Autopilot: no axe.")).frame)
+        assertEquals(BuilderWidgets.PROBLEM, step(IdleState(steps = listOf(oak), running = true, blocked = "Needs an axe")).frame)
     }
 
     @Test
     fun `a block belongs to the running step only`() {
-        val state = IdleState(steps = listOf(oak, oak), stepIndex = 1, running = true, blocked = "Autopilot: no axe.")
+        val state = IdleState(steps = listOf(oak, oak), stepIndex = 1, running = true, blocked = "Needs an axe")
 
         assertEquals(BuilderWidgets.EDGE, step(state, slot = 0).frame)
     }

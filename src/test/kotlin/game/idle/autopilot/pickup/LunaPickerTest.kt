@@ -1,5 +1,7 @@
 package game.idle.autopilot.pickup
 
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
 import game.idle.location.Tile
@@ -335,15 +337,6 @@ class LunaPickerTest {
     }
 
     @Test
-    fun `telling says it in the chat box`() {
-        val player = login()
-
-        picker(player).tell("Autopilot: hello.")
-
-        assertEquals(listOf("Autopilot: hello."), TestWorld.chatbox(player))
-    }
-
-    @Test
     fun `a pick-up step picks up through a Luna picker`() {
         val step = PickUpStep(setOf(bones), radius = 10, WorkSpot.RunTile)
 
@@ -351,7 +344,7 @@ class LunaPickerTest {
     }
 
     @Test
-    fun `a pick-up step's activity names what it leaves with the cache's names`() {
+    fun `a pick-up step's activity says what a full bag left lying`() {
         val player = login()
         fillBag(player)
         TestWorld.dropItem(bones, 1, anchor)
@@ -359,6 +352,6 @@ class LunaPickerTest {
 
         activity.act()
 
-        assertEquals(listOf("Autopilot: your bag is full, the pick-up step left bones lying."), TestWorld.chatbox(player).takeLast(1))
+        assertEquals(Said.Ended(Reason.BagFull(listOf(bones))), activity.said())
     }
 }

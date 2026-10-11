@@ -4,8 +4,13 @@ import game.idle.autopilot.mining.MiningDecision.Blocked
 import game.idle.autopilot.mining.MiningDecision.Mine
 import game.idle.autopilot.mining.MiningDecision.WalkTo
 import game.idle.autopilot.mining.MiningDecision.WalkToLocation
+import game.idle.flow.Reason
+import game.idle.flow.Target
+import game.idle.flow.ToolNeed
 import game.skill.mining.Ore
+import game.skill.mining.Pickaxe
 import io.luna.game.model.Position
+import io.luna.game.model.mob.Skill
 
 /** A rock of the step's ore the player can walk to: [distance] walking steps to [approach]. */
 data class RockCandidate(
@@ -38,14 +43,7 @@ sealed interface MiningDecision {
 
     data object WalkToLocation : MiningDecision
 
-    data class Blocked(val reason: MiningBlockedReason) : MiningDecision
-}
-
-enum class MiningBlockedReason(val message: String) {
-    NO_PICKAXE("Autopilot: you need a pickaxe that you have the Mining level to use."),
-    LEVEL_TOO_LOW("Autopilot: your Mining level is too low for that ore."),
-    INVENTORY_FULL("Autopilot: your inventory is full. Put a 'drop' or 'bank nearest' step after the mine step."),
-    NO_ROCK("Autopilot: there is no rock with that ore you can mine here."),
+    data class Blocked(val reason: Reason) : MiningDecision
 }
 
 /**
@@ -53,6 +51,9 @@ enum class MiningBlockedReason(val message: String) {
  * from outside it. A full inventory is the step's end ([MiningActivity]); here it only blocks.
  */
 object MiningPlanner {
+
+    /** Any pickaxe, each with the Mining level it takes; what the step needs and blocks on. */
+    val PICKAXE = ToolNeed("pickaxe", Pickaxe.entries.associate { it.id to it.level }, Skill.MINING)
 
     private val preferredFirst: Comparator<RockCandidate> =
         compareByDescending<RockCandidate> { it.usableFromHere }
@@ -63,11 +64,11 @@ object MiningPlanner {
     fun decide(view: MiningView, ore: Ore): MiningDecision {
         val best = view.rocks.minWithOrNull(preferredFirst)
         return when {
-            !view.hasUsablePickaxe -> Blocked(MiningBlockedReason.NO_PICKAXE)
-            view.miningLevel < ore.level -> Blocked(MiningBlockedReason.LEVEL_TOO_LOW)
-            view.inventoryFull -> Blocked(MiningBlockedReason.INVENTORY_FULL)
+            !view.hasUsablePickaxe -> Blocked(Reason.NeedsTool(PICKAXE))
+            view.miningLevel < ore.level -> Blocked(Reason.NeedsLevel(Skill.MINING, ore.level))
+            view.inventoryFull -> Blocked(Reason.BagFull(emptyList()))
             best == null && !view.atLocation -> WalkToLocation
-            best == null -> Blocked(MiningBlockedReason.NO_ROCK)
+            best == null -> Blocked(Reason.NoneInReach(Target.ROCK))
             best.usableFromHere -> Mine(best)
             else -> WalkTo(best)
         }

@@ -1,6 +1,10 @@
 package game.idle.autopilot.walk
 
+import game.idle.flow.Place
+import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepActivity
+import game.idle.flow.StepStop
 import game.idle.location.Tile
 
 /** What the walk step can see and do for one player. [LunaWalker] is the in-game one. */
@@ -17,32 +21,31 @@ interface Walker {
 /**
  * The walk step: walks until the player stands on the [target] or next to it (a target taken by a wall or a tree
  * cannot be stood on). A walk that ends where it started found no way closer, so the step blocks with the reason; it
- * tries again once the player stands somewhere else. The reasons name the target as [place] and the step walking as
- * [walking]: a step walking to its own work spot words them its way (S07e).
+ * tries again once the player stands somewhere else. The reasons say what [place] the target is: a walk step's tile,
+ * or the work spot of a step walking to its own (S07e).
  */
-class WalkActivity(
-    private val walker: Walker,
-    private val target: Tile,
-    private val place: String = target.text(),
-    private val walking: String = "the walk step",
-) : StepActivity {
+class WalkActivity(private val walker: Walker, private val target: Tile, private val place: Place) : StepActivity {
 
     private var walkedFrom: Tile? = null
-    private var reason: String? = null
+    private var reason: Reason? = null
     private var done = false
 
     override fun isBusy(): Boolean = walker.isBusy()
 
     override fun isDone(): Boolean = done
 
-    override fun blocked(): String? = reason
+    override fun blocked(): Reason? = reason
+
+    override fun stopping(): StepStop? = null
+
+    override fun said(): Said? = null
 
     override fun act() {
         val here = walker.position()
         when {
-            here.z != target.z -> reason = "Autopilot: $walking cannot change floors to reach $place."
+            here.z != target.z -> reason = Reason.OtherFloor(place)
             arrived(here) -> done = true
-            here == walkedFrom -> reason = "Autopilot: there is no way to walk to $place from here."
+            here == walkedFrom -> reason = Reason.NoWay(place)
             else -> {
                 walkedFrom = here
                 reason = null

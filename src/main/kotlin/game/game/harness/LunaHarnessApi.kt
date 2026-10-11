@@ -127,8 +127,11 @@ class LunaHarnessApi(
 
     private fun flowView(player: Player): FlowView {
         val state = player.idleState
-        val steps = state.steps.map { FlowStepView(it.id, it.kind, it.values, it.reflexes, flows.resolver.types.summary(it)) }
-        return FlowView(player.username, state.running, state.stepIndex, steps, state.reflexes.map { FlowReflexView(it.id, it.values) })
+        val problems = flows.resolver.problems(state.steps)
+        val steps = state.steps.mapIndexed { index, step ->
+            FlowStepView(step.id, step.kind, step.values, step.reflexes, flows.resolver.types.summary(step), problems[index])
+        }
+        return FlowView(player.username, state.running, state.stepIndex, state.blocked, steps, state.reflexes.map { FlowReflexView(it.id, it.values) })
     }
 
     private fun perform(player: Player, action: PlayerAction): ActionView =

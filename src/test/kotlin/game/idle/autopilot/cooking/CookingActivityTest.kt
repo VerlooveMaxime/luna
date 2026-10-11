@@ -1,6 +1,9 @@
 package game.idle.autopilot.cooking
 
 import game.idle.autopilot.PlaceCandidate
+import game.idle.flow.Reason
+import game.idle.flow.Supply
+import game.idle.flow.Target
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -72,7 +75,7 @@ class CookingActivityTest {
 
         activity.act()
 
-        assertEquals(CookingBlockedReason.NO_FIRE.message, activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.FIRE_OR_RANGE), activity.blocked())
     }
 
     @Test
@@ -87,13 +90,13 @@ class CookingActivityTest {
     }
 
     @Test
-    fun `at the work spot with no fire the step blocks once with a message`() {
+    fun `at the work spot with no fire the step blocks`() {
         cooker.view = view(emptyList())
 
         activity.act()
         activity.act()
 
-        assertEquals(CookingBlockedReason.NO_FIRE.message, activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.FIRE_OR_RANGE), activity.blocked())
         assertFalse(activity.isDone())
     }
 
@@ -118,7 +121,7 @@ class CookingActivityTest {
         activity.act()
 
         assertFalse(activity.isDone())
-        assertEquals(CookingBlockedReason.NOTHING_TO_COOK.message, activity.blocked())
+        assertEquals(Reason.NothingToUse(Supply.RAW_FOOD), activity.blocked())
     }
 
     @Test
@@ -191,6 +194,11 @@ class CookingActivityTest {
         activity.act()
 
         assertEquals(listOf("walk to 3100,3095", "use 2 on 3100,3095"), cooker.steps)
+    }
+
+    @Test
+    fun `cooking never stops the flow and has nothing to say`() {
+        assertEquals(listOf(null, null), listOf(activity.stopping(), activity.said()))
     }
 
     @Test

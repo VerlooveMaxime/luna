@@ -1,6 +1,10 @@
 package game.idle.autopilot.fishing
 
+import game.idle.flow.Reason
+import game.idle.flow.Target
+import game.idle.flow.ToolNeed
 import io.luna.game.model.Position
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -19,8 +23,11 @@ class FishingActivityTest {
     private fun view(spots: List<SpotCandidate> = listOf(near, far), full: Boolean = false, atLocation: Boolean = true) =
         FishingView(hasTool = true, hasLevel = true, hasBait = true, inventoryFull = full, atLocation = atLocation, spots = spots)
 
+    private val rod = ToolNeed(word = null, mapOf(307 to 1))
+    private val bait = ToolNeed(word = null, mapOf(313 to 1), countable = false)
+    private val baited = FishingNeeds(rod, bait, level = 5)
     private val fisher = FakeFisher(view())
-    private val activity = FishingActivity(fisher)
+    private val activity = FishingActivity(fisher, baited)
 
     @Test
     fun `a spot in reach is fished`() {
@@ -62,7 +69,7 @@ class FishingActivityTest {
 
         activity.act()
 
-        assertEquals(FishingBlockedReason.NO_SPOT.message, activity.blocked())
+        assertEquals(Reason.NoneInReach(Target.FISHING_SPOT), activity.blocked())
     }
 
     @Test
@@ -71,7 +78,7 @@ class FishingActivityTest {
 
         activity.act()
 
-        assertEquals(FishingBlockedReason.NO_TOOL.message, activity.blocked())
+        assertEquals(Reason.NeedsTool(rod), activity.blocked())
     }
 
     @Test
@@ -86,34 +93,49 @@ class FishingActivityTest {
     }
 
     @Test
-    fun `without the tool the step blocks once with a message`() {
+    fun `without the tool the step blocks and waits`() {
         fisher.view = view().copy(hasTool = false)
 
         activity.act()
         activity.act()
 
-        assertEquals(FishingBlockedReason.NO_TOOL.message, activity.blocked())
+        assertEquals(Reason.NeedsTool(rod), activity.blocked())
         assertFalse(activity.isDone())
     }
 
     @Test
-    fun `below the method's level the step blocks with a message`() {
+    fun `below the method's level the step blocks on that level`() {
         fisher.view = view().copy(hasLevel = false)
 
         activity.act()
 
-        assertEquals(FishingBlockedReason.LEVEL_TOO_LOW.message, activity.blocked())
+        assertEquals(Reason.NeedsLevel(Skill.FISHING, 5), activity.blocked())
     }
 
     @Test
-    fun `without bait the step blocks once with a message and waits`() {
+    fun `without bait the step blocks on the bait and waits`() {
         fisher.view = view().copy(hasBait = false)
 
         activity.act()
         activity.act()
 
-        assertEquals(FishingBlockedReason.NO_BAIT.message, activity.blocked())
+        assertEquals(Reason.NeedsTool(bait), activity.blocked())
         assertFalse(activity.isDone())
+    }
+
+    @Test
+    fun `a method without bait never blocks on bait`() {
+        val netting = FishingActivity(fisher, FishingNeeds(rod, bait = null, level = 1))
+        fisher.view = view(listOf(inReach)).copy(hasBait = false)
+
+        netting.act()
+
+        assertEquals(listOf("fish 3100,3092"), fisher.steps)
+    }
+
+    @Test
+    fun `fishing never stops the flow and has nothing to say`() {
+        assertEquals(listOf(null, null), listOf(activity.stopping(), activity.said()))
     }
 
     @Test
@@ -124,7 +146,7 @@ class FishingActivityTest {
 
         activity.act()
 
-        assertEquals(FishingBlockedReason.NO_BAIT.message, activity.blocked())
+        assertEquals(Reason.NeedsTool(bait), activity.blocked())
         assertFalse(activity.isDone())
     }
 
@@ -134,7 +156,7 @@ class FishingActivityTest {
 
         activity.act()
 
-        assertEquals(FishingBlockedReason.NO_TOOL.message, activity.blocked())
+        assertEquals(Reason.NeedsTool(rod), activity.blocked())
     }
 
     @Test
@@ -143,7 +165,7 @@ class FishingActivityTest {
 
         activity.act()
 
-        assertEquals(FishingBlockedReason.LEVEL_TOO_LOW.message, activity.blocked())
+        assertEquals(Reason.NeedsLevel(Skill.FISHING, 5), activity.blocked())
     }
 
     @Test
@@ -152,7 +174,7 @@ class FishingActivityTest {
 
         activity.act()
 
-        assertEquals(FishingBlockedReason.INVENTORY_FULL.message, activity.blocked())
+        assertEquals(Reason.BagFull(emptyList()), activity.blocked())
         assertFalse(activity.isDone())
     }
 
@@ -179,7 +201,7 @@ class FishingActivityTest {
 
     @Test
     fun `with an amount the step stops fishing and ends once that many were caught`() {
-        val counting = FishingActivity(fisher, amount = 1)
+        val counting = FishingActivity(fisher, baited, amount = 1)
         fisher.view = view(listOf(inReach))
         counting.act()
         fisher.catches = 1
@@ -192,7 +214,7 @@ class FishingActivityTest {
 
     @Test
     fun `fishing that reaches the amount stops being busy so the step can stop it`() {
-        val counting = FishingActivity(fisher, amount = 2)
+        val counting = FishingActivity(fisher, baited, amount = 2)
         counting.act()
         fisher.busy = true
         fisher.catches = 1
@@ -235,7 +257,7 @@ class FishingActivityTest {
     fun `before its first act a step with an amount follows the fisher's busy`() {
         fisher.busy = true
 
-        assertTrue(FishingActivity(fisher, amount = 1).isBusy())
+        assertTrue(FishingActivity(fisher, baited, amount = 1).isBusy())
     }
 
     @Test
@@ -250,12 +272,12 @@ class FishingActivityTest {
 
     @Test
     fun `before its first act the step has done nothing`() {
-        assertEquals(0, FishingActivity(fisher).amountDone())
+        assertEquals(0, FishingActivity(fisher, baited).amountDone())
     }
 
     @Test
     fun `its amount done is the fish caught since the step began`() {
-        val counting = FishingActivity(fisher)
+        val counting = FishingActivity(fisher, baited)
         fisher.view = view(listOf(inReach))
         counting.act()
         fisher.catches = 1
