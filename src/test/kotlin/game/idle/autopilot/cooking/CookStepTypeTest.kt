@@ -2,6 +2,7 @@ package game.idle.autopilot.cooking
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.StepIcon
 import game.idle.flow.StepNeeds
 import game.idle.flow.StepPick
@@ -29,6 +30,7 @@ class CookStepTypeTest {
     private val walkedTo = WorkSpot.At(Tile(3086, 3228))
     private val rawShrimps = 317
     private val rawAnchovies = 321
+    private val rawTrout = 335
     private val logs = 1511
     private val type = CookStepType(FakeNames(items = mapOf(rawShrimps to "Raw shrimps", rawAnchovies to "Raw anchovies")))
     private val fished = FlowContext(walkedTo, gathered = setOf(rawShrimps, rawAnchovies, logs), gatheredBy = mapOf(rawShrimps to 1, rawAnchovies to 1, logs to 2))
@@ -101,8 +103,15 @@ class CookStepTypeTest {
     }
 
     @Test
-    fun `a cook step needs its raw food in the bag and no tool`() {
-        assertEquals(listOf(StepNeeds(inputs = listOf(rawShrimps))), CookStep(setOf(rawShrimps), 10, walkedTo).needs())
+    fun `a cook step needs its raw food in the bag and its Cooking level, no tool`() {
+        assertEquals(listOf(StepNeeds(inputs = listOf(rawShrimps), level = LevelNeed(Skill.COOKING, 1))), CookStep(setOf(rawShrimps), 10, walkedTo).needs())
+    }
+
+    @Test
+    fun `a cook step of two kinds of raw food can work two ways, each at its own level, the easiest first`() {
+        val levels = CookStep(setOf(rawTrout, rawShrimps), 10, walkedTo).needs().map { it.inputs to it.level }
+
+        assertEquals(listOf(listOf(rawShrimps) to LevelNeed(Skill.COOKING, 1), listOf(rawTrout) to LevelNeed(Skill.COOKING, 15)), levels)
     }
 
     @Test

@@ -1,9 +1,11 @@
 package game.idle.autopilot.cooking
 
 import game.idle.autopilot.PlaceCandidate
+import game.idle.location.Tile
+import io.luna.game.model.Position
 
-/** Records each step as text, for example `use 2 on 3100,3095`. */
-class FakeCooker(var view: CookingView) : Cooker {
+/** Records each step as text, for example `use 2 on 3100,3095`; [anchor] is the step's area anchor. */
+class FakeCooker(var view: CookingView, private val anchor: Tile = Tile(3200, 3200)) : Cooker {
 
     var busy = false
     var raw = 0
@@ -25,13 +27,17 @@ class FakeCooker(var view: CookingView) : Cooker {
         steps += "walk to ${place.position.x},${place.position.y}"
     }
 
-    override fun walkToLocation() {
-        steps += "walk to location"
-    }
+    override fun anchor(): Tile = anchor
 
     override fun raw(): Int = raw
 
-    override fun stop() {
-        steps += "stop"
+    override fun interrupt() {
+        steps += "interrupt"
     }
 }
+
+fun cookingPlace(x: Int, y: Int, distance: Int, usableFromHere: Boolean = false) =
+    PlaceCandidate(2732, Position(x, y), distance, usableFromHere, Position(x - 1, y))
+
+fun cookingView(places: List<PlaceCandidate>, rawSlot: Int? = 2, windowOpen: Boolean = false, atLocation: Boolean = true) =
+    CookingView(rawSlot, windowOpen, atLocation, places)

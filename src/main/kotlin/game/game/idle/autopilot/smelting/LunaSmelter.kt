@@ -1,9 +1,9 @@
 package game.idle.autopilot.smelting
 
-import api.predef.smithing
 import game.idle.autopilot.LunaClicks
 import game.idle.autopilot.PlaceCandidate
 import game.idle.location.Area
+import game.idle.location.Tile
 import game.idle.movement.ReachScan
 import game.idle.movement.ReachTerrain
 import game.idle.movement.footprintOf
@@ -36,7 +36,6 @@ class LunaSmelter(private val player: Player, private val bar: BarType, private 
     override fun look(): SmeltingView =
         SmeltingView(
             oreSlot = if (hasOreForABar()) player.inventory.computeIndexForId(oreToUse) else null,
-            smithingLevel = player.smithing.level,
             atLocation = scan.atLocation(player.position),
             furnaces = scan.reachable(player.position, furnaces(), ::footprintOf, terrain = this)
                 .map { (furnace, reach) -> PlaceCandidate.of(furnace, reach) },
@@ -48,20 +47,16 @@ class LunaSmelter(private val player: Player, private val bar: BarType, private 
         LunaClicks.interact(player, ItemOnObjectEvent(player, ore.id, slot, INVENTORY, target), target, ItemOnObjectEvent::class.java)
     }
 
-    override fun walkTo(furnace: PlaceCandidate) = walkTo(furnace.approach)
-
-    override fun walkToLocation() = walkTo(anchor)
-
-    private fun walkTo(tile: Position) {
+    override fun walkTo(furnace: PlaceCandidate) {
         player.overlays.closeWindows(false)
-        player.navigator.navigate(tile, true)
+        player.navigator.navigate(furnace.approach, true)
     }
+
+    override fun anchor(): Tile = area.anchor
 
     override fun bars(): Int = player.inventory.computeAmountForId(bar.id)
 
-    override fun stop() {
-        player.actions.interruptWeak()
-    }
+    override fun interrupt() = LunaClicks.interrupt(player)
 
     private fun hasOreForABar(): Boolean = listOfNotNull(bar.oreRequired.first, bar.oreRequired.second).all(::carries)
 

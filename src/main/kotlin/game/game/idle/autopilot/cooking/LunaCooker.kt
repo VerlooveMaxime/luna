@@ -1,13 +1,16 @@
 package game.idle.autopilot.cooking
 
-import game.idle.autopilot.PlaceCandidate
+import api.predef.cooking
 import game.idle.autopilot.LunaClicks
+import game.idle.autopilot.PlaceCandidate
 import game.idle.location.Area
+import game.idle.location.Tile
 import game.idle.movement.footprintOf
 import game.idle.movement.ReachScan
 import game.idle.movement.ReachTerrain
 import game.skill.cooking.cookFood.Cooking
 import game.skill.cooking.cookFood.CookingInterface
+import game.skill.cooking.cookFood.Food
 import io.luna.game.event.impl.ButtonClickEvent
 import io.luna.game.event.impl.UseItemEvent.ItemOnObjectEvent
 import io.luna.game.model.Direction
@@ -34,7 +37,7 @@ class LunaCooker(private val player: Player, private val rawIds: Set<Int>, priva
 
     override fun look(): CookingView =
         CookingView(
-            rawSlot = (0 until player.inventory.capacity()).firstOrNull { player.inventory[it]?.id in rawIds },
+            rawSlot = (0 until player.inventory.capacity()).firstOrNull(::cookable),
             windowOpen = cookingWindowOpen(),
             atLocation = scan.atLocation(player.position),
             places = scan.reachable(player.position, places(), ::footprintOf, terrain = this)
@@ -54,19 +57,24 @@ class LunaCooker(private val player: Player, private val rawIds: Set<Int>, priva
         }
     }
 
-    override fun walkTo(place: PlaceCandidate) = walkTo(place.approach)
-
-    override fun walkToLocation() = walkTo(anchor)
-
-    private fun walkTo(tile: Position) {
+    override fun walkTo(place: PlaceCandidate) {
         player.overlays.closeWindows(false)
-        player.navigator.navigate(tile, true)
+        player.navigator.navigate(place.approach, true)
     }
+
+    override fun anchor(): Tile = area.anchor
 
     override fun raw(): Int = rawIds.sumOf { player.inventory.computeAmountForId(it) }
 
-    override fun stop() {
-        player.actions.interruptWeak()
+    override fun interrupt() = LunaClicks.interrupt(player)
+
+    /**
+     * Whether [slot] holds raw food of the step the player's Cooking level allows: Luna refuses the rest only once the
+     * cooking window is answered, leaving the window open.
+     */
+    private fun cookable(slot: Int): Boolean {
+        val id = player.inventory[slot]?.id ?: return false
+        return id in rawIds && Food.RAW_TO_FOOD.getValue(id).lvl <= player.cooking.level
     }
 
     private fun cookingWindowOpen(): Boolean = player.overlays.has(CookingInterface::class.java)

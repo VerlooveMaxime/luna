@@ -92,7 +92,7 @@ class StepTurnTest {
 
     @Test
     fun `nothing to work with from the flow ends the step silently`() {
-        val turn = turn(FakeStepWork(StepOutcome.Empty(Supply.LOGS)))
+        val turn = turn(FakeStepWork(StepOutcome.Empty))
 
         turn.act()
 

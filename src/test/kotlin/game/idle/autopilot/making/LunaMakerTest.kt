@@ -1,8 +1,12 @@
 package game.idle.autopilot.making
 
 import game.idle.autopilot.EndlessAction
+import game.idle.autopilot.LunaCarried
 import game.idle.autopilot.LunaClicks
 import game.idle.autopilot.RefusingController
+import game.idle.flow.Preconditions
+import game.idle.flow.Reason
+import game.idle.flow.ToolNeed
 import game.testworld.TestWorld
 import io.luna.game.event.impl.ButtonClickEvent
 import io.luna.game.event.impl.UseItemEvent.ItemOnItemEvent
@@ -133,12 +137,14 @@ class LunaMakerTest {
     }
 
     @Test
-    fun `a way without its tool is not used`() {
+    fun `a way without its tool blocks on the tool and is not used`() {
         val player = login()
         player.inventory.add(Item(1511))
         val shafts = Recipe(52, "Arrow shaft", Skill.FLETCHING, 1, listOf(RecipeWay(946, 1511, mapOf(1511 to 1), setOf(946))))
 
-        assertNull(LunaMaker(player, shafts).look().useSlot)
+        val needed = Preconditions.check(MakeStep(shafts).needs(), LunaCarried(player))
+
+        assertEquals(Reason.NeedsTool(ToolNeed(word = null, mapOf(946 to 1))) to null, needed to LunaMaker(player, shafts).look().useSlot)
     }
 
     @Test
@@ -248,12 +254,12 @@ class LunaMakerTest {
     }
 
     @Test
-    fun `stopping ends the making in progress`() {
+    fun `interrupting breaks off the making in progress`() {
         val player = login()
         player.submitAction(EndlessAction(player))
         TestWorld.tick()
 
-        maker(player).stop()
+        maker(player).interrupt()
         TestWorld.tick()
 
         assertFalse(LunaClicks.isActing(player))

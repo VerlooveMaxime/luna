@@ -11,24 +11,21 @@ import game.idle.autopilot.mining.MineStep
 import game.idle.autopilot.mining.MiningView
 import game.idle.autopilot.mining.MiningWork
 import game.idle.autopilot.mining.RockCandidate
-import game.idle.autopilot.walk.FakeWalker
 import game.idle.autopilot.woodcutting.ChopAction
 import game.idle.autopilot.woodcutting.ChopStep
 import game.idle.autopilot.woodcutting.FakeWoodcutter
 import game.idle.autopilot.woodcutting.TreeCandidate
 import game.idle.autopilot.woodcutting.WoodcuttingView
 import game.idle.autopilot.woodcutting.WoodcuttingWork
-import game.idle.location.Tile
 import game.skill.fishing.catchFish.Tool
 import game.skill.mining.Pickaxe
 import game.skill.mining.Ore
 import game.skill.woodcutting.cutTree.Axe
 import game.skill.woodcutting.cutTree.Tree
 import game.testworld.TestWorld
-import io.luna.game.model.Position
 import io.luna.game.model.mob.Skill
 
-/** The kinds that gather around a work spot: chop, mine, fish. */
+/** The kinds that gather around a work spot: chop, mine, fish. The fixtures are in `SpotFixture`'s shape. */
 fun gatherKinds(): List<GatherFixture> = listOf(ChopFixture(), MineFixture(), FishFixture())
 
 private const val BRONZE_AXE = 1351
@@ -41,51 +38,9 @@ private val AXE = ToolNeed("axe", Axe.entries.associate { it.id to it.level }, S
 
 private val PICKAXE = ToolNeed("pickaxe", Pickaxe.entries.associate { it.id to it.level }, Skill.MINING, worn = true)
 
-/**
- * A gather kind at its work spot: the player stands on the [anchor] with the kind's [tool] and bait ([bag]) and the
- * [level] it needs, one target in reach. The fixture states the tool and the level itself, so the kind's `needs()` is
- * checked against them, not copied. The levels are above 1, so a level one short still allows the bronze tool and the
- * block is the step's level, not the tool.
- */
-abstract class SpotFixture(
-    final override val name: String,
-    final override val tool: ToolNeed,
-    final override val level: LevelNeed,
-    bag: Set<Int>,
-) : GatherFixture {
+class ChopFixture : SpotFixture("chop", LevelNeed(Skill.WOODCUTTING, 15), bag = setOf(BRONZE_AXE)), GatherFixture {
 
-    final override val anchor = Tile(3200, 3200)
-
-    final override val walker = FakeWalker(anchor)
-
-    final override val carried = FakeCarried().apply {
-        this.bag += bag
-        levels[level.skill] = level.level
-    }
-
-    /** One tile next to the anchor, where the target stands. */
-    protected val targetTile = Position(anchor.x + 1, anchor.y)
-
-    protected abstract fun standInArea(inside: Boolean)
-
-    override fun leaveArea() {
-        standInArea(inside = false)
-        walker.here = Tile(anchor.x + 20, anchor.y)
-    }
-
-    override fun enterArea() {
-        standInArea(inside = true)
-        walker.here = anchor
-    }
-
-    override fun toString(): String = name
-
-    protected companion object {
-        const val RADIUS = 10
-    }
-}
-
-class ChopFixture : SpotFixture("chop", AXE, LevelNeed(Skill.WOODCUTTING, 15), bag = setOf(BRONZE_AXE)) {
+    override val tool = AXE
 
     private val step = ChopStep(Tree.OAK, RADIUS, WorkSpot.At(anchor))
     private val tree = TreeCandidate(1281, targetTile, Tree.OAK, distance = 0, usableFromHere = true, anchor.toPosition())
@@ -117,7 +72,9 @@ class ChopFixture : SpotFixture("chop", AXE, LevelNeed(Skill.WOODCUTTING, 15), b
     }
 }
 
-class MineFixture : SpotFixture("mine", PICKAXE, LevelNeed(Skill.MINING, 15), bag = setOf(BRONZE_PICKAXE)) {
+class MineFixture : SpotFixture("mine", LevelNeed(Skill.MINING, 15), bag = setOf(BRONZE_PICKAXE)), GatherFixture {
+
+    override val tool = PICKAXE
 
     /** Luna's ores name themselves from the item definitions, which need the cache. */
     init {
@@ -154,7 +111,9 @@ class MineFixture : SpotFixture("mine", PICKAXE, LevelNeed(Skill.MINING, 15), ba
 }
 
 /** The fly fishing rod, so a baited method runs through the contract. */
-class FishFixture : SpotFixture("fish", ToolNeed(word = null, mapOf(FLY_FISHING_ROD to 1)), LevelNeed(Skill.FISHING, 20), bag = setOf(FLY_FISHING_ROD, FEATHERS)) {
+class FishFixture : SpotFixture("fish", LevelNeed(Skill.FISHING, 20), bag = setOf(FLY_FISHING_ROD, FEATHERS)), GatherFixture {
+
+    override val tool = ToolNeed(word = null, mapOf(FLY_FISHING_ROD to 1))
 
     /** Luna's fish name themselves from the item definitions, which need the cache. */
     init {

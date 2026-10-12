@@ -1,11 +1,11 @@
 package game.idle.autopilot.smithing
 
+import game.idle.flow.Counts
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
-import game.idle.flow.LegacyKind
-import game.idle.flow.LegacyActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -15,14 +15,18 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepSpot
 import game.idle.flow.StepType
+import game.idle.flow.StepWork
+import game.idle.flow.ToolNeed
 import game.idle.flow.Uses
 import game.idle.flow.WorkSpot
+import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.smithing.BarType
+import game.skill.smithing.Smithing
 import game.skill.smithing.smithBar.SmithingItem
 import game.skill.smithing.smithBar.SmithingTable
 import io.luna.game.model.mob.Player
@@ -72,7 +76,7 @@ class SmithStepType(private val names: GameNames) : StepType {
         return "smith ${StepAmount.prefix(settings)}$name${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
     }
 
-    override fun resolve(settings: StepSettings, context: FlowContext): LegacyKind {
+    override fun resolve(settings: StepSettings, context: FlowContext): Works {
         val item = settings[ITEM] ?: throw FlowError("smith needs an item")
         val (table, smithed) = smithed(settings) ?: throw FlowError("'$item' is not an item to smith")
         ProcessInput.requireGathered(input(settings, context), context, listOf(smithed.barType.id), names)
@@ -91,6 +95,9 @@ class SmithStepType(private val names: GameNames) : StepType {
     companion object {
         const val ITEM = "item"
 
+        /** The hammer, which Luna's smithing takes from the bag only. */
+        val HAMMER = ToolNeed(word = null, mapOf(Smithing.HAMMER to 1))
+
         private val BAR_IDS: Set<Int> = BarType.entries.map { it.id }.toSet()
     }
 }
@@ -104,8 +111,8 @@ data class SmithStep(
     val table: SmithingTable,
     val radius: Int,
     val workSpot: WorkSpot,
-    val amount: Int? = null,
-) : LegacyKind, OwnSpot {
+    override val amount: Int? = null,
+) : Works, OwnSpot, Counts {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
@@ -113,9 +120,10 @@ data class SmithStep(
 
     override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + made.item.id))
 
+    /** A hammer, the bar and the item's Smithing level. */
     override fun needs(): List<StepNeeds> =
-        listOf(StepNeeds(tools = listOf(SmithingPlanner.HAMMER), inputs = listOf(metal.id)))
+        listOf(StepNeeds(tools = listOf(SmithStepType.HAMMER), inputs = listOf(metal.id), level = LevelNeed(Skill.SMITHING, made.level)))
 
-    override fun activity(player: Player, runTile: Tile): LegacyActivity =
-        SmithingActivity(LunaSmither(player, metal, table, Area(workSpot.tile(runTile), radius)), made.level, amount)
+    override fun work(player: Player, runTile: Tile): StepWork =
+        SmithingWork(LunaSmither(player, metal, table, Area(workSpot.tile(runTile), radius)))
 }

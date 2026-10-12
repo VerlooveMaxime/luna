@@ -3,9 +3,6 @@ package game.idle.flow
 /** What a step looks for in the world around its work spot. */
 enum class Target { TREE, ROCK, FISHING_SPOT, FIRE_OR_RANGE, FURNACE, ANVIL, NPC, BANK_BOOTH, FREE_TILE }
 
-/** What a step works on from the bag. */
-enum class Supply { LOGS, RAW_FOOD, INGREDIENTS, ORE, BARS }
-
 /** Where a walk goes: a tile picked for a walk step, or a step's work spot. */
 enum class Place { TILE, WORK_SPOT }
 
@@ -20,8 +17,6 @@ sealed interface Reason {
     data class NeedsLevel(val skill: Int, val level: Int) : Reason
 
     data class NoneInReach(val target: Target) : Reason
-
-    data class NothingToUse(val supply: Supply) : Reason
 
     data object CannotMake : Reason
 

@@ -5,6 +5,7 @@ class FakeLighter(var view: LightView) : Lighter {
 
     var busy = false
     var aside = true
+    var logs = 0
     val steps = mutableListOf<String>()
 
     override fun isBusy(): Boolean = busy
@@ -19,4 +20,6 @@ class FakeLighter(var view: LightView) : Lighter {
         steps += "move to a free tile"
         return aside
     }
+
+    override fun logs(): Int = logs
 }

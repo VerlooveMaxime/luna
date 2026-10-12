@@ -16,6 +16,13 @@ class PreconditionsTest {
     private val smallNet = ToolNeed(word = null, mapOf(net to 1))
     private val fishingBait = ToolNeed(word = null, mapOf(bait to 1), countable = false)
     private val oak = LevelNeed(Skill.WOODCUTTING, 15)
+    private val oakLogs = 1521
+    private val willowLogs = 1519
+    private val tinderbox = 590
+    private val copperOre = 436
+    private val tinOre = 438
+    private val lightsOak = StepNeeds(inputs = listOf(oakLogs), level = LevelNeed(Skill.FIREMAKING, 15))
+    private val lightsWillow = StepNeeds(inputs = listOf(willowLogs), level = LevelNeed(Skill.FIREMAKING, 30))
 
     private fun check(vararg ways: StepNeeds): Reason? = Preconditions.check(ways.toList(), carried)
 
@@ -120,5 +127,43 @@ class PreconditionsTest {
         carried.levels[Skill.WOODCUTTING] = 14
 
         assertEquals(Reason.NeedsTool(smallNet), check(StepNeeds(tools = listOf(smallNet), level = oak), StepNeeds(tools = listOf(axe))))
+    }
+
+    @Test
+    fun `a way for an input not held is not judged, so the input held is judged on its own level`() {
+        carried.bag += willowLogs
+        carried.levels[Skill.FIREMAKING] = 20
+
+        assertEquals(Reason.NeedsLevel(Skill.FIREMAKING, 30), check(lightsOak, lightsWillow))
+    }
+
+    @Test
+    fun `a way whose inputs are all held and clear lets the step through`() {
+        carried.bag += setOf(oakLogs, willowLogs)
+        carried.levels[Skill.FIREMAKING] = 20
+
+        assertNull(check(lightsOak, lightsWillow))
+    }
+
+    @Test
+    fun `with no way's inputs held the check passes, the kind reports the empty bag`() {
+        carried.levels[Skill.FIREMAKING] = 1
+
+        assertNull(check(lightsOak, lightsWillow))
+    }
+
+    @Test
+    fun `a way's tool is not asked for while its input is not held`() {
+        val lights = StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(tinderbox to 1))), inputs = listOf(oakLogs))
+
+        assertNull(check(lights))
+    }
+
+    @Test
+    fun `a way needs every one of its inputs held to be judged`() {
+        val twoOres = StepNeeds(inputs = listOf(copperOre, tinOre), level = LevelNeed(Skill.SMITHING, 30))
+        carried.bag += copperOre
+
+        assertNull(check(twoOres))
     }
 }

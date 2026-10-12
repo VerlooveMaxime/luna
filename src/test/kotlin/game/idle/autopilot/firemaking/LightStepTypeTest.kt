@@ -2,6 +2,7 @@ package game.idle.autopilot.firemaking
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.StepIcon
 import game.idle.flow.StepNeeds
 import game.idle.flow.StepPick
@@ -131,11 +132,18 @@ class LightStepTypeTest {
     }
 
     @Test
-    fun `a light step needs a tinderbox and the logs it lights`() {
+    fun `a light step needs a tinderbox, the logs it lights and their Firemaking level`() {
         assertEquals(
-            listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(590 to 1))), inputs = listOf(logs))),
-            LightStep(setOf(logs)).needs(),
+            listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(590 to 1))), inputs = listOf(oakLogs), level = LevelNeed(Skill.FIREMAKING, 15))),
+            LightStep(setOf(oakLogs)).needs(),
         )
+    }
+
+    @Test
+    fun `a light step of two kinds of logs can work two ways, each at its own level, the easiest first`() {
+        val levels = LightStep(setOf(oakLogs, logs)).needs().map { it.inputs to it.level }
+
+        assertEquals(listOf(listOf(logs) to LevelNeed(Skill.FIREMAKING, 1), listOf(oakLogs) to LevelNeed(Skill.FIREMAKING, 15)), levels)
     }
 
     @Test

@@ -2,6 +2,7 @@ package game.idle.autopilot.smelting
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepNeeds
@@ -158,8 +159,8 @@ class SmeltStepTypeTest {
         (type.fields(LunaGameNames)[2] as StepField.Note).text(settings, FlowContext())
 
     @Test
-    fun `a smelt step needs the bar's ores and no tool`() {
-        assertEquals(listOf(StepNeeds(inputs = listOf(436, 438))), SmeltStep(BarType.BRONZE, 10, walkedTo).needs())
+    fun `a smelt step needs the bar's ores and its Smithing level, no tool`() {
+        assertEquals(listOf(StepNeeds(inputs = listOf(440, 453), level = LevelNeed(Skill.SMITHING, 30))), SmeltStep(BarType.STEEL, 10, walkedTo).needs())
     }
 
     @Test

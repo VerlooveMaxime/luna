@@ -32,7 +32,7 @@ class LightStepTest {
     fun `a light step with a picked tile looks for a free tile from it`() {
         val player = onAFire()
 
-        LightStep(setOf(logs), spot = Tile(3200, 3200)).activity(player, Tile(3190, 3190)).act()
+        LightStep(setOf(logs), spot = Tile(3200, 3200)).work(player, Tile(3190, 3190)).act(null)
 
         assertEquals(Position(3200, 3200), player.navigator.currentTarget)
     }
@@ -41,7 +41,7 @@ class LightStepTest {
     fun `a light step lighting where it stands looks for a free tile next to the player`() {
         val player = onAFire()
 
-        LightStep(setOf(logs)).activity(player, Tile(3190, 3190)).act()
+        LightStep(setOf(logs)).work(player, Tile(3190, 3190)).act(null)
 
         assertEquals(1, player.navigator.currentTarget?.let { maxOf(Math.abs(it.x - standing.x), Math.abs(it.y - standing.y)) })
     }

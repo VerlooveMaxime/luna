@@ -88,8 +88,20 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `the amount ends the step, breaking off the work`(kind: GatherFixture) {
+    @MethodSource("countingKinds")
+    fun `the amount ends the step`(kind: KindFixture) {
+        val turn = kind.turn(amount = 2)
+        turn.act()
+        kind.gain(2)
+
+        turn.act()
+
+        assertTrue(turn.isDone())
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("promptKinds")
+    fun `the amount ends the step, breaking off the work`(kind: AmountFixture) {
         val turn = kind.turn(amount = 2)
         turn.act()
         kind.gain(2)
@@ -100,8 +112,8 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `the amount reached, the step is not busy however busy the adapter is`(kind: GatherFixture) {
+    @MethodSource("promptKinds")
+    fun `the amount reached, the step is not busy however busy the adapter is`(kind: AmountFixture) {
         val turn = kind.turn(amount = 1)
         turn.act()
         kind.adapterBusy(true)
@@ -112,8 +124,8 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `short of the amount the step is busy while the adapter is`(kind: GatherFixture) {
+    @MethodSource("amountKinds")
+    fun `short of the amount the step is busy while the adapter is`(kind: AmountFixture) {
         val turn = kind.turn(amount = 2)
         turn.act()
         kind.adapterBusy(true)
@@ -124,8 +136,8 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `without its tool the step blocks on the tool before it looks`(kind: GatherFixture) {
+    @MethodSource("toolKinds")
+    fun `without its tool the step blocks on the tool before it looks`(kind: ToolFixture) {
         val turn = kind.turn()
         kind.carried.bag -= kind.tool.items.keys
 
@@ -135,8 +147,8 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `the block clears once the tool is back and the step works`(kind: GatherFixture) {
+    @MethodSource("toolKinds")
+    fun `the block clears once the tool is back and the step works`(kind: ToolFixture) {
         val turn = kind.turn()
         val tools = kind.tool.items.keys
         kind.carried.bag -= tools
@@ -149,8 +161,8 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `below its level the step blocks on the level`(kind: GatherFixture) {
+    @MethodSource("needsKinds")
+    fun `below its level the step blocks on the level`(kind: NeedsFixture) {
         val turn = kind.turn()
         kind.carried.levels[kind.level.skill] = kind.level.level - 1
 
@@ -160,8 +172,8 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `the tool is asked for before the level`(kind: GatherFixture) {
+    @MethodSource("toolKinds")
+    fun `the tool is asked for before the level`(kind: ToolFixture) {
         val turn = kind.turn()
         kind.carried.bag -= kind.tool.items.keys
         kind.carried.levels[kind.level.skill] = kind.level.level - 1
@@ -217,6 +229,66 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
+    @MethodSource("processKinds")
+    fun `nothing to work with ends the step silently, which is no work`(kind: ProcessFixture) {
+        kind.emptyInput()
+        val turn = kind.turn()
+
+        turn.act()
+
+        assertEquals(listOf(true, false, null, null, emptyList<String>()), listOf(turn.isDone(), turn.worked(), turn.blocked(), turn.said(), kind.done))
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("processKinds")
+    fun `the step ends once its input runs out after working`(kind: ProcessFixture) {
+        val turn = kind.turn()
+        turn.act()
+        kind.gain(1)
+        kind.emptyInput()
+
+        turn.act()
+
+        assertEquals(true to 1, turn.isDone() to kind.done.size)
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("processKinds")
+    fun `input that arrives during the turn is used`(kind: ProcessFixture) {
+        val turn = kind.turn()
+        turn.act()
+        kind.gain(1)
+        kind.emptyInput()
+        kind.supply(1)
+
+        turn.act()
+
+        assertEquals(false to 2, turn.isDone() to kind.done.size)
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("fallingKinds")
+    fun `input arriving is not counted`(kind: ProcessFixture) {
+        val turn = kind.turn()
+
+        kind.supply(2)
+
+        assertEquals(0, turn.amountDone())
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("processKinds")
+    fun `a level too low for input not held does not block, the step ends empty`(kind: ProcessFixture) {
+        kind.emptyInput()
+        kind.carried.levels[kind.level.skill] = kind.level.level - 1
+        val turn = kind.turn()
+
+        turn.act()
+
+        assertEquals(true to null, turn.isDone() to turn.blocked())
+    }
+
+    @ParameterizedTest(name = "{0}")
     @MethodSource("gatherKinds")
     fun `inside the area with nothing in reach the step waits for the world, not blocked`(kind: GatherFixture) {
         val turn = kind.turn()
@@ -241,8 +313,32 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `outside the area with nothing in reach the step walks back to the work spot`(kind: GatherFixture) {
+    @MethodSource("placeKinds")
+    fun `inside the area with no place to work at the step blocks, the flow or the player must supply one`(kind: AreaFixture) {
+        val turn = kind.turn()
+        kind.clearTargets()
+
+        turn.act()
+
+        assertEquals(listOf(true, null, emptyList<String>()), listOf(turn.blocked() is Reason.NoneInReach, turn.waiting(), kind.done))
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("placeKinds")
+    fun `the block clears once a place is back`(kind: AreaFixture) {
+        val turn = kind.turn()
+        kind.clearTargets()
+        turn.act()
+        kind.restoreTargets()
+
+        turn.act()
+
+        assertEquals(null to true, turn.blocked() to turn.worked())
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("areaKinds")
+    fun `outside the area with nothing in reach the step walks back to the work spot`(kind: AreaFixture) {
         val turn = kind.turn()
         kind.leaveArea()
         kind.clearTargets()
@@ -253,8 +349,8 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `a walk back that gets nowhere blocks on the work spot`(kind: GatherFixture) {
+    @MethodSource("areaKinds")
+    fun `a walk back that gets nowhere blocks on the work spot`(kind: AreaFixture) {
         val turn = kind.turn()
         kind.leaveArea()
         kind.clearTargets()
@@ -266,8 +362,8 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `a work spot on another floor blocks the walk back`(kind: GatherFixture) {
+    @MethodSource("areaKinds")
+    fun `a work spot on another floor blocks the walk back`(kind: AreaFixture) {
         val turn = kind.turn()
         kind.leaveArea()
         kind.clearTargets()
@@ -279,8 +375,8 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `back at the work spot the kind looks again`(kind: GatherFixture) {
+    @MethodSource("areaKinds")
+    fun `back at the work spot the kind looks again`(kind: AreaFixture) {
         val turn = kind.turn()
         kind.leaveArea()
         kind.clearTargets()
@@ -296,8 +392,8 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `a target tried twice with nothing gained is set aside, and with none other in reach the step blocks`(kind: GatherFixture) {
+    @MethodSource("areaKinds")
+    fun `a target tried twice with nothing gained is set aside, and with none other in reach the step blocks`(kind: AreaFixture) {
         val turn = kind.turn()
         turn.act()
 
@@ -307,8 +403,8 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `a target tried again after a gain is not a retry`(kind: GatherFixture) {
+    @MethodSource("areaKinds")
+    fun `a target tried again after a gain is not a retry`(kind: AreaFixture) {
         val turn = kind.turn()
         turn.act()
         kind.gain(1)
@@ -321,16 +417,44 @@ class StepTurnContractTest {
     companion object {
 
         @JvmStatic
-        fun allKinds(): List<KindFixture> = plainKinds() + gatherKinds()
+        fun allKinds(): List<KindFixture> = plainKinds() + gatherKinds() + processKinds()
 
         /** Every kind but walk: a walk approaches, it never works. */
         @JvmStatic
         fun workingKinds(): List<KindFixture> = allKinds().filter { it.name != "walk" }
 
         @JvmStatic
-        fun countingKinds(): List<KindFixture> = plainKinds().filter { it.name == "rest" } + gatherKinds()
+        fun countingKinds(): List<KindFixture> = plainKinds().filter { it.name == "rest" } + amountKinds()
+
+        @JvmStatic
+        fun amountKinds(): List<AmountFixture> = gatherKinds() + processKinds()
+
+        /** Every amount kind but light, whose fire must catch before the step may end and whose own tests cover that. */
+        @JvmStatic
+        fun promptKinds(): List<AmountFixture> = amountKinds().filter { it.name != "light" }
+
+        @JvmStatic
+        fun needsKinds(): List<NeedsFixture> = gatherKinds() + processKinds()
+
+        @JvmStatic
+        fun toolKinds(): List<ToolFixture> = needsKinds().filterIsInstance<ToolFixture>()
+
+        /** The kinds that gather or process around a work spot: chop, mine, fish, cook, smelt, smith. */
+        @JvmStatic
+        fun areaKinds(): List<AreaFixture> = amountKinds().filterIsInstance<AreaFixture>()
+
+        /** The processing kinds that work at a place (a fire, a furnace, an anvil) the world never supplies by itself. */
+        @JvmStatic
+        fun placeKinds(): List<AreaFixture> = processKinds().filterIsInstance<AreaFixture>()
+
+        /** The kinds whose meter falls as they work (light, cook): input arriving moves it the other way. */
+        @JvmStatic
+        fun fallingKinds(): List<ProcessFixture> = processKinds().filter { it.name == "light" || it.name == "cook" }
 
         @JvmStatic
         fun gatherKinds(): List<GatherFixture> = game.idle.flow.gatherKinds()
+
+        @JvmStatic
+        fun processKinds(): List<ProcessFixture> = game.idle.flow.processKinds()
     }
 }

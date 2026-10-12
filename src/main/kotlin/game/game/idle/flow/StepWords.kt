@@ -22,7 +22,6 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
             is Reason.NeedsTool -> needs(reason.tool)
             is Reason.NeedsLevel -> "Needs ${Skill.getName(reason.skill)} ${reason.level}"
             is Reason.NoneInReach -> noneInReach(reason.target)
-            is Reason.NothingToUse -> nothingToUse(reason.supply)
             Reason.CannotMake -> "Cannot make it yet"
             Reason.WrongWindow -> "Another make window is open"
             is Reason.OtherFloor -> otherFloor(reason.place)
@@ -85,16 +84,6 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
             Target.NPC -> "Nothing to fight in reach"
             Target.BANK_BOOTH -> "No bank booth on this floor"
             Target.FREE_TILE -> "No free tile for a fire"
-        }
-
-    /** A bar takes every ore of its kind, an item several bars, a recipe each ingredient: "not enough" where "none" would mislead. */
-    private fun nothingToUse(supply: Supply): String =
-        when (supply) {
-            Supply.LOGS -> "No logs in the bag"
-            Supply.RAW_FOOD -> "No raw food in the bag"
-            Supply.INGREDIENTS -> "An ingredient is missing"
-            Supply.ORE -> "Not enough ore in the bag"
-            Supply.BARS -> "Not enough bars in the bag"
         }
 
     private fun otherFloor(place: Place): String =

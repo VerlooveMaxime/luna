@@ -1,14 +1,16 @@
 package game.idle.autopilot.firemaking
 
+import game.idle.autopilot.LunaCarried
 import game.idle.autopilot.RefusingController
+import game.idle.flow.Preconditions
+import game.idle.flow.Reason
 import game.testworld.TestWorld
 import io.luna.game.event.impl.UseItemEvent.ItemOnItemEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
-import io.luna.game.model.`object`.ObjectDirection
-import io.luna.game.model.`object`.ObjectType
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.Skill
 import io.luna.game.model.mob.overlay.StandardInterface
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -57,30 +59,48 @@ class LunaLighterTest {
     }
 
     @Test
-    fun `the view counts the step's logs and finds one the player can light`() {
+    fun `the view finds a log of the step the player can light, past those above the level`() {
         val player = login()
         player.inventory.add(Item(tinderbox))
         player.inventory.add(Item(oakLogs))
         player.inventory.add(Item(logs, 2))
 
-        assertEquals(LightView(hasTinderbox = true, logs = 3, lightable = 2, level = 1, tileFree = true), lighter(player).look())
+        assertEquals(LightView(lightable = 2, tileFree = true), lighter(player).look())
     }
 
     @Test
-    fun `the view's level is the one the easiest of the step's logs held needs`() {
+    fun `the logs counted are the step's kinds only`() {
         val player = login()
         player.inventory.add(Item(oakLogs))
+        player.inventory.add(Item(logs, 2))
         player.inventory.add(Item(willowLogs))
 
-        assertEquals(15, lighter(player, logIds = setOf(oakLogs, willowLogs)).look().level)
+        assertEquals(3, lighter(player).logs())
+    }
+
+    /** What the step needs and what the lighter picks to light, read from the same bag. */
+    private fun neededAndLit(player: Player): Pair<Reason?, Int?> {
+        val step = LightStep(setOf(logs, willowLogs))
+        return Preconditions.check(step.needs(), LunaCarried(player)) to LunaLighter(player, step.logIds, player.position).look().lightable
     }
 
     @Test
-    fun `with none of the step's logs held the view's level is one`() {
+    fun `willow logs alone above the player's level block on the level and are not lit`() {
         val player = login()
+        player.inventory.add(Item(tinderbox))
+        player.inventory.add(Item(willowLogs))
+
+        assertEquals(Reason.NeedsLevel(Skill.FIREMAKING, 30) to null, neededAndLit(player))
+    }
+
+    @Test
+    fun `with normal logs beside the willow the step can work and lights the normal logs`() {
+        val player = login()
+        player.inventory.add(Item(tinderbox))
+        player.inventory.add(Item(willowLogs))
         player.inventory.add(Item(logs))
 
-        assertEquals(1, lighter(player, logIds = setOf(oakLogs)).look().level)
+        assertEquals(null to 2, neededAndLit(player))
     }
 
     @Test
@@ -96,7 +116,7 @@ class LunaLighterTest {
         val player = login()
         player.inventory.add(Item(oakLogs))
 
-        assertEquals(LightView(hasTinderbox = false, logs = 1, lightable = null, level = 15, tileFree = true), lighter(player).look())
+        assertNull(lighter(player).look().lightable)
     }
 
     @Test

@@ -25,10 +25,7 @@ class LunaLighter(private val player: Player, private val logIds: Set<Int>, priv
 
     override fun look(): LightView =
         LightView(
-            hasTinderbox = player.inventory.contains(Firemaking.TINDERBOX),
-            logs = logIds.sumOf { player.inventory.computeAmountForId(it) },
             lightable = (0 until player.inventory.capacity()).firstOrNull { lightable(player.inventory[it]?.id) },
-            level = LOGS.values.filter { it.id in logIds && player.inventory.contains(it.id) }.map { it.level }.minOrNull() ?: 1,
             tileFree = free(player.position),
         )
 
@@ -55,6 +52,8 @@ class LunaLighter(private val player: Player, private val logIds: Set<Int>, priv
         player.navigator.navigate(target, true)
         return true
     }
+
+    override fun logs(): Int = logIds.sumOf { player.inventory.computeAmountForId(it) }
 
     private fun lightable(id: Int?): Boolean {
         val log = LOGS[id] ?: return false

@@ -1,5 +1,7 @@
 package game.idle.autopilot
 
+import game.idle.flow.Aim
+import game.idle.location.Tile
 import game.idle.movement.Reach
 import io.luna.game.model.Position
 import io.luna.game.model.`object`.GameObject
@@ -15,6 +17,8 @@ data class PlaceCandidate(
     val usableFromHere: Boolean,
     val approach: Position,
 ) {
+    val aim: Aim get() = Aim(objectId, Tile.of(position))
+
     companion object {
         /** [place] as the reach scan found it. */
         fun of(place: GameObject, reach: Reach) =

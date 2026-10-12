@@ -1,9 +1,9 @@
 package game.idle.autopilot.smithing
 
-import api.predef.smithing
 import game.idle.autopilot.LunaClicks
 import game.idle.autopilot.PlaceCandidate
 import game.idle.location.Area
+import game.idle.location.Tile
 import game.idle.movement.ReachScan
 import game.idle.movement.ReachTerrain
 import game.idle.movement.footprintOf
@@ -46,8 +46,6 @@ class LunaSmither(
     override fun look(): SmithingView =
         SmithingView(
             barSlot = barSlot(),
-            hasHammer = player.inventory.computeAmountForId(Smithing.HAMMER) > 0,
-            smithingLevel = player.smithing.level,
             windowOpen = smithingWindowOpen(),
             atLocation = scan.atLocation(player.position),
             anvils = scan.reachable(player.position, anvils(), ::footprintOf, terrain = this)
@@ -71,20 +69,16 @@ class LunaSmither(
         }
     }
 
-    override fun walkTo(anvil: PlaceCandidate) = walkTo(anvil.approach)
-
-    override fun walkToLocation() = walkTo(anchor)
-
-    private fun walkTo(tile: Position) {
+    override fun walkTo(anvil: PlaceCandidate) {
         player.overlays.closeWindows(false)
-        player.navigator.navigate(tile, true)
+        player.navigator.navigate(anvil.approach, true)
     }
+
+    override fun anchor(): Tile = area.anchor
 
     override fun made(): Int = player.inventory.computeAmountForId(itemId)
 
-    override fun stop() {
-        player.actions.interruptWeak()
-    }
+    override fun interrupt() = LunaClicks.interrupt(player)
 
     /** The slot of the bar while there are enough for one item. */
     private fun barSlot(): Int? =

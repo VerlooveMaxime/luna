@@ -1,11 +1,11 @@
 package game.idle.autopilot.smelting
 
+import game.idle.flow.Counts
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
-import game.idle.flow.LegacyKind
-import game.idle.flow.LegacyActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -15,8 +15,10 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepSpot
 import game.idle.flow.StepType
+import game.idle.flow.StepWork
 import game.idle.flow.Uses
 import game.idle.flow.WorkSpot
+import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
@@ -68,7 +70,7 @@ class SmeltStepType(private val names: GameNames) : StepType {
     override fun summary(settings: StepSettings): String =
         "smelt ${StepAmount.prefix(settings)}${settings[BAR] ?: "?"}${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
 
-    override fun resolve(settings: StepSettings, context: FlowContext): LegacyKind {
+    override fun resolve(settings: StepSettings, context: FlowContext): Works {
         val name = settings[BAR] ?: throw FlowError("smelt needs a bar")
         val bar = bar(settings) ?: throw FlowError("'$name' is not a bar to smelt")
         ProcessInput.requireGathered(input(settings, context), context, ores(bar).map { it.id }, names)
@@ -91,15 +93,23 @@ class SmeltStepType(private val names: GameNames) : StepType {
 }
 
 /** A smelt step resolved: the bar, where, and how many ([amount], null for all). Later steps know it makes that bar. */
-data class SmeltStep(val bar: BarType, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : LegacyKind, OwnSpot {
+data class SmeltStep(
+    val bar: BarType,
+    val radius: Int,
+    val workSpot: WorkSpot,
+    override val amount: Int? = null,
+) : Works, OwnSpot, Counts {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
     override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + bar.id))
 
-    override fun needs(): List<StepNeeds> =
-        listOf(StepNeeds(inputs = listOfNotNull(bar.oreRequired.first, bar.oreRequired.second).map { it.id }))
+    /** The bar's ores and its Smithing level; no tool. */
+    override fun needs(): List<StepNeeds> {
+        val ores = listOfNotNull(bar.oreRequired.first, bar.oreRequired.second).map { it.id }
+        return listOf(StepNeeds(inputs = ores, level = LevelNeed(Skill.SMITHING, bar.level)))
+    }
 
-    override fun activity(player: Player, runTile: Tile): LegacyActivity =
-        SmeltingActivity(LunaSmelter(player, bar, Area(workSpot.tile(runTile), radius)), bar, amount)
+    override fun work(player: Player, runTile: Tile): StepWork =
+        SmeltingWork(LunaSmelter(player, bar, Area(workSpot.tile(runTile), radius)))
 }

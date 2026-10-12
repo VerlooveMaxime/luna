@@ -1,11 +1,11 @@
 package game.idle.autopilot.firemaking
 
+import game.idle.flow.Counts
 import game.idle.flow.FlowContext
+import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
 import game.idle.flow.ProcessKinds
-import game.idle.flow.LegacyKind
-import game.idle.flow.LegacyActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -15,11 +15,15 @@ import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.StepSpot
 import game.idle.flow.StepType
+import game.idle.flow.StepWork
+import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
+import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.skill.firemaking.Firemaking
 import game.skill.firemaking.Log
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
@@ -69,11 +73,14 @@ class LightStepType(private val names: GameNames) : StepType {
         "light ${StepAmount.prefix(settings)}${logs.ids(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd() +
             StepSpot.suffix(settings)
 
-    override fun resolve(settings: StepSettings, context: FlowContext): LegacyKind =
+    override fun resolve(settings: StepSettings, context: FlowContext): Works =
         LightStep(logs.resolve(settings, context, input(settings, context)), StepAmount.read(settings), StepSpot.read(settings))
 
     companion object {
         const val LOGS = "logs"
+
+        /** The tinderbox, which Luna's firemaking takes from the bag only. */
+        val TINDERBOX = ToolNeed(word = null, mapOf(Firemaking.TINDERBOX to 1))
     }
 }
 
@@ -82,16 +89,19 @@ class LightStepType(private val names: GameNames) : StepType {
  * fires starting there, or null to light where it stands, not at the flow's spot (Maxime, 2026-10-10). A picked tile is
  * where the flow went for the steps after it.
  */
-data class LightStep(val logIds: Set<Int>, val amount: Int? = null, val spot: Tile? = null) : LegacyKind, OwnSpot {
+data class LightStep(val logIds: Set<Int>, override val amount: Int? = null, val spot: Tile? = null) : Works, OwnSpot, Counts {
 
     /** Light has no Within: the player walks to the tile unless standing on it. */
     override val ownArea: Area? get() = spot?.let { Area(it, radius = 0) }
 
     override fun after(context: FlowContext): FlowContext = spot?.let { WorkSpot.Own(it).after(context) } ?: context
 
+    /** A tinderbox and, for each kind of log, the Firemaking level it takes, the easiest first: a block names that one. */
     override fun needs(): List<StepNeeds> =
-        listOf(StepNeeds(tools = listOf(LightPlanner.TINDERBOX), inputs = logIds.toList()))
+        logIds.map { Log.ID_TO_LOG.getValue(it) }.sortedBy { it.level }.map { log ->
+            StepNeeds(tools = listOf(LightStepType.TINDERBOX), inputs = listOf(log.id), level = LevelNeed(Skill.FIREMAKING, log.level))
+        }
 
-    override fun activity(player: Player, runTile: Tile): LegacyActivity =
-        LightActivity(LunaLighter(player, logIds, spot?.toPosition() ?: player.position), amount)
+    override fun work(player: Player, runTile: Tile): StepWork =
+        LightWork(LunaLighter(player, logIds, spot?.toPosition() ?: player.position))
 }

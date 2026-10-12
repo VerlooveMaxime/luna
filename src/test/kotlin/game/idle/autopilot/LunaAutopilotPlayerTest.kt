@@ -6,15 +6,15 @@ import game.idle.autopilot.bank.BankActivity
 import game.idle.autopilot.bank.BankStep
 import game.idle.autopilot.bank.EVERYTHING
 import game.idle.autopilot.cooking.CookStep
-import game.idle.autopilot.cooking.CookingActivity
+import game.idle.autopilot.cooking.CookingWork
 import game.idle.autopilot.drop.DropStep
 import game.idle.autopilot.drop.DropWork
-import game.idle.autopilot.firemaking.LightActivity
+import game.idle.autopilot.firemaking.LightWork
 import game.idle.autopilot.firemaking.LightStep
 import game.idle.autopilot.fishing.FishStep
 import game.idle.autopilot.fishing.FishingWork
 import game.idle.autopilot.fishing.FishingMethod
-import game.idle.autopilot.making.MakeActivity
+import game.idle.autopilot.making.MakeWork
 import game.idle.autopilot.making.MakeStep
 import game.idle.autopilot.making.BREAD_DOUGH
 import game.idle.autopilot.mining.MineStep
@@ -22,9 +22,9 @@ import game.idle.autopilot.mining.MiningWork
 import game.idle.autopilot.rest.RestStep
 import game.idle.autopilot.rest.RestWork
 import game.idle.autopilot.smelting.SmeltStep
-import game.idle.autopilot.smelting.SmeltingActivity
+import game.idle.autopilot.smelting.SmeltingWork
 import game.idle.autopilot.smithing.SmithStep
-import game.idle.autopilot.smithing.SmithingActivity
+import game.idle.autopilot.smithing.SmithingWork
 import game.idle.autopilot.walk.WalkStep
 import game.idle.autopilot.walk.WalkWork
 import game.idle.autopilot.woodcutting.ChopStep
@@ -298,8 +298,8 @@ class LunaAutopilotPlayerTest {
     }
 
     @Test
-    fun `a light step runs as a light activity`() {
-        assertInstanceOf(LightActivity::class.java, legacyOf(LightStep(setOf(logs))))
+    fun `a light step runs its light work in a turn`() {
+        assertInstanceOf(LightWork::class.java, workOf(LightStep(setOf(logs))))
     }
 
     @Test
@@ -308,8 +308,8 @@ class LunaAutopilotPlayerTest {
     }
 
     @Test
-    fun `a cook step runs as a cooking activity`() {
-        assertInstanceOf(CookingActivity::class.java, legacyOf(CookStep(setOf(317), 10, WorkSpot.RunTile)))
+    fun `a cook step runs its cook work in a turn`() {
+        assertInstanceOf(CookingWork::class.java, workOf(CookStep(setOf(317), 10, WorkSpot.RunTile)))
     }
 
     @Test
@@ -318,20 +318,20 @@ class LunaAutopilotPlayerTest {
     }
 
     @Test
-    fun `a smelt step runs as a smelting activity`() {
-        assertInstanceOf(SmeltingActivity::class.java, legacyOf(SmeltStep(BarType.BRONZE, 10, WorkSpot.RunTile)))
+    fun `a smelt step runs its smelt work in a turn`() {
+        assertInstanceOf(SmeltingWork::class.java, workOf(SmeltStep(BarType.BRONZE, 10, WorkSpot.RunTile)))
     }
 
     @Test
-    fun `a smith step runs as a smithing activity`() {
+    fun `a smith step runs its smith work in a turn`() {
         val step = SmithStep(BarType.BRONZE, SmithingTable.DAGGER, 10, WorkSpot.RunTile)
 
-        assertInstanceOf(SmithingActivity::class.java, legacyOf(step))
+        assertInstanceOf(SmithingWork::class.java, workOf(step))
     }
 
     @Test
-    fun `a make step runs as a make activity`() {
-        assertInstanceOf(MakeActivity::class.java, legacyOf(MakeStep(BREAD_DOUGH)))
+    fun `a make step runs its make work in a turn`() {
+        assertInstanceOf(MakeWork::class.java, workOf(MakeStep(BREAD_DOUGH)))
     }
 
     @Test

@@ -1,10 +1,10 @@
 package game.idle.autopilot.making
 
+import game.idle.flow.Counts
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.ProcessInput
-import game.idle.flow.LegacyKind
-import game.idle.flow.LegacyActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -12,8 +12,10 @@ import game.idle.flow.StepInput
 import game.idle.flow.StepNeeds
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
+import game.idle.flow.StepWork
 import game.idle.flow.ToolNeed
 import game.idle.flow.Uses
+import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
@@ -66,7 +68,7 @@ class MakeStepType(private val catalog: RecipeCatalog, private val names: GameNa
         )
     }
 
-    override fun resolve(settings: StepSettings, context: FlowContext): LegacyKind {
+    override fun resolve(settings: StepSettings, context: FlowContext): Works {
         val name = settings[PRODUCT]?.lowercase() ?: throw FlowError("make needs a product")
         val recipe = catalog.find(name) ?: throw FlowError("Nothing called '$name' can be made.")
         // One way taking only what the steps before get is enough; else the first way names what is missing.
@@ -89,14 +91,20 @@ class MakeStepType(private val catalog: RecipeCatalog, private val names: GameNa
 }
 
 /** A make step resolved: the recipe and how many to make ([amount], null for as many as possible). */
-data class MakeStep(val recipe: Recipe, val amount: Int? = null) : LegacyKind {
+data class MakeStep(val recipe: Recipe, override val amount: Int? = null) : Works, Counts {
 
     /** Later steps can cook, drop or bank what was made. */
     override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + recipe.made)
 
-    /** One entry per way to make the recipe: its tools and what it uses up. */
+    /** One entry per way to make the recipe: its tools, what it uses up and the recipe's level. */
     override fun needs(): List<StepNeeds> =
-        recipe.ways.map { way -> StepNeeds(way.tools.map { ToolNeed(word = null, mapOf(it to 1)) }, way.inputs.keys.toList()) }
+        recipe.ways.map { way ->
+            StepNeeds(
+                tools = way.tools.map { ToolNeed(word = null, mapOf(it to 1)) },
+                inputs = way.inputs.keys.toList(),
+                level = LevelNeed(recipe.skill, recipe.level),
+            )
+        }
 
-    override fun activity(player: Player, runTile: Tile): LegacyActivity = MakeActivity(LunaMaker(player, recipe), amount)
+    override fun work(player: Player, runTile: Tile): StepWork = MakeWork(LunaMaker(player, recipe))
 }

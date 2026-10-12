@@ -2,6 +2,7 @@ package game.idle.autopilot.smithing
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepNeeds
@@ -174,10 +175,10 @@ class SmithStepTypeTest {
     }
 
     @Test
-    fun `a smith step needs a hammer and the bar`() {
+    fun `a smith step needs a hammer, the bar and the item's Smithing level`() {
         assertEquals(
-            listOf(StepNeeds(tools = listOf(SmithingPlanner.HAMMER), inputs = listOf(2349))),
-            SmithStep(BarType.BRONZE, SmithingTable.DAGGER, 10, walkedTo).needs(),
+            listOf(StepNeeds(tools = listOf(SmithStepType.HAMMER), inputs = listOf(2351), level = LevelNeed(Skill.SMITHING, 15))),
+            SmithStep(BarType.IRON, SmithingTable.DAGGER, 10, walkedTo).needs(),
         )
     }
 

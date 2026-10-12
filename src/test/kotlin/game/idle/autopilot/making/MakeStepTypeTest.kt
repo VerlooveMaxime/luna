@@ -2,6 +2,7 @@ package game.idle.autopilot.making
 
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LevelNeed
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepNeeds
@@ -168,11 +169,15 @@ class MakeStepTypeTest {
     private fun uses(settings: StepSettings): String = (make.fields(names)[2] as StepField.Note).text(settings, FlowContext())
 
     @Test
-    fun `a make step needs each way's tools and items, one entry a way`() {
-        val tooled = twoWays.copy(ways = listOf(twoWays.ways.first().copy(tools = setOf(946)), twoWays.ways.last()))
+    fun `a make step needs each way's tools and items at the recipe's level, one entry a way`() {
+        val tooled = twoWays.copy(level = 5, ways = listOf(twoWays.ways.first().copy(tools = setOf(946)), twoWays.ways.last()))
+        val level = LevelNeed(Skill.COOKING, 5)
 
         assertEquals(
-            listOf(StepNeeds(listOf(ToolNeed(word = null, mapOf(946 to 1))), listOf(flour, water)), StepNeeds(emptyList(), listOf(flour, jug))),
+            listOf(
+                StepNeeds(listOf(ToolNeed(word = null, mapOf(946 to 1))), listOf(flour, water), level),
+                StepNeeds(emptyList(), listOf(flour, jug), level),
+            ),
             MakeStep(tooled).needs(),
         )
     }

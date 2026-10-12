@@ -1,10 +1,11 @@
 package game.idle.autopilot.smithing
 
 import game.idle.autopilot.PlaceCandidate
+import game.idle.location.Tile
 import io.luna.game.model.Position
 
-/** Records each step as readable text, for example `choose 10`. */
-class FakeSmither(var view: SmithingView) : Smither {
+/** Records each step as readable text, for example `choose 10`; [anchor] is the step's area anchor. */
+class FakeSmither(var view: SmithingView, private val anchor: Tile = Tile(3200, 3200)) : Smither {
 
     var busy = false
     var made = 0
@@ -26,14 +27,12 @@ class FakeSmither(var view: SmithingView) : Smither {
         steps += "walk to ${anvil.position.x},${anvil.position.y}"
     }
 
-    override fun walkToLocation() {
-        steps += "walk to location"
-    }
+    override fun anchor(): Tile = anchor
 
     override fun made(): Int = made
 
-    override fun stop() {
-        steps += "stop"
+    override fun interrupt() {
+        steps += "interrupt"
     }
 }
 
@@ -43,8 +42,6 @@ fun anvil(x: Int, y: Int, distance: Int, usableFromHere: Boolean = false) =
 fun smithingView(
     anvils: List<PlaceCandidate>,
     barSlot: Int? = 0,
-    hasHammer: Boolean = true,
-    smithingLevel: Int = 1,
     windowOpen: Boolean = false,
     atLocation: Boolean = true,
-) = SmithingView(barSlot, hasHammer, smithingLevel, windowOpen, atLocation, anvils)
+) = SmithingView(barSlot, windowOpen, atLocation, anvils)

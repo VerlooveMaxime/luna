@@ -1,11 +1,11 @@
 package game.idle.autopilot.cooking
 
+import game.idle.flow.Counts
 import game.idle.flow.FlowContext
+import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
 import game.idle.flow.ProcessKinds
-import game.idle.flow.LegacyKind
-import game.idle.flow.LegacyActivity
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -16,7 +16,9 @@ import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
 import game.idle.flow.StepSpot
 import game.idle.flow.StepType
+import game.idle.flow.StepWork
 import game.idle.flow.WorkSpot
+import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.location.Area
@@ -71,7 +73,7 @@ class CookStepType(private val names: GameNames) : StepType {
         "cook ${StepAmount.prefix(settings)}${food.ids(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd() +
             StepRadius.suffix(settings) + StepSpot.suffix(settings)
 
-    override fun resolve(settings: StepSettings, context: FlowContext): LegacyKind =
+    override fun resolve(settings: StepSettings, context: FlowContext): Works =
         CookStep(food.resolve(settings, context, input(settings, context)), StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
 
     companion object {
@@ -83,7 +85,12 @@ class CookStepType(private val names: GameNames) : StepType {
  * A cook step resolved: the raw food it cooks, where, and how much ([amount], null for all). Later steps know it makes
  * the cooked food and the burnt (S07b: the bank's Gathered banks them, a drop step drops them).
  */
-data class CookStep(val rawIds: Set<Int>, val radius: Int, val workSpot: WorkSpot, val amount: Int? = null) : LegacyKind, OwnSpot {
+data class CookStep(
+    val rawIds: Set<Int>,
+    val radius: Int,
+    val workSpot: WorkSpot,
+    override val amount: Int? = null,
+) : Works, OwnSpot, Counts {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
@@ -92,8 +99,12 @@ data class CookStep(val rawIds: Set<Int>, val radius: Int, val workSpot: WorkSpo
         return workSpot.after(context.copy(gathered = context.gathered + made))
     }
 
-    override fun needs(): List<StepNeeds> = listOf(StepNeeds(inputs = rawIds.toList()))
+    /** For each kind of raw food, the Cooking level it takes, the easiest first: a block names that one. */
+    override fun needs(): List<StepNeeds> =
+        rawIds.map { Food.RAW_TO_FOOD.getValue(it) }.sortedBy { it.lvl }.map { food ->
+            StepNeeds(inputs = listOf(food.raw), level = LevelNeed(Skill.COOKING, food.lvl))
+        }
 
-    override fun activity(player: Player, runTile: Tile): LegacyActivity =
-        CookingActivity(LunaCooker(player, rawIds, Area(workSpot.tile(runTile), radius)), amount)
+    override fun work(player: Player, runTile: Tile): StepWork =
+        CookingWork(LunaCooker(player, rawIds, Area(workSpot.tile(runTile), radius)))
 }

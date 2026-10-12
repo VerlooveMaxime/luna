@@ -54,9 +54,7 @@ class LunaMaker(private val player: Player, private val recipe: Recipe) : Maker 
 
     override fun products(): Int = recipe.made.sumOf { player.inventory.computeAmountForId(it) }
 
-    override fun stop() {
-        player.actions.interruptWeak()
-    }
+    override fun interrupt() = LunaClicks.interrupt(player)
 
     /** Whether the player carries everything [way] takes. */
     private fun carried(way: RecipeWay): Boolean =

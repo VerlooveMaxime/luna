@@ -1,9 +1,12 @@
 package game.idle.autopilot.smithing
 
 import game.idle.autopilot.EndlessAction
+import game.idle.autopilot.LunaCarried
 import game.idle.autopilot.LunaClicks
 import game.idle.autopilot.PlaceCandidate
 import game.idle.autopilot.RefusingController
+import game.idle.flow.Preconditions
+import game.idle.flow.WorkSpot
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.smithing.BarType
@@ -19,12 +22,12 @@ import io.luna.game.model.Direction
 import io.luna.game.model.Position
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.Skill
 import io.luna.game.model.mob.overlay.OverlayType
 import io.luna.game.model.mob.overlay.StandardInterface
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -100,31 +103,21 @@ class LunaSmitherTest {
     }
 
     @Test
-    fun `with fewer bars than the item takes there is no bar to use`() {
+    fun `fewer bars than the item takes are nothing to do, neither a lack nor a bar to use`() {
         val player = login()
-        player.inventory.add(Item(bronzeBar, 4))
-
-        assertNull(smither(player, SmithingTable.PLATEBODY).look().barSlot)
-    }
-
-    @Test
-    fun `a hammer in the inventory shows in the view`() {
-        val player = login()
+        player.skill(Skill.SMITHING).level = 18
         player.inventory.add(Item(hammer))
+        player.inventory.add(Item(bronzeBar, 4))
+        val step = SmithStep(BarType.BRONZE, SmithingTable.PLATEBODY, 10, WorkSpot.At(area.anchor))
 
-        assertTrue(smither(player).look().hasHammer)
+        val needed = Preconditions.check(step.needs(), LunaCarried(player))
+
+        assertEquals(null to null, needed to smither(player, SmithingTable.PLATEBODY).look().barSlot)
     }
 
     @Test
-    fun `without a hammer the view has none`() {
-        assertFalse(smither(login()).look().hasHammer)
-    }
-
-    @Test
-    fun `the view carries the smithing level and whether the player is at the work spot`() {
-        val view = smither(login(Position(3220, 3200))).look()
-
-        assertEquals(listOf(1, false), listOf(view.smithingLevel, view.atLocation))
+    fun `a player outside the work area is not at the location`() {
+        assertFalse(smither(login(Position(3220, 3200))).look().atLocation)
     }
 
     @Test
@@ -261,12 +254,8 @@ class LunaSmitherTest {
     }
 
     @Test
-    fun `walking back heads for the work spot`() {
-        val player = login(Position(3220, 3200))
-
-        smither(player).walkToLocation()
-
-        assertEquals(anchor, player.navigator.currentTarget)
+    fun `a walk back goes to the area's anchor`() {
+        assertEquals(Tile(3200, 3200), smither(login(Position(3220, 3200))).anchor())
     }
 
     @Test
@@ -289,12 +278,12 @@ class LunaSmitherTest {
     }
 
     @Test
-    fun `stopping ends the smithing in progress`() {
+    fun `interrupting breaks off the smithing in progress`() {
         val player = login()
         player.submitAction(EndlessAction(player))
         TestWorld.tick()
 
-        smither(player).stop()
+        smither(player).interrupt()
         TestWorld.tick()
 
         assertFalse(LunaClicks.isActing(player))

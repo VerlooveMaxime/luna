@@ -21,7 +21,7 @@ class FakeMaker(var view: MakeView) : Maker {
 
     override fun products(): Int = products
 
-    override fun stop() {
-        steps += "stop"
+    override fun interrupt() {
+        steps += "interrupt"
     }
 }

@@ -1,10 +1,10 @@
 package game.idle.flow
 
-import game.idle.autopilot.firemaking.LightPlanner
+import game.idle.autopilot.firemaking.LightStepType
 import game.idle.autopilot.fishing.FishingMethod
 import game.idle.autopilot.making.LunaRecipes
 import game.idle.autopilot.mining.MineStepType
-import game.idle.autopilot.smithing.SmithingPlanner
+import game.idle.autopilot.smithing.SmithStepType
 import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.flow.option.LunaGameNames
 import game.idle.ui.BuilderWidgets
@@ -61,7 +61,6 @@ class StepWordsFitTest {
         tools().map { Reason.NeedsTool(it) } +
             Skill.NAMES.indices.map { Reason.NeedsLevel(it, 99) } +
             Target.entries.map { Reason.NoneInReach(it) } +
-            Supply.entries.map { Reason.NothingToUse(it) } +
             listOf(Reason.CannotMake, Reason.WrongWindow) +
             Place.entries.flatMap { listOf(Reason.OtherFloor(it), Reason.NoWay(it)) } +
             listOf(Reason.BagFull(emptyList()), Reason.NoneLeftInBank(longestNamedItem()), Reason.BankFull)
@@ -79,11 +78,11 @@ class StepWordsFitTest {
             )
     }
 
-    /** The tools and bait the kinds block on, the same values their planners and `needs()` use. */
+    /** The tools and bait the kinds block on, the values their `needs()` use. */
     private fun tools(): List<ToolNeed> {
         val fishing = FishingMethod.ALL.flatMap { listOfNotNull(it.toolNeed, it.baitNeed) }
         val recipeTools = LunaRecipes(LunaGameNames).catalog().recipes.flatMap { recipe -> recipe.ways.flatMap { it.tools } }
-        return listOf(ChopStepType.AXE, MineStepType.PICKAXE, LightPlanner.TINDERBOX, SmithingPlanner.HAMMER) + fishing +
+        return listOf(ChopStepType.AXE, MineStepType.PICKAXE, LightStepType.TINDERBOX, SmithStepType.HAMMER) + fishing +
             recipeTools.distinct().map { ToolNeed(word = null, mapOf(it to 1)) }
     }
 

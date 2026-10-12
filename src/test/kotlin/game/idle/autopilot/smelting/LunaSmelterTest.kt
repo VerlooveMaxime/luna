@@ -1,8 +1,11 @@
 package game.idle.autopilot.smelting
 
 import game.idle.autopilot.EndlessAction
+import game.idle.autopilot.LunaCarried
 import game.idle.autopilot.LunaClicks
 import game.idle.autopilot.PlaceCandidate
+import game.idle.flow.Preconditions
+import game.idle.flow.WorkSpot
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.smithing.BarType
@@ -98,10 +101,19 @@ class LunaSmelterTest {
     }
 
     @Test
-    fun `the view carries the smithing level and whether the player is at the work spot`() {
-        val view = smelter(login(Position(3220, 3200))).look()
+    fun `steel with iron ore and no coal is nothing to do, neither a lack nor an ore to use`() {
+        val player = login()
+        player.inventory.add(Item(ironOre))
+        val step = SmeltStep(BarType.STEEL, 10, WorkSpot.At(area.anchor))
 
-        assertEquals(listOf(1, false), listOf(view.smithingLevel, view.atLocation))
+        val needed = Preconditions.check(step.needs(), LunaCarried(player))
+
+        assertEquals(null to null, needed to smelter(player, BarType.STEEL).look().oreSlot)
+    }
+
+    @Test
+    fun `a player outside the work area is not at the location`() {
+        assertFalse(smelter(login(Position(3220, 3200))).look().atLocation)
     }
 
     @Test
@@ -220,12 +232,8 @@ class LunaSmelterTest {
     }
 
     @Test
-    fun `walking back heads for the work spot`() {
-        val player = login(Position(3220, 3200))
-
-        smelter(player).walkToLocation()
-
-        assertEquals(anchor, player.navigator.currentTarget)
+    fun `a walk back goes to the area's anchor`() {
+        assertEquals(Tile(3200, 3200), smelter(login(Position(3220, 3200))).anchor())
     }
 
     @Test
@@ -238,12 +246,12 @@ class LunaSmelterTest {
     }
 
     @Test
-    fun `stopping ends the smelting in progress`() {
+    fun `interrupting breaks off the smelting in progress`() {
         val player = login()
         player.submitAction(EndlessAction(player))
         TestWorld.tick()
 
-        smelter(player).stop()
+        smelter(player).interrupt()
         TestWorld.tick()
 
         assertFalse(LunaClicks.isActing(player))
