@@ -253,6 +253,13 @@ class BankStepTypeTest {
     }
 
     @Test
+    fun `a resolved bank step does not bank what it withdraws`() {
+        val step = BankStep(listOf(draynor), gathered.copy(deposit = DepositRule.Everything, withdrawals = listOf(StepItem(oak))))
+
+        assertEquals(listOf(false, true), listOf(step.banks(oak), step.banks(logs)))
+    }
+
+    @Test
     fun `everything takes any item`() {
         assertTrue(DepositRule.Everything.takes(oak))
     }

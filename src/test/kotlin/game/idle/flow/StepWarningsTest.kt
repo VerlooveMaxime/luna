@@ -4,6 +4,8 @@ import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionFacts
+import game.idle.location.Tile
+import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -26,22 +28,31 @@ class StepWarningsTest {
         override fun banks(id: Int): Boolean = id in banked
 
         override fun empties(id: Int): Boolean = banks(id)
+
+        override fun work(player: Player, runTile: Tile): StepWork = FakeStepWork(StepOutcome.Finished)
     }
 
     /** A step that fills the bag with logs, needing nothing. */
     private data object FakeGather : ResolvedStep, FillsBag {
 
         override val fills: Set<Int> = setOf(1511)
+
+        override fun work(player: Player, runTile: Tile): StepWork = FakeStepWork(StepOutcome.Finished)
     }
 
     /** A step that drops [dropped]. */
     private data class FakeDrop(val dropped: Set<Int>) : ResolvedStep, EmptiesBag {
 
         override fun empties(id: Int): Boolean = id in dropped
+
+        override fun work(player: Player, runTile: Tile): StepWork = FakeStepWork(StepOutcome.Finished)
     }
 
     /** A step that fights, needing nothing in the bag. */
-    private data object FakeFight : ResolvedStep, Fights
+    private data object FakeFight : ResolvedStep, Fights {
+
+        override fun work(player: Player, runTile: Tile): StepWork = FakeStepWork(StepOutcome.Finished)
+    }
 
     private val axe = ToolNeed("axe", mapOf(bronzeAxe to 1, runeAxe to 41), Skill.WOODCUTTING, worn = true)
 

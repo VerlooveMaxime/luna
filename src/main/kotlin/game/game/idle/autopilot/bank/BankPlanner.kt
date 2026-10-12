@@ -1,14 +1,13 @@
 package game.idle.autopilot.bank
 
-import game.idle.autopilot.bank.BankDecision.Blocked
 import game.idle.autopilot.bank.BankDecision.Close
 import game.idle.autopilot.bank.BankDecision.Deposit
-import game.idle.autopilot.bank.BankDecision.Done
 import game.idle.autopilot.bank.BankDecision.Open
-import game.idle.autopilot.bank.BankDecision.Stuck
+import game.idle.autopilot.bank.BankDecision.Settled
 import game.idle.autopilot.bank.BankDecision.WalkToBooth
 import game.idle.autopilot.bank.BankDecision.Withdraw
 import game.idle.flow.Reason
+import game.idle.flow.StepOutcome
 import game.idle.flow.Target
 
 /** An item in a bag slot: its [id] and how many the slot holds. */
@@ -57,23 +56,21 @@ sealed interface BankDecision {
 
     data object Close : BankDecision
 
-    data object Done : BankDecision
-
-    data class Stuck(val reason: Reason.Stuck) : BankDecision
-
-    data class Blocked(val reason: Reason) : BankDecision
+    /** A decision that is one of the outcomes every kind shares: nothing (more) to do, stuck, no booth to use. */
+    data class Settled(val outcome: StepOutcome) : BankDecision
 }
 
 /**
  * Works out a bank step from what the bag and the bank hold, before walking (Maxime, 2026-10-10): nothing to do ends it
  * at once, something to do that nothing can answer is stuck, else walk, open, deposit, withdraw, close. A withdrawal
  * fills the bag up to its amount, or with as many as fit; what the bank refused or did not hand out is not tried again.
+ * Stuck, the step skips its turn or stops the flow as its If stuck says (Maxime, S01).
  */
 object BankPlanner {
 
     /** [stacks] says whether an item id stacks in one slot. */
     fun plan(view: BankView, order: BankOrder, tries: BankTries, stacks: (Int) -> Boolean): BankPlan {
-        val depositing = view.bag.withIndex().mapNotNull { (slot, held) -> held?.takeIf { order.deposit.takes(it.id) }?.let { slot to it.id } }
+        val depositing = view.bag.withIndex().mapNotNull { (slot, held) -> held?.takeIf { order.banks(it.id) }?.let { slot to it.id } }
         val deposits = depositing.filter { (_, id) -> id !in tries.refused }.map { (slot, _) -> slot }
         val leaving = depositing.map { (slot, _) -> slot }.toSet()
         val kept = view.bag.filterIndexed { slot, _ -> slot !in leaving }.filterNotNull()
@@ -108,15 +105,16 @@ object BankPlanner {
         return BankPlan(deposits, takes, stuck)
     }
 
-    fun decide(view: BankView, plan: BankPlan, moved: Boolean): BankDecision =
+    /** [moved] says whether anything moved at the booth already: stuck after that, the step took what it could. */
+    fun decide(view: BankView, plan: BankPlan, moved: Boolean, ifStuck: IfStuck): BankDecision =
         when {
             view.bankOpen && plan.deposits.isNotEmpty() -> Deposit(plan.deposits)
             view.bankOpen && plan.takes.isNotEmpty() -> Withdraw(plan.takes)
             view.bankOpen -> Close
-            plan.canMove && !view.boothFound -> Blocked(Reason.NoneInReach(Target.BANK_BOOTH))
+            plan.canMove && !view.boothFound -> Settled(StepOutcome.Blocked(Reason.NoneInReach(Target.BANK_BOOTH)))
             plan.canMove && view.boothUsableFromHere -> Open
             plan.canMove -> WalkToBooth
-            plan.stuck == null || moved -> Done
-            else -> Stuck(plan.stuck)
+            plan.stuck == null || moved -> Settled(StepOutcome.Finished)
+            else -> Settled(StepOutcome.Stuck(plan.stuck, stopsFlow = ifStuck == IfStuck.STOP))
         }
 }

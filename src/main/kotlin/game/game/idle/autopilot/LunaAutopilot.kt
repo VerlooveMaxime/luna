@@ -7,8 +7,6 @@ import game.idle.autopilot.walk.WalkWork
 import game.idle.flow.Counts
 import game.idle.flow.Gathers
 import game.idle.flow.FlowPlayer
-import game.idle.flow.LegacyKind
-import game.idle.flow.LegacyStep
 import game.idle.flow.OwnSpot
 import game.idle.flow.Place
 import game.idle.flow.ReflexBody
@@ -17,7 +15,6 @@ import game.idle.flow.SpotWalk
 import game.idle.flow.StepActivity
 import game.idle.flow.StepTurn
 import game.idle.flow.StepWork
-import game.idle.flow.Works
 import game.idle.idleState
 import game.idle.location.Tile
 import game.idle.ui.IdleUi
@@ -70,15 +67,12 @@ class LunaAutopilotPlayer(val player: Player, private val ui: IdleUi) : Autopilo
     /**
      * A flow is started before its first activity, so the run tile is set; the player's tile only guards a gap. A step
      * with its own work spot starting outside its area walks there first (S07e). The one place a step's turn is put
-     * together: a converted kind's work inside [StepTurn], a kind not yet converted as it was.
+     * together: the kind's work inside [StepTurn].
      */
     override fun activity(step: ResolvedStep): StepActivity =
         SpotWalk.of(tile, (step as? OwnSpot)?.ownArea, ::walkToSpot) { turn(step) }
 
-    private fun turn(step: ResolvedStep): StepActivity =
-        if (step is Works) converted(step) else LegacyStep((step as LegacyKind).activity(player, runTile()))
-
-    private fun converted(step: Works): StepTurn =
+    private fun turn(step: ResolvedStep): StepTurn =
         StepTurn(
             step.work(player, runTile()),
             amount = if (step is Counts) step.amount else null,

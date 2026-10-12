@@ -1,7 +1,8 @@
 package game.idle.autopilot.pickup
 
-import game.idle.flow.Reason
-import game.idle.flow.Said
+import game.idle.autopilot.EndlessAction
+import game.idle.autopilot.LunaClicks
+import game.idle.flow.StepOutcome
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
 import game.idle.location.Tile
@@ -337,21 +338,31 @@ class LunaPickerTest {
     }
 
     @Test
-    fun `a pick-up step picks up through a Luna picker`() {
-        val step = PickUpStep(setOf(bones), radius = 10, WorkSpot.RunTile)
+    fun `interrupting breaks off the take in progress`() {
+        val player = login()
+        player.submitAction(EndlessAction(player))
+        TestWorld.tick()
 
-        assertInstanceOf(PickUpActivity::class.java, step.activity(login(), Tile(3200, 3200)))
+        picker(player).interrupt()
+        TestWorld.tick()
+
+        assertFalse(LunaClicks.isActing(player))
     }
 
     @Test
-    fun `a pick-up step's activity says what a full bag left lying`() {
+    fun `a pick-up step picks up through a Luna picker`() {
+        val step = PickUpStep(setOf(bones), radius = 10, WorkSpot.RunTile)
+
+        assertInstanceOf(PickUpWork::class.java, step.work(login(), Tile(3200, 3200)))
+    }
+
+    @Test
+    fun `a pick-up step's work ends on a full bag, naming what it left lying`() {
         val player = login()
         fillBag(player)
         TestWorld.dropItem(bones, 1, anchor)
-        val activity = PickUpStep(setOf(bones), radius = 10, WorkSpot.RunTile).activity(player, Tile(3200, 3200))
+        val work = PickUpStep(setOf(bones), radius = 10, WorkSpot.RunTile).work(player, Tile(3200, 3200))
 
-        activity.act()
-
-        assertEquals(Said.Ended(Reason.BagFull(listOf(bones))), activity.said())
+        assertEquals(StepOutcome.BagFull(listOf(bones)), work.act(left = null))
     }
 }

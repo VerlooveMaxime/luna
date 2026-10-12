@@ -1,5 +1,10 @@
 package game.idle.flow
 
+import game.idle.autopilot.bank.BankView
+import game.idle.autopilot.bank.BankWork
+import game.idle.autopilot.bank.EVERYTHING
+import game.idle.autopilot.bank.FakeBanker
+import game.idle.autopilot.bank.Held
 import game.idle.autopilot.drop.DropWork
 import game.idle.autopilot.drop.ItemDropper
 import game.idle.autopilot.rest.RestWork
@@ -26,8 +31,8 @@ interface KindFixture {
     val done: List<String>
 
     /**
-     * The kind's own count rises by [units]: logs cut, ores mined, catches, bars made, hitpoints back, logs or raw food
-     * used up; a kind that counts nothing ignores it.
+     * The kind's own count rises by [units]: logs cut, ores mined, catches, bars made, kills, pickups, hitpoints back, logs
+     * or raw food used up; a kind that counts nothing ignores it.
      */
     fun gain(units: Int)
 }
@@ -50,7 +55,14 @@ interface AmountFixture : KindFixture {
     fun adapterBusy(busy: Boolean)
 }
 
-/** A kind that works at targets around a work spot: chop, mine, fish; cook, smelt, smith. */
+/** A kind whose last unit of work may still have to settle once the Amount is reached: light, fight. */
+interface SettlingFixture : AmountFixture {
+
+    /** The unit of work in progress still has to settle: a fire catching, a kill dying. */
+    fun settling(settling: Boolean)
+}
+
+/** A kind that works at targets around a work spot: chop, mine, fish; cook, smelt, smith; fight. */
 interface AreaFixture : KindFixture {
 
     /** The walker every walk back of the turn uses; where it stands is where the player is. */
@@ -125,8 +137,8 @@ abstract class SpotFixture(final override val name: String, final override val l
     }
 }
 
-/** The kinds that work where they stand with nothing to find: walk, rest, drop. */
-fun plainKinds(): List<KindFixture> = listOf(WalkFixture(), RestFixture(), DropFixture())
+/** The kinds with no amount, no tool and no area of their own: walk, rest, drop, and bank, which starts at an open bank with something to deposit. */
+fun plainKinds(): List<KindFixture> = listOf(WalkFixture(), RestFixture(), DropFixture(), BankFixture())
 
 class WalkFixture : KindFixture {
 
@@ -200,5 +212,29 @@ class DropFixture : KindFixture {
         override fun interrupt() {
             done += "interrupt"
         }
+    }
+}
+
+/** Bank with the bank window open and one slot of logs to deposit, so its first decision is work (a deposit). */
+class BankFixture : KindFixture {
+
+    override val name = "bank"
+
+    override val carried = FakeCarried()
+
+    private val bag = listOf<Held?>(Held(LOGS, 1)) + List(27) { null }
+    private val banker = FakeBanker(BankView(boothFound = true, boothUsableFromHere = true, bankOpen = true, bag, bank = emptyMap()))
+
+    override val done: List<String> get() = banker.steps
+
+    override fun turn(amount: Int?): StepTurn =
+        turnOf(BankWork(banker, EVERYTHING), amount, emptyList(), carried, fillsBag = false, FakeWalker(Tile(3050, 3050)))
+
+    override fun gain(units: Int) = Unit
+
+    override fun toString(): String = name
+
+    private companion object {
+        const val LOGS = 1511
     }
 }

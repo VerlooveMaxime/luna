@@ -264,12 +264,8 @@ class LunaFighterTest {
     }
 
     @Test
-    fun `walking back heads for the anchor`() {
-        val player = login(Position(3220, 3200))
-
-        fighter(player).walkToLocation()
-
-        assertEquals(anchor, player.navigator.currentTarget)
+    fun `a walk back goes to the area's anchor`() {
+        assertEquals(Tile(3200, 3200), fighter(login(Position(3220, 3200))).anchor())
     }
 
     @Test
@@ -372,6 +368,17 @@ class LunaFighterTest {
     }
 
     @Test
+    fun `an npc of another kind the step attacked back is no kill`() {
+        val player = login()
+        val cowAttacking = TestWorld.spawnNpc(cow, Position(3201, 3200)).also { it.combat.target = player }
+        val fighter = attacked(player, cowAttacking)
+
+        kill(cowAttacking, player)
+
+        assertEquals(0, fighter.kills())
+    }
+
+    @Test
     fun `an npc of another kind the player fought is no kill`() {
         val player = login()
         val npc = TestWorld.spawnNpc(cow, Position(3201, 3200))
@@ -385,11 +392,11 @@ class LunaFighterTest {
     }
 
     @Test
-    fun `stopping ends the fight in progress`() {
+    fun `interrupting breaks off the fight in progress`() {
         val player = login()
         player.submitAction(EndlessAction(player))
 
-        fighter(player).stop()
+        fighter(player).interrupt()
         TestWorld.tick()
 
         assertEquals(null, player.actions.first(EndlessAction::class.java))
@@ -399,6 +406,6 @@ class LunaFighterTest {
     fun `a fight step fights through a Luna fighter`() {
         val step = FightStep(chickens, radius = 10, WorkSpot.RunTile)
 
-        assertInstanceOf(FightingActivity::class.java, step.activity(login(), Tile(3200, 3200)))
+        assertInstanceOf(FightWork::class.java, step.work(login(), Tile(3200, 3200)))
     }
 }

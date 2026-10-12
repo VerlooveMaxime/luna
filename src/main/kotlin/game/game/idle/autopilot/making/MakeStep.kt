@@ -5,6 +5,7 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.LevelNeed
 import game.idle.flow.ProcessInput
+import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -15,7 +16,6 @@ import game.idle.flow.StepType
 import game.idle.flow.StepWork
 import game.idle.flow.ToolNeed
 import game.idle.flow.Uses
-import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
@@ -68,7 +68,7 @@ class MakeStepType(private val catalog: RecipeCatalog, private val names: GameNa
         )
     }
 
-    override fun resolve(settings: StepSettings, context: FlowContext): Works {
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val name = settings[PRODUCT]?.lowercase() ?: throw FlowError("make needs a product")
         val recipe = catalog.find(name) ?: throw FlowError("Nothing called '$name' can be made.")
         // One way taking only what the steps before get is enough; else the first way names what is missing.
@@ -91,7 +91,7 @@ class MakeStepType(private val catalog: RecipeCatalog, private val names: GameNa
 }
 
 /** A make step resolved: the recipe and how many to make ([amount], null for as many as possible). */
-data class MakeStep(val recipe: Recipe, override val amount: Int? = null) : Works, Counts {
+data class MakeStep(val recipe: Recipe, override val amount: Int? = null) : ResolvedStep, Counts {
 
     /** Later steps can cook, drop or bank what was made. */
     override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + recipe.made)

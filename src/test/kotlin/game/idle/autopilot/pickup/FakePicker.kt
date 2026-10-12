@@ -24,4 +24,8 @@ class FakePicker(var view: PickUpView) : Picker {
     }
 
     override fun pickedUp(): Int = pickedUp
+
+    override fun interrupt() {
+        steps += "interrupt"
+    }
 }

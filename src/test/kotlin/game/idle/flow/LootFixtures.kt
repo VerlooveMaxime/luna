@@ -1,0 +1,109 @@
+package game.idle.flow
+
+import game.idle.autopilot.fighting.FakeFighter
+import game.idle.autopilot.fighting.FightStep
+import game.idle.autopilot.fighting.FightTarget
+import game.idle.autopilot.fighting.FightView
+import game.idle.autopilot.fighting.FightWork
+import game.idle.autopilot.fighting.TargetCandidate
+import game.idle.autopilot.pickup.FakePicker
+import game.idle.autopilot.pickup.GroundLoot
+import game.idle.autopilot.pickup.PickUpStep
+import game.idle.autopilot.pickup.PickUpView
+import game.idle.autopilot.pickup.PickUpWork
+import game.idle.autopilot.walk.FakeWalker
+import game.idle.location.Tile
+import io.luna.game.model.Position
+
+/**
+ * The kinds that fight npcs and take what they drop: fight, an area kind whose Amount counts kills, which waits for an
+ * npc when none is in reach and whose last kill must finish dying before the step ends; pick up, whose Amount counts
+ * pickups, which fills the bag but is not [Gathers] (it says what it leaves lying, so a full bag is its own to report)
+ * and has no area the turn walks back to (it walks there once by its own rule, then ends). Their needs and whether they
+ * gather are read from a real resolved step of each.
+ */
+fun lootKinds(): List<AmountFixture> = listOf(FightFixture(), PickUpFixture())
+
+private const val BONES = 526
+private const val MAN = 1
+
+/** Fight with one man next to the anchor, in reach from where the player stands; no kill dying until [settling]. */
+class FightFixture : AreaFixture, SettlingFixture {
+
+    override val name = "fight"
+
+    override val carried = FakeCarried()
+
+    override val anchor = Tile(3200, 3200)
+
+    override val walker = FakeWalker(anchor)
+
+    private val step: ResolvedStep = FightStep(FightTarget("man", setOf(MAN), "Man", 2..2), radius = 10, WorkSpot.At(anchor))
+    private val man = TargetCandidate(npcIndex = 7, Position(anchor.x + 1, anchor.y), distance = 0, usableFromHere = true, approach = anchor.toPosition())
+    private val fighter = FakeFighter(FightView(atLocation = true, listOf(man)), anchor)
+
+    override val done: List<String> get() = fighter.steps
+
+    override fun turn(amount: Int?): StepTurn =
+        turnOf(FightWork(fighter), amount, step.needs(), carried, fillsBag = step is Gathers, walker)
+
+    override fun gain(units: Int) {
+        fighter.kills += units
+    }
+
+    override fun adapterBusy(busy: Boolean) {
+        fighter.busy = busy
+    }
+
+    override fun settling(settling: Boolean) {
+        fighter.lastKillDying = settling
+    }
+
+    override fun clearTargets() {
+        fighter.view = fighter.view.copy(targets = emptyList())
+    }
+
+    override fun restoreTargets() {
+        fighter.view = fighter.view.copy(targets = listOf(man))
+    }
+
+    override fun leaveArea() {
+        fighter.view = fighter.view.copy(atLocation = false)
+        walker.here = Tile(anchor.x + 20, anchor.y)
+    }
+
+    override fun enterArea() {
+        fighter.view = fighter.view.copy(atLocation = true)
+        walker.here = anchor
+    }
+
+    override fun toString(): String = name
+}
+
+/** Pick up at the work spot with bones lying underfoot that fit the bag. */
+class PickUpFixture : AmountFixture {
+
+    override val name = "pick up"
+
+    override val carried = FakeCarried()
+
+    private val here = Tile(3200, 3200)
+    private val step: ResolvedStep = PickUpStep(setOf(BONES), radius = 10, WorkSpot.At(here))
+    private val bones = GroundLoot(BONES, here.toPosition(), distance = 0, fits = true)
+    private val picker = FakePicker(PickUpView(atLocation = true, listOf(bones)))
+
+    override val done: List<String> get() = picker.steps
+
+    override fun turn(amount: Int?): StepTurn =
+        turnOf(PickUpWork(picker), amount, step.needs(), carried, fillsBag = step is Gathers, FakeWalker(here))
+
+    override fun gain(units: Int) {
+        picker.pickedUp += units
+    }
+
+    override fun adapterBusy(busy: Boolean) {
+        picker.busy = busy
+    }
+
+    override fun toString(): String = name
+}

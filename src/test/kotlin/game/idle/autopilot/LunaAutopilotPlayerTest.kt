@@ -2,13 +2,16 @@ package game.idle.autopilot
 
 import api.predef.woodcutting
 import game.idle.IdleState
-import game.idle.autopilot.bank.BankActivity
 import game.idle.autopilot.bank.BankStep
+import game.idle.autopilot.bank.BankWork
 import game.idle.autopilot.bank.EVERYTHING
 import game.idle.autopilot.cooking.CookStep
 import game.idle.autopilot.cooking.CookingWork
 import game.idle.autopilot.drop.DropStep
 import game.idle.autopilot.drop.DropWork
+import game.idle.autopilot.fighting.FightStep
+import game.idle.autopilot.fighting.FightTarget
+import game.idle.autopilot.fighting.FightWork
 import game.idle.autopilot.firemaking.LightWork
 import game.idle.autopilot.firemaking.LightStep
 import game.idle.autopilot.fishing.FishStep
@@ -19,6 +22,8 @@ import game.idle.autopilot.making.MakeStep
 import game.idle.autopilot.making.BREAD_DOUGH
 import game.idle.autopilot.mining.MineStep
 import game.idle.autopilot.mining.MiningWork
+import game.idle.autopilot.pickup.PickUpStep
+import game.idle.autopilot.pickup.PickUpWork
 import game.idle.autopilot.rest.RestStep
 import game.idle.autopilot.rest.RestWork
 import game.idle.autopilot.smelting.SmeltStep
@@ -33,16 +38,14 @@ import game.idle.autopilot.woodcutting.WoodcuttingWork
 import game.idle.flow.FakeStepType
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FakeStepWork
-import game.idle.flow.LegacyKind
-import game.idle.flow.LegacyStep
 import game.idle.flow.Place
 import game.idle.flow.Reason
+import game.idle.flow.ResolvedStep
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepTurn
 import game.idle.flow.StepTypes
 import game.idle.flow.StepWork
 import game.idle.flow.WorkSpot
-import game.idle.flow.Works
 import game.idle.idleState
 import game.idle.location.Bank
 import game.idle.location.Tile
@@ -72,7 +75,7 @@ class LunaAutopilotPlayerTest {
     private val runTile = Tile(3190, 3190)
 
     /** Remembers the run tile it was started with. */
-    private class RecordingStep : Works {
+    private class RecordingStep : ResolvedStep {
         var runTile: Tile? = null
 
         override fun work(player: Player, runTile: Tile): StepWork {
@@ -81,11 +84,8 @@ class LunaAutopilotPlayerTest {
         }
     }
 
-    /** The work inside a converted step's turn. */
-    private fun workOf(step: Works): StepWork = (autopilotPlayer().activity(step) as StepTurn).work
-
-    /** The activity inside a step's turn while its kind is not yet converted. */
-    private fun legacyOf(step: LegacyKind) = (autopilotPlayer().activity(step) as LegacyStep).activity
+    /** The work inside a step's turn. */
+    private fun workOf(step: ResolvedStep): StepWork = (autopilotPlayer().activity(step) as StepTurn).work
 
     private val ui = IdleUi(StepTypes(listOf(FakeStepType("chop"), FakeStepType("drop")))::summary, idleTab())
 
@@ -291,10 +291,22 @@ class LunaAutopilotPlayerTest {
     }
 
     @Test
-    fun `a bank step runs as a bank activity`() {
+    fun `a bank step runs its bank work in a turn`() {
         val step = BankStep(listOf(Bank("test", "Test bank", Tile(3210, 3200))), EVERYTHING)
 
-        assertInstanceOf(BankActivity::class.java, legacyOf(step))
+        assertInstanceOf(BankWork::class.java, workOf(step))
+    }
+
+    @Test
+    fun `a fight step runs its fight work in a turn`() {
+        val step = FightStep(FightTarget("chicken", setOf(41), "Chicken", 1..1), radius = 10, WorkSpot.RunTile)
+
+        assertInstanceOf(FightWork::class.java, workOf(step))
+    }
+
+    @Test
+    fun `a pick-up step runs its pick-up work in a turn`() {
+        assertInstanceOf(PickUpWork::class.java, workOf(PickUpStep(setOf(526), radius = 10, WorkSpot.RunTile)))
     }
 
     @Test

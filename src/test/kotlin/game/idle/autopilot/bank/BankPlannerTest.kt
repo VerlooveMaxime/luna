@@ -1,15 +1,14 @@
 package game.idle.autopilot.bank
 
-import game.idle.autopilot.bank.BankDecision.Blocked
 import game.idle.autopilot.bank.BankDecision.Close
 import game.idle.autopilot.bank.BankDecision.Deposit
-import game.idle.autopilot.bank.BankDecision.Done
 import game.idle.autopilot.bank.BankDecision.Open
-import game.idle.autopilot.bank.BankDecision.Stuck
+import game.idle.autopilot.bank.BankDecision.Settled
 import game.idle.autopilot.bank.BankDecision.WalkToBooth
 import game.idle.autopilot.bank.BankDecision.Withdraw
 import game.idle.flow.Reason
 import game.idle.flow.StepItem
+import game.idle.flow.StepOutcome
 import game.idle.flow.Target
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -51,6 +50,20 @@ class BankPlannerTest {
         val plan = plan(view(bag(Held(axe, 1), Held(logs, 1), Held(coins, 5))), order(DepositRule.Only(setOf(logs, coins))))
 
         assertEquals(listOf(1, 2), plan.deposits)
+    }
+
+    @Test
+    fun `a deposit leaves out what the step withdraws`() {
+        val plan = plan(view(bag(Held(axe, 1), Held(logs, 1))), order(DepositRule.Everything, StepItem(axe, 1)))
+
+        assertEquals(listOf(1), plan.deposits)
+    }
+
+    @Test
+    fun `a withdrawal tops up what the bag keeps of it`() {
+        val plan = plan(view(bag(*logsTimes(3)), bank = mapOf(logs to 50)), order(DepositRule.Everything, StepItem(logs, 5)))
+
+        assertEquals(BankPlan(emptyList(), listOf(Take(logs, 2)), stuck = null), plan)
     }
 
     @Test
@@ -202,49 +215,58 @@ class BankPlannerTest {
     private val idle = BankPlan(emptyList(), emptyList(), stuck = null)
     private val stuck = BankPlan(emptyList(), emptyList(), stuck = Reason.BagFull(emptyList()))
 
+    /** The planner's decision on [view] and [plan], [moved] whether anything moved at the booth yet, skipping when stuck. */
+    private fun decide(view: BankView, plan: BankPlan, moved: Boolean = false, ifStuck: IfStuck = IfStuck.SKIP) =
+        BankPlanner.decide(view, plan, moved, ifStuck)
+
     @Test
     fun `an open bank deposits first`() {
-        assertEquals(Deposit(listOf(0, 1)), BankPlanner.decide(view(open = true), depositing.copy(takes = withdrawing.takes), moved = false))
+        assertEquals(Deposit(listOf(0, 1)), decide(view(open = true), depositing.copy(takes = withdrawing.takes)))
     }
 
     @Test
     fun `an open bank with nothing to deposit withdraws`() {
-        assertEquals(Withdraw(listOf(Take(oak, 5))), BankPlanner.decide(view(open = true), withdrawing, moved = false))
+        assertEquals(Withdraw(listOf(Take(oak, 5))), decide(view(open = true), withdrawing))
     }
 
     @Test
     fun `an open bank with nothing left to move closes`() {
-        assertEquals(Close, BankPlanner.decide(view(open = true), idle, moved = true))
+        assertEquals(Close, decide(view(open = true), idle, moved = true))
     }
 
     @Test
     fun `something to move and no booth blocks`() {
-        assertEquals(Blocked(Reason.NoneInReach(Target.BANK_BOOTH)), BankPlanner.decide(view().copy(boothFound = false), depositing, moved = false))
+        assertEquals(Settled(StepOutcome.Blocked(Reason.NoneInReach(Target.BANK_BOOTH))), decide(view().copy(boothFound = false), depositing))
     }
 
     @Test
     fun `something to move next to the booth opens it`() {
-        assertEquals(Open, BankPlanner.decide(view().copy(boothUsableFromHere = true), withdrawing, moved = false))
+        assertEquals(Open, decide(view().copy(boothUsableFromHere = true), withdrawing))
     }
 
     @Test
     fun `something to move away from the booth walks to it`() {
-        assertEquals(WalkToBooth, BankPlanner.decide(view(), depositing, moved = false))
+        assertEquals(WalkToBooth, decide(view(), depositing))
     }
 
     @Test
-    fun `nothing to do is done without a trip, booth or not`() {
-        assertEquals(Done, BankPlanner.decide(view().copy(boothFound = false), idle, moved = false))
+    fun `nothing to do ends the step without a trip, booth or not`() {
+        assertEquals(Settled(StepOutcome.Finished), decide(view().copy(boothFound = false), idle))
     }
 
     @Test
-    fun `stuck before anything moved is stuck`() {
-        assertEquals(Stuck(Reason.BagFull(emptyList())), BankPlanner.decide(view(), stuck, moved = false))
+    fun `stuck before anything moved with Skip skips the step's turn`() {
+        assertEquals(Settled(StepOutcome.Stuck(Reason.BagFull(emptyList()), stopsFlow = false)), decide(view(), stuck))
     }
 
     @Test
-    fun `stuck once something moved is done, taking what was left`() {
-        assertEquals(Done, BankPlanner.decide(view(), stuck, moved = true))
+    fun `stuck before anything moved with Stop the flow stops it`() {
+        assertEquals(Settled(StepOutcome.Stuck(Reason.BagFull(emptyList()), stopsFlow = true)), decide(view(), stuck, ifStuck = IfStuck.STOP))
+    }
+
+    @Test
+    fun `stuck once something moved ends the step, taking what was left`() {
+        assertEquals(Settled(StepOutcome.Finished), decide(view(), stuck, moved = true))
     }
 
     @Test

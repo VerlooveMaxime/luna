@@ -1,6 +1,7 @@
 package game.idle.autopilot.bank
 
 import game.idle.flow.Reason
+import game.idle.flow.StepOutcome
 import game.idle.flow.Target
 import game.idle.location.Bank
 import game.idle.location.Tile
@@ -70,7 +71,7 @@ class BankStepTest {
         TestWorld.place(boothId, far.booth.toPosition())
         player.inventory.add(Item(1511))
 
-        BankStep(listOf(far, near), EVERYTHING).activity(player, runTile).act()
+        BankStep(listOf(far, near), EVERYTHING).work(player, runTile).act(left = null)
 
         assertEquals(Position(3199, 3200), player.navigator.currentTarget)
     }
@@ -79,11 +80,9 @@ class BankStepTest {
     fun `with no bank on the player's floor the step blocks`() {
         val player = TestWorld.login("banker", Position(3195, 3200, 1))
         player.inventory.add(Item(1511))
-        val activity = BankStep(listOf(near), EVERYTHING).activity(player, runTile)
+        val work = BankStep(listOf(near), EVERYTHING).work(player, runTile)
 
-        activity.act()
-
-        assertEquals(Reason.NoneInReach(Target.BANK_BOOTH), activity.blocked())
+        assertEquals(StepOutcome.Blocked(Reason.NoneInReach(Target.BANK_BOOTH)), work.act(left = null))
     }
 }
 

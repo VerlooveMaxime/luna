@@ -287,15 +287,8 @@ interface ResolvedStep {
      * first lack ([Preconditions]).
      */
     fun needs(): List<StepNeeds> = emptyList()
-}
 
-/**
- * A kind of step converted to the shared turn: its [work] is its own part, which [StepTurn] runs. Transitional until
- * every kind is one (step behaviour refactor Parts 2-4), when it folds into [ResolvedStep].
- */
-interface Works : ResolvedStep {
-
-    /** The kind's own work for [player], whose flow was started on [runTile]. */
+    /** The kind's own work for [player], whose flow was started on [runTile]: its part of the turn, which [StepTurn] runs. */
     fun work(player: Player, runTile: Tile): StepWork
 }
 

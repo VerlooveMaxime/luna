@@ -1,7 +1,9 @@
 package game.idle.autopilot.fighting
 
-/** Records each step as text, for example `attack 3100,9510`. */
-class FakeFighter(var view: FightView) : Fighter {
+import game.idle.location.Tile
+
+/** Records each step as text, for example `attack 3100,9510`; [anchor] is the step's area anchor. */
+class FakeFighter(var view: FightView, private val anchor: Tile = Tile(3200, 3200)) : Fighter {
 
     var busy = false
     var kills = 0
@@ -20,15 +22,13 @@ class FakeFighter(var view: FightView) : Fighter {
         steps += "walk to ${target.position.x},${target.position.y}"
     }
 
-    override fun walkToLocation() {
-        steps += "walk to location"
-    }
+    override fun anchor(): Tile = anchor
 
     override fun kills(): Int = kills
 
     override fun lastKillDying(): Boolean = lastKillDying
 
-    override fun stop() {
-        steps += "stop"
+    override fun interrupt() {
+        steps += "interrupt"
     }
 }

@@ -9,7 +9,6 @@ import game.idle.flow.StepIcon
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.StepWork
-import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player
@@ -54,7 +53,7 @@ object RestStepType : StepType {
 }
 
 /** A rest step resolved: it waits until hitpoints are at least [percent] of full. */
-data class RestStep(val percent: Int) : Works {
+data class RestStep(val percent: Int) : ResolvedStep {
 
     override fun work(player: Player, runTile: Tile): StepWork = RestWork(LunaReflexBody(player)::health, percent)
 }

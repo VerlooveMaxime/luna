@@ -12,7 +12,6 @@ import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.StepWork
-import game.idle.flow.Works
 import game.idle.flow.option.CarriedItemOptions
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.ItemCatalog
@@ -87,7 +86,7 @@ class DropStepType(private val items: ItemCatalog, private val names: GameNames)
 }
 
 /** A drop step resolved: [itemIds] is what it drops, the flow's gathered items or every item of the names picked. */
-data class DropStep(val itemIds: Set<Int>) : Works, EmptiesBag {
+data class DropStep(val itemIds: Set<Int>) : ResolvedStep, EmptiesBag {
 
     override fun empties(id: Int): Boolean = id in itemIds
 

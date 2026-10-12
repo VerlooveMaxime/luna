@@ -51,9 +51,9 @@ private val HERE = Tile(3200, 3200)
 
 /**
  * Light with a tinderbox and five oak logs where the player stands, the tile free. Its count is the logs used, so the
- * meter falls: [gain] takes logs out of the bag.
+ * meter falls: [gain] takes logs out of the bag. The fire catching is the lighter busy, as its work's `finishing()` reads.
  */
-class LightFixture : ProcessFixture, ToolFixture {
+class LightFixture : ProcessFixture, ToolFixture, SettlingFixture {
 
     override val name = "light"
 
@@ -80,6 +80,10 @@ class LightFixture : ProcessFixture, ToolFixture {
 
     override fun adapterBusy(busy: Boolean) {
         lighter.busy = busy
+    }
+
+    override fun settling(settling: Boolean) {
+        lighter.busy = settling
     }
 
     override fun emptyInput() {

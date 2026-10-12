@@ -21,7 +21,7 @@ class LunaBanker(private val player: Player, private val boothTile: Position?) :
 
     private val world get() = player.world
 
-    /** The bank window is the point of this activity, so only walking and actions count as busy. */
+    /** The bank window is the point of this step, so only walking and actions count as busy. */
     override fun isBusy(): Boolean = LunaClicks.isActing(player)
 
     override fun look(): BankView {
@@ -74,6 +74,8 @@ class LunaBanker(private val player: Player, private val boothTile: Position?) :
     override fun close() {
         player.overlays.closeWindows(false)
     }
+
+    override fun interrupt() = LunaClicks.interrupt(player)
 
     private fun booth(): GameObject? = boothTile?.let { boothOn(world, it) }
 }

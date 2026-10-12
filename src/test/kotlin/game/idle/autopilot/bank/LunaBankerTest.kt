@@ -1,5 +1,7 @@
 package game.idle.autopilot.bank
 
+import game.idle.autopilot.EndlessAction
+import game.idle.autopilot.LunaClicks
 import game.testworld.TestWorld
 import io.luna.game.event.impl.ObjectClickEvent.ObjectSecondClickEvent
 import io.luna.game.model.Direction
@@ -284,5 +286,17 @@ class LunaBankerTest {
         LunaBanker(player, boothTile).close()
 
         assertFalse(player.bank.isOpen)
+    }
+
+    @Test
+    fun `interrupting breaks off the walk or action in progress`() {
+        val player = login()
+        player.submitAction(EndlessAction(player))
+        TestWorld.tick()
+
+        LunaBanker(player, boothTile).interrupt()
+        TestWorld.tick()
+
+        assertFalse(LunaClicks.isActing(player))
     }
 }

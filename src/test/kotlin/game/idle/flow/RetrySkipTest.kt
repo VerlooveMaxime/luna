@@ -14,15 +14,17 @@ class RetrySkipTest {
 
     private val oak = Aim(1281, Tile(3171, 3444))
     private val willow = Aim(1308, Tile(3170, 3454))
-    private var logs = 0
-    private val retry = RetrySkip.forTheTurn { logs }
+    private var progress = 0
+    private val objects = RetrySkip.forTheTurn { progress }
+    private val npcs = RetrySkip.untilProgress { progress }
     private val asked = mutableListOf<Set<Aim>>()
 
-    /** Decides [decision], recording the aims set aside it was asked to leave out. */
-    private fun decide(decision: Any): Any = retry.decide { skipped -> asked += skipped.toSet(); decision }
+    /** Decides [decision] under [rule] whatever is set aside, recording the aims it was asked to leave out. */
+    private fun decide(decision: Any, rule: RetrySkip = objects): Any = rule.decide { skipped -> asked += skipped.toSet(); decision }
 
-    /** Decides [first] unless its aim is set aside, then [fallback]. */
-    private fun decide(first: Aimed, fallback: Any): Any = retry.decide { skipped -> if (first.aim in skipped) fallback else first }
+    /** Decides [first] under [rule] unless its aim is set aside, then [fallback]; records the aims it was asked to leave out. */
+    private fun decideOr(first: Aimed, fallback: Any, rule: RetrySkip = objects): Any =
+        rule.decide { skipped -> asked += skipped.toSet(); if (first.aim in skipped) fallback else first }
 
     @Test
     fun `the first decision leaves nothing out`() {
@@ -33,17 +35,17 @@ class RetrySkipTest {
 
     @Test
     fun `the same decision twice with nothing gained sets its aim aside and decides again`() {
-        decide(Use(oak, 0), Undecided)
+        decideOr(Use(oak, 0), Undecided)
 
-        val second = decide(Use(oak, 0), Undecided)
+        val second = decideOr(Use(oak, 0), Undecided)
 
         assertEquals(Undecided, second)
     }
 
     @Test
     fun `the aim set aside stays so for the turn`() {
-        decide(Use(oak, 0), Undecided)
-        decide(Use(oak, 0), Undecided)
+        decideOr(Use(oak, 0), Undecided)
+        decideOr(Use(oak, 0), Undecided)
         decide(Undecided)
 
         decide(Use(oak, 0))
@@ -53,39 +55,39 @@ class RetrySkipTest {
 
     @Test
     fun `progress since makes the same decision no retry`() {
-        decide(Use(oak, 0), Undecided)
-        logs = 1
+        decideOr(Use(oak, 0), Undecided)
+        progress = 1
 
-        assertEquals(Use(oak, 0), decide(Use(oak, 0), Undecided))
+        assertEquals(Use(oak, 0), decideOr(Use(oak, 0), Undecided))
     }
 
     @Test
     fun `a step closer since makes the same decision no retry`() {
-        decide(Go(oak, 5), Undecided)
+        decideOr(Go(oak, 5), Undecided)
 
-        assertEquals(Go(oak, 2), decide(Go(oak, 2), Undecided))
+        assertEquals(Go(oak, 2), decideOr(Go(oak, 2), Undecided))
     }
 
     @Test
     fun `another kind of decision on the same aim is no retry`() {
-        decide(Go(oak, 2), Undecided)
+        decideOr(Go(oak, 2), Undecided)
 
-        assertEquals(Use(oak, 0), decide(Use(oak, 0), Undecided))
+        assertEquals(Use(oak, 0), decideOr(Use(oak, 0), Undecided))
     }
 
     @Test
     fun `the same decision on another aim is no retry`() {
-        decide(Use(oak, 0), Undecided)
+        decideOr(Use(oak, 0), Undecided)
 
-        assertEquals(Use(willow, 0), decide(Use(willow, 0), Undecided))
+        assertEquals(Use(willow, 0), decideOr(Use(willow, 0), Undecided))
     }
 
     @Test
     fun `a decision aimed at nothing in between starts over`() {
-        decide(Use(oak, 0), Undecided)
+        decideOr(Use(oak, 0), Undecided)
         decide(Undecided)
 
-        assertEquals(Use(oak, 0), decide(Use(oak, 0), Undecided))
+        assertEquals(Use(oak, 0), decideOr(Use(oak, 0), Undecided))
     }
 
     @Test
@@ -99,11 +101,66 @@ class RetrySkipTest {
 
     @Test
     fun `the decision taken after setting an aim aside is the one remembered`() {
-        decide(Use(oak, 0), Use(willow, 0))
-        decide(Use(oak, 0), Use(willow, 0))
+        decideOr(Use(oak, 0), Use(willow, 0))
+        decideOr(Use(oak, 0), Use(willow, 0))
 
-        val third = decide(Use(willow, 0), Undecided)
+        val third = decideOr(Use(willow, 0), Undecided)
 
         assertEquals(Undecided, third)
+    }
+
+    @Test
+    fun `an npc tried twice with nothing gained is set aside for another`() {
+        decideOr(Use(oak, 0), Use(willow, 0), npcs)
+
+        val second = decideOr(Use(oak, 0), Use(willow, 0), npcs)
+
+        assertEquals(Use(willow, 0), second)
+    }
+
+    @Test
+    fun `an npc set aside stays so while nothing is gained and others are around`() {
+        decideOr(Use(oak, 0), Use(willow, 0), npcs)
+        decideOr(Use(oak, 0), Use(willow, 0), npcs)
+
+        decide(Use(oak, 0), npcs)
+
+        assertEquals(setOf(oak), asked.last())
+    }
+
+    @Test
+    fun `progress brings every npc set aside back`() {
+        decideOr(Use(oak, 0), Use(willow, 0), npcs)
+        decideOr(Use(oak, 0), Use(willow, 0), npcs)
+        progress = 1
+
+        decide(Use(oak, 0), npcs)
+
+        assertEquals(emptySet<Aim>(), asked.last())
+    }
+
+    @Test
+    fun `once every npc around is set aside they all come back and the lone one is tried again`() {
+        decideOr(Use(oak, 0), Undecided, npcs)
+
+        val second = decideOr(Use(oak, 0), Undecided, npcs)
+
+        assertEquals(Use(oak, 0), second)
+    }
+
+    @Test
+    fun `npcs coming back are decided over none set aside`() {
+        decideOr(Use(oak, 0), Undecided, npcs)
+
+        decideOr(Use(oak, 0), Undecided, npcs)
+
+        assertEquals(listOf(emptySet<Aim>(), emptySet(), setOf(oak), emptySet()), asked)
+    }
+
+    @Test
+    fun `a decision aimed at no npc with none set aside is decided once`() {
+        decide(Undecided, npcs)
+
+        assertEquals(listOf(emptySet<Aim>()), asked)
     }
 }

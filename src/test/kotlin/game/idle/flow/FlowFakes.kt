@@ -4,7 +4,9 @@ import game.idle.flow.option.FakeNames
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
+import game.idle.location.Tile
 import game.idle.ui.EVEN_FONT
+import io.luna.game.model.mob.Player
 
 /**
  * A resolved step that names itself; whatever it lists in [gathers] the steps after it can rely on, and it needs what
@@ -15,6 +17,8 @@ data class FakeStep(val name: String, val gathers: Set<Int> = emptySet(), val ne
     override fun after(context: FlowContext): FlowContext = context.copy(gathered = context.gathered + gathers)
 
     override fun needs(): List<StepNeeds> = needs
+
+    override fun work(player: Player, runTile: Tile): StepWork = FakeStepWork(StepOutcome.Finished)
 }
 
 /**

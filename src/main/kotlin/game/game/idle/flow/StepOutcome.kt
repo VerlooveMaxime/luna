@@ -22,7 +22,7 @@ sealed interface StepOutcome {
 
     /**
      * Nothing to work with from the flow: none of its input left in the bag, or not enough for one more unit (one ore of
-     * the two a bar takes, four bars for a five-bar item), nothing lying around.
+     * the two a bar takes, four bars for a five-bar item).
      */
     data object Empty : StepOutcome
 

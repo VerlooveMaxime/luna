@@ -6,8 +6,7 @@ import game.idle.flow.EmptiesBag
 import game.idle.flow.FieldColumn
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
-import game.idle.flow.LegacyKind
-import game.idle.flow.LegacyActivity
+import game.idle.flow.ResolvedStep
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepItem
@@ -15,6 +14,7 @@ import game.idle.flow.StepItems
 import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
+import game.idle.flow.StepWork
 import game.idle.flow.option.CarriedItemOptions
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.ItemCatalog
@@ -59,7 +59,15 @@ sealed interface DepositRule {
  * What a bank step does at the booth: deposits by [deposit], then withdraws [withdrawals] in order, each filling the bag
  * up to its amount (as many as fit without one); [ifStuck] when it can move nothing it needed to (S07b).
  */
-data class BankOrder(val deposit: DepositRule, val withdrawals: List<StepItem>, val ifStuck: IfStuck)
+data class BankOrder(val deposit: DepositRule, val withdrawals: List<StepItem>, val ifStuck: IfStuck) {
+
+    /**
+     * Whether the step banks item [id]: its deposit rule takes it and it does not withdraw it. What the bag holds of a
+     * withdrawn item stays and the withdrawal tops it up (Maxime, 2026-10-12); depositing it first would withdraw it
+     * again, forever.
+     */
+    fun banks(id: Int): Boolean = deposit.takes(id) && withdrawals.none { it.id == id }
+}
 
 /**
  * Bank: walks to the nearest bank or a chosen one, deposits, then withdraws (S07b). The nearest bank is picked by
@@ -120,7 +128,7 @@ class BankStepType(private val catalog: BankCatalog, private val items: ItemCata
         return "bank ${settings[BANK] ?: NEAREST}, deposit ${deposit(settings).value}$withdraw"
     }
 
-    override fun resolve(settings: StepSettings, context: FlowContext): LegacyKind {
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val rule = when (deposit(settings)) {
             DepositChoice.EVERYTHING -> DepositRule.Everything
             DepositChoice.GATHERED -> DepositRule.Only(context.lap)
@@ -170,11 +178,11 @@ interface BankTerrain {
 }
 
 /** A bank step resolved: it uses the nearest of [candidates] when it starts, and does what [order] says there. */
-data class BankStep(val candidates: List<Bank>, val order: BankOrder) : LegacyKind, BankMoves, EmptiesBag {
+data class BankStep(val candidates: List<Bank>, val order: BankOrder) : ResolvedStep, BankMoves, EmptiesBag {
 
     override val withdraws: Set<Int> = order.withdrawals.map { it.id }.toSet()
 
-    override fun banks(id: Int): Boolean = order.deposit.takes(id)
+    override fun banks(id: Int): Boolean = order.banks(id)
 
     override fun empties(id: Int): Boolean = banks(id)
 
@@ -191,9 +199,9 @@ data class BankStep(val candidates: List<Bank>, val order: BankOrder) : LegacyKi
         return reached?.let(bankByTile::getValue) ?: onFloor.minBy { squared(it.booth.x - from.x) + squared(it.booth.y - from.y) }
     }
 
-    override fun activity(player: Player, runTile: Tile): LegacyActivity {
+    override fun work(player: Player, runTile: Tile): StepWork {
         val booth = nearest(player.position, LunaBankTerrain(player.world))?.booth?.toPosition()
-        return BankActivity(LunaBanker(player, booth), order)
+        return BankWork(LunaBanker(player, booth), order)
     }
 
     private fun squared(value: Int): Int = value * value

@@ -6,6 +6,7 @@ import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
 import game.idle.flow.ProcessKinds
+import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -18,7 +19,6 @@ import game.idle.flow.StepType
 import game.idle.flow.StepWork
 import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
-import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.location.Area
@@ -73,7 +73,7 @@ class LightStepType(private val names: GameNames) : StepType {
         "light ${StepAmount.prefix(settings)}${logs.ids(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd() +
             StepSpot.suffix(settings)
 
-    override fun resolve(settings: StepSettings, context: FlowContext): Works =
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep =
         LightStep(logs.resolve(settings, context, input(settings, context)), StepAmount.read(settings), StepSpot.read(settings))
 
     companion object {
@@ -89,7 +89,7 @@ class LightStepType(private val names: GameNames) : StepType {
  * fires starting there, or null to light where it stands, not at the flow's spot (Maxime, 2026-10-10). A picked tile is
  * where the flow went for the steps after it.
  */
-data class LightStep(val logIds: Set<Int>, override val amount: Int? = null, val spot: Tile? = null) : Works, OwnSpot, Counts {
+data class LightStep(val logIds: Set<Int>, override val amount: Int? = null, val spot: Tile? = null) : ResolvedStep, OwnSpot, Counts {
 
     /** Light has no Within: the player walks to the tile unless standing on it. */
     override val ownArea: Area? get() = spot?.let { Area(it, radius = 0) }

@@ -124,6 +124,33 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
+    @MethodSource("settlingKinds")
+    fun `the amount reached, the step is busy while its unit settles`(kind: SettlingFixture) {
+        val turn = kind.turn(amount = 1)
+        turn.act()
+        kind.gain(1)
+
+        kind.settling(true)
+
+        assertTrue(turn.isBusy())
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("settlingKinds")
+    fun `the amount reached, the step ends once its unit settled`(kind: SettlingFixture) {
+        val turn = kind.turn(amount = 1)
+        turn.act()
+        kind.gain(1)
+        kind.settling(true)
+        turn.isBusy()
+        kind.settling(false)
+
+        turn.act()
+
+        assertTrue(turn.isDone())
+    }
+
+    @ParameterizedTest(name = "{0}")
     @MethodSource("amountKinds")
     fun `short of the amount the step is busy while the adapter is`(kind: AmountFixture) {
         val turn = kind.turn(amount = 2)
@@ -289,8 +316,8 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `inside the area with nothing in reach the step waits for the world, not blocked`(kind: GatherFixture) {
+    @MethodSource("waitingKinds")
+    fun `inside the area with nothing in reach the step waits for the world, not blocked`(kind: AreaFixture) {
         val turn = kind.turn()
         kind.clearTargets()
 
@@ -300,8 +327,8 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("gatherKinds")
-    fun `the wait clears once a target is back`(kind: GatherFixture) {
+    @MethodSource("waitingKinds")
+    fun `the wait clears once a target is back`(kind: AreaFixture) {
         val turn = kind.turn()
         kind.clearTargets()
         turn.act()
@@ -392,7 +419,7 @@ class StepTurnContractTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource("areaKinds")
+    @MethodSource("stayingKinds")
     fun `a target tried twice with nothing gained is set aside, and with none other in reach the step blocks`(kind: AreaFixture) {
         val turn = kind.turn()
         turn.act()
@@ -417,7 +444,7 @@ class StepTurnContractTest {
     companion object {
 
         @JvmStatic
-        fun allKinds(): List<KindFixture> = plainKinds() + gatherKinds() + processKinds()
+        fun allKinds(): List<KindFixture> = plainKinds() + gatherKinds() + processKinds() + lootKinds()
 
         /** Every kind but walk: a walk approaches, it never works. */
         @JvmStatic
@@ -427,11 +454,15 @@ class StepTurnContractTest {
         fun countingKinds(): List<KindFixture> = plainKinds().filter { it.name == "rest" } + amountKinds()
 
         @JvmStatic
-        fun amountKinds(): List<AmountFixture> = gatherKinds() + processKinds()
+        fun amountKinds(): List<AmountFixture> = gatherKinds() + processKinds() + lootKinds()
 
         /** Every amount kind but light, whose fire must catch before the step may end and whose own tests cover that. */
         @JvmStatic
         fun promptKinds(): List<AmountFixture> = amountKinds().filter { it.name != "light" }
+
+        /** The amount kinds whose last unit may still have to settle once the Amount is reached: light's fire, fight's last kill. */
+        @JvmStatic
+        fun settlingKinds(): List<SettlingFixture> = amountKinds().filterIsInstance<SettlingFixture>()
 
         @JvmStatic
         fun needsKinds(): List<NeedsFixture> = gatherKinds() + processKinds()
@@ -439,9 +470,17 @@ class StepTurnContractTest {
         @JvmStatic
         fun toolKinds(): List<ToolFixture> = needsKinds().filterIsInstance<ToolFixture>()
 
-        /** The kinds that gather or process around a work spot: chop, mine, fish, cook, smelt, smith. */
+        /** The kinds that work at targets around a work spot: chop, mine, fish, cook, smelt, smith, fight. */
         @JvmStatic
         fun areaKinds(): List<AreaFixture> = amountKinds().filterIsInstance<AreaFixture>()
+
+        /** The area kinds whose targets the world supplies by itself (a tree grows back, an npc respawns): nothing in reach is a wait. */
+        @JvmStatic
+        fun waitingKinds(): List<AreaFixture> = gatherKinds() + lootKinds().filterIsInstance<AreaFixture>()
+
+        /** The area kinds whose targets stay where they are (objects, spots), so one set aside stays so for the turn; npcs wander and come back. */
+        @JvmStatic
+        fun stayingKinds(): List<AreaFixture> = areaKinds().filter { it.name != "fight" }
 
         /** The processing kinds that work at a place (a fire, a furnace, an anvil) the world never supplies by itself. */
         @JvmStatic
@@ -456,5 +495,8 @@ class StepTurnContractTest {
 
         @JvmStatic
         fun processKinds(): List<ProcessFixture> = game.idle.flow.processKinds()
+
+        @JvmStatic
+        fun lootKinds(): List<AmountFixture> = game.idle.flow.lootKinds()
     }
 }

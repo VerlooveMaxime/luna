@@ -6,6 +6,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
+import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -19,7 +20,6 @@ import game.idle.flow.StepWork
 import game.idle.flow.ToolNeed
 import game.idle.flow.Uses
 import game.idle.flow.WorkSpot
-import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
@@ -76,7 +76,7 @@ class SmithStepType(private val names: GameNames) : StepType {
         return "smith ${StepAmount.prefix(settings)}$name${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
     }
 
-    override fun resolve(settings: StepSettings, context: FlowContext): Works {
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val item = settings[ITEM] ?: throw FlowError("smith needs an item")
         val (table, smithed) = smithed(settings) ?: throw FlowError("'$item' is not an item to smith")
         ProcessInput.requireGathered(input(settings, context), context, listOf(smithed.barType.id), names)
@@ -112,7 +112,7 @@ data class SmithStep(
     val radius: Int,
     val workSpot: WorkSpot,
     override val amount: Int? = null,
-) : Works, OwnSpot, Counts {
+) : ResolvedStep, OwnSpot, Counts {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 

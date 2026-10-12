@@ -66,6 +66,8 @@ class LunaPicker(private val player: Player, private val itemIds: Set<Int>, priv
         return pickedUp
     }
 
+    override fun interrupt() = LunaClicks.interrupt(player)
+
     private fun walk(to: Position) {
         player.overlays.closeWindows(false)
         player.navigator.navigate(to, true)

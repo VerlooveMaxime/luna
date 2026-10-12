@@ -18,7 +18,6 @@ import game.idle.flow.StepType
 import game.idle.flow.StepWork
 import game.idle.flow.ToolNeed
 import game.idle.flow.WorkSpot
-import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
@@ -84,7 +83,7 @@ data class MineStep(
     val radius: Int,
     val workSpot: WorkSpot,
     override val amount: Int? = null,
-) : Works, OwnSpot, Gathers, Counts {
+) : ResolvedStep, OwnSpot, Gathers, Counts {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 

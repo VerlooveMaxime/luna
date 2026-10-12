@@ -6,6 +6,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
+import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -18,7 +19,6 @@ import game.idle.flow.StepType
 import game.idle.flow.StepWork
 import game.idle.flow.Uses
 import game.idle.flow.WorkSpot
-import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
@@ -70,7 +70,7 @@ class SmeltStepType(private val names: GameNames) : StepType {
     override fun summary(settings: StepSettings): String =
         "smelt ${StepAmount.prefix(settings)}${settings[BAR] ?: "?"}${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
 
-    override fun resolve(settings: StepSettings, context: FlowContext): Works {
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val name = settings[BAR] ?: throw FlowError("smelt needs a bar")
         val bar = bar(settings) ?: throw FlowError("'$name' is not a bar to smelt")
         ProcessInput.requireGathered(input(settings, context), context, ores(bar).map { it.id }, names)
@@ -98,7 +98,7 @@ data class SmeltStep(
     val radius: Int,
     val workSpot: WorkSpot,
     override val amount: Int? = null,
-) : Works, OwnSpot, Counts {
+) : ResolvedStep, OwnSpot, Counts {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 

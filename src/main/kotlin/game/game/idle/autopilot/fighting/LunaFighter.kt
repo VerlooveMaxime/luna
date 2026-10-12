@@ -2,6 +2,7 @@ package game.idle.autopilot.fighting
 
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
+import game.idle.location.Tile
 import game.idle.movement.Footprint
 import game.idle.movement.ReachScan
 import game.idle.movement.ReachTerrain
@@ -63,10 +64,7 @@ class LunaFighter(private val player: Player, private val target: FightTarget, p
         player.navigator.navigate(target.approach, true)
     }
 
-    override fun walkToLocation() {
-        player.overlays.closeWindows(false)
-        player.navigator.navigate(anchor, true)
-    }
+    override fun anchor(): Tile = area.anchor
 
     override fun kills(): Int {
         watchKills()
@@ -80,15 +78,16 @@ class LunaFighter(private val player: Player, private val target: FightTarget, p
         return npc.state == EntityState.ACTIVE && npc.actions.first(MobDeathAction::class.java) != null
     }
 
-    override fun stop() {
-        player.actions.interruptWeak()
-    }
+    override fun interrupt() = LunaClicks.interrupt(player)
 
-    /** Counts the watched npc once it is dead, then watches whatever npc of the target the player fights now. */
+    /**
+     * Counts the watched npc once it is dead, when it is one of the target's: an attacker of another kind fought back is
+     * no kill. Then watches whatever npc of the target the player fights now.
+     */
     private fun watchKills() {
         val dead = watched?.takeIf { !it.isAlive }
         if (dead != null) {
-            if (dead.combat.lastDamageReceived?.attacker == player) {
+            if (dead.id in target.npcs && dead.combat.lastDamageReceived?.attacker == player) {
                 kills++
                 lastKill = dead
             }

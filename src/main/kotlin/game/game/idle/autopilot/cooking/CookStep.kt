@@ -6,6 +6,7 @@ import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
 import game.idle.flow.ProcessKinds
+import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -18,7 +19,6 @@ import game.idle.flow.StepSpot
 import game.idle.flow.StepType
 import game.idle.flow.StepWork
 import game.idle.flow.WorkSpot
-import game.idle.flow.Works
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.location.Area
@@ -73,7 +73,7 @@ class CookStepType(private val names: GameNames) : StepType {
         "cook ${StepAmount.prefix(settings)}${food.ids(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd() +
             StepRadius.suffix(settings) + StepSpot.suffix(settings)
 
-    override fun resolve(settings: StepSettings, context: FlowContext): Works =
+    override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep =
         CookStep(food.resolve(settings, context, input(settings, context)), StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
 
     companion object {
@@ -90,7 +90,7 @@ data class CookStep(
     val radius: Int,
     val workSpot: WorkSpot,
     override val amount: Int? = null,
-) : Works, OwnSpot, Counts {
+) : ResolvedStep, OwnSpot, Counts {
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
