@@ -22,4 +22,8 @@ class FakeLighter(var view: LightView) : Lighter {
     }
 
     override fun logs(): Int = logs
+
+    override fun interrupt() {
+        steps += "interrupt"
+    }
 }

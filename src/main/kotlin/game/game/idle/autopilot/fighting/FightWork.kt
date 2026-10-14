@@ -1,5 +1,6 @@
 package game.idle.autopilot.fighting
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.fighting.FightDecision.Attack
 import game.idle.autopilot.fighting.FightDecision.Settled
 import game.idle.autopilot.fighting.FightDecision.WalkTo
@@ -13,7 +14,6 @@ import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
 import game.idle.flow.Target
 import game.idle.location.Tile
-import io.luna.game.model.Position
 
 /** What the fight step can see and do for one player. [LunaFighter] is the in-game one. */
 interface Fighter {
@@ -23,10 +23,10 @@ interface Fighter {
 
     fun look(): FightView
 
-    fun attack(target: TargetCandidate)
+    fun attack(npc: Candidate)
 
     /** Walks to the tile [target] can be hit from. */
-    fun walkTo(target: TargetCandidate)
+    fun walkTo(npc: Candidate)
 
     /** The anchor of the step's area, where a walk back goes. */
     fun anchor(): Tile
@@ -41,41 +41,26 @@ interface Fighter {
     fun interrupt()
 }
 
-/**
- * An npc the player could fight, ranked like fishing spots: [distance] walking steps to [approach], where it can be hit
- * from; [attacking] when it attacks the player.
- */
-data class TargetCandidate(
-    val npcIndex: Int,
-    val position: Position,
-    val distance: Int,
-    val usableFromHere: Boolean,
-    val approach: Position,
-    val attacking: Boolean = false,
-) {
-    val aim: Aim get() = Aim(npcIndex, Tile.of(position))
-}
-
 /** What the fight step knows about the player when it decides. */
 data class FightView(
     val atLocation: Boolean,
-    val targets: List<TargetCandidate>,
+    val targets: List<Candidate>,
 )
 
 sealed interface FightDecision {
 
     /** A decision aimed at one npc. */
     sealed interface OnTarget : FightDecision, Aimed {
-        val target: TargetCandidate
+        val target: Candidate
 
         override val aim: Aim get() = target.aim
 
         override val distance: Int get() = target.distance
     }
 
-    data class Attack(override val target: TargetCandidate) : OnTarget
+    data class Attack(override val target: Candidate) : OnTarget
 
-    data class WalkTo(override val target: TargetCandidate) : OnTarget
+    data class WalkTo(override val target: Candidate) : OnTarget
 
     data object WalkToLocation : FightDecision
 
@@ -92,16 +77,12 @@ sealed interface FightDecision {
  */
 object FightingPlanner {
 
-    private val preferredFirst: Comparator<TargetCandidate> =
-        compareByDescending<TargetCandidate> { it.attacking }
-            .thenByDescending { it.usableFromHere }
-            .thenBy { it.distance }
-            .thenBy { it.position.x }
-            .thenBy { it.position.y }
+    private val preferredFirst: Comparator<Candidate> =
+        compareByDescending<Candidate> { it.attacking }.then(Candidate.NEAREST_FIRST)
 
     fun decide(view: FightView, skipped: Set<Aim>): FightDecision {
         val setAside = skipped.map { it.key }.toSet()
-        val best = view.targets.filterNot { it.npcIndex in setAside }.minWithOrNull(preferredFirst)
+        val best = view.targets.filterNot { it.id in setAside }.minWithOrNull(preferredFirst)
         return when {
             best == null && !view.atLocation -> WalkToLocation
             best == null -> Settled(StepOutcome.Waiting(Reason.NoneInReach(Target.NPC)))
@@ -141,13 +122,13 @@ class FightWork(private val fighter: Fighter) : StepWork {
             is Settled -> decision.outcome
         }
 
-    private fun attack(target: TargetCandidate): StepOutcome {
-        fighter.attack(target)
+    private fun attack(npc: Candidate): StepOutcome {
+        fighter.attack(npc)
         return StepOutcome.Worked
     }
 
-    private fun walkTo(target: TargetCandidate): StepOutcome {
-        fighter.walkTo(target)
+    private fun walkTo(npc: Candidate): StepOutcome {
+        fighter.walkTo(npc)
         return StepOutcome.Approached
     }
 }

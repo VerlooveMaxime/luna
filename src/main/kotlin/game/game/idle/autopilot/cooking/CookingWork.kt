@@ -1,6 +1,6 @@
 package game.idle.autopilot.cooking
 
-import game.idle.autopilot.PlaceCandidate
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.cooking.CookingDecision.CookAll
 import game.idle.autopilot.cooking.CookingDecision.Settled
 import game.idle.autopilot.cooking.CookingDecision.UseOn
@@ -24,12 +24,12 @@ interface Cooker {
     fun look(): CookingView
 
     /** Uses the raw food in [slot] on [place], which opens the cooking window. */
-    fun useOn(place: PlaceCandidate, slot: Int)
+    fun useOn(place: Candidate, slot: Int)
 
     /** Picks "cook all" in the open cooking window. */
     fun cookAll()
 
-    fun walkTo(place: PlaceCandidate)
+    fun walkTo(place: Candidate)
 
     /** The anchor of the step's area, where a walk back goes. */
     fun anchor(): Tile
@@ -46,23 +46,23 @@ data class CookingView(
     val rawSlot: Int?,
     val windowOpen: Boolean,
     val atLocation: Boolean,
-    val places: List<PlaceCandidate>,
+    val places: List<Candidate>,
 )
 
 sealed interface CookingDecision {
 
     /** A decision aimed at one fire or range. */
     sealed interface OnPlace : CookingDecision, Aimed {
-        val place: PlaceCandidate
+        val place: Candidate
 
         override val aim: Aim get() = place.aim
 
         override val distance: Int get() = place.distance
     }
 
-    data class UseOn(override val place: PlaceCandidate, val slot: Int) : OnPlace
+    data class UseOn(override val place: Candidate, val slot: Int) : OnPlace
 
-    data class WalkTo(override val place: PlaceCandidate) : OnPlace
+    data class WalkTo(override val place: Candidate) : OnPlace
 
     data object CookAll : CookingDecision
 
@@ -80,14 +80,8 @@ sealed interface CookingDecision {
  */
 object CookingPlanner {
 
-    private val preferredFirst: Comparator<PlaceCandidate> =
-        compareByDescending<PlaceCandidate> { it.usableFromHere }
-            .thenBy { it.distance }
-            .thenBy { it.position.x }
-            .thenBy { it.position.y }
-
     fun decide(view: CookingView, skipped: Set<Aim>): CookingDecision {
-        val best = view.places.filterNot { it.aim in skipped }.minWithOrNull(preferredFirst)
+        val best = view.places.filterNot { it.aim in skipped }.minWithOrNull(Candidate.NEAREST_FIRST)
         return when {
             view.rawSlot == null -> Settled(StepOutcome.Empty)
             view.windowOpen -> CookAll
@@ -126,12 +120,12 @@ class CookingWork(private val cooker: Cooker) : StepWork {
             is Settled -> decision.outcome
         }
 
-    private fun useOn(place: PlaceCandidate, slot: Int): StepOutcome {
+    private fun useOn(place: Candidate, slot: Int): StepOutcome {
         cooker.useOn(place, slot)
         return StepOutcome.Worked
     }
 
-    private fun walkTo(place: PlaceCandidate): StepOutcome {
+    private fun walkTo(place: Candidate): StepOutcome {
         cooker.walkTo(place)
         return StepOutcome.Approached
     }

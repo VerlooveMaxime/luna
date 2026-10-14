@@ -1,5 +1,7 @@
 package game.idle.autopilot.pickup
 
+import game.idle.autopilot.Candidate
+
 /** Records each step as text, for example `take 3200,3201`. */
 class FakePicker(var view: PickUpView) : Picker {
 
@@ -11,11 +13,11 @@ class FakePicker(var view: PickUpView) : Picker {
 
     override fun look(): PickUpView = view
 
-    override fun take(item: GroundLoot) {
+    override fun take(item: Candidate) {
         steps += "take ${item.position.x},${item.position.y}"
     }
 
-    override fun walkTo(item: GroundLoot) {
+    override fun walkTo(item: Candidate) {
         steps += "walk to ${item.position.x},${item.position.y}"
     }
 

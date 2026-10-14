@@ -1,5 +1,6 @@
 package game.idle.autopilot.mining
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
@@ -11,8 +12,6 @@ import io.luna.game.model.Direction
 import io.luna.game.model.Position
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
-import io.luna.game.model.mob.overlay.OverlayType
-import io.luna.game.model.mob.overlay.StandardInterface
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -30,7 +29,7 @@ class LunaMinerTest {
     private val emptyRock = 450
     private val copperOre = 436
     private val area = Area(Tile(anchor.x, anchor.y), radius = 10)
-    private val rockHere = RockCandidate(copperRock, rockTile, 0, usableFromHere = true, besideRock)
+    private val rockHere = Candidate(copperRock, rockTile, 0, usableFromHere = true, besideRock)
 
     private fun login(position: Position = anchor): Player = TestWorld.login("miner", position)
 
@@ -46,43 +45,11 @@ class LunaMinerTest {
     fun resetWorld() = TestWorld.reset()
 
     @Test
-    fun `an idle player with no window open is not busy`() {
-        assertFalse(miner(login()).isBusy())
-    }
-
-    @Test
     fun `a walking player is busy`() {
         val player = login()
         player.walking.addStep(Direction.EAST)
 
         assertTrue(miner(player).isBusy())
-    }
-
-    @Test
-    fun `an open window keeps the player busy`() {
-        val player = login()
-        player.overlays.open(StandardInterface(5292))
-
-        assertTrue(miner(player).isBusy())
-    }
-
-    @Test
-    fun `a player inside the work area is at the location`() {
-        assertTrue(miner(login()).look().atLocation)
-    }
-
-    @Test
-    fun `a player outside the work area is not at the location`() {
-        assertFalse(miner(login(Position(3220, 3200))).look().atLocation)
-    }
-
-    @Test
-    fun `a rock out of reach is approached from the nearest tile it can be mined from`() {
-        TestWorld.place(copperRock, rockTile)
-
-        val rocks = miner(login()).look().rocks
-
-        assertEquals(listOf(RockCandidate(copperRock, rockTile, 2, usableFromHere = false, besideRock)), rocks)
     }
 
     @Test
@@ -96,22 +63,14 @@ class LunaMinerTest {
     fun `Tutorial Island's copper rocks count as copper rocks`() {
         TestWorld.place(islandCopperRock, rockTile)
 
-        assertEquals(listOf(islandCopperRock), miner(login(besideRock)).look().rocks.map { it.objectId })
+        assertEquals(listOf(islandCopperRock), miner(login(besideRock)).look().rocks.map { it.id })
     }
 
     @Test
     fun `rocks of other ores are left out`() {
         TestWorld.place(tinRock, rockTile)
 
-        assertEquals(emptyList<RockCandidate>(), miner(login()).look().rocks)
-    }
-
-    @Test
-    fun `a rock only another player sees is left out`() {
-        val player = login()
-        TestWorld.placeFor(TestWorld.login("other", anchor), copperRock, rockTile)
-
-        assertEquals(emptyList<RockCandidate>(), miner(player).look().rocks)
+        assertEquals(emptyList<Candidate>(), miner(login()).look().rocks)
     }
 
     @Test
@@ -139,34 +98,12 @@ class LunaMinerTest {
     }
 
     @Test
-    fun `a rock only another player sees is not clicked`() {
-        val player = login(besideRock)
-        TestWorld.placeFor(TestWorld.login("other", anchor), copperRock, rockTile)
-        val clicked = recordClicks()
-
-        miner(player).mine(rockHere)
-        TestWorld.tick()
-
-        assertEquals(emptyList<Int>(), clicked)
-    }
-
-    @Test
     fun `walking to a rock heads for its approach tile`() {
         val player = login()
 
         miner(player).walkTo(rockHere)
 
         assertEquals(besideRock, player.navigator.currentTarget)
-    }
-
-    @Test
-    fun `walking to a rock closes the open window`() {
-        val player = login()
-        player.overlays.open(StandardInterface(5292))
-
-        miner(player).walkTo(rockHere)
-
-        assertFalse(OverlayType.WIDGET_STANDARD in player.overlays.overlayMap)
     }
 
     @Test

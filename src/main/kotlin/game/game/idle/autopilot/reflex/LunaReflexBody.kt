@@ -19,6 +19,9 @@ import io.luna.game.model.mob.Skill
 /** The player's run toggle as it was before a flight turned running on, while the flight goes on; never saved. */
 private var Player.runToggleBeforeFlight by Attr.nullableObj(Boolean::class)
 
+/** [player]'s hitpoints out of their full hitpoints. */
+fun healthOf(player: Player): Health = Health(player.health, player.skill(Skill.HITPOINTS).staticLevel)
+
 /**
  * [ReflexBody] for a logged-in player. A meal goes through the same event as the client's click, so Luna's eating runs
  * unchanged (its own delay between meals included) and the fight in progress goes on.
@@ -27,7 +30,7 @@ class LunaReflexBody(private val player: Player) : ReflexBody {
 
     private val world get() = player.world
 
-    override fun health(): Health = Health(player.health, player.skill(Skill.HITPOINTS).staticLevel)
+    override fun health(): Health = healthOf(player)
 
     override fun foodSlot(foods: Set<Int>): Int? {
         val wanted = foods.ifEmpty { Food.ID_TO_FOOD.keys }
@@ -36,11 +39,7 @@ class LunaReflexBody(private val player: Player) : ReflexBody {
 
     override fun eat(slot: Int) {
         val food = player.inventory[slot] ?: return
-        val event = ItemFirstClickEvent(player, food.id, slot, INVENTORY)
-        if (LunaClicks.mayAct(player, event)) {
-            player.overlays.closeWindows(false)
-            player.plugins.post(event)
-        }
+        LunaClicks.postClosing(player, ItemFirstClickEvent(player, food.id, slot, LunaClicks.INVENTORY))
     }
 
     override fun underAttack(): Boolean = threats().isNotEmpty()
@@ -76,13 +75,8 @@ class LunaReflexBody(private val player: Player) : ReflexBody {
             npc.isAlive && npc.combat.target == player && FleePlanner.canGetAt(npc.position, player.position, ::npcCanStep)
         }.toList()
 
-    private fun canStep(from: Position, direction: Direction): Boolean =
-        world.collisionManager.traversable(from, EntityType.PLAYER, direction)
+    private fun canStep(from: Position, direction: Direction): Boolean = LunaClicks.canStep(world, from, direction)
 
     private fun npcCanStep(from: Position, direction: Direction): Boolean =
         world.collisionManager.traversable(from, EntityType.NPC, direction)
-
-    private companion object {
-        const val INVENTORY = 3214
-    }
 }

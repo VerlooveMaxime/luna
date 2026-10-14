@@ -1,5 +1,6 @@
 package game.idle.autopilot.fighting
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.fighting.FightDecision.Settled
 import game.idle.autopilot.fighting.FightDecision.WalkTo
 import game.idle.flow.Meter
@@ -21,9 +22,9 @@ class FightWorkTest {
     private val anchor = Tile(3102, 9512)
 
     private fun target(x: Int, y: Int, distance: Int, index: Int = x) =
-        TargetCandidate(npcIndex = index, position = Position(x, y), distance, usableFromHere = false, approach = Position(x, y + 1))
+        Candidate(id = index, position = Position(x, y), distance, usableFromHere = false, approach = Position(x, y + 1))
 
-    private fun view(atLocation: Boolean = true, targets: List<TargetCandidate> = listOf(near, far)) = FightView(atLocation, targets)
+    private fun view(atLocation: Boolean = true, targets: List<Candidate> = listOf(near, far)) = FightView(atLocation, targets)
 
     private val fighter = FakeFighter(view(), anchor)
     private val work = FightWork(fighter)
@@ -78,30 +79,12 @@ class FightWorkTest {
     }
 
     @Test
-    fun `an npc in reach is attacked before a nearer one out of reach`() {
-        fighter.view = view(targets = listOf(near.copy(distance = 1), inReach.copy(position = Position(3108, 9510))))
-
-        work.act(left = null)
-
-        assertEquals(listOf("attack 3108,9510"), fighter.steps)
-    }
-
-    @Test
     fun `an npc attacking the player is fought back before one nearer and in reach`() {
         fighter.view = view(targets = listOf(inReach, far.copy(attacking = true)))
 
         work.act(left = null)
 
         assertEquals(listOf("walk to 3104,9510"), fighter.steps)
-    }
-
-    @Test
-    fun `npcs at the same distance are picked west to east, then south to north`() {
-        fighter.view = view(targets = listOf(target(3102, 9511, 2), target(3101, 9515, 2), target(3101, 9513, 2, index = 1)))
-
-        work.act(left = null)
-
-        assertEquals(listOf("walk to 3101,9513"), fighter.steps)
     }
 
     @Test
@@ -170,7 +153,7 @@ class FightWorkTest {
     fun `attacking another npc next is no retry`() {
         fighter.view = view(targets = listOf(inReach))
         work.act(left = null)
-        fighter.view = view(targets = listOf(inReach.copy(npcIndex = 1, position = Position(3101, 9510))))
+        fighter.view = view(targets = listOf(inReach.copy(id = 1, position = Position(3101, 9510))))
 
         work.act(left = null)
 

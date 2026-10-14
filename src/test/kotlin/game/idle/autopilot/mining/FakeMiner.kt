@@ -1,5 +1,6 @@
 package game.idle.autopilot.mining
 
+import game.idle.autopilot.Candidate
 import game.idle.location.Tile
 import io.luna.game.model.Position
 
@@ -14,11 +15,11 @@ class FakeMiner(var view: MiningView, private val anchor: Tile = Tile(3200, 3200
 
     override fun look(): MiningView = view
 
-    override fun mine(rock: RockCandidate) {
+    override fun mine(rock: Candidate) {
         steps += "mine ${rock.position.x},${rock.position.y}"
     }
 
-    override fun walkTo(rock: RockCandidate) {
+    override fun walkTo(rock: Candidate) {
         steps += "walk to ${rock.position.x},${rock.position.y}"
     }
 
@@ -32,6 +33,6 @@ class FakeMiner(var view: MiningView, private val anchor: Tile = Tile(3200, 3200
 }
 
 fun rock(x: Int, y: Int, distance: Int, usableFromHere: Boolean = false) =
-    RockCandidate(2090, Position(x, y), distance, usableFromHere, Position(x - 1, y))
+    Candidate(2090, Position(x, y), distance, usableFromHere, Position(x - 1, y))
 
-fun miningView(rocks: List<RockCandidate>, atLocation: Boolean = true) = MiningView(atLocation, rocks)
+fun miningView(rocks: List<Candidate>, atLocation: Boolean = true) = MiningView(atLocation, rocks)

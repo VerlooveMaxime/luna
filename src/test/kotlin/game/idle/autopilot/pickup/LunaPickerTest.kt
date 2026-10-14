@@ -1,5 +1,6 @@
 package game.idle.autopilot.pickup
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
 import game.idle.flow.StepOutcome
@@ -28,6 +29,7 @@ class LunaPickerTest {
     private val logs = 1511
     private val coins = 995
     private val deadTree = 1286
+    private val bonesUnderfoot = Candidate(bones, anchor, distance = 0, usableFromHere = true, approach = anchor)
 
     @AfterEach
     fun resetWorld() = TestWorld.reset()
@@ -65,18 +67,6 @@ class LunaPickerTest {
     }
 
     @Test
-    fun `a take on its way keeps the player busy`() {
-        val player = login()
-        takes()
-        val picker = picker(player)
-        TestWorld.dropItem(bones, 1, Position(3206, 3200))
-
-        picker.take(picker.look().items.single())
-
-        assertTrue(picker.isBusy())
-    }
-
-    @Test
     fun `an open window keeps the player busy`() {
         val player = login()
         player.overlays.open(StandardInterface(5292))
@@ -89,7 +79,7 @@ class LunaPickerTest {
         val player = login()
         TestWorld.dropItem(bones, 1, anchor)
 
-        assertEquals(listOf(GroundLoot(bones, anchor, distance = 0, fits = true)), picker(player).look().items)
+        assertEquals(listOf(bonesUnderfoot), picker(player).look().items)
     }
 
     @Test
@@ -105,7 +95,7 @@ class LunaPickerTest {
         val player = login()
         TestWorld.dropItem(logs, 1, anchor)
 
-        assertEquals(emptyList<GroundLoot>(), picker(player).look().items)
+        assertEquals(emptyList<Candidate>(), picker(player).look().items)
     }
 
     @Test
@@ -121,7 +111,7 @@ class LunaPickerTest {
         val player = login()
         TestWorld.dropItem(bones, 1, anchor, viewer = TestWorld.login("other", Position(3205, 3205)))
 
-        assertEquals(emptyList<GroundLoot>(), picker(player).look().items)
+        assertEquals(emptyList<Candidate>(), picker(player).look().items)
     }
 
     @Test
@@ -129,7 +119,7 @@ class LunaPickerTest {
         val player = login()
         TestWorld.dropItem(bones, 1, Position(3211, 3200))
 
-        assertEquals(emptyList<GroundLoot>(), picker(player).look().items)
+        assertEquals(emptyList<Candidate>(), picker(player).look().items)
     }
 
     @Test
@@ -138,7 +128,7 @@ class LunaPickerTest {
         TestWorld.place(deadTree, Position(3203, 3200))
         TestWorld.dropItem(bones, 1, Position(3203, 3200))
 
-        assertEquals(emptyList<GroundLoot>(), picker(player).look().items)
+        assertEquals(emptyList<Candidate>(), picker(player).look().items)
     }
 
     @Test
@@ -182,14 +172,6 @@ class LunaPickerTest {
     }
 
     @Test
-    fun `a player on another floor sees nothing there`() {
-        val player = login(Position(3200, 3200, 1))
-        TestWorld.dropItem(bones, 1, anchor)
-
-        assertEquals(PickUpView(atLocation = false, items = emptyList()), picker(player).look())
-    }
-
-    @Test
     fun `taking an item clicks it like the client`() {
         val player = login()
         val taken = takes()
@@ -224,7 +206,7 @@ class LunaPickerTest {
         val picker = picker(player)
         TestWorld.dropItem(logs, 1, anchor)
 
-        picker.take(GroundLoot(bones, anchor, distance = 0, fits = true))
+        picker.take(bonesUnderfoot)
         TestWorld.tick()
 
         assertEquals(emptyList<Int>(), taken)
@@ -237,7 +219,7 @@ class LunaPickerTest {
         val picker = picker(player)
         TestWorld.dropItem(bones, 1, anchor, viewer = TestWorld.login("other", Position(3205, 3205)))
 
-        picker.take(GroundLoot(bones, anchor, distance = 0, fits = true))
+        picker.take(bonesUnderfoot)
         TestWorld.tick()
 
         assertEquals(emptyList<Int>(), taken)

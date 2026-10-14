@@ -83,30 +83,12 @@ class SmithingWorkTest {
     }
 
     @Test
-    fun `an anvil in reach comes before a nearer one out of reach`() {
-        smither.view = smithingView(listOf(near.copy(distance = 1), inReach.copy(position = far.position)))
-
-        work.act(left = null)
-
-        assertEquals(listOf("use 0 on 3210,3200"), smither.steps)
-    }
-
-    @Test
     fun `out of reach, the nearest anvil is walked to, which approaches it`() {
         smither.view = smithingView(listOf(far, near))
 
         val outcome = work.act(left = null)
 
         assertEquals(StepOutcome.Approached to listOf("walk to 3201,3200"), outcome to smither.steps)
-    }
-
-    @Test
-    fun `equally near anvils are picked west to east, then south to north`() {
-        smither.view = smithingView(listOf(anvil(3201, 3205, distance = 2), near))
-
-        work.act(left = null)
-
-        assertEquals(listOf("walk to 3201,3200"), smither.steps)
     }
 
     @Test

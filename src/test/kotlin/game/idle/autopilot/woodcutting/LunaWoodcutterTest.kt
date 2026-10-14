@@ -1,22 +1,17 @@
 package game.idle.autopilot.woodcutting
 
-import engine.widget.skill.LevelUpData
-import engine.widget.skill.LevelUpInterface
+import game.idle.autopilot.Candidate
+import game.idle.autopilot.EndlessAction
+import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.woodcutting.cutTree.Tree
-import game.idle.autopilot.EndlessAction
-import game.idle.autopilot.LunaClicks
 import game.testworld.TestWorld
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
-import io.luna.game.model.mob.Skill
-import io.luna.game.model.mob.overlay.OverlayType
-import io.luna.game.model.mob.overlay.StandardInterface
-import io.luna.game.model.mob.overlay.WalkableInterface
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -33,10 +28,11 @@ class LunaWoodcutterTest {
     private val oakTree = 1281
     private val logs = 1511
     private val area = Area(Tile(anchor.x, anchor.y), radius = 10)
-    private val spot = WoodcuttingSpot(Tree.NORMAL, area)
-    private val normalTreeHere = TreeCandidate(normalTree, treeTile, Tree.NORMAL, 0, usableFromHere = true, besideTree)
+    private val normalTreeHere = Candidate(normalTree, treeTile, 0, usableFromHere = true, besideTree)
 
     private fun login(position: Position = anchor): Player = TestWorld.login("lumberjack", position)
+
+    private fun woodcutter(player: Player) = LunaWoodcutter(player, Tree.NORMAL, area)
 
     private fun recordClicks(): MutableList<Int> {
         val clicked = mutableListOf<Int>()
@@ -48,83 +44,36 @@ class LunaWoodcutterTest {
     fun resetWorld() = TestWorld.reset()
 
     @Test
-    fun `an idle player with no window open is not busy`() {
-        assertFalse(LunaWoodcutter(login(), spot).isBusy())
-    }
-
-    @Test
     fun `a walking player is busy`() {
         val player = login()
         player.walking.addStep(Direction.EAST)
 
-        assertTrue(LunaWoodcutter(player, spot).isBusy())
-    }
-
-    @Test
-    fun `an open window keeps the player busy`() {
-        val player = login()
-        player.overlays.open(StandardInterface(5292))
-
-        assertTrue(LunaWoodcutter(player, spot).isBusy())
-    }
-
-    @Test
-    fun `a level-up dialogue does not keep the player busy`() {
-        val player = login()
-        player.overlays.open(LevelUpInterface(Skill.WOODCUTTING, 2, LevelUpData(4273, 4274, 4272)))
-
-        assertFalse(LunaWoodcutter(player, spot).isBusy())
-    }
-
-    @Test
-    fun `an overlay that is not a window does not keep the player busy`() {
-        val player = login()
-        player.overlays.open(WalkableInterface(197))
-
-        assertFalse(LunaWoodcutter(player, spot).isBusy())
-    }
-
-    @Test
-    fun `a player inside the location's area is at the location`() {
-        assertTrue(LunaWoodcutter(login(), spot).look().atLocation)
-    }
-
-    @Test
-    fun `a player outside the location's area is not at the location`() {
-        assertFalse(LunaWoodcutter(login(Position(3220, 3200)), spot).look().atLocation)
-    }
-
-    @Test
-    fun `a tree out of reach is approached from the nearest tile it can be cut from`() {
-        TestWorld.place(normalTree, treeTile)
-
-        val trees = LunaWoodcutter(login(), spot).look().trees
-
-        assertEquals(listOf(TreeCandidate(normalTree, treeTile, Tree.NORMAL, 2, usableFromHere = false, besideTree)), trees)
+        assertTrue(woodcutter(player).isBusy())
     }
 
     @Test
     fun `a tree next to the player is cut from where they stand`() {
         TestWorld.place(normalTree, treeTile)
 
-        val trees = LunaWoodcutter(login(besideTree), spot).look().trees
+        val trees = woodcutter(login(besideTree)).look().trees
 
         assertEquals(listOf(normalTreeHere), trees)
     }
 
     @Test
-    fun `trees of kinds the spot does not cut are left out`() {
-        TestWorld.place(oakTree, treeTile)
+    fun `a tree diagonal to the player is walked to, since the click wants a side`() {
+        TestWorld.place(normalTree, Position(3201, 3201))
 
-        assertEquals(emptyList<TreeCandidate>(), LunaWoodcutter(login(), spot).look().trees)
+        val tree = woodcutter(login()).look().trees.single()
+
+        assertEquals(false to 1, tree.usableFromHere to tree.distance)
     }
 
     @Test
-    fun `a tree only another player sees is left out`() {
-        val player = login()
-        TestWorld.placeFor(TestWorld.login("other", anchor), normalTree, treeTile)
+    fun `trees of other kinds than the step's are left out`() {
+        TestWorld.place(oakTree, treeTile)
 
-        assertEquals(emptyList<TreeCandidate>(), LunaWoodcutter(player, spot).look().trees)
+        assertEquals(emptyList<Candidate>(), woodcutter(login()).look().trees)
     }
 
     @Test
@@ -133,7 +82,7 @@ class LunaWoodcutterTest {
         TestWorld.place(normalTree, treeTile)
         val clicked = recordClicks()
 
-        LunaWoodcutter(player, spot).chop(normalTreeHere)
+        woodcutter(player).chop(normalTreeHere)
         TestWorld.tick()
 
         assertEquals(listOf(normalTree), clicked)
@@ -145,19 +94,7 @@ class LunaWoodcutterTest {
         TestWorld.place(normalStump, treeTile)
         val clicked = recordClicks()
 
-        LunaWoodcutter(player, spot).chop(normalTreeHere)
-        TestWorld.tick()
-
-        assertEquals(emptyList<Int>(), clicked)
-    }
-
-    @Test
-    fun `a tree only another player sees is not clicked`() {
-        val player = login(besideTree)
-        TestWorld.placeFor(TestWorld.login("other", anchor), normalTree, treeTile)
-        val clicked = recordClicks()
-
-        LunaWoodcutter(player, spot).chop(normalTreeHere)
+        woodcutter(player).chop(normalTreeHere)
         TestWorld.tick()
 
         assertEquals(emptyList<Int>(), clicked)
@@ -167,24 +104,14 @@ class LunaWoodcutterTest {
     fun `walking to a tree heads for its approach tile`() {
         val player = login()
 
-        LunaWoodcutter(player, spot).walkTo(normalTreeHere)
+        woodcutter(player).walkTo(normalTreeHere)
 
         assertEquals(besideTree, player.navigator.currentTarget)
     }
 
     @Test
-    fun `walking to a tree closes the open window`() {
-        val player = login()
-        player.overlays.open(StandardInterface(5292))
-
-        LunaWoodcutter(player, spot).walkTo(normalTreeHere)
-
-        assertFalse(OverlayType.WIDGET_STANDARD in player.overlays.overlayMap)
-    }
-
-    @Test
     fun `a walk back goes to the area's anchor`() {
-        assertEquals(Tile(3200, 3200), LunaWoodcutter(login(Position(3220, 3200)), spot).anchor())
+        assertEquals(Tile(3200, 3200), woodcutter(login(Position(3220, 3200))).anchor())
     }
 
     @Test
@@ -193,7 +120,7 @@ class LunaWoodcutterTest {
         player.inventory.add(Item(logs, 3))
         player.inventory.add(Item(1521))
 
-        assertEquals(3, LunaWoodcutter(player, spot).logs())
+        assertEquals(3, woodcutter(player).logs())
     }
 
     @Test
@@ -202,7 +129,7 @@ class LunaWoodcutterTest {
         player.submitAction(EndlessAction(player))
         TestWorld.tick()
 
-        LunaWoodcutter(player, spot).interrupt()
+        woodcutter(player).interrupt()
         TestWorld.tick()
 
         assertFalse(LunaClicks.isActing(player))

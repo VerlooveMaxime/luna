@@ -16,10 +16,7 @@ class LunaItemDropper(private val player: Player, private val itemIds: Set<Int>)
 
     override fun dropItems() {
         for ((slot, item) in items()) {
-            val event = DropItemEvent(player, item.id, INVENTORY_WIDGET, slot)
-            if (LunaClicks.mayAct(player, event)) {
-                player.plugins.post(event)
-            }
+            LunaClicks.post(player, DropItemEvent(player, item.id, LunaClicks.INVENTORY, slot))
         }
     }
 
@@ -28,8 +25,4 @@ class LunaItemDropper(private val player: Player, private val itemIds: Set<Int>)
         (0 until player.inventory.capacity()).mapNotNull { slot ->
             player.inventory[slot]?.takeIf { it.id in itemIds }?.let { slot to it }
         }
-
-    private companion object {
-        const val INVENTORY_WIDGET = 3214
-    }
 }

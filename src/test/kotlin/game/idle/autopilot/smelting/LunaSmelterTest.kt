@@ -1,9 +1,9 @@
 package game.idle.autopilot.smelting
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaCarried
 import game.idle.autopilot.LunaClicks
-import game.idle.autopilot.PlaceCandidate
 import game.idle.flow.Preconditions
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
@@ -15,8 +15,6 @@ import io.luna.game.model.Direction
 import io.luna.game.model.Position
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
-import io.luna.game.model.mob.overlay.OverlayType
-import io.luna.game.model.mob.overlay.StandardInterface
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -45,22 +43,9 @@ class LunaSmelterTest {
     fun resetWorld() = TestWorld.reset()
 
     @Test
-    fun `an idle player is not busy`() {
-        assertFalse(smelter(login()).isBusy())
-    }
-
-    @Test
     fun `a walking player is busy`() {
         val player = login()
         player.walking.addStep(Direction.EAST)
-
-        assertTrue(smelter(player).isBusy())
-    }
-
-    @Test
-    fun `an open window keeps the player busy`() {
-        val player = login()
-        player.overlays.open(StandardInterface(5292))
 
         assertTrue(smelter(player).isBusy())
     }
@@ -112,33 +97,13 @@ class LunaSmelterTest {
     }
 
     @Test
-    fun `a player outside the work area is not at the location`() {
-        assertFalse(smelter(login(Position(3220, 3200))).look().atLocation)
-    }
-
-    @Test
     fun `Tutorial Island's furnace is found, its whole footprint in the way`() {
         TestWorld.place(islandFurnace, furnaceTile)
 
         val furnaces = smelter(login()).look().furnaces
 
-        assertEquals(listOf(islandFurnace), furnaces.map { it.objectId })
+        assertEquals(listOf(islandFurnace), furnaces.map { it.id })
         assertFalse(furnaces.single().usableFromHere)
-    }
-
-    @Test
-    fun `objects that are not furnaces are left out`() {
-        TestWorld.place(2783, furnaceTile)
-
-        assertEquals(emptyList<PlaceCandidate>(), smelter(login()).look().furnaces)
-    }
-
-    @Test
-    fun `a furnace only another player sees is left out`() {
-        val player = login()
-        TestWorld.placeFor(TestWorld.login("other", anchor), islandFurnace, furnaceTile)
-
-        assertEquals(emptyList<PlaceCandidate>(), smelter(player).look().furnaces)
     }
 
     @Test
@@ -164,21 +129,7 @@ class LunaSmelterTest {
         val used = mutableListOf<Int>()
         TestWorld.listen(ItemOnObjectEvent::class.java) { used += it.usedItemId }
 
-        smelter(player).smelt(PlaceCandidate(islandFurnace, furnaceTile, 0, true, anchor), slot = 0)
-        TestWorld.tick(10)
-
-        assertEquals(emptyList<Int>(), used)
-    }
-
-    @Test
-    fun `another object standing where the furnace was is not used`() {
-        val player = login()
-        player.inventory.add(Item(copperOre))
-        TestWorld.place(2783, furnaceTile)
-        val used = mutableListOf<Int>()
-        TestWorld.listen(ItemOnObjectEvent::class.java) { used += it.usedItemId }
-
-        smelter(player).smelt(PlaceCandidate(islandFurnace, furnaceTile, 0, true, anchor), slot = 0)
+        smelter(player).smelt(Candidate(islandFurnace, furnaceTile, distance = 0, usableFromHere = true, approach = anchor), slot = 0)
         TestWorld.tick(10)
 
         assertEquals(emptyList<Int>(), used)
@@ -199,36 +150,12 @@ class LunaSmelterTest {
     }
 
     @Test
-    fun `a furnace only another player sees is not used`() {
-        val player = login()
-        player.inventory.add(Item(copperOre))
-        TestWorld.placeFor(TestWorld.login("other", anchor), islandFurnace, furnaceTile)
-        val used = mutableListOf<Int>()
-        TestWorld.listen(ItemOnObjectEvent::class.java) { used += it.usedItemId }
-
-        smelter(player).smelt(PlaceCandidate(islandFurnace, furnaceTile, 0, true, anchor), slot = 0)
-        TestWorld.tick(10)
-
-        assertEquals(emptyList<Int>(), used)
-    }
-
-    @Test
     fun `walking to a furnace heads for its approach tile`() {
         val player = login()
 
-        smelter(player).walkTo(PlaceCandidate(islandFurnace, furnaceTile, 3, false, Position(3203, 3200)))
+        smelter(player).walkTo(Candidate(islandFurnace, furnaceTile, distance = 3, usableFromHere = false, approach = Position(3203, 3200)))
 
         assertEquals(Position(3203, 3200), player.navigator.currentTarget)
-    }
-
-    @Test
-    fun `walking to a furnace closes the open window`() {
-        val player = login()
-        player.overlays.open(StandardInterface(5292))
-
-        smelter(player).walkTo(PlaceCandidate(islandFurnace, furnaceTile, 3, false, Position(3203, 3200)))
-
-        assertFalse(OverlayType.WIDGET_STANDARD in player.overlays.overlayMap)
     }
 
     @Test

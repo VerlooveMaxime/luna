@@ -1,20 +1,17 @@
 package game.idle.flow
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.fishing.FakeFisher
 import game.idle.autopilot.fishing.FishStep
 import game.idle.autopilot.fishing.FishingMethod
 import game.idle.autopilot.fishing.FishingView
 import game.idle.autopilot.fishing.FishingWork
-import game.idle.autopilot.fishing.SpotCandidate
 import game.idle.autopilot.mining.FakeMiner
 import game.idle.autopilot.mining.MineStep
 import game.idle.autopilot.mining.MiningView
 import game.idle.autopilot.mining.MiningWork
-import game.idle.autopilot.mining.RockCandidate
-import game.idle.autopilot.woodcutting.ChopAction
 import game.idle.autopilot.woodcutting.ChopStep
 import game.idle.autopilot.woodcutting.FakeWoodcutter
-import game.idle.autopilot.woodcutting.TreeCandidate
 import game.idle.autopilot.woodcutting.WoodcuttingView
 import game.idle.autopilot.woodcutting.WoodcuttingWork
 import game.skill.fishing.catchFish.Tool
@@ -43,13 +40,13 @@ class ChopFixture : SpotFixture("chop", LevelNeed(Skill.WOODCUTTING, 15), bag = 
     override val tool = AXE
 
     private val step = ChopStep(Tree.OAK, RADIUS, WorkSpot.At(anchor))
-    private val tree = TreeCandidate(1281, targetTile, Tree.OAK, distance = 0, usableFromHere = true, anchor.toPosition())
+    private val tree = Candidate(1281, targetTile, distance = 0, usableFromHere = true, anchor.toPosition())
     private val woodcutter = FakeWoodcutter(WoodcuttingView(atLocation = true, listOf(tree)), anchor)
 
     override val done: List<String> get() = woodcutter.steps
 
     override fun turn(amount: Int?): StepTurn =
-        turnOf(WoodcuttingWork(woodcutter, ChopAction(setOf(step.tree))), amount, step.needs(), carried, fillsBag = true, walker)
+        turnOf(WoodcuttingWork(woodcutter), amount, step.needs(), carried, fillsBag = true, walker)
 
     override fun gain(units: Int) {
         woodcutter.logs += units
@@ -82,7 +79,7 @@ class MineFixture : SpotFixture("mine", LevelNeed(Skill.MINING, 15), bag = setOf
     }
 
     private val step = MineStep(Ore.IRON, RADIUS, WorkSpot.At(anchor))
-    private val rock = RockCandidate(2092, targetTile, distance = 0, usableFromHere = true, anchor.toPosition())
+    private val rock = Candidate(2092, targetTile, distance = 0, usableFromHere = true, anchor.toPosition())
     private val miner = FakeMiner(MiningView(atLocation = true, listOf(rock)), anchor)
 
     override val done: List<String> get() = miner.steps
@@ -121,7 +118,7 @@ class FishFixture : SpotFixture("fish", LevelNeed(Skill.FISHING, 20), bag = setO
     }
 
     private val step = FishStep(FishingMethod(Tool.FLY_FISHING_ROD), RADIUS, WorkSpot.At(anchor))
-    private val spot = SpotCandidate(npcIndex = 1, targetTile, distance = 0, usableFromHere = true, anchor.toPosition())
+    private val spot = Candidate(id = 1, targetTile, distance = 0, usableFromHere = true, anchor.toPosition())
     private val fisher = FakeFisher(FishingView(atLocation = true, listOf(spot)), anchor)
 
     override val done: List<String> get() = fisher.steps

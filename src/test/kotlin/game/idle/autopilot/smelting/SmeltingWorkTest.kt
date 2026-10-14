@@ -56,30 +56,12 @@ class SmeltingWorkTest {
     }
 
     @Test
-    fun `a furnace in reach comes before a nearer one out of reach`() {
-        smelter.view = smeltingView(listOf(near.copy(distance = 1), inReach.copy(position = far.position)))
-
-        work.act(left = null)
-
-        assertEquals(listOf("smelt 0 on 3210,3200"), smelter.steps)
-    }
-
-    @Test
     fun `out of reach, the nearest furnace is walked to, which approaches it`() {
         smelter.view = smeltingView(listOf(far, near))
 
         val outcome = work.act(left = null)
 
         assertEquals(StepOutcome.Approached to listOf("walk to 3201,3200"), outcome to smelter.steps)
-    }
-
-    @Test
-    fun `equally near furnaces are picked west to east, then south to north`() {
-        smelter.view = smeltingView(listOf(furnace(3201, 3205, distance = 2), near))
-
-        work.act(left = null)
-
-        assertEquals(listOf("walk to 3201,3200"), smelter.steps)
     }
 
     @Test

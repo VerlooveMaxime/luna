@@ -1,5 +1,6 @@
 package game.idle.autopilot.fishing
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.fishing.FishingDecision.WalkTo
 import game.idle.flow.Meter
 import game.idle.flow.Reason
@@ -20,9 +21,9 @@ class FishingWorkTest {
     private val anchor = Tile(3102, 3095)
 
     private fun spot(x: Int, y: Int, distance: Int, usable: Boolean = false) =
-        SpotCandidate(npcIndex = x, position = Position(x, y), distance, usable, approach = Position(x, y + 1))
+        Candidate(id = x, position = Position(x, y), distance, usable, approach = Position(x, y + 1))
 
-    private fun view(spots: List<SpotCandidate> = listOf(near, far), atLocation: Boolean = true) = FishingView(atLocation, spots)
+    private fun view(spots: List<Candidate> = listOf(near, far), atLocation: Boolean = true) = FishingView(atLocation, spots)
 
     private val fisher = FakeFisher(view(), anchor)
     private val work = FishingWork(fisher)
@@ -67,15 +68,6 @@ class FishingWorkTest {
         val outcome = work.act(left = null)
 
         assertEquals(StepOutcome.Approached to listOf("walk to 3100,3092"), outcome to fisher.steps)
-    }
-
-    @Test
-    fun `spots at the same distance are picked west to east, then south to north`() {
-        fisher.view = view(listOf(spot(3102, 3093, 2), spot(3102, 3092, 2), spot(3101, 3095, 2)))
-
-        work.act(left = null)
-
-        assertEquals(listOf("walk to 3101,3095"), fisher.steps)
     }
 
     @Test

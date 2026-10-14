@@ -18,7 +18,7 @@ class WoodcuttingWorkTest {
     private val anchor = Tile(3175, 3448)
 
     private val woodcutter = FakeWoodcutter(view(listOf(nearTree, farTree)), anchor)
-    private val work = WoodcuttingWork(woodcutter, anyTree)
+    private val work = WoodcuttingWork(woodcutter)
 
     @Test
     fun `the meter reads the logs carried`() {

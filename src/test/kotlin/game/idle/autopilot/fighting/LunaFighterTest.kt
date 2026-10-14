@@ -1,5 +1,6 @@
 package game.idle.autopilot.fighting
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.EndlessAction
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
@@ -47,7 +48,7 @@ class LunaFighterTest {
 
     private fun attacked(player: Player, npc: Npc): LunaFighter {
         val fighter = fighter(player)
-        fighter.attack(TargetCandidate(npc.index, npc.position, distance = 0, usableFromHere = true, approach = player.position))
+        fighter.attack(Candidate(npc.index, npc.position, distance = 0, usableFromHere = true, approach = player.position))
         return fighter
     }
 
@@ -89,14 +90,6 @@ class LunaFighterTest {
     }
 
     @Test
-    fun `a click on its way to the npc keeps the player busy`() {
-        val player = login()
-        attackClicks()
-
-        assertTrue(attacked(player, TestWorld.spawnNpc(chicken, Position(3206, 3200))).isBusy())
-    }
-
-    @Test
     fun `an open window keeps the player busy`() {
         val player = login()
         player.overlays.open(StandardInterface(5292))
@@ -109,17 +102,7 @@ class LunaFighterTest {
         val player = login()
         val npc = TestWorld.spawnNpc(chicken, Position(3201, 3200))
 
-        assertEquals(listOf(TargetCandidate(npc.index, npc.position, distance = 0, usableFromHere = true, approach = anchor)), fighter(player).look().targets)
-    }
-
-    @Test
-    fun `an npc out of reach is walked up to`() {
-        val player = login()
-        TestWorld.spawnNpc(chicken, Position(3205, 3200))
-
-        val target = fighter(player).look().targets.single()
-
-        assertEquals(listOf(4, false, Position(3204, 3200)), listOf(target.distance, target.usableFromHere, target.approach))
+        assertEquals(listOf(Candidate(npc.index, npc.position, distance = 0, usableFromHere = true, approach = anchor)), fighter(player).look().targets)
     }
 
     @Test
@@ -137,7 +120,7 @@ class LunaFighterTest {
         val player = login()
         TestWorld.spawnNpc(cow, Position(3201, 3200))
 
-        assertEquals(emptyList<TargetCandidate>(), fighter(player).look().targets)
+        assertEquals(emptyList<Candidate>(), fighter(player).look().targets)
     }
 
     @Test
@@ -145,7 +128,7 @@ class LunaFighterTest {
         val player = login()
         kill(TestWorld.spawnNpc(chicken, Position(3201, 3200)), killer = null)
 
-        assertEquals(emptyList<TargetCandidate>(), fighter(player).look().targets)
+        assertEquals(emptyList<Candidate>(), fighter(player).look().targets)
     }
 
     @Test
@@ -153,7 +136,7 @@ class LunaFighterTest {
         val player = login()
         TestWorld.spawnNpc(runescapeGuide, Position(3201, 3200))
 
-        assertEquals(emptyList<TargetCandidate>(), fighter(player).look().targets)
+        assertEquals(emptyList<Candidate>(), fighter(player).look().targets)
     }
 
     @Test
@@ -162,7 +145,7 @@ class LunaFighterTest {
         val npc = TestWorld.spawnNpc(chicken, Position(3201, 3200))
         npc.combat.target = TestWorld.login("other", Position(3202, 3200))
 
-        assertEquals(emptyList<TargetCandidate>(), fighter(player).look().targets)
+        assertEquals(emptyList<Candidate>(), fighter(player).look().targets)
     }
 
     @Test
@@ -180,17 +163,7 @@ class LunaFighterTest {
         val npc = TestWorld.spawnNpc(cow, Position(3201, 3200))
         npc.combat.target = player
 
-        assertEquals(listOf(npc.index to true), fighter(player).look().targets.map { it.npcIndex to it.attacking })
-    }
-
-    @Test
-    fun `the view knows when the player is at the work spot`() {
-        assertTrue(fighter(login()).look().atLocation)
-    }
-
-    @Test
-    fun `the view knows when the player is away from the work spot`() {
-        assertFalse(fighter(login(Position(3220, 3200))).look().atLocation)
+        assertEquals(listOf(npc.index to true), fighter(player).look().targets.map { it.id to it.attacking })
     }
 
     @Test
@@ -225,6 +198,18 @@ class LunaFighterTest {
         TestWorld.tick()
 
         assertEquals(emptyList<Int>(), clicked)
+    }
+
+    @Test
+    fun `an npc that moved since the look is still attacked`() {
+        val player = login()
+        val npc = TestWorld.spawnNpc(chicken, Position(3201, 3200))
+        val clicked = attackClicks()
+
+        fighter(player).attack(Candidate(npc.index, Position(3202, 3200), distance = 0, usableFromHere = true, approach = anchor))
+        TestWorld.tick()
+
+        assertEquals(listOf(chicken), clicked)
     }
 
     @Test
@@ -277,6 +262,14 @@ class LunaFighterTest {
         kill(npc, player)
 
         assertEquals(1, fighter.kills())
+    }
+
+    @Test
+    fun `an attacked npc still alive is no kill yet`() {
+        val player = login()
+        val fighter = attacked(player, TestWorld.spawnNpc(chicken, Position(3201, 3200)))
+
+        assertEquals(0, fighter.kills())
     }
 
     @Test

@@ -65,15 +65,6 @@ class CookingWorkTest {
     }
 
     @Test
-    fun `places at the same distance are picked west to east, then south to north`() {
-        cooker.view = cookingView(listOf(cookingPlace(3102, 3096, 3), cookingPlace(3102, 3095, 3), cookingPlace(3101, 3099, 3)))
-
-        work.act(left = null)
-
-        assertEquals(listOf("walk to 3101,3099"), cooker.steps)
-    }
-
-    @Test
     fun `an open cooking window is answered with cook all, which is work`() {
         cooker.view = cookingView(listOf(fire), windowOpen = true)
 

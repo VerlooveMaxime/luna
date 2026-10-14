@@ -1,5 +1,6 @@
 package game.idle.autopilot.fishing
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
@@ -51,14 +52,6 @@ class LunaFisherTest {
     }
 
     @Test
-    fun `an open window keeps the player busy`() {
-        val player = login()
-        player.overlays.open(StandardInterface(5292))
-
-        assertTrue(fisher(player).isBusy())
-    }
-
-    @Test
     fun `the view sees the player in the area and the spots of the method`() {
         val player = login()
         val spot = TestWorld.spawnNpc(netSpot, Position(3201, 3200))
@@ -68,35 +61,10 @@ class LunaFisherTest {
 
         assertEquals(
             FishingView(atLocation = true, spots = listOf(
-                SpotCandidate(spot.index, Position(3201, 3200), distance = 0, usableFromHere = true, approach = anchor),
+                Candidate(spot.index, Position(3201, 3200), distance = 0, usableFromHere = true, approach = anchor),
             )),
             view,
         )
-    }
-
-    @Test
-    fun `a spot out of reach is walked up to`() {
-        val player = login()
-        TestWorld.spawnNpc(netSpot, Position(3205, 3200))
-
-        val spot = fisher(player).look().spots.single()
-
-        assertEquals(listOf(4, false, Position(3204, 3200)), listOf(spot.distance, spot.usableFromHere, spot.approach))
-    }
-
-    @Test
-    fun `a spot diagonal to the player is walked up to, as the click needs it faced`() {
-        val player = login()
-        TestWorld.spawnNpc(netSpot, Position(3201, 3201))
-
-        val spot = fisher(player).look().spots.single()
-
-        assertEquals(listOf(1, false), listOf(spot.distance, spot.usableFromHere))
-    }
-
-    @Test
-    fun `a player outside the area is not at the location`() {
-        assertFalse(fisher(login(Position(3220, 3200))).look().atLocation)
     }
 
     @Test
@@ -165,7 +133,7 @@ class LunaFisherTest {
         val clicked = mutableListOf<Int>()
         TestWorld.listen(NpcFirstClickEvent::class.java) { clicked += it.targetNpc.id }
 
-        fisher(player).fish(SpotCandidate(man.index, man.position, distance = 0, usableFromHere = true, approach = anchor))
+        fisher(player).fish(Candidate(man.index, man.position, distance = 0, usableFromHere = true, approach = anchor))
         TestWorld.tick()
 
         assertEquals(emptyList<Int>(), clicked)

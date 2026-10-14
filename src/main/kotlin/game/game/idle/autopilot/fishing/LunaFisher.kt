@@ -1,46 +1,34 @@
 package game.idle.autopilot.fishing
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.LunaClicks
+import game.idle.autopilot.NpcsAround
 import game.idle.location.Area
 import game.idle.location.Tile
-import game.idle.movement.Footprint
-import game.idle.movement.ReachScan
-import game.idle.movement.ReachTerrain
 import io.luna.game.event.impl.NpcClickEvent.NpcFirstClickEvent
 import io.luna.game.event.impl.NpcClickEvent.NpcSecondClickEvent
-import io.luna.game.model.Direction
-import io.luna.game.model.EntityType
-import io.luna.game.model.Position
-import io.luna.game.model.mob.Npc
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
 
 /**
- * [Fisher] for a logged-in player fishing with [method] within [area]. Spots are searched around the area's anchor
- * and ranked by walking distance; a cast goes through the same interaction as the client's click on the spot's option
- * for the method, so Luna's reach check and fishing run unchanged.
+ * [Fisher] for a logged-in player fishing with [method] within [area]. A cast goes through the same interaction as the
+ * client's click on the spot's option for the method, so Luna's reach check and fishing run unchanged.
  */
-class LunaFisher(private val player: Player, private val method: FishingMethod, private val area: Area) : Fisher, ReachTerrain<Npc> {
+class LunaFisher(private val player: Player, private val method: FishingMethod, private val area: Area) : Fisher {
 
-    private val world get() = player.world
-    private val anchor: Position = area.anchor.toPosition()
-    private val scan = ReachScan(anchor, area.radius)
+    private val around = NpcsAround(player, area, accepts = { it.id in method.spotIds }, policy = { STANDARD_SIZE })
 
     /**
      * Out of bait, the player is never busy: Luna's fishing then opens a dialogue that would hold the step, and the
      * step has to block on the bait.
      */
-    override fun isBusy(): Boolean = (LunaClicks.isActing(player) || LunaClicks.hasBlockingWindow(player)) && hasBait()
+    override fun isBusy(): Boolean = LunaClicks.busy(player) && hasBait()
 
-    override fun look(): FishingView =
-        FishingView(
-            atLocation = scan.atLocation(player.position),
-            spots = scan.reachable(player.position, spots(), { Footprint(it.position, it.size(), it.size()) }, terrain = this)
-                .map { (npc, reach) -> SpotCandidate(npc.index, npc.position, reach.distance, reach.usableFromHere, reach.approach) },
-        )
+    override fun look(): FishingView = FishingView(around.atLocation(), around.candidates())
 
-    override fun fish(spot: SpotCandidate) {
-        val npc = find(spot) ?: return
+    /** A spot that moved away since the look is not clicked, nor whatever npc took its index. */
+    override fun fish(spot: Candidate) {
+        val npc = around.find(spot)?.takeIf { it.id in method.spotIds && it.position == spot.position } ?: return
         if (npc.id in method.secondClickSpots) {
             LunaClicks.interact(player, NpcSecondClickEvent(player, npc), npc, NpcSecondClickEvent::class.java)
         } else {
@@ -48,12 +36,7 @@ class LunaFisher(private val player: Player, private val method: FishingMethod, 
         }
     }
 
-    override fun walkTo(spot: SpotCandidate) = walkTo(spot.approach)
-
-    private fun walkTo(tile: Position) {
-        player.overlays.closeWindows(false)
-        player.navigator.navigate(tile, true)
-    }
+    override fun walkTo(spot: Candidate) = LunaClicks.walk(player, spot.approach)
 
     override fun anchor(): Tile = area.anchor
 
@@ -62,15 +45,4 @@ class LunaFisher(private val player: Player, private val method: FishingMethod, 
     override fun interrupt() = LunaClicks.interrupt(player)
 
     private fun hasBait(): Boolean = method.tool.bait?.let { player.inventory.contains(it) } ?: true
-
-    private fun spots(): List<Npc> = world.locator.findNpcs(anchor, area.radius) { it.id in method.spotIds }.toList()
-
-    /** A spot that moved away since the look is not clicked. */
-    private fun find(spot: SpotCandidate): Npc? =
-        world.npcs.get(spot.npcIndex)?.takeIf { it.id in method.spotIds && it.position == spot.position }
-
-    override fun canStep(from: Position, direction: Direction): Boolean =
-        world.collisionManager.traversable(from, EntityType.PLAYER, direction)
-
-    override fun reachedFrom(tile: Position, target: Npc): Boolean = world.collisionManager.reached(tile, target, STANDARD_SIZE)
 }

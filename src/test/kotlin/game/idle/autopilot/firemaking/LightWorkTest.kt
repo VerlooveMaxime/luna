@@ -42,10 +42,10 @@ class LightWorkTest {
     }
 
     @Test
-    fun `interrupting leaves a fire being lit alone`() {
+    fun `interrupting goes to the lighter`() {
         work.interrupt()
 
-        assertEquals(emptyList<String>(), lighter.steps)
+        assertEquals(listOf("interrupt"), lighter.steps)
     }
 
     @Test

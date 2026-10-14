@@ -1,5 +1,6 @@
 package game.idle.autopilot.mining
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.mining.MiningDecision.Mine
 import game.idle.autopilot.mining.MiningDecision.Settled
 import game.idle.autopilot.mining.MiningDecision.WalkTo
@@ -17,9 +18,9 @@ interface Miner {
 
     fun look(): MiningView
 
-    fun mine(rock: RockCandidate)
+    fun mine(rock: Candidate)
 
-    fun walkTo(rock: RockCandidate)
+    fun walkTo(rock: Candidate)
 
     /** The anchor of the step's area, where a walk back goes. */
     fun anchor(): Tile
@@ -60,12 +61,12 @@ class MiningWork(private val miner: Miner) : StepWork {
             is Settled -> decision.outcome
         }
 
-    private fun mine(rock: RockCandidate): StepOutcome {
+    private fun mine(rock: Candidate): StepOutcome {
         miner.mine(rock)
         return StepOutcome.Worked
     }
 
-    private fun walkTo(rock: RockCandidate): StepOutcome {
+    private fun walkTo(rock: Candidate): StepOutcome {
         miner.walkTo(rock)
         return StepOutcome.Approached
     }

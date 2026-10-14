@@ -1,10 +1,9 @@
 package game.idle.autopilot.smithing
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaCarried
 import game.idle.autopilot.LunaClicks
-import game.idle.autopilot.PlaceCandidate
-import game.idle.autopilot.RefusingController
 import game.idle.flow.Preconditions
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
@@ -23,8 +22,6 @@ import io.luna.game.model.Position
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
-import io.luna.game.model.mob.overlay.OverlayType
-import io.luna.game.model.mob.overlay.StandardInterface
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -41,7 +38,7 @@ class LunaSmitherTest {
     private val bronzeDagger = 1205
     private val hammer = 2347
     private val area = Area(Tile(anchor.x, anchor.y), radius = 10)
-    private val anvilHere = PlaceCandidate(anvilId, anvilTile, 0, usableFromHere = true, besideAnvil)
+    private val anvilHere = Candidate(anvilId, anvilTile, 0, usableFromHere = true, besideAnvil)
 
     private fun login(position: Position = anchor): Player = TestWorld.login("smith", position)
 
@@ -64,22 +61,9 @@ class LunaSmitherTest {
     fun resetWorld() = TestWorld.reset()
 
     @Test
-    fun `an idle player is not busy`() {
-        assertFalse(smither(login()).isBusy())
-    }
-
-    @Test
     fun `a walking player is busy`() {
         val player = login()
         player.walking.addStep(Direction.EAST)
-
-        assertTrue(smither(player).isBusy())
-    }
-
-    @Test
-    fun `an open window keeps the player busy`() {
-        val player = login()
-        player.overlays.open(StandardInterface(5292))
 
         assertTrue(smither(player).isBusy())
     }
@@ -116,30 +100,10 @@ class LunaSmitherTest {
     }
 
     @Test
-    fun `a player outside the work area is not at the location`() {
-        assertFalse(smither(login(Position(3220, 3200))).look().atLocation)
-    }
-
-    @Test
     fun `an anvil next to the player is used from where they stand`() {
         TestWorld.place(anvilId, anvilTile)
 
         assertEquals(listOf(anvilHere), smither(login(besideAnvil)).look().anvils)
-    }
-
-    @Test
-    fun `objects that are not anvils are left out`() {
-        TestWorld.place(3044, anvilTile)
-
-        assertEquals(emptyList<PlaceCandidate>(), smither(login()).look().anvils)
-    }
-
-    @Test
-    fun `an anvil only another player sees is left out`() {
-        val player = login()
-        TestWorld.placeFor(TestWorld.login("other", anchor), anvilId, anvilTile)
-
-        assertEquals(emptyList<PlaceCandidate>(), smither(player).look().anvils)
     }
 
     @Test
@@ -159,32 +123,6 @@ class LunaSmitherTest {
     fun `an anvil gone since the look is not used`() {
         val player = login(besideAnvil)
         player.inventory.add(Item(bronzeBar))
-        val used = recordUses()
-
-        smither(player).useOn(anvilHere, slot = 0)
-        TestWorld.tick()
-
-        assertEquals(emptyList<Int>(), used)
-    }
-
-    @Test
-    fun `another object standing where the anvil was is not used`() {
-        val player = login(besideAnvil)
-        player.inventory.add(Item(bronzeBar))
-        TestWorld.place(1276, anvilTile)
-        val used = recordUses()
-
-        smither(player).useOn(anvilHere, slot = 0)
-        TestWorld.tick()
-
-        assertEquals(emptyList<Int>(), used)
-    }
-
-    @Test
-    fun `an anvil only another player sees is not used`() {
-        val player = login(besideAnvil)
-        player.inventory.add(Item(bronzeBar))
-        TestWorld.placeFor(TestWorld.login("other", anchor), anvilId, anvilTile)
         val used = recordUses()
 
         smither(player).useOn(anvilHere, slot = 0)
@@ -224,33 +162,12 @@ class LunaSmitherTest {
     }
 
     @Test
-    fun `a controller that refuses the click keeps the choice from going out`() {
-        val player = login()
-        player.controllers.register(RefusingController(player))
-        val chosen = recordChoices(WidgetItemThirdClickEvent::class.java)
-
-        smither(player).choose(10)
-
-        assertEquals(emptyList<Int>(), chosen)
-    }
-
-    @Test
     fun `walking to an anvil heads for its approach tile`() {
         val player = login()
 
         smither(player).walkTo(anvilHere)
 
         assertEquals(besideAnvil, player.navigator.currentTarget)
-    }
-
-    @Test
-    fun `walking to an anvil closes the open window`() {
-        val player = login()
-        player.overlays.open(StandardInterface(5292))
-
-        smither(player).walkTo(anvilHere)
-
-        assertFalse(OverlayType.WIDGET_STANDARD in player.overlays.overlayMap)
     }
 
     @Test

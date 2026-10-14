@@ -1,13 +1,12 @@
 package game.idle.flow
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.fighting.FakeFighter
 import game.idle.autopilot.fighting.FightStep
 import game.idle.autopilot.fighting.FightTarget
 import game.idle.autopilot.fighting.FightView
 import game.idle.autopilot.fighting.FightWork
-import game.idle.autopilot.fighting.TargetCandidate
 import game.idle.autopilot.pickup.FakePicker
-import game.idle.autopilot.pickup.GroundLoot
 import game.idle.autopilot.pickup.PickUpStep
 import game.idle.autopilot.pickup.PickUpView
 import game.idle.autopilot.pickup.PickUpWork
@@ -39,7 +38,7 @@ class FightFixture : AreaFixture, SettlingFixture {
     override val walker = FakeWalker(anchor)
 
     private val step: ResolvedStep = FightStep(FightTarget("man", setOf(MAN), "Man", 2..2), radius = 10, WorkSpot.At(anchor))
-    private val man = TargetCandidate(npcIndex = 7, Position(anchor.x + 1, anchor.y), distance = 0, usableFromHere = true, approach = anchor.toPosition())
+    private val man = Candidate(id = 7, Position(anchor.x + 1, anchor.y), distance = 0, usableFromHere = true, approach = anchor.toPosition())
     private val fighter = FakeFighter(FightView(atLocation = true, listOf(man)), anchor)
 
     override val done: List<String> get() = fighter.steps
@@ -89,7 +88,7 @@ class PickUpFixture : AmountFixture {
 
     private val here = Tile(3200, 3200)
     private val step: ResolvedStep = PickUpStep(setOf(BONES), radius = 10, WorkSpot.At(here))
-    private val bones = GroundLoot(BONES, here.toPosition(), distance = 0, fits = true)
+    private val bones = Candidate(BONES, here.toPosition(), distance = 0, usableFromHere = true, approach = here.toPosition())
     private val picker = FakePicker(PickUpView(atLocation = true, listOf(bones)))
 
     override val done: List<String> get() = picker.steps

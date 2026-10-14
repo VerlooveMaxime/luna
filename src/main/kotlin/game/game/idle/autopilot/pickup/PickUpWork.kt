@@ -1,5 +1,6 @@
 package game.idle.autopilot.pickup
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.pickup.PickUpDecision.Settled
 import game.idle.autopilot.pickup.PickUpDecision.Take
 import game.idle.autopilot.pickup.PickUpDecision.WalkTo
@@ -10,8 +11,6 @@ import game.idle.flow.Meter
 import game.idle.flow.RetrySkip
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
-import game.idle.location.Tile
-import io.luna.game.model.Position
 
 /** What the pick-up step can see and do for one player. [LunaPicker] is the in-game one. */
 interface Picker {
@@ -22,10 +21,10 @@ interface Picker {
     fun look(): PickUpView
 
     /** Takes [item] from the tile the player stands on. */
-    fun take(item: GroundLoot)
+    fun take(item: Candidate)
 
     /** Walks onto [item]'s tile. */
-    fun walkTo(item: GroundLoot)
+    fun walkTo(item: Candidate)
 
     fun walkToLocation()
 
@@ -36,29 +35,23 @@ interface Picker {
     fun interrupt()
 }
 
-/** An item the step could take: [distance] walking steps to its tile, 0 on it; whether it [fits] the bag. */
-data class GroundLoot(val id: Int, val position: Position, val distance: Int, val fits: Boolean) {
-
-    val aim: Aim get() = Aim(id, Tile.of(position))
-}
-
 /** What the pick-up step knows when it decides: whether the player is in the area, and the items it can walk onto there. */
-data class PickUpView(val atLocation: Boolean, val items: List<GroundLoot>)
+data class PickUpView(val atLocation: Boolean, val items: List<Candidate>)
 
 sealed interface PickUpDecision {
 
     /** A decision aimed at one item. */
     sealed interface OnItem : PickUpDecision, Aimed {
-        val item: GroundLoot
+        val item: Candidate
 
         override val aim: Aim get() = item.aim
 
         override val distance: Int get() = item.distance
     }
 
-    data class Take(override val item: GroundLoot) : OnItem
+    data class Take(override val item: Candidate) : OnItem
 
-    data class WalkTo(override val item: GroundLoot) : OnItem
+    data class WalkTo(override val item: Candidate) : OnItem
 
     data object WalkToLocation : PickUpDecision
 
@@ -73,14 +66,11 @@ sealed interface PickUpDecision {
  */
 object PickUpPlanner {
 
-    private val nearestFirst: Comparator<GroundLoot> =
-        compareBy<GroundLoot> { it.distance }.thenBy { it.position.x }.thenBy { it.position.y }
-
     fun decide(view: PickUpView, skipped: Set<Aim>): PickUpDecision {
         val lying = view.items.filterNot { it.aim in skipped }
-        val best = lying.filter { it.fits }.minWithOrNull(nearestFirst)
+        val best = lying.filter { it.fits }.minWithOrNull(Candidate.NEAREST_FIRST)
         return when {
-            best != null && best.distance == 0 -> Take(best)
+            best != null && best.usableFromHere -> Take(best)
             best != null -> WalkTo(best)
             lying.isNotEmpty() -> Settled(StepOutcome.BagFull(lying.map { it.id }.distinct()))
             !view.atLocation -> WalkToLocation
@@ -120,12 +110,12 @@ class PickUpWork(private val picker: Picker) : StepWork {
             is Settled -> decision.outcome
         }
 
-    private fun take(item: GroundLoot): StepOutcome {
+    private fun take(item: Candidate): StepOutcome {
         picker.take(item)
         return StepOutcome.Worked
     }
 
-    private fun walkTo(item: GroundLoot): StepOutcome {
+    private fun walkTo(item: Candidate): StepOutcome {
         picker.walkTo(item)
         return StepOutcome.Approached
     }

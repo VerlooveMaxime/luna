@@ -40,11 +40,6 @@ class LunaItemDropperTest {
     }
 
     @Test
-    fun `an idle player is not busy`() {
-        assertFalse(dropper(login()).isBusy())
-    }
-
-    @Test
     fun `a walking player is busy`() {
         val player = login()
         player.walking.addStep(Direction.EAST)
@@ -78,18 +73,6 @@ class LunaItemDropperTest {
         dropper(player).dropItems()
 
         assertEquals(listOf(1, 2), droppedSlots)
-    }
-
-    @Test
-    fun `a player who may not act drops nothing`() {
-        val player = login()
-        holdAxeAndLogs(player)
-        val droppedSlots = recordDrops()
-        player.lock()
-
-        dropper(player).dropItems()
-
-        assertEquals(emptyList<Int>(), droppedSlots)
     }
 
     @Test

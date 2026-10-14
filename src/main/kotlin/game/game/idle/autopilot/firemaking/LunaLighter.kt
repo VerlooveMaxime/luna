@@ -7,7 +7,6 @@ import game.idle.movement.WalkingDistances
 import game.skill.firemaking.Firemaking
 import game.skill.firemaking.Log
 import io.luna.game.event.impl.UseItemEvent.ItemOnItemEvent
-import io.luna.game.model.EntityType
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
 import io.luna.game.model.`object`.ObjectType
@@ -21,7 +20,7 @@ class LunaLighter(private val player: Player, private val logIds: Set<Int>, priv
 
     private val world get() = player.world
 
-    override fun isBusy(): Boolean = LunaClicks.isActing(player) || LunaClicks.hasBlockingWindow(player)
+    override fun isBusy(): Boolean = LunaClicks.busy(player)
 
     override fun look(): LightView =
         LightView(
@@ -32,11 +31,8 @@ class LunaLighter(private val player: Player, private val logIds: Set<Int>, priv
     override fun light(slot: Int) {
         val log = player.inventory[slot] ?: return
         val tinderbox = player.inventory.computeIndexForId(Firemaking.TINDERBOX)
-        val event = ItemOnItemEvent(player, Firemaking.TINDERBOX, log.id, tinderbox, slot, INVENTORY, INVENTORY)
-        if (LunaClicks.mayAct(player, event)) {
-            player.overlays.closeWindows(false)
-            player.plugins.post(event)
-        }
+        val event = ItemOnItemEvent(player, Firemaking.TINDERBOX, log.id, tinderbox, slot, LunaClicks.INVENTORY, LunaClicks.INVENTORY)
+        LunaClicks.postClosing(player, event)
     }
 
     /**
@@ -47,13 +43,15 @@ class LunaLighter(private val player: Player, private val logIds: Set<Int>, priv
         val area = TileBounds.around(start, AROUND)
         val free = (area.minX..area.maxX).flatMap { x -> (area.minY..area.maxY).map { y -> Position(x, y, start.z) } }.filter(::free)
         val target = WalkingDistances.firstReached(start, free.toSet(), AROUND) { from, direction ->
-            world.collisionManager.traversable(from, EntityType.PLAYER, direction)
+            LunaClicks.canStep(world, from, direction)
         } ?: return false
         player.navigator.navigate(target, true)
         return true
     }
 
     override fun logs(): Int = logIds.sumOf { player.inventory.computeAmountForId(it) }
+
+    override fun interrupt() = LunaClicks.interrupt(player)
 
     private fun lightable(id: Int?): Boolean {
         val log = LOGS[id] ?: return false
@@ -65,7 +63,6 @@ class LunaLighter(private val player: Player, private val logIds: Set<Int>, priv
         world.objects.findAll(tile).noneMatch { it.objectType in BLOCKING }
 
     private companion object {
-        const val INVENTORY = 3214
         val LOGS: Map<Int, Log> = Log.entries.associateBy { it.id }
         const val AROUND = 10
         val BLOCKING = setOf(

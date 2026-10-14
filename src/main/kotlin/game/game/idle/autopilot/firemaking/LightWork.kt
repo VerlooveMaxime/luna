@@ -23,6 +23,9 @@ interface Lighter {
 
     /** How many logs of the step's kinds the player carries. */
     fun logs(): Int
+
+    /** Breaks off what the lighter has the player doing; the step asks only once nothing is ([LightWork.finishing]). */
+    fun interrupt()
 }
 
 /**
@@ -59,7 +62,8 @@ object LightPlanner {
 /**
  * The light step's work: carries out [LightPlanner] decisions, the logs used the count. A log is used once it leaves
  * the bag, which happens as the tinderbox strikes, so the step waits for that fire to catch before it ends and a log is
- * never left unlit on the ground; a fire being lit is never broken off.
+ * never left unlit on the ground: a fire being lit is never broken off, the step staying busy until it catches
+ * ([finishing]).
  */
 class LightWork(private val lighter: Lighter) : StepWork {
 
@@ -69,7 +73,7 @@ class LightWork(private val lighter: Lighter) : StepWork {
 
     override fun finishing(): Boolean = lighter.isBusy()
 
-    override fun interrupt() = Unit
+    override fun interrupt() = lighter.interrupt()
 
     override fun act(left: Int?): StepOutcome = carryOut(LightPlanner.decide(lighter.look()))
 

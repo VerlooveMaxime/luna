@@ -1,6 +1,6 @@
 package game.idle.autopilot.smelting
 
-import game.idle.autopilot.PlaceCandidate
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.smelting.SmeltingDecision.Settled
 import game.idle.autopilot.smelting.SmeltingDecision.Smelt
 import game.idle.autopilot.smelting.SmeltingDecision.WalkTo
@@ -23,9 +23,9 @@ interface Smelter {
     fun look(): SmeltingView
 
     /** Uses the ore in [slot] on [furnace], which smelts every bar the ores carried make. */
-    fun smelt(furnace: PlaceCandidate, slot: Int)
+    fun smelt(furnace: Candidate, slot: Int)
 
-    fun walkTo(furnace: PlaceCandidate)
+    fun walkTo(furnace: Candidate)
 
     /** The anchor of the step's area, where a walk back goes. */
     fun anchor(): Tile
@@ -38,22 +38,22 @@ interface Smelter {
 }
 
 /** What the smelt step knows when it decides: [oreSlot] holds the ore to use, while there is ore for a bar. */
-data class SmeltingView(val oreSlot: Int?, val atLocation: Boolean, val furnaces: List<PlaceCandidate>)
+data class SmeltingView(val oreSlot: Int?, val atLocation: Boolean, val furnaces: List<Candidate>)
 
 sealed interface SmeltingDecision {
 
     /** A decision aimed at one furnace. */
     sealed interface OnFurnace : SmeltingDecision, Aimed {
-        val furnace: PlaceCandidate
+        val furnace: Candidate
 
         override val aim: Aim get() = furnace.aim
 
         override val distance: Int get() = furnace.distance
     }
 
-    data class Smelt(override val furnace: PlaceCandidate, val slot: Int) : OnFurnace
+    data class Smelt(override val furnace: Candidate, val slot: Int) : OnFurnace
 
-    data class WalkTo(override val furnace: PlaceCandidate) : OnFurnace
+    data class WalkTo(override val furnace: Candidate) : OnFurnace
 
     data object WalkToLocation : SmeltingDecision
 
@@ -68,14 +68,8 @@ sealed interface SmeltingDecision {
  */
 object SmeltingPlanner {
 
-    private val preferredFirst: Comparator<PlaceCandidate> =
-        compareByDescending<PlaceCandidate> { it.usableFromHere }
-            .thenBy { it.distance }
-            .thenBy { it.position.x }
-            .thenBy { it.position.y }
-
     fun decide(view: SmeltingView, skipped: Set<Aim>): SmeltingDecision {
-        val best = view.furnaces.filterNot { it.aim in skipped }.minWithOrNull(preferredFirst)
+        val best = view.furnaces.filterNot { it.aim in skipped }.minWithOrNull(Candidate.NEAREST_FIRST)
         return when {
             view.oreSlot == null -> Settled(StepOutcome.Empty)
             best == null && !view.atLocation -> WalkToLocation
@@ -112,12 +106,12 @@ class SmeltingWork(private val smelter: Smelter) : StepWork {
             is Settled -> decision.outcome
         }
 
-    private fun smelt(furnace: PlaceCandidate, slot: Int): StepOutcome {
+    private fun smelt(furnace: Candidate, slot: Int): StepOutcome {
         smelter.smelt(furnace, slot)
         return StepOutcome.Worked
     }
 
-    private fun walkTo(furnace: PlaceCandidate): StepOutcome {
+    private fun walkTo(furnace: Candidate): StepOutcome {
         smelter.walkTo(furnace)
         return StepOutcome.Approached
     }

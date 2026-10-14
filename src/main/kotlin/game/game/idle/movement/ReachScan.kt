@@ -31,12 +31,20 @@ class ReachScan(private val anchor: Position, radius: Int, private val maxWalk: 
 
     fun atLocation(here: Position): Boolean = here in area
 
+    /**
+     * Steps from [here] to every tile of the area a walk gets to, by [canStep]; none when the player stands on another
+     * floor or farther than [maxWalk] tiles from the anchor, where they walk back first.
+     */
+    fun distancesFrom(here: Position, canStep: (Position, Direction) -> Boolean): WalkingDistances? {
+        if (here.z != anchor.z || here.computeLongestDistance(anchor) > maxWalk) {
+            return null
+        }
+        return WalkingDistances.from(here, area.including(here), canStep)
+    }
+
     /** Each target the player can walk up to, with how; unreachable ones are left out. */
     fun <T> reachable(here: Position, targets: List<T>, footprint: (T) -> Footprint, terrain: ReachTerrain<T>): List<Pair<T, Reach>> {
-        if (here.z != anchor.z || here.computeLongestDistance(anchor) > maxWalk) {
-            return emptyList()
-        }
-        val distances = WalkingDistances.from(here, area.including(here), terrain::canStep)
+        val distances = distancesFrom(here, terrain::canStep) ?: return emptyList()
         return targets.mapNotNull { target -> reach(here, target, footprint(target), distances, terrain)?.let { target to it } }
     }
 

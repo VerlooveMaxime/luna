@@ -1,6 +1,6 @@
 package game.idle.flow
 
-import game.idle.autopilot.PlaceCandidate
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.cooking.CookStep
 import game.idle.autopilot.cooking.CookingWork
 import game.idle.autopilot.cooking.CookingView
@@ -110,7 +110,7 @@ class CookFixture : SpotFixture("cook", LevelNeed(Skill.COOKING, 15), bag = setO
     }
 
     private val step = CookStep(setOf(RAW_TROUT), RADIUS, WorkSpot.At(anchor))
-    private val fire = PlaceCandidate(FIRE, targetTile, distance = 0, usableFromHere = true, anchor.toPosition())
+    private val fire = Candidate(FIRE, targetTile, distance = 0, usableFromHere = true, anchor.toPosition())
     private val cooker = FakeCooker(CookingView(rawSlot = 0, windowOpen = false, atLocation = true, listOf(fire)), anchor).apply { raw = 5 }
 
     override val done: List<String> get() = cooker.steps
@@ -202,7 +202,7 @@ class SmeltFixture : SpotFixture("smelt", LevelNeed(Skill.SMITHING, 15), bag = s
     }
 
     private val step = SmeltStep(BarType.IRON, RADIUS, WorkSpot.At(anchor))
-    private val furnace = PlaceCandidate(FURNACE, targetTile, distance = 0, usableFromHere = true, anchor.toPosition())
+    private val furnace = Candidate(FURNACE, targetTile, distance = 0, usableFromHere = true, anchor.toPosition())
     private val smelter = FakeSmelter(SmeltingView(oreSlot = 0, atLocation = true, listOf(furnace)), anchor)
 
     override val done: List<String> get() = smelter.steps
@@ -251,7 +251,7 @@ class SmithFixture : SpotFixture("smith", LevelNeed(Skill.SMITHING, 15), bag = s
     override val tool = ToolNeed(word = null, mapOf(HAMMER to 1))
 
     private val step = SmithStep(BarType.IRON, SmithingTable.DAGGER, RADIUS, WorkSpot.At(anchor))
-    private val anvil = PlaceCandidate(ANVIL, targetTile, distance = 0, usableFromHere = true, anchor.toPosition())
+    private val anvil = Candidate(ANVIL, targetTile, distance = 0, usableFromHere = true, anchor.toPosition())
     private val smither = FakeSmither(SmithingView(barSlot = 0, windowOpen = false, atLocation = true, listOf(anvil)), anchor)
 
     override val done: List<String> get() = smither.steps

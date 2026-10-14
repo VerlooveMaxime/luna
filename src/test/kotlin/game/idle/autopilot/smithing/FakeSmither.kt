@@ -1,6 +1,6 @@
 package game.idle.autopilot.smithing
 
-import game.idle.autopilot.PlaceCandidate
+import game.idle.autopilot.Candidate
 import game.idle.location.Tile
 import io.luna.game.model.Position
 
@@ -15,7 +15,7 @@ class FakeSmither(var view: SmithingView, private val anchor: Tile = Tile(3200, 
 
     override fun look(): SmithingView = view
 
-    override fun useOn(anvil: PlaceCandidate, slot: Int) {
+    override fun useOn(anvil: Candidate, slot: Int) {
         steps += "use $slot on ${anvil.position.x},${anvil.position.y}"
     }
 
@@ -23,7 +23,7 @@ class FakeSmither(var view: SmithingView, private val anchor: Tile = Tile(3200, 
         steps += "choose $times"
     }
 
-    override fun walkTo(anvil: PlaceCandidate) {
+    override fun walkTo(anvil: Candidate) {
         steps += "walk to ${anvil.position.x},${anvil.position.y}"
     }
 
@@ -37,10 +37,10 @@ class FakeSmither(var view: SmithingView, private val anchor: Tile = Tile(3200, 
 }
 
 fun anvil(x: Int, y: Int, distance: Int, usableFromHere: Boolean = false) =
-    PlaceCandidate(2783, Position(x, y), distance, usableFromHere, Position(x - 1, y))
+    Candidate(2783, Position(x, y), distance, usableFromHere, Position(x - 1, y))
 
 fun smithingView(
-    anvils: List<PlaceCandidate>,
+    anvils: List<Candidate>,
     barSlot: Int? = 0,
     windowOpen: Boolean = false,
     atLocation: Boolean = true,

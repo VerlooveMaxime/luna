@@ -1,12 +1,10 @@
 package game.idle.autopilot.smithing
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.LunaClicks
-import game.idle.autopilot.PlaceCandidate
+import game.idle.autopilot.ObjectsAround
 import game.idle.location.Area
 import game.idle.location.Tile
-import game.idle.movement.ReachScan
-import game.idle.movement.ReachTerrain
-import game.idle.movement.footprintOf
 import game.skill.smithing.BarType
 import game.skill.smithing.Smithing
 import game.skill.smithing.smithBar.SmithingInterface
@@ -15,12 +13,7 @@ import io.luna.game.event.impl.UseItemEvent.ItemOnObjectEvent
 import io.luna.game.event.impl.WidgetItemClickEvent.WidgetItemFirstClickEvent
 import io.luna.game.event.impl.WidgetItemClickEvent.WidgetItemSecondClickEvent
 import io.luna.game.event.impl.WidgetItemClickEvent.WidgetItemThirdClickEvent
-import io.luna.game.model.Direction
-import io.luna.game.model.EntityType
-import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
-import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
-import io.luna.game.model.`object`.GameObject
 
 /**
  * [Smither] for a logged-in player smithing the [table] item of [metal] at anvils within [area]. The bar is used on
@@ -32,29 +25,25 @@ class LunaSmither(
     private val metal: BarType,
     private val table: SmithingTable,
     private val area: Area,
-) : Smither, ReachTerrain<GameObject> {
+) : Smither {
 
-    private val world get() = player.world
-    private val anchor: Position = area.anchor.toPosition()
-    private val scan = ReachScan(anchor, area.radius)
+    private val around = ObjectsAround(player, area, Smithing.ANVIL_OBJECTS)
     private val itemId: Int = table.items.first { it.barType == metal }.item.id
 
     /** The smithing window is the point of this step, so it does not count as a window in the way. */
-    override fun isBusy(): Boolean =
-        LunaClicks.isActing(player) || (LunaClicks.hasBlockingWindow(player) && !smithingWindowOpen())
+    override fun isBusy(): Boolean = LunaClicks.busyBesides(player, smithingWindowOpen())
 
     override fun look(): SmithingView =
         SmithingView(
             barSlot = barSlot(),
             windowOpen = smithingWindowOpen(),
-            atLocation = scan.atLocation(player.position),
-            anvils = scan.reachable(player.position, anvils(), ::footprintOf, terrain = this)
-                .map { (anvil, reach) -> PlaceCandidate.of(anvil, reach) },
+            atLocation = around.atLocation(),
+            anvils = around.candidates(),
         )
 
-    override fun useOn(anvil: PlaceCandidate, slot: Int) {
-        val target = find(anvil) ?: return
-        val event = ItemOnObjectEvent(player, metal.id, slot, INVENTORY, target)
+    override fun useOn(anvil: Candidate, slot: Int) {
+        val target = around.find(anvil) ?: return
+        val event = ItemOnObjectEvent(player, metal.id, slot, LunaClicks.INVENTORY, target)
         LunaClicks.interact(player, event, target, ItemOnObjectEvent::class.java)
     }
 
@@ -64,15 +53,10 @@ class LunaSmither(
             5 -> WidgetItemSecondClickEvent(player, table.slotId, table.widgetId, itemId)
             else -> WidgetItemThirdClickEvent(player, table.slotId, table.widgetId, itemId)
         }
-        if (LunaClicks.mayAct(player, event)) {
-            player.plugins.post(event)
-        }
+        LunaClicks.post(player, event)
     }
 
-    override fun walkTo(anvil: PlaceCandidate) {
-        player.overlays.closeWindows(false)
-        player.navigator.navigate(anvil.approach, true)
-    }
+    override fun walkTo(anvil: Candidate) = LunaClicks.walk(player, anvil.approach)
 
     override fun anchor(): Tile = area.anchor
 
@@ -85,23 +69,4 @@ class LunaSmither(
         if (player.inventory.computeAmountForId(metal.id) >= table.bars) player.inventory.computeIndexForId(metal.id) else null
 
     private fun smithingWindowOpen(): Boolean = player.overlays.has(SmithingInterface::class.java)
-
-    // Objects found through their chunk are always ACTIVE, so only the id needs checking.
-    private fun anvils(): List<GameObject> =
-        world.locator.findObjects(anchor, area.radius) { it.id in Smithing.ANVIL_OBJECTS && it.isVisibleTo(player) }.toList()
-
-    private fun find(anvil: PlaceCandidate): GameObject? =
-        world.objects.findAll(anvil.position)
-            .filter { it.id == anvil.objectId && it.isVisibleTo(player) }
-            .findFirst().orElse(null)
-
-    override fun canStep(from: Position, direction: Direction): Boolean =
-        world.collisionManager.traversable(from, EntityType.PLAYER, direction)
-
-    override fun reachedFrom(tile: Position, target: GameObject): Boolean =
-        world.collisionManager.reached(tile, target, STANDARD_SIZE)
-
-    private companion object {
-        const val INVENTORY = 3214
-    }
 }

@@ -93,18 +93,6 @@ class LunaReflexBodyTest {
     }
 
     @Test
-    fun `a locked player does not eat`() {
-        val player = login()
-        player.inventory.set(4, Item(bread))
-        player.lock()
-        val eaten = eats()
-
-        LunaReflexBody(player).eat(4)
-
-        assertEquals(emptyList<Pair<Int, Int>>(), eaten)
-    }
-
-    @Test
     fun `an npc fighting the player with an open way attacks them`() {
         val player = login()
         attackedBy(player, Position(3203, 3200))

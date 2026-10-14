@@ -1,5 +1,6 @@
 package game.idle.autopilot.woodcutting
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Chop
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Settled
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkTo
@@ -17,9 +18,9 @@ interface Woodcutter {
 
     fun look(): WoodcuttingView
 
-    fun chop(tree: TreeCandidate)
+    fun chop(tree: Candidate)
 
-    fun walkTo(tree: TreeCandidate)
+    fun walkTo(tree: Candidate)
 
     /** The anchor of the step's area, where a walk back goes. */
     fun anchor(): Tile
@@ -31,8 +32,8 @@ interface Woodcutter {
     fun interrupt()
 }
 
-/** The chop step's work: carries out [WoodcuttingPlanner] decisions for one [action], its logs the count. */
-class WoodcuttingWork(private val woodcutter: Woodcutter, private val action: ChopAction) : StepWork {
+/** The chop step's work: carries out [WoodcuttingPlanner] decisions, its logs the count. */
+class WoodcuttingWork(private val woodcutter: Woodcutter) : StepWork {
 
     private val retry = RetrySkip.forTheTurn(woodcutter::logs)
 
@@ -46,7 +47,7 @@ class WoodcuttingWork(private val woodcutter: Woodcutter, private val action: Ch
 
     override fun act(left: Int?): StepOutcome {
         val view = woodcutter.look()
-        return carryOut(retry.decide { skipped -> WoodcuttingPlanner.decide(view, action, skipped) })
+        return carryOut(retry.decide { skipped -> WoodcuttingPlanner.decide(view, skipped) })
     }
 
     private fun carryOut(decision: WoodcuttingDecision): StepOutcome =
@@ -57,12 +58,12 @@ class WoodcuttingWork(private val woodcutter: Woodcutter, private val action: Ch
             is Settled -> decision.outcome
         }
 
-    private fun chop(tree: TreeCandidate): StepOutcome {
+    private fun chop(tree: Candidate): StepOutcome {
         woodcutter.chop(tree)
         return StepOutcome.Worked
     }
 
-    private fun walkTo(tree: TreeCandidate): StepOutcome {
+    private fun walkTo(tree: Candidate): StepOutcome {
         woodcutter.walkTo(tree)
         return StepOutcome.Approached
     }

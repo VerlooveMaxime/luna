@@ -1,6 +1,6 @@
 package game.idle.autopilot.smithing
 
-import game.idle.autopilot.PlaceCandidate
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.smithing.SmithingDecision.Choose
 import game.idle.autopilot.smithing.SmithingDecision.Settled
 import game.idle.autopilot.smithing.SmithingDecision.UseOn
@@ -24,12 +24,12 @@ interface Smither {
     fun look(): SmithingView
 
     /** Uses the bar in [slot] on [anvil], which opens the smithing window. */
-    fun useOn(anvil: PlaceCandidate, slot: Int)
+    fun useOn(anvil: Candidate, slot: Int)
 
     /** Picks the step's item in the open smithing window, [times] of it (1, 5 or 10, the window's options). */
     fun choose(times: Int)
 
-    fun walkTo(anvil: PlaceCandidate)
+    fun walkTo(anvil: Candidate)
 
     /** The anchor of the step's area, where a walk back goes. */
     fun anchor(): Tile
@@ -46,23 +46,23 @@ data class SmithingView(
     val barSlot: Int?,
     val windowOpen: Boolean,
     val atLocation: Boolean,
-    val anvils: List<PlaceCandidate>,
+    val anvils: List<Candidate>,
 )
 
 sealed interface SmithingDecision {
 
     /** A decision aimed at one anvil. */
     sealed interface OnAnvil : SmithingDecision, Aimed {
-        val anvil: PlaceCandidate
+        val anvil: Candidate
 
         override val aim: Aim get() = anvil.aim
 
         override val distance: Int get() = anvil.distance
     }
 
-    data class UseOn(override val anvil: PlaceCandidate, val slot: Int) : OnAnvil
+    data class UseOn(override val anvil: Candidate, val slot: Int) : OnAnvil
 
-    data class WalkTo(override val anvil: PlaceCandidate) : OnAnvil
+    data class WalkTo(override val anvil: Candidate) : OnAnvil
 
     data class Choose(val times: Int) : SmithingDecision
 
@@ -82,15 +82,9 @@ object SmithingPlanner {
     /** The smithing window's counts, largest first. */
     private val OPTIONS = listOf(10, 5, 1)
 
-    private val preferredFirst: Comparator<PlaceCandidate> =
-        compareByDescending<PlaceCandidate> { it.usableFromHere }
-            .thenBy { it.distance }
-            .thenBy { it.position.x }
-            .thenBy { it.position.y }
-
     /** [left] is what the Amount still asks for, null without one. */
     fun decide(view: SmithingView, skipped: Set<Aim>, left: Int?): SmithingDecision {
-        val best = view.anvils.filterNot { it.aim in skipped }.minWithOrNull(preferredFirst)
+        val best = view.anvils.filterNot { it.aim in skipped }.minWithOrNull(Candidate.NEAREST_FIRST)
         return when {
             view.barSlot == null -> Settled(StepOutcome.Empty)
             view.windowOpen -> Choose(times(left))
@@ -132,12 +126,12 @@ class SmithingWork(private val smither: Smither) : StepWork {
             is Settled -> decision.outcome
         }
 
-    private fun useOn(anvil: PlaceCandidate, slot: Int): StepOutcome {
+    private fun useOn(anvil: Candidate, slot: Int): StepOutcome {
         smither.useOn(anvil, slot)
         return StepOutcome.Worked
     }
 
-    private fun walkTo(anvil: PlaceCandidate): StepOutcome {
+    private fun walkTo(anvil: Candidate): StepOutcome {
         smither.walkTo(anvil)
         return StepOutcome.Approached
     }

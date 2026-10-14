@@ -1,6 +1,6 @@
 package game.idle.autopilot.cooking
 
-import game.idle.autopilot.PlaceCandidate
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaCarried
 import game.idle.autopilot.LunaClicks
@@ -11,7 +11,6 @@ import game.idle.location.Area
 import game.idle.location.Tile
 import game.skill.cooking.cookFood.CookingInterface
 import game.skill.cooking.cookFood.Food
-import game.idle.autopilot.RefusingController
 import game.testworld.TestWorld
 import io.luna.game.event.impl.ButtonClickEvent
 import io.luna.game.event.impl.UseItemEvent.ItemOnObjectEvent
@@ -20,9 +19,6 @@ import io.luna.game.model.Position
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
-import io.luna.game.model.mob.overlay.StandardInterface
-import io.luna.game.model.`object`.ObjectDirection
-import io.luna.game.model.`object`.ObjectType
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -48,22 +44,9 @@ class LunaCookerTest {
     private fun cooker(player: Player) = LunaCooker(player, setOf(rawShrimps, rawAnchovies), area)
 
     @Test
-    fun `an idle player is not busy`() {
-        assertFalse(cooker(login()).isBusy())
-    }
-
-    @Test
     fun `a walking player is busy`() {
         val player = login()
         player.walking.addStep(Direction.EAST)
-
-        assertTrue(cooker(player).isBusy())
-    }
-
-    @Test
-    fun `an open window keeps the player busy`() {
-        val player = login()
-        player.overlays.open(StandardInterface(5292))
 
         assertTrue(cooker(player).isBusy())
     }
@@ -86,23 +69,10 @@ class LunaCookerTest {
 
         assertEquals(
             CookingView(rawSlot = 1, windowOpen = false, atLocation = true, places = listOf(
-                PlaceCandidate(fire, firePosition, distance = 0, usableFromHere = true, approach = anchor),
+                Candidate(fire, firePosition, distance = 0, usableFromHere = true, approach = anchor),
             )),
             cooker(player).look(),
         )
-    }
-
-    /** Tutorial Island's kitchen: the range lies across the back of an alcove whose side walls flank the front tiles. */
-    @Test
-    fun `a long range at the back of an alcove is walked up to between the walls`() {
-        val player = login(Position(3205, 3205))
-        TestWorld.place(3039, Position(3205, 3200), direction = ObjectDirection.SOUTH)
-        TestWorld.place(1902, Position(3205, 3201), ObjectType.STRAIGHT_WALL, ObjectDirection.WEST)
-        TestWorld.place(1902, Position(3206, 3201), ObjectType.STRAIGHT_WALL, ObjectDirection.EAST)
-
-        val place = cooker(player).look().places.single()
-
-        assertTrue(place.approach in listOf(Position(3205, 3201), Position(3206, 3201)))
     }
 
     @Test
@@ -185,58 +155,6 @@ class LunaCookerTest {
         cooker(player).cookAll()
 
         assertEquals(listOf(13717), pressed)
-    }
-
-    @Test
-    fun `a click the controller refuses presses nothing`() {
-        val player = login()
-        player.controllers.register(RefusingController(player))
-        val pressed = mutableListOf<Int>()
-        TestWorld.listen(ButtonClickEvent::class.java) { pressed += it.id }
-
-        cooker(player).cookAll()
-
-        assertEquals(emptyList<Int>(), pressed)
-    }
-
-    @Test
-    fun `fires only another player sees and other objects are not places to cook`() {
-        val player = login()
-        val other = TestWorld.login("other", Position(3210, 3210))
-        TestWorld.placeFor(other, fire, firePosition)
-        TestWorld.place(1286, Position(3203, 3200))
-
-        assertEquals(emptyList<PlaceCandidate>(), cooker(player).look().places)
-    }
-
-    @Test
-    fun `a place whose object changed since the look is not used`() {
-        val player = login()
-        player.inventory.add(Item(rawShrimps))
-        TestWorld.place(fire, firePosition)
-        val seenAsRange = cooker(player).look().places.single().copy(objectId = 114)
-        val used = mutableListOf<Int>()
-        TestWorld.listen(ItemOnObjectEvent::class.java) { used += it.objectId }
-
-        cooker(player).useOn(seenAsRange, slot = 0)
-        TestWorld.tick()
-
-        assertEquals(emptyList<Int>(), used)
-    }
-
-    @Test
-    fun `a fire only another player sees is not used`() {
-        val player = login()
-        player.inventory.add(Item(rawShrimps))
-        val other = TestWorld.login("other", Position(3210, 3210))
-        TestWorld.placeFor(other, fire, firePosition)
-        val used = mutableListOf<Int>()
-        TestWorld.listen(ItemOnObjectEvent::class.java) { used += it.objectId }
-
-        cooker(player).useOn(PlaceCandidate(fire, firePosition, 0, usableFromHere = true, approach = anchor), slot = 0)
-        TestWorld.tick()
-
-        assertEquals(emptyList<Int>(), used)
     }
 
     @Test

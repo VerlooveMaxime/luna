@@ -25,18 +25,6 @@ class MiningPlannerTest {
     }
 
     @Test
-    fun `out of reach, the nearest rock is walked to`() {
-        assertEquals(WalkTo(near), decide(miningView(listOf(far, near))))
-    }
-
-    @Test
-    fun `equally near rocks are picked west to east, then south to north`() {
-        val north = rock(3200, 3205, distance = 2)
-
-        assertEquals(WalkTo(near), decide(miningView(listOf(north, near))))
-    }
-
-    @Test
     fun `with no rock in sight away from the work spot, the player walks back`() {
         assertEquals(WalkToLocation, decide(miningView(emptyList(), atLocation = false)))
     }

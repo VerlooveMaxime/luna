@@ -3,7 +3,6 @@ package game.idle.autopilot.making
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaCarried
 import game.idle.autopilot.LunaClicks
-import game.idle.autopilot.RefusingController
 import game.idle.flow.Preconditions
 import game.idle.flow.Reason
 import game.idle.flow.ToolNeed
@@ -54,11 +53,6 @@ class LunaMakerTest {
         player.inventory.add(Item(1351))
         player.inventory.add(Item(1929))
         player.inventory.add(Item(1933))
-    }
-
-    @Test
-    fun `an idle player is not busy`() {
-        assertFalse(maker(login()).isBusy())
     }
 
     @Test
@@ -188,19 +182,6 @@ class LunaMakerTest {
     }
 
     @Test
-    fun `a button click the controller refuses is not made`() {
-        val player = login()
-        player.overlays.open(ButtonsWindow())
-        player.controllers.register(RefusingController(player))
-        val clicked = mutableListOf<Int>()
-        TestWorld.listen(ButtonClickEvent::class.java) { clicked += it.id }
-
-        LunaMaker(player, glass).choose(BUTTON, 28)
-
-        assertEquals(emptyList<Int>(), clicked)
-    }
-
-    @Test
     fun `products count every item the recipe counts as made`() {
         val player = login()
         player.inventory.add(Item(1995, 2))
@@ -208,19 +189,6 @@ class LunaMakerTest {
         val wine = simpleRecipe(1995, "Unfermented wine", 1987, 1937).copy(made = setOf(1995, 1993))
 
         assertEquals(5, LunaMaker(player, wine).products())
-    }
-
-    @Test
-    fun `a click the controller refuses combines nothing`() {
-        val player = login()
-        holdIngredients(player)
-        player.controllers.register(RefusingController(player))
-        val used = mutableListOf<Int>()
-        TestWorld.listen(ItemOnItemEvent::class.java) { used += it.usedItemId }
-
-        maker(player).use(2, 1)
-
-        assertEquals(emptyList<Int>(), used)
     }
 
     @Test

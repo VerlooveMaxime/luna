@@ -1,6 +1,6 @@
 package game.idle.autopilot.cooking
 
-import game.idle.autopilot.PlaceCandidate
+import game.idle.autopilot.Candidate
 import game.idle.location.Tile
 import io.luna.game.model.Position
 
@@ -15,7 +15,7 @@ class FakeCooker(var view: CookingView, private val anchor: Tile = Tile(3200, 32
 
     override fun look(): CookingView = view
 
-    override fun useOn(place: PlaceCandidate, slot: Int) {
+    override fun useOn(place: Candidate, slot: Int) {
         steps += "use $slot on ${place.position.x},${place.position.y}"
     }
 
@@ -23,7 +23,7 @@ class FakeCooker(var view: CookingView, private val anchor: Tile = Tile(3200, 32
         steps += "cook all"
     }
 
-    override fun walkTo(place: PlaceCandidate) {
+    override fun walkTo(place: Candidate) {
         steps += "walk to ${place.position.x},${place.position.y}"
     }
 
@@ -37,7 +37,7 @@ class FakeCooker(var view: CookingView, private val anchor: Tile = Tile(3200, 32
 }
 
 fun cookingPlace(x: Int, y: Int, distance: Int, usableFromHere: Boolean = false) =
-    PlaceCandidate(2732, Position(x, y), distance, usableFromHere, Position(x - 1, y))
+    Candidate(2732, Position(x, y), distance, usableFromHere, Position(x - 1, y))
 
-fun cookingView(places: List<PlaceCandidate>, rawSlot: Int? = 2, windowOpen: Boolean = false, atLocation: Boolean = true) =
+fun cookingView(places: List<Candidate>, rawSlot: Int? = 2, windowOpen: Boolean = false, atLocation: Boolean = true) =
     CookingView(rawSlot, windowOpen, atLocation, places)

@@ -95,8 +95,6 @@ data class ChopStep(
     override fun needs(): List<StepNeeds> =
         listOf(StepNeeds(tools = listOf(ChopStepType.AXE), level = LevelNeed(Skill.WOODCUTTING, tree.level)))
 
-    override fun work(player: Player, runTile: Tile): StepWork {
-        val spot = WoodcuttingSpot(tree, Area(workSpot.tile(runTile), radius))
-        return WoodcuttingWork(LunaWoodcutter(player, spot), ChopAction(setOf(tree)))
-    }
+    override fun work(player: Player, runTile: Tile): StepWork =
+        WoodcuttingWork(LunaWoodcutter(player, tree, Area(workSpot.tile(runTile), radius)))
 }

@@ -1,6 +1,6 @@
 package game.idle.autopilot.smelting
 
-import game.idle.autopilot.PlaceCandidate
+import game.idle.autopilot.Candidate
 import game.idle.location.Tile
 import io.luna.game.model.Position
 
@@ -15,11 +15,11 @@ class FakeSmelter(var view: SmeltingView, private val anchor: Tile = Tile(3200, 
 
     override fun look(): SmeltingView = view
 
-    override fun smelt(furnace: PlaceCandidate, slot: Int) {
+    override fun smelt(furnace: Candidate, slot: Int) {
         steps += "smelt $slot on ${furnace.position.x},${furnace.position.y}"
     }
 
-    override fun walkTo(furnace: PlaceCandidate) {
+    override fun walkTo(furnace: Candidate) {
         steps += "walk to ${furnace.position.x},${furnace.position.y}"
     }
 
@@ -33,7 +33,7 @@ class FakeSmelter(var view: SmeltingView, private val anchor: Tile = Tile(3200, 
 }
 
 fun furnace(x: Int, y: Int, distance: Int, usableFromHere: Boolean = false) =
-    PlaceCandidate(2781, Position(x, y), distance, usableFromHere, Position(x - 1, y))
+    Candidate(2781, Position(x, y), distance, usableFromHere, Position(x - 1, y))
 
-fun smeltingView(furnaces: List<PlaceCandidate>, oreSlot: Int? = 0, atLocation: Boolean = true) =
+fun smeltingView(furnaces: List<Candidate>, oreSlot: Int? = 0, atLocation: Boolean = true) =
     SmeltingView(oreSlot, atLocation, furnaces)

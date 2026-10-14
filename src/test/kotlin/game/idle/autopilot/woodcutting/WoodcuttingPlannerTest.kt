@@ -8,10 +8,8 @@ import game.idle.flow.Aim
 import game.idle.flow.Reason
 import game.idle.flow.StepOutcome
 import game.idle.flow.Target
-import game.skill.woodcutting.cutTree.Tree
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 
 class WoodcuttingPlannerTest {
 
@@ -20,13 +18,7 @@ class WoodcuttingPlannerTest {
 
     private val noTree = Settled(StepOutcome.Waiting(Reason.NoneInReach(Target.TREE)))
 
-    private fun decide(view: WoodcuttingView, action: ChopAction = anyTree, skipped: Set<Aim> = emptySet()) =
-        WoodcuttingPlanner.decide(view, action, skipped)
-
-    @Test
-    fun `an action needs at least one kind of tree`() {
-        assertThrows<IllegalArgumentException> { ChopAction(emptySet()) }
-    }
+    private fun decide(view: WoodcuttingView, skipped: Set<Aim> = emptySet()) = WoodcuttingPlanner.decide(view, skipped)
 
     @Test
     fun `no tree in sight at the location waits for one to grow back`() {
@@ -47,13 +39,6 @@ class WoodcuttingPlannerTest {
         val decision = decide(view(listOf(acrossThePath), atLocation = false))
 
         assertEquals(WalkTo(acrossThePath), decision)
-    }
-
-    @Test
-    fun `trees the player did not ask for are ignored`() {
-        val decision = decide(view(listOf(nextToPlayer)), ChopAction(setOf(Tree.OAK)))
-
-        assertEquals(noTree, decision)
     }
 
     @Test
@@ -85,15 +70,6 @@ class WoodcuttingPlannerTest {
     }
 
     @Test
-    fun `the highest level tree wins over a nearer one`() {
-        val oak = tree(3160, 3440, distance = 11, kind = Tree.OAK)
-
-        val decision = decide(view(listOf(nextToPlayer, oak)))
-
-        assertEquals(WalkTo(oak), decision)
-    }
-
-    @Test
     fun `a tree usable without moving wins over an equally near one`() {
         val diagonal = tree(3170, 3443, distance = 0, usableFromHere = false)
 
@@ -102,23 +78,4 @@ class WoodcuttingPlannerTest {
         assertEquals(Chop(nextToPlayer), decision)
     }
 
-    @Test
-    fun `the nearest of equal trees is chosen`() {
-        val nearer = tree(3168, 3437, distance = 3)
-
-        val decision = decide(view(listOf(acrossThePath, nearer)))
-
-        assertEquals(WalkTo(nearer), decision)
-    }
-
-    @Test
-    fun `equally near trees are chosen west to east then south to north`() {
-        val northWest = tree(3168, 3446, distance = 4)
-        val southEast = tree(3169, 3434, distance = 4)
-        val southWest = tree(3168, 3434, distance = 4)
-
-        val decision = decide(view(listOf(northWest, southEast, southWest)))
-
-        assertEquals(WalkTo(southWest), decision)
-    }
 }

@@ -1,5 +1,6 @@
 package game.idle.autopilot.pickup
 
+import game.idle.autopilot.Candidate
 import game.idle.flow.Meter
 import game.idle.flow.StepOutcome
 import io.luna.game.model.Position
@@ -12,8 +13,8 @@ class PickUpWorkTest {
 
     private val bones = 526
     private val cowhide = 1739
-    private val bonesUnderfoot = GroundLoot(bones, Position(3200, 3200), distance = 0, fits = true)
-    private val cowhideNear = GroundLoot(cowhide, Position(3203, 3200), distance = 3, fits = true)
+    private val bonesUnderfoot = Candidate(bones, Position(3200, 3200), distance = 0, usableFromHere = true, approach = Position(3200, 3200))
+    private val cowhideNear = Candidate(cowhide, Position(3203, 3200), distance = 3, usableFromHere = false, approach = Position(3203, 3200))
     private val picker = FakePicker(PickUpView(atLocation = true, items = listOf(bonesUnderfoot)))
     private val work = PickUpWork(picker)
 
@@ -136,7 +137,7 @@ class PickUpWorkTest {
     fun `the same item walked to then taken is no retry`() {
         picker.view = PickUpView(atLocation = true, items = listOf(cowhideNear))
         work.act(left = null)
-        picker.view = PickUpView(atLocation = true, items = listOf(cowhideNear.copy(distance = 0)))
+        picker.view = PickUpView(atLocation = true, items = listOf(cowhideNear.copy(distance = 0, usableFromHere = true)))
 
         work.act(left = null)
 

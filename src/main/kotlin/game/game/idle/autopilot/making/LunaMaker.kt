@@ -15,8 +15,7 @@ import io.luna.game.model.mob.dialogue.MakeItemDialogue
 class LunaMaker(private val player: Player, private val recipe: Recipe) : Maker {
 
     /** The make window is what this step answers, so it does not count as a window in the way. */
-    override fun isBusy(): Boolean =
-        LunaClicks.isActing(player) || (LunaClicks.hasBlockingWindow(player) && !makeWindowOpen())
+    override fun isBusy(): Boolean = LunaClicks.busyBesides(player, makeWindowOpen())
 
     override fun look(): MakeView {
         val way = recipe.ways.firstOrNull(::carried)
@@ -31,19 +30,13 @@ class LunaMaker(private val player: Player, private val recipe: Recipe) : Maker 
     override fun use(useSlot: Int, onSlot: Int) {
         val used = player.inventory[useSlot]?.id ?: return
         val target = player.inventory[onSlot]?.id ?: return
-        val event = ItemOnItemEvent(player, used, target, useSlot, onSlot, INVENTORY, INVENTORY)
-        if (LunaClicks.mayAct(player, event)) {
-            player.overlays.closeWindows(false)
-            player.plugins.post(event)
-        }
+        val event = ItemOnItemEvent(player, used, target, useSlot, onSlot, LunaClicks.INVENTORY, LunaClicks.INVENTORY)
+        LunaClicks.postClosing(player, event)
     }
 
     override fun choose(index: Int, times: Int) {
         when (recipe.window) {
-            is MakeWindow.Buttons -> {
-                val click = ButtonClickEvent(player, index)
-                if (LunaClicks.mayAct(player, click)) player.plugins.post(click)
-            }
+            is MakeWindow.Buttons -> LunaClicks.post(player, ButtonClickEvent(player, index))
             else -> {
                 val window = makeItemWindow() ?: return
                 player.overlays.closeWindows()
@@ -75,8 +68,4 @@ class LunaMaker(private val player: Player, private val recipe: Recipe) : Maker 
 
     /** A carried item's slot. */
     private fun slotOf(id: Int): Int = player.inventory.computeIndexForId(id)
-
-    private companion object {
-        const val INVENTORY = 3214
-    }
 }

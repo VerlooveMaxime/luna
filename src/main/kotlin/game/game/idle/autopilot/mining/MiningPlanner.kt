@@ -1,5 +1,6 @@
 package game.idle.autopilot.mining
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.mining.MiningDecision.Mine
 import game.idle.autopilot.mining.MiningDecision.Settled
 import game.idle.autopilot.mining.MiningDecision.WalkTo
@@ -8,37 +9,24 @@ import game.idle.flow.Aim
 import game.idle.flow.Aimed
 import game.idle.flow.StepOutcome
 import game.idle.flow.Target
-import game.idle.location.Tile
-import io.luna.game.model.Position
-
-/** A rock of the step's ore the player can walk to: [distance] walking steps to [approach]. */
-data class RockCandidate(
-    val objectId: Int,
-    val position: Position,
-    val distance: Int,
-    val usableFromHere: Boolean,
-    val approach: Position,
-) {
-    val aim: Aim get() = Aim(objectId, Tile.of(position))
-}
 
 /** What the mine step sees when it decides: whether the player is inside the step's area, and the step's rocks in reach. */
-data class MiningView(val atLocation: Boolean, val rocks: List<RockCandidate>)
+data class MiningView(val atLocation: Boolean, val rocks: List<Candidate>)
 
 sealed interface MiningDecision {
 
     /** A decision aimed at one rock. */
     sealed interface OnRock : MiningDecision, Aimed {
-        val rock: RockCandidate
+        val rock: Candidate
 
         override val aim: Aim get() = rock.aim
 
         override val distance: Int get() = rock.distance
     }
 
-    data class Mine(override val rock: RockCandidate) : OnRock
+    data class Mine(override val rock: Candidate) : OnRock
 
-    data class WalkTo(override val rock: RockCandidate) : OnRock
+    data class WalkTo(override val rock: Candidate) : OnRock
 
     data object WalkToLocation : MiningDecision
 
@@ -53,14 +41,8 @@ sealed interface MiningDecision {
  */
 object MiningPlanner {
 
-    private val preferredFirst: Comparator<RockCandidate> =
-        compareByDescending<RockCandidate> { it.usableFromHere }
-            .thenBy { it.distance }
-            .thenBy { it.position.x }
-            .thenBy { it.position.y }
-
     fun decide(view: MiningView, skipped: Set<Aim>): MiningDecision {
-        val best = view.rocks.filterNot { it.aim in skipped }.minWithOrNull(preferredFirst)
+        val best = view.rocks.filterNot { it.aim in skipped }.minWithOrNull(Candidate.NEAREST_FIRST)
         return when {
             best == null && !view.atLocation -> WalkToLocation
             best == null -> Settled(StepOutcome.noneInReach(Target.ROCK, setAside = view.rocks.isNotEmpty()))

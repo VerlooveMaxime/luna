@@ -1,6 +1,6 @@
 package game.idle.autopilot.rest
 
-import game.idle.autopilot.reflex.LunaReflexBody
+import game.idle.autopilot.reflex.healthOf
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.ResolvedStep
@@ -55,5 +55,5 @@ object RestStepType : StepType {
 /** A rest step resolved: it waits until hitpoints are at least [percent] of full. */
 data class RestStep(val percent: Int) : ResolvedStep {
 
-    override fun work(player: Player, runTile: Tile): StepWork = RestWork(LunaReflexBody(player)::health, percent)
+    override fun work(player: Player, runTile: Tile): StepWork = RestWork({ healthOf(player) }, percent)
 }

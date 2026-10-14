@@ -1,12 +1,10 @@
 package game.idle.autopilot.pickup
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
 import game.idle.movement.ReachScan
-import game.idle.movement.TileBounds
-import game.idle.movement.WalkingDistances
 import io.luna.game.event.impl.GroundItemClickEvent.PickupItemEvent
-import io.luna.game.model.EntityType
 import io.luna.game.model.Position
 import io.luna.game.model.item.GroundItem
 import io.luna.game.model.mob.Player
@@ -21,38 +19,36 @@ class LunaPicker(private val player: Player, private val itemIds: Set<Int>, priv
 
     private val world get() = player.world
     private val anchor: Position = area.anchor.toPosition()
-    private val bounds = TileBounds.around(anchor, area.radius)
+    private val scan = ReachScan(anchor, area.radius)
 
     /** The id of the item taken last and how many of it the bag held then, until the take is over. */
     private var taking: Pair<Int, Int>? = null
     private var pickedUp = 0
 
-    override fun isBusy(): Boolean =
-        !player.walking.isEmpty || player.actions.first(InteractionAction::class.java) != null || LunaClicks.hasBlockingWindow(player)
+    override fun isBusy(): Boolean = LunaClicks.interacting(player) || LunaClicks.hasBlockingWindow(player)
 
     override fun look(): PickUpView {
         val here = player.position
-        if (here.z != anchor.z || here.computeLongestDistance(anchor) > ReachScan.MAX_WALK) {
-            return PickUpView(atLocation = false, items = emptyList())
-        }
-        val distances = WalkingDistances.from(here, bounds.including(here)) { from, direction ->
-            world.collisionManager.traversable(from, EntityType.PLAYER, direction)
-        }
+        val distances = scan.distancesFrom(here) { from, direction -> LunaClicks.canStep(world, from, direction) }
+            ?: return PickUpView(atLocation = false, items = emptyList())
         val items = lying().mapNotNull { item ->
-            distances[item.position]?.let { GroundLoot(item.id, item.position, it, fits = player.inventory.hasSpaceFor(item.toItem())) }
+            distances[item.position]?.let { steps ->
+                val fits = player.inventory.hasSpaceFor(item.toItem())
+                Candidate(item.id, item.position, steps, usableFromHere = steps == 0, approach = item.position, fits = fits)
+            }
         }
-        return PickUpView(atLocation = here in bounds, items = items)
+        return PickUpView(atLocation = scan.atLocation(here), items = items)
     }
 
-    override fun take(item: GroundLoot) {
+    override fun take(item: Candidate) {
         val ground = find(item) ?: return
         taking = ground.id to player.inventory.computeAmountForId(ground.id)
         LunaClicks.interact(player, PickupItemEvent(player, ground), ground, PickupItemEvent::class.java)
     }
 
-    override fun walkTo(item: GroundLoot) = walk(item.position)
+    override fun walkTo(item: Candidate) = LunaClicks.walk(player, item.position)
 
-    override fun walkToLocation() = walk(anchor)
+    override fun walkToLocation() = LunaClicks.walk(player, anchor)
 
     /**
      * Counts the last take once it is over and the bag holds more of its item: someone faster gets nothing. Not by the
@@ -68,14 +64,9 @@ class LunaPicker(private val player: Player, private val itemIds: Set<Int>, priv
 
     override fun interrupt() = LunaClicks.interrupt(player)
 
-    private fun walk(to: Position) {
-        player.overlays.closeWindows(false)
-        player.navigator.navigate(to, true)
-    }
-
     private fun lying(): Set<GroundItem> = world.locator.findItems(anchor, area.radius) { it.id in itemIds && it.isVisibleTo(player) }
 
     /** The item the look saw, if it still lies there for the player. */
-    private fun find(item: GroundLoot): GroundItem? =
+    private fun find(item: Candidate): GroundItem? =
         world.items.findAll(item.position).filter { it.id == item.id && it.isVisibleTo(player) }.findFirst().orElse(null)
 }

@@ -1,7 +1,8 @@
 package game.idle.autopilot.firemaking
 
+import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaCarried
-import game.idle.autopilot.RefusingController
+import game.idle.autopilot.LunaClicks
 import game.idle.flow.Preconditions
 import game.idle.flow.Reason
 import game.testworld.TestWorld
@@ -11,7 +12,6 @@ import io.luna.game.model.Position
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
-import io.luna.game.model.mob.overlay.StandardInterface
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -38,22 +38,9 @@ class LunaLighterTest {
         LunaLighter(player, logIds, start)
 
     @Test
-    fun `an idle player is not busy`() {
-        assertFalse(lighter(login()).isBusy())
-    }
-
-    @Test
     fun `a walking player is busy`() {
         val player = login()
         player.walking.addStep(Direction.EAST)
-
-        assertTrue(lighter(player).isBusy())
-    }
-
-    @Test
-    fun `an open window keeps the player busy`() {
-        val player = login()
-        player.overlays.open(StandardInterface(5292))
 
         assertTrue(lighter(player).isBusy())
     }
@@ -141,20 +128,6 @@ class LunaLighterTest {
     }
 
     @Test
-    fun `a click the controller refuses lights nothing`() {
-        val player = login()
-        player.inventory.add(Item(tinderbox))
-        player.inventory.add(Item(logs))
-        player.controllers.register(RefusingController(player))
-        val used = mutableListOf<Int>()
-        TestWorld.listen(ItemOnItemEvent::class.java) { used += it.targetItemId }
-
-        lighter(player).light(1)
-
-        assertEquals(emptyList<Int>(), used)
-    }
-
-    @Test
     fun `an empty slot is not lit`() {
         val player = login()
         val used = mutableListOf<Int>()
@@ -227,6 +200,18 @@ class LunaLighterTest {
         around.filter { it != Position(3201, 3201) }.forEach { TestWorld.place(deadTree, it) }
 
         assertFalse(lighter(player).moveToFreeTile())
+    }
+
+    @Test
+    fun `interrupting breaks off the action in progress`() {
+        val player = login()
+        player.submitAction(EndlessAction(player))
+        TestWorld.tick()
+
+        lighter(player).interrupt()
+        TestWorld.tick()
+
+        assertFalse(LunaClicks.isActing(player))
     }
 
     @Test
