@@ -253,4 +253,35 @@ class SavedFlowsTest {
         assertTrue(saved.changedSinceSaved(state))
         assertEquals("Cows (changed)", saved.label(state))
     }
+
+    private val laps5 = StopSettings("laps", "5")
+
+    @Test
+    fun `saving keeps the flow's stop with it`() {
+        assertEquals(laps5, saved.save(current.copy(stop = laps5), slot = 0, name = "Oaks").savedFlows.single().stop)
+    }
+
+    @Test
+    fun `loading takes the saved flow's stop`() {
+        val before = current.copy(savedFlows = listOf(SavedFlow(0, "Fish", fishFlow, stop = laps5)))
+
+        assertEquals(laps5, saved.load(before, slot = 0).stop)
+    }
+
+    @Test
+    fun `a new flow stops never`() {
+        assertEquals(StopSettings(), saved.startNew(current.copy(stop = laps5), slot = 1).stop)
+    }
+
+    @Test
+    fun `emptying the current flow's slot drops its stop too`() {
+        val state = saved.save(current.copy(stop = laps5), slot = 0, name = "Oaks")
+
+        assertEquals(StopSettings(), saved.empty(state, slot = 0).stop)
+    }
+
+    @Test
+    fun `a flow whose stop changed since it was saved has changed`() {
+        assertEquals("Oaks (changed)", saved.label(saved.save(current, slot = 0, name = "Oaks").copy(stop = laps5)))
+    }
 }

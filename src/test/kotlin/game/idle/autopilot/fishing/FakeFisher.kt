@@ -8,6 +8,7 @@ class FakeFisher(var view: FishingView, private val anchor: Tile = Tile(3200, 32
 
     var busy = false
     var catches = 0
+    var pulledUp = 0
     val steps = mutableListOf<String>()
 
     override fun isBusy(): Boolean = busy
@@ -25,6 +26,8 @@ class FakeFisher(var view: FishingView, private val anchor: Tile = Tile(3200, 32
     override fun anchor(): Tile = anchor
 
     override fun catches(): Int = catches
+
+    override fun pulledUp(): Int = pulledUp
 
     override fun interrupt() {
         steps += "interrupt"

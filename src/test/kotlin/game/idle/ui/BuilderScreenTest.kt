@@ -1,6 +1,9 @@
 package game.idle.ui
 
+import game.idle.flow.StopSettings
+import game.idle.flow.StepWords
 import game.idle.IdleState
+import game.idle.flow.FakeClock
 import game.idle.SavedFlow
 import game.idle.autopilot.Autopilot
 import game.idle.autopilot.AutopilotDriver
@@ -25,7 +28,7 @@ import org.junit.jupiter.api.Test
 
 class BuilderScreenTest {
 
-    private val autopilot = Autopilot<FakeAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
+    private val autopilot = Autopilot<FakeAutopilotPlayer>(FakeTickScheduler(), FakeClock()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
     private val screen = BuilderScreen(autopilot, FlowResolver(CONFIGURED_TYPES), REFLEXES, REFLEX_FORM, FakeNames(), slots = 3, reflexSlots = 2, SavedFlows(2))
 
     private val chop = step("chop", "oak")
@@ -1259,5 +1262,135 @@ class BuilderScreenTest {
         val player = running().apply { idleState = idleState.copy(reflexes = listOf(eatTrout, runAway)) }
 
         assertEquals(BuilderAnswer.Configure(guardedDraft, BuilderScreen.STOP_FIRST), screen.arrangeAttached(player, guardedDraft.copy(typing = Typing("amount")), 0, 1))
+    }
+
+    private fun stops(player: FakeAutopilotPlayer) = player.idleState.stop
+
+    @Test
+    fun `a stop that takes a number asks for it once chosen`() {
+        val player = player(chop)
+
+        assertEquals(BuilderAnswer.StopAmount, click(player, BuilderWidgets.stopChoice(1)))
+        assertEquals(StopSettings("laps", ""), stops(player))
+    }
+
+    @Test
+    fun `a stop chosen with a number already typed keeps it`() {
+        val player = player(chop).apply { idleState = idleState.copy(stop = StopSettings("laps", "5")) }
+
+        assertEquals(BuilderAnswer.Show(), click(player, BuilderWidgets.stopChoice(2)))
+        assertEquals(StopSettings("time", "5"), stops(player))
+    }
+
+    @Test
+    fun `a stop without a number is chosen at once`() {
+        val player = player(chop)
+
+        assertEquals(BuilderAnswer.Show(), click(player, BuilderWidgets.stopChoice(3)))
+        assertEquals(StopSettings("goals", ""), stops(player))
+    }
+
+    @Test
+    fun `no stop changes while the flow runs`() {
+        val player = running()
+
+        assertEquals(BuilderAnswer.Show(message = BuilderScreen.STOP_FIRST), click(player, BuilderWidgets.stopChoice(1)))
+        assertEquals(StopSettings(), stops(player))
+    }
+
+    @Test
+    fun `the number box asks for the number of a stop that takes one`() {
+        val player = player(chop).apply { idleState = idleState.copy(stop = StopSettings("time", "5")) }
+
+        assertEquals(BuilderAnswer.StopAmount, click(player, BuilderWidgets.STOPS_AFTER_FACE))
+    }
+
+    @Test
+    fun `the number box does nothing for a stop without a number`() {
+        assertEquals(BuilderAnswer.Show(), click(player(chop), BuilderWidgets.STOPS_AFTER_FACE))
+    }
+
+    @Test
+    fun `the number box waits for the flow to stop`() {
+        assertEquals(BuilderAnswer.Show(message = BuilderScreen.STOP_FIRST), click(running(), BuilderWidgets.STOPS_AFTER_FACE))
+    }
+
+    @Test
+    fun `a number typed for the stop is kept`() {
+        val player = player(chop).apply { idleState = idleState.copy(stop = StopSettings("laps", "")) }
+
+        assertEquals(BuilderAnswer.Show(), screen.typedStop(player, 5))
+        assertEquals(StopSettings("laps", "5"), stops(player))
+    }
+
+    @Test
+    fun `a number typed below one says the rule of the stop`() {
+        val laps = player(chop).apply { idleState = idleState.copy(stop = StopSettings("laps", "")) }
+        val time = player(chop).apply { idleState = idleState.copy(stop = StopSettings("time", "")) }
+
+        assertEquals(say("laps take 1 or more."), screen.typedStop(laps, 0))
+        assertEquals(say("minutes take 1 or more."), screen.typedStop(time, 0))
+    }
+
+    @Test
+    fun `a number typed for a stop without one is ignored`() {
+        assertEquals(BuilderAnswer.Ignored, screen.typedStop(player(chop), 5))
+    }
+
+    @Test
+    fun `a number typed while the flow runs changes nothing`() {
+        val player = running().apply { idleState = idleState.copy(stop = StopSettings("laps", "")) }
+
+        assertEquals(BuilderAnswer.Show(message = BuilderScreen.STOP_FIRST), screen.typedStop(player, 5))
+    }
+
+    @Test
+    fun `run refuses a stop whose number is missing`() {
+        val player = player(chop).apply { idleState = idleState.copy(stop = StopSettings("laps", "")) }
+
+        assertEquals(say("needs laps."), click(player, BuilderWidgets.RUN))
+        assertFalse(autopilot.isRunning(player))
+    }
+
+    @Test
+    fun `run refuses a stop on every goal met when no step has a goal`() {
+        val player = player(chop).apply { idleState = idleState.copy(stop = StopSettings("goals", "")) }
+
+        assertEquals(BuilderAnswer.Show(message = StepWords.NO_GOALS), click(player, BuilderWidgets.RUN))
+        assertFalse(autopilot.isRunning(player))
+    }
+
+    @Test
+    fun `run accepts a stop on every goal met once a step has a goal`() {
+        val mine = StepSettings("mine", mapOf("goal" to "level", "goalLevel" to "50"))
+        val player = player(chop, mine).apply { idleState = idleState.copy(stop = StopSettings("goals", "")) }
+
+        click(player, BuilderWidgets.RUN)
+
+        assertTrue(autopilot.isRunning(player))
+    }
+
+    @Test
+    fun `clear drops the stop too`() {
+        val player = player(chop).apply { idleState = idleState.copy(stop = StopSettings("laps", "5")) }
+
+        click(player, BuilderWidgets.CLEAR)
+
+        assertEquals(StopSettings(), stops(player))
+    }
+
+    private val mine = StepSettings("mine")
+    private val mining = StepDraft(1, mine, new = false)
+
+    @Test
+    fun `a five-button toggle's button keeps its choice`() {
+        assertEquals(BuilderAnswer.Configure(mining.with("goal", "level")), click(player(chop, mine), BuilderWidgets.toggleFace(6, 5, 1), mining))
+    }
+
+    @Test
+    fun `the Until toggle's None drops the goal`() {
+        val goaled = mining.with("goal", "level")
+
+        assertEquals(BuilderAnswer.Configure(mining), click(player(chop, mine), BuilderWidgets.toggleFace(6, 5, 0), goaled))
     }
 }

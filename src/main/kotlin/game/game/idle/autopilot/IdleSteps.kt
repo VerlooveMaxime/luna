@@ -46,6 +46,7 @@ class IdleSteps(
             SmeltStepType(names), SmithStepType(names), FightStepType(fightTargets), PickUpStepType(drops, spawns, items, names), RestStepType,
             WalkStepType, DropStepType(items, names), BankStepType(banks, items, names),
         ),
+        items,
     )
 
     companion object {

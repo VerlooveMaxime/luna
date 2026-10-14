@@ -42,6 +42,8 @@ class SmeltStepType(private val names: GameNames) : StepType {
 
     override val description = "Smelts ores into bars at a furnace, from earlier steps or the bank."
 
+    override val goal = true
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.SMITHING)
 
     override fun skill(settings: StepSettings): Int = Skill.SMITHING

@@ -41,6 +41,8 @@ class PickUpStepType(drops: DropLookup, spawns: SpawnCatalog, private val items:
 
     override val description = "Picks up the items picked lying around the work spot, nearest first."
 
+    override val goal = true
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Item(LEATHER_GLOVES)
 
     override fun pick(settings: StepSettings, names: GameNames): StepPick = StepPick.items(picked(settings), names)

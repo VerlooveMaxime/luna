@@ -35,6 +35,8 @@ class FightStepType(private val catalog: FightTargetCatalog) : StepType {
 
     override val description = "Fights one kind of npc, a count of kills or with no end."
 
+    override val goal = true
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.ATTACK)
 
     override fun target(names: GameNames): StepTarget = StepTarget(NPC, FightOptions(catalog))

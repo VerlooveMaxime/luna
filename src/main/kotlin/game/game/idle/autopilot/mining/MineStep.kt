@@ -47,6 +47,8 @@ object MineStepType : StepType {
 
     override val description = "Mines one kind of rock around the work spot."
 
+    override val goal = true
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.MINING)
 
     override fun skill(settings: StepSettings): Int = Skill.MINING

@@ -1,5 +1,7 @@
 package game.idle
 
+import game.idle.flow.StopSettings
+import game.idle.flow.RunProgress
 import game.idle.flow.ReflexSettings
 import game.idle.flow.StepSettings
 import game.idle.location.Tile
@@ -66,7 +68,7 @@ class IdleStateTest {
 
     @Test
     fun `starting from the first step takes the player's tile as the run tile`() {
-        val started = state.stopped().fromStart().started(Tile(1, 2))
+        val started = state.stopped().fromStart().started(Tile(1, 2), 0)
 
         assertEquals(state.copy(stepIndex = 0, runTile = Tile(1, 2)), started)
     }
@@ -80,7 +82,7 @@ class IdleStateTest {
 
     @Test
     fun `resuming keeps the run tile it was started on`() {
-        assertEquals(state, state.stopped().started(Tile(1, 2)))
+        assertEquals(state, state.stopped().started(Tile(1, 2), 0))
     }
 
     @Test
@@ -137,7 +139,7 @@ class IdleStateTest {
     fun `starting, stopping, a new flow and a new step all clear the block`() {
         val blocked = state.copy(blocked = "Needs an axe you can use")
 
-        val cleared = listOf(blocked.started(runTile), blocked.stopped(), blocked.withFlow(emptyList()), blocked.atStep(0))
+        val cleared = listOf(blocked.started(runTile, 0), blocked.stopped(), blocked.withFlow(emptyList()), blocked.atStep(0))
 
         assertEquals(listOf<String?>(null, null, null, null), cleared.map { it.blocked })
     }
@@ -153,7 +155,7 @@ class IdleStateTest {
     fun `starting, stopping, a new flow and a new step all clear the wait`() {
         val waiting = state.copy(waiting = "No tree in reach")
 
-        val cleared = listOf(waiting.started(runTile), waiting.stopped(), waiting.withFlow(emptyList()), waiting.atStep(0))
+        val cleared = listOf(waiting.started(runTile, 0), waiting.stopped(), waiting.withFlow(emptyList()), waiting.atStep(0))
 
         assertEquals(listOf<String?>(null, null, null, null), cleared.map { it.waiting })
     }
@@ -168,5 +170,47 @@ class IdleStateTest {
         val counting = state.copy(countBoostedLevels = true)
 
         assertEquals(counting, GsonUtils.GSON.fromJson(GsonUtils.GSON.toJson(counting), IdleState::class.java))
+    }
+
+    private val progress = RunProgress(totals = mapOf(0 to 3, 2 to 1), met = setOf(2), startedAt = 1_700_000_000_000)
+    private val laps5 = StopSettings("laps", "5")
+
+    @Test
+    fun `the run's progress and the stop are saved and read back`() {
+        val saving = state.copy(progress = progress, stop = laps5)
+
+        assertEquals(saving, GsonUtils.GSON.fromJson(GsonUtils.GSON.toJson(saving), IdleState::class.java))
+    }
+
+    @Test
+    fun `a new flow starts with nothing done and keeps the stop unless given one`() {
+        val before = state.copy(progress = progress, stop = laps5)
+
+        assertEquals(RunProgress() to laps5, before.withFlow(emptyList()).let { it.progress to it.stop })
+        assertEquals(StopSettings("goals"), before.withFlow(emptyList(), stop = StopSettings("goals")).stop)
+    }
+
+    @Test
+    fun `a new run starts with nothing done`() {
+        assertEquals(RunProgress(), state.copy(progress = progress).fromStart().progress)
+    }
+
+    @Test
+    fun `starting from the first step takes the time as the run's start`() {
+        val started = state.stopped().fromStart().started(Tile(1, 2), now = 42)
+
+        assertEquals(42L, started.progress.startedAt)
+    }
+
+    @Test
+    fun `resuming keeps the start it was started at`() {
+        val before = state.copy(progress = progress)
+
+        assertEquals(before, before.stopped().started(Tile(1, 2), now = 42))
+    }
+
+    @Test
+    fun `the run's progress is written on its own`() {
+        assertEquals(state.copy(progress = progress), state.withProgress(progress))
     }
 }

@@ -2,6 +2,7 @@ package game.harness
 
 import game.idle.flow.ReflexSettings
 import game.idle.flow.StepSettings
+import game.idle.flow.StopSettings
 
 /** What the HTTP endpoints can ask of the game. [LunaHarnessApi] is the real one; tests use fakes. */
 interface HarnessApi {
@@ -34,7 +35,7 @@ interface HarnessApi {
      * Replaces the player's flow with [steps] and [reflexes], those without an id given one, checked like the flow builder
      * checks it; refused while it runs.
      */
-    fun replaceFlow(name: String, steps: List<StepSettings>, reflexes: List<ReflexSettings>): FlowView
+    fun replaceFlow(name: String, steps: List<StepSettings>, reflexes: List<ReflexSettings>, stop: StopSettings): FlowView
 }
 
 /** Something an agent asks a player to do, carried out by the same client packet a real click would send. */

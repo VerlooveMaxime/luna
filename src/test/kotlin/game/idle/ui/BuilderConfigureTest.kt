@@ -1,5 +1,6 @@
 package game.idle.ui
 
+import game.idle.flow.RunProgress
 import game.idle.IdleState
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowResolver
@@ -752,5 +753,93 @@ class BuilderConfigureTest {
     @Test
     fun `a draft shown on another tab is the same step`() {
         assertTrue(chopping.sameStep(attaching))
+    }
+
+    private val mining = StepDraft(1, StepSettings("mine"), new = true)
+
+    @Test
+    fun `the Until row shows five buttons on the right, None lit without a goal`() {
+        assertEquals(
+            listOf<Any>("Until", false, false, true, "@whi@None", "Level", "Bank", BuilderWidgets.LIT, BuilderWidgets.FIELD_EDGE),
+            listOf(
+                text(mining, BuilderWidgets.rowLabel(6)),
+                visible(mining, BuilderWidgets.toggles(6, 2)),
+                visible(mining, BuilderWidgets.toggles(6, 3)),
+                visible(mining, BuilderWidgets.toggles(6, 5)),
+                text(mining, BuilderWidgets.toggleText(6, 5, 0)),
+                text(mining, BuilderWidgets.toggleText(6, 5, 1)),
+                text(mining, BuilderWidgets.toggleText(6, 5, 4)),
+                colour(mining, BuilderWidgets.toggleFrame(6, 5, 0)),
+                colour(mining, BuilderWidgets.toggleFrame(6, 5, 1)),
+            ),
+        )
+    }
+
+    @Test
+    fun `a row of another sort hides the five buttons too`() {
+        assertFalse(visible(chopping, BuilderWidgets.toggles(0, 5)))
+    }
+
+    @Test
+    fun `a level goal shows the kind's skill picked, the level to type and When met`() {
+        val draft = mining.with("goal", "level")
+
+        assertEquals(
+            listOf<Any>("Skill", "Mining", "Level", "@gry@not set yet", "When met", "@whi@Skip this step", false),
+            listOf(
+                text(draft, BuilderWidgets.rowLabel(7)),
+                text(draft, BuilderWidgets.rowText(7)),
+                text(draft, BuilderWidgets.rowLabel(8)),
+                text(draft, BuilderWidgets.rowPlainText(8)),
+                text(draft, BuilderWidgets.rowLabel(9)),
+                text(draft, BuilderWidgets.toggleText(9, 2, 0)),
+                visible(draft, BuilderWidgets.row(10)),
+            ),
+        )
+    }
+
+    @Test
+    fun `a bank goal shows the item to search and the count to type`() {
+        val draft = mining.with("goal", "bank").with("goalCount", "100")
+
+        assertEquals(
+            listOf<Any>("Item", "@gry@Search...", "Count", "100 in the bank"),
+            listOf(text(draft, BuilderWidgets.rowLabel(7)), text(draft, BuilderWidgets.rowText(7)), text(draft, BuilderWidgets.rowLabel(8)), text(draft, BuilderWidgets.rowPlainText(8))),
+        )
+    }
+
+    private val burnThenStock = listOf(StepSettings("burn"), StepSettings("stock", mapOf("withdraw" to "1521,1511")))
+    private val stockDraft = StepDraft(1, burnThenStock[1], new = false)
+
+    @Test
+    fun `a withdrawal feeding only a step met for the run is struck through while the flow runs`() {
+        val state = IdleState(steps = burnThenStock, running = true, progress = RunProgress(met = setOf(0)))
+
+        assertEquals(
+            listOf(true, false),
+            listOf(
+                (updates(stockDraft, state).getValue(BuilderWidgets.lineStrike(0, 0)) as WidgetUpdate.Visible).visible,
+                (updates(stockDraft, state).getValue(BuilderWidgets.lineStrike(0, 1)) as WidgetUpdate.Visible).visible,
+            ),
+        )
+    }
+
+    @Test
+    fun `a withdrawal stays struck through after the flow stopped, as the goal met line does`() {
+        val state = IdleState(steps = burnThenStock, progress = RunProgress(met = setOf(0)))
+
+        assertTrue((updates(stockDraft, state).getValue(BuilderWidgets.lineStrike(0, 0)) as WidgetUpdate.Visible).visible)
+    }
+
+    @Test
+    fun `nothing is struck through while no goal is met`() {
+        assertFalse((updates(stockDraft, IdleState(steps = burnThenStock, running = true)).getValue(BuilderWidgets.lineStrike(0, 0)) as WidgetUpdate.Visible).visible)
+    }
+
+    @Test
+    fun `a running step that is no bank step strikes nothing`() {
+        val state = IdleState(steps = listOf(oak, StepSettings("light", mapOf("logs" to "1521"))), running = true, progress = RunProgress(met = setOf(0)))
+
+        assertFalse((updates(lighting, state).getValue(BuilderWidgets.lineStrike(0, 0)) as WidgetUpdate.Visible).visible)
     }
 }

@@ -1,8 +1,10 @@
 package game.harness
 
 import game.idle.flow.FlowIds
+import game.idle.flow.FlowStops
 import game.idle.flow.ReflexSettings
 import game.idle.flow.StepSettings
+import game.idle.flow.StopSettings
 import game.idle.ui.SearchPrompt
 
 /** The endpoint table. `GET /` lists it, so an agent can discover the API from the server itself. */
@@ -71,7 +73,7 @@ fun harnessRoutes(api: HarnessApi): List<Route> {
                 StepSettings(step.string("kind"), settings(step), step.int("id", FlowIds.NONE), step.ints("reflexes"))
             }
             val reflexes = body.optionalObjects("reflexes").map { reflex -> ReflexSettings(reflex.int("id", FlowIds.NONE), settings(reflex)) }
-            api.replaceFlow(call.path("name"), steps, reflexes)
+            api.replaceFlow(call.path("name"), steps, reflexes, stop(body))
         },
     )
     val index = Route("GET", "/") { endpoints.map { "${it.method} ${it.pattern}" } }
@@ -80,3 +82,9 @@ fun harnessRoutes(api: HarnessApi): List<Route> {
 
 /** A posted step's or reflex's settings, read as text; an empty value is never kept. */
 private fun settings(body: RequestBody): Map<String, String> = body.strings("values").filterValues { it.isNotEmpty() }
+
+/** A posted flow's stop (S12), never without one: `{"kind": "laps", "after": 5}`, both read as text. */
+private fun stop(body: RequestBody): StopSettings {
+    val stop = body.strings("stop")
+    return StopSettings(stop["kind"] ?: FlowStops.NEVER, stop["after"].orEmpty())
+}

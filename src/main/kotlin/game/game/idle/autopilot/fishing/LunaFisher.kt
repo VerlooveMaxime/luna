@@ -11,10 +11,12 @@ import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
 
 /**
- * [Fisher] for a logged-in player fishing with [method] within [area]. A cast goes through the same interaction as the
- * client's click on the spot's option for the method, so Luna's reach check and fishing run unchanged.
+ * [Fisher] for a logged-in player fishing for [catch] within [area]. A cast goes through the same interaction as the
+ * client's click on the spot's option for the catch's method, so Luna's reach check and fishing run unchanged.
  */
-class LunaFisher(private val player: Player, private val method: FishingMethod, private val area: Area) : Fisher {
+class LunaFisher(private val player: Player, private val catch: FishingCatch, private val area: Area) : Fisher {
+
+    private val method = catch.method
 
     private val around = NpcsAround(player, area, accepts = { it.id in method.spotIds }, policy = { STANDARD_SIZE })
 
@@ -40,7 +42,10 @@ class LunaFisher(private val player: Player, private val method: FishingMethod, 
 
     override fun anchor(): Tile = area.anchor
 
-    override fun catches(): Int = method.catchIds.sumOf { player.inventory.computeAmountForId(it) }
+    /** Only the fish the step is for: what else the method pulls up is by-catch (Maxime, 2026-10-15). */
+    override fun catches(): Int = player.inventory.computeAmountForId(catch.fish.id)
+
+    override fun pulledUp(): Int = method.catchIds.sumOf { player.inventory.computeAmountForId(it) }
 
     override fun interrupt() = LunaClicks.interrupt(player)
 

@@ -84,6 +84,26 @@ object BuilderWidgets {
     private const val TWO_BUTTONS = 13
     private const val THREE_BUTTONS = 20
 
+    /**
+     * A row's set of five buttons (S12's Until), in a block of its own past the Reflexes page's lines at the most
+     * reflexes, since the row's ids are full.
+     */
+    private const val WIDE_TOGGLES = 42000
+    private const val WIDE_TOGGLE_STRIDE = 16
+
+    /** The overview's Flow stops row (S12): its label, a frame and a button per choice, and the number box after them. */
+    const val STOPS = 42200
+    const val STOPS_LABEL = 42201
+    const val STOP_CHOICES = 4
+    private const val STOP_BASE = 42202
+    const val STOPS_AFTER = 42210
+    const val STOPS_AFTER_FACE = 42211
+    const val STOPS_AFTER_FRAME = 42212
+    const val STOPS_AFTER_TEXT = 42213
+
+    /** A strike through a list line's name, for a withdrawal left out while the flow runs (S12). */
+    private const val STRIKE_BASE = 42300
+
     /** A configure list per column (Maxime, 2026-10-10), a line to add or remove, then one line per item. */
     const val LISTS = 2
     const val LIST_LINES = 28
@@ -239,8 +259,24 @@ object BuilderWidgets {
 
     fun rowNote(row: Int): Int = row(row) + 11
 
-    /** The layer of row [row]'s toggle buttons when it has [count] of them (two or three). */
-    fun toggles(row: Int, count: Int): Int = row(row) + if (count == 2) TWO_BUTTONS else THREE_BUTTONS
+    /** The layer of row [row]'s toggle buttons when it has [count] of them: two, three, or five in the wide block. */
+    fun toggles(row: Int, count: Int): Int =
+        when (count) {
+            2 -> row(row) + TWO_BUTTONS
+            3 -> row(row) + THREE_BUTTONS
+            else -> WIDE_TOGGLES + row * WIDE_TOGGLE_STRIDE
+        }
+
+    /** The frame of the stop row's [choice], which the server lights. */
+    fun stopFrame(choice: Int): Int = STOP_BASE + 2 * choice
+
+    fun stopChoice(choice: Int): Int = stopFrame(choice) + 1
+
+    /** The stop row's choice whose button [widgetId] is, or null. */
+    fun stopOf(widgetId: Int): Int? = (0 until STOP_CHOICES).firstOrNull { stopChoice(it) == widgetId }
+
+    /** The layer of the strike through list [list]'s [line], shown while its withdrawal is left out. */
+    fun lineStrike(list: Int, line: Int): Int = STRIKE_BASE + (list * LIST_LINES + line) * 2
 
     fun toggleFace(row: Int, count: Int, button: Int): Int = toggles(row, count) + 1 + 3 * button
 
@@ -280,7 +316,7 @@ object BuilderWidgets {
 
     /** The row and button of the toggle whose face [widgetId] is, or null. */
     fun toggleOf(widgetId: Int): Pair<Int, Int>? =
-        (0 until ROWS).flatMap { row -> listOf(row to 2, row to 3) }.firstNotNullOfOrNull { (row, count) ->
+        (0 until ROWS).flatMap { row -> TOGGLE_SIZES.map { row to it } }.firstNotNullOfOrNull { (row, count) ->
             (0 until count).firstOrNull { toggleFace(row, count, it) == widgetId }?.let { row to it }
         }
 
@@ -306,6 +342,9 @@ object BuilderWidgets {
 
     /** The configure row whose button face [widgetId] is, or null. */
     fun buttonOf(widgetId: Int): Int? = (0 until ROWS).firstOrNull { rowButtonFace(it) == widgetId }
+
+    /** A toggle shows two, three or five buttons (S12). */
+    val TOGGLE_SIZES = listOf(2, 3, 5)
 
     /** The fixed ids run up to the slots, so every id from [FIRST_ID] on is the builder's. */
     fun owns(widgetId: Int): Boolean = widgetId >= FIRST_ID

@@ -12,12 +12,12 @@ class FlowCheckTest {
 
     private fun walk(id: Int) = step("walk").copy(id = id)
 
-    private fun refusal(steps: List<StepSettings>, reflexes: List<ReflexSettings> = emptyList()): String? =
-        assertThrows<FlowError> { check.check(steps, reflexes) }.message
+    private fun refusal(steps: List<StepSettings>, reflexes: List<ReflexSettings> = emptyList(), stop: StopSettings = StopSettings()): String? =
+        assertThrows<FlowError> { check.check(steps, reflexes, stop) }.message
 
     @Test
     fun `a flow within the limits whose steps and reflexes resolve passes`() {
-        assertDoesNotThrow { check.check(listOf(walk(1), walk(2).copy(reflexes = listOf(1))), listOf(ReflexSettings(1))) }
+        assertDoesNotThrow { check.check(listOf(walk(1), walk(2).copy(reflexes = listOf(1))), listOf(ReflexSettings(1)), StopSettings()) }
     }
 
     @Test
@@ -39,7 +39,7 @@ class FlowCheckTest {
     fun `two reflexes sharing an id are refused`() {
         val check = FlowCheck(FlowResolver(StepTypes(listOf(FakeStepType("walk")))), ReflexResolver(emptyMap()), maxSteps = 2, maxReflexes = 2)
 
-        val error = assertThrows<FlowError> { check.check(listOf(walk(1)), listOf(ReflexSettings(3), ReflexSettings(3))) }
+        val error = assertThrows<FlowError> { check.check(listOf(walk(1)), listOf(ReflexSettings(3), ReflexSettings(3)), StopSettings()) }
 
         assertEquals("Two of the flow's reflexes have id 3", error.message)
     }

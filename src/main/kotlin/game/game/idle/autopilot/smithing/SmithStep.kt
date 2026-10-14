@@ -46,6 +46,8 @@ class SmithStepType(private val names: GameNames) : StepType {
 
     override val description = "Smiths bars into items at an anvil, from earlier steps or the bank."
 
+    override val goal = true
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.SMITHING)
 
     override fun skill(settings: StepSettings): Int = Skill.SMITHING

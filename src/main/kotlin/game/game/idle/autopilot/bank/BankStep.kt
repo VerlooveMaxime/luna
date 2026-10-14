@@ -175,6 +175,9 @@ data class BankStep(val candidates: List<Bank>, val order: BankOrder) : Resolved
 
     override fun empties(id: Int): Boolean = banks(id)
 
+    override fun without(items: Set<Int>): ResolvedStep =
+        if (items.isEmpty()) this else copy(order = order.copy(withdrawals = order.withdrawals.filter { it.id !in items }))
+
     /**
      * The candidate on [from]'s floor that a walk reaches first: a booth across a river can be near in a straight
      * line and far on foot. With none within [MAX_WALK] steps, the one nearest in a straight line, as a walk may

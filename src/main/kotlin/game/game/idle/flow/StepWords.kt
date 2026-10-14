@@ -47,6 +47,24 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
 
     fun cutShort(number: Int): String = "${PREFIX}stopped, step $number was cut short again before it made progress."
 
+    /** Step [number] met its [goal] and is skipped for the rest of the run (S12). */
+    fun goalMet(number: Int, goal: Goal): String = goalLine("${PREFIX}step $number met its goal, ", goal, ": skipped for this run.")
+
+    /** Step [number] met its [goal], which stops the flow. */
+    fun goalStops(number: Int, goal: Goal): String = goalLine("${PREFIX}stopped, step $number met its goal: ", goal, ".")
+
+    fun stoppedAfterLaps(laps: Int): String = "${PREFIX}stopped after $laps ${if (laps == 1) "lap" else "laps"}."
+
+    fun stoppedAfterMinutes(minutes: Int): String = "${PREFIX}stopped after $minutes ${if (minutes == 1) "minute" else "minutes"}."
+
+    /** [start], the goal's words and [end], a bank goal's item name cut so the line fits the chat box. */
+    private fun goalLine(start: String, goal: Goal, end: String): String {
+        if (goal !is Goal.Bank) return "$start${GoalWords.short(goal, names)}$end"
+        val head = "${StepAmount.short(goal.amount)} "
+        val tail = " in the bank"
+        return start + head + chat.fit(item(goal.item), CHAT_ROOM - chat.width(start + head + tail + end)) + tail + end
+    }
+
     /** The reflex at [number] ran away at [health] and the flow goes on from step [toStep]. */
     fun jump(number: Int, health: Health, toStep: Int): String =
         "${PREFIX}reflex $number ran at ${health.text()} hitpoints, jumping to step $toStep."
@@ -114,6 +132,12 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
 
         /** A whole lap went by with no step working (Maxime, 2026-10-11). */
         const val IDLE_LAP = "${PREFIX}stopped, no step had anything to do."
+
+        /** The flow stops once every goal is met, and every step with one has (S12). */
+        const val ALL_GOALS_MET = "${PREFIX}stopped, every goal is met."
+
+        /** Run refused: the flow stops when all goals are met, and no step has one (Maxime, 2026-10-15). */
+        const val NO_GOALS = "${PREFIX}no step has an Until goal."
 
         const val CANNOT_RESUME = "${PREFIX}could not resume your flow. Check it in the flow builder."
 

@@ -1,5 +1,7 @@
 package game.idle.ui
 
+import game.idle.flow.StopSettings
+import game.idle.flow.RunProgress
 import game.idle.IdleState
 import game.idle.SavedFlow
 import game.idle.flow.FakeStepType
@@ -52,8 +54,14 @@ class BuilderOverviewTest {
         }
     }
 
+    /** A chop that takes an Until goal. */
+    private object GoalChop : StepType by Chop {
+        override val kind = "goalchop"
+        override val goal = true
+    }
+
     private val font = ClientFont(IntArray(256) { 5 })
-    private val types = StepTypes(listOf(Chop, FakeStepType("drop")))
+    private val types = StepTypes(listOf(Chop, FakeStepType("drop"), GoalChop))
     private val resolver = FlowResolver(types)
     private val overview = BuilderOverview(resolver, REFLEXES, REFLEX_FORM, FakeNames(items = mapOf(1521 to "Oak")), font, SavedFlows(2), StepDangers(resolver, DANGERS, FakeNames()))
 
@@ -454,7 +462,7 @@ class BuilderOverviewTest {
             true,
             overview.kinds(IdleState()).containsAll(
                 listOf(
-                    WidgetUpdate.Visible(BuilderWidgets.kindButton(2), visible = false),
+                    WidgetUpdate.Visible(BuilderWidgets.kindButton(3), visible = false),
                     WidgetUpdate.Visible(BuilderWidgets.kindButton(BuilderWidgets.KIND_BUTTONS - 1), visible = false),
                 ),
             ),
@@ -604,5 +612,85 @@ class BuilderOverviewTest {
 
     private companion object {
         val SCREENS = setOf(BuilderWidgets.OVERVIEW, BuilderWidgets.KINDS, BuilderWidgets.CONFIGURE)
+    }
+
+    @Test
+    fun `the Flow stops row lights Never by default and hides the number box`() {
+        val sent = updates(IdleState())
+
+        assertEquals(
+            listOf(
+                WidgetUpdate.Text(BuilderWidgets.stopChoice(0), "@whi@Never"),
+                WidgetUpdate.Colour(BuilderWidgets.stopFrame(0), BuilderWidgets.LIT),
+                WidgetUpdate.Text(BuilderWidgets.stopChoice(1), "After laps"),
+                WidgetUpdate.Colour(BuilderWidgets.stopFrame(1), BuilderWidgets.UNLIT),
+                WidgetUpdate.Text(BuilderWidgets.stopChoice(3), "When all goals are met"),
+                WidgetUpdate.Visible(BuilderWidgets.STOPS_AFTER, visible = false),
+            ),
+            listOf(
+                sent[BuilderWidgets.stopChoice(0)], sent[BuilderWidgets.stopFrame(0)], sent[BuilderWidgets.stopChoice(1)], sent[BuilderWidgets.stopFrame(1)],
+                sent[BuilderWidgets.stopChoice(3)], sent[BuilderWidgets.STOPS_AFTER],
+            ),
+        )
+    }
+
+    @Test
+    fun `a stop after laps lights its choice and shows the laps in the box`() {
+        val sent = updates(IdleState(stop = StopSettings("laps", "5")))
+
+        assertEquals(
+            listOf(
+                WidgetUpdate.Text(BuilderWidgets.stopChoice(1), "@whi@After laps"),
+                WidgetUpdate.Colour(BuilderWidgets.stopFrame(1), BuilderWidgets.LIT),
+                WidgetUpdate.Colour(BuilderWidgets.stopFrame(0), BuilderWidgets.UNLIT),
+                WidgetUpdate.Visible(BuilderWidgets.STOPS_AFTER, visible = true),
+                WidgetUpdate.Text(BuilderWidgets.STOPS_AFTER_TEXT, "5 laps"),
+            ),
+            listOf(sent[BuilderWidgets.stopChoice(1)], sent[BuilderWidgets.stopFrame(1)], sent[BuilderWidgets.stopFrame(0)], sent[BuilderWidgets.STOPS_AFTER], sent[BuilderWidgets.STOPS_AFTER_TEXT]),
+        )
+    }
+
+    @Test
+    fun `a stop after time shows the minutes in the box`() {
+        assertEquals(WidgetUpdate.Text(BuilderWidgets.STOPS_AFTER_TEXT, "30 min"), updates(IdleState(stop = StopSettings("time", "30")))[BuilderWidgets.STOPS_AFTER_TEXT])
+    }
+
+    @Test
+    fun `a stop with no number typed yet says so in the box`() {
+        val sent = updates(IdleState(stop = StopSettings("time", "")))
+
+        assertEquals(
+            listOf(WidgetUpdate.Visible(BuilderWidgets.STOPS_AFTER, visible = true), WidgetUpdate.Text(BuilderWidgets.STOPS_AFTER_TEXT, "@gry@not set")),
+            listOf(sent[BuilderWidgets.STOPS_AFTER], sent[BuilderWidgets.STOPS_AFTER_TEXT]),
+        )
+    }
+
+    private val oaksTo20 = StepSettings("goalchop", mapOf("tree" to "oak", "goal" to "level", "goalSkill" to "strength", "goalLevel" to "20"))
+
+    @Test
+    fun `a step's goal is its last line`() {
+        assertEquals(listOf("Oak", "5 per lap", "until Strength 20"), step(IdleState(steps = listOf(oaksTo20))).lines)
+    }
+
+    @Test
+    fun `a goal met shows in green`() {
+        val state = IdleState(steps = listOf(oaksTo20), progress = RunProgress(met = setOf(0)))
+
+        assertEquals(listOf("Oak", "5 per lap", "@gre@Goal met: Strength 20"), step(state).lines)
+    }
+
+    @Test
+    fun `a goal too long for one line wraps onto two, both green once met`() {
+        val long = oaksTo20.with("goalSkill", "runecrafting").with("goalLevel", "45")
+        val state = IdleState(steps = listOf(long), progress = RunProgress(met = setOf(0)))
+
+        assertEquals(listOf("Oak", "5 per lap", "@gre@Goal met:", "@gre@Runecrafting 45"), step(state).lines)
+    }
+
+    @Test
+    fun `another step's goal met leaves this one's line plain`() {
+        val state = IdleState(steps = listOf(oaksTo20, oaksTo20), progress = RunProgress(met = setOf(1)))
+
+        assertEquals("until Strength 20", step(state).lines.last())
     }
 }

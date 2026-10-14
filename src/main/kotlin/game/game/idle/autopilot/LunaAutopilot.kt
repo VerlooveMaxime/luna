@@ -11,6 +11,7 @@ import game.idle.flow.OwnSpot
 import game.idle.flow.Place
 import game.idle.flow.ReflexBody
 import game.idle.flow.ResolvedStep
+import game.idle.flow.RunProgress
 import game.idle.flow.SpotWalk
 import game.idle.flow.StepActivity
 import game.idle.flow.StepTurn
@@ -60,9 +61,18 @@ class LunaAutopilotPlayer(val player: Player, private val ui: IdleUi) : Autopilo
         idleState = idleState.atStep(index)
     }
 
+    override fun saveProgress(progress: RunProgress) {
+        idleState = idleState.withProgress(progress)
+    }
+
     override fun lapCompleted() {
         idleState = idleState.lapped()
     }
+
+    /** The base level: a boost never meets a Level goal (Maxime, 2026-10-15). */
+    override fun level(skill: Int): Int = player.skill(skill).staticLevel
+
+    override fun banked(items: Set<Int>): Int = items.sumOf { player.bank.computeAmountForId(it) }
 
     /**
      * A flow is started before its first activity, so the run tile is set; the player's tile only guards a gap. A step

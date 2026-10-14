@@ -168,6 +168,19 @@ class ReasonsFitTest {
         "drop with no chosen items" to listOf(step("drop", "drop" to "chosen")),
         "bank at a bank that is not one" to listOf(step("bank", "bank" to "lumbridge")),
         "a kind that is not one" to listOf(step("dig")),
+        "a goal of a kind that is none" to listOf(step("chop", "tree" to "normal", "goal" to "xp")),
+        "a level goal with no level" to listOf(step("chop", "tree" to "normal", "goal" to "level")),
+        "a level goal past 99" to listOf(step("chop", "tree" to "normal", "goal" to "level", "goalLevel" to "100")),
+        "a level goal in a skill that is none" to listOf(step("chop", "tree" to "normal", "goal" to "level", "goalSkill" to "flying", "goalLevel" to "45")),
+        "a level goal on a kind without a skill" to listOf(step("pickup", "items" to "526", "goal" to "level", "goalLevel" to "45")),
+        "a count goal with no count" to listOf(step("chop", "tree" to "normal", "goal" to "count")),
+        "a count goal of nothing" to listOf(step("chop", "tree" to "normal", "goal" to "count", "goalCount" to "0")),
+        "a time goal with no minutes" to listOf(step("chop", "tree" to "normal", "goal" to "time")),
+        "a time goal of no minutes" to listOf(step("chop", "tree" to "normal", "goal" to "time", "goalMinutes" to "0")),
+        "a bank goal with no item" to listOf(step("chop", "tree" to "normal", "goal" to "bank", "goalCount" to "1")),
+        "a bank goal of an item that is none" to listOf(step("chop", "tree" to "normal", "goal" to "bank", "goalItem" to "nothing", "goalCount" to "1")),
+        "a bank goal with no count" to listOf(step("chop", "tree" to "normal", "goal" to "bank", "goalItem" to "1521")),
+        "a goal met by what is no choice" to listOf(step("chop", "tree" to "normal", "goal" to "count", "goalCount" to "1", "goalMet" to "pause")),
     ).map { (name, flow) -> Arguments.of(name, flow) }
 
     fun brokenReflexes(): List<Arguments> = listOf(

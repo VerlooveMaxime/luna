@@ -1,5 +1,7 @@
 package game.idle.autopilot
 
+import io.luna.game.model.mob.Skill
+import game.idle.flow.RunProgress
 import api.predef.woodcutting
 import game.idle.IdleState
 import game.idle.autopilot.bank.BankStep
@@ -15,6 +17,7 @@ import game.idle.autopilot.fighting.FightWork
 import game.idle.autopilot.firemaking.LightWork
 import game.idle.autopilot.firemaking.LightStep
 import game.idle.autopilot.fishing.FishStep
+import game.idle.autopilot.fishing.FishingCatch
 import game.idle.autopilot.fishing.FishingWork
 import game.idle.autopilot.fishing.FishingMethod
 import game.idle.autopilot.making.MakeWork
@@ -35,6 +38,7 @@ import game.idle.autopilot.walk.WalkWork
 import game.idle.autopilot.woodcutting.ChopStep
 import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.autopilot.woodcutting.WoodcuttingWork
+import game.idle.flow.FakeClock
 import game.idle.flow.FakeStepType
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FakeStepWork
@@ -51,6 +55,7 @@ import game.idle.location.Tile
 import game.idle.ui.IdleUi
 import game.idle.ui.idleTab
 import game.idle.ui.status
+import game.skill.fishing.catchFish.Fish
 import game.skill.fishing.catchFish.Tool
 import game.skill.mining.Ore
 import game.skill.smithing.BarType
@@ -130,7 +135,7 @@ class LunaAutopilotPlayerTest {
     fun `the idle state written is the player's`() {
         val autopilot = autopilotPlayer()
 
-        autopilot.idleState = IdleState().started(runTile)
+        autopilot.idleState = IdleState().started(runTile, 0)
 
         assertTrue(autopilot.player.idleState.running)
     }
@@ -152,7 +157,7 @@ class LunaAutopilotPlayerTest {
     fun `starting a flow shows it on the status overlay`() {
         val autopilot = autopilotPlayer()
 
-        autopilot.idleState = IdleState(steps = listOf(chopOak, step("drop"))).started(runTile)
+        autopilot.idleState = IdleState(steps = listOf(chopOak, step("drop"))).started(runTile, 0)
 
         assertEquals(listOf("@gre@Autopilot@whi@ step 1/2|@yel@Chop label"), overlayTexts(autopilot))
     }
@@ -169,7 +174,7 @@ class LunaAutopilotPlayerTest {
     @Test
     fun `saving a step refreshes the status overlay`() {
         val autopilot = autopilotPlayer()
-        autopilot.idleState = IdleState(steps = listOf(chopOak, step("drop"))).started(runTile)
+        autopilot.idleState = IdleState(steps = listOf(chopOak, step("drop"))).started(runTile, 0)
 
         autopilot.saveStep(1)
 
@@ -262,7 +267,7 @@ class LunaAutopilotPlayerTest {
         val autopilotPlayer = autopilotPlayer()
         val player = autopilotPlayer.player
         player.idleState = IdleState(steps = listOf(chopOak))
-        val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(TestWorld.world)) {
+        val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(TestWorld.world), FakeClock()) {
             AutopilotDriver(WalkingFarOff(player, farTile), decisionDelayTicks = 1)
         }
         autopilot.start(autopilotPlayer)
@@ -316,7 +321,7 @@ class LunaAutopilotPlayerTest {
 
     @Test
     fun `a fish step runs its fishing work in a turn`() {
-        assertInstanceOf(FishingWork::class.java, workOf(FishStep(FishingMethod(Tool.SMALL_NET), 10, WorkSpot.RunTile)))
+        assertInstanceOf(FishingWork::class.java, workOf(FishStep(FishingCatch(Fish.SHRIMP, FishingMethod(Tool.SMALL_NET)), 10, WorkSpot.RunTile)))
     }
 
     @Test
@@ -409,5 +414,34 @@ class LunaAutopilotPlayerTest {
         activity.act()
 
         assertEquals(Reason.OtherFloor(Place.WORK_SPOT), activity.blocked())
+    }
+
+    @Test
+    fun `a level is the player's base level, a boost not counted`() {
+        val autopilot = autopilotPlayer()
+        autopilot.player.skill(Skill.STRENGTH).level = 30
+
+        assertEquals(1, autopilot.level(Skill.STRENGTH))
+    }
+
+    @Test
+    fun `what the bank holds is counted over every item asked for`() {
+        val autopilot = autopilotPlayer()
+        autopilot.player.bank.add(Item(1521, 40))
+        autopilot.player.bank.add(Item(1511, 2))
+        autopilot.player.bank.add(Item(995, 100))
+
+        assertEquals(42, autopilot.banked(setOf(1521, 1511)))
+    }
+
+    @Test
+    fun `the run's progress is saved on the player's state`() {
+        val autopilot = autopilotPlayer()
+        autopilot.player.idleState = IdleState(steps = listOf(chopOak), running = true)
+        val progress = RunProgress(totals = mapOf(0 to 3), met = setOf(0))
+
+        autopilot.saveProgress(progress)
+
+        assertEquals(IdleState(steps = listOf(chopOak), running = true, progress = progress), autopilot.player.idleState)
     }
 }

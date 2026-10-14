@@ -75,7 +75,17 @@ class StepWordsFitTest {
                 words.jump(99, Health(999, 999), 99),
                 StepWords.cannotWork(99),
                 StepWords.IDLE_LAP,
-            )
+                StepWords.ALL_GOALS_MET,
+                StepWords.NO_GOALS,
+                words.stoppedAfterLaps(Int.MAX_VALUE),
+                words.stoppedAfterMinutes(Int.MAX_VALUE),
+            ) + goals().flatMap { listOf(words.goalMet(99, it), words.goalStops(99, it)) }
+    }
+
+    /** Every kind of goal with the longest words the data can put in it. */
+    private fun goals(): List<Goal> {
+        val longestSkill = Skill.NAMES.indices.maxBy { Skill.getName(it).length }
+        return listOf(Goal.Level(longestSkill, 99), Goal.Count(Int.MAX_VALUE), Goal.Time(Int.MAX_VALUE), Goal.Bank(longestNamedItem(), emptySet(), Int.MAX_VALUE))
     }
 
     /** The tools and bait the kinds block on, the values their `needs()` use. */

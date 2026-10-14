@@ -2,6 +2,7 @@ package game.idle.ui
 
 import game.idle.IdleState
 import game.idle.flow.FlowResolver
+import game.idle.flow.FlowStops
 import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ReflexSettings
@@ -95,7 +96,7 @@ class BuilderOverview(
         val problems = resolver.problems(state.steps)
         return (0 until slots).map { slot ->
             when {
-                slot < state.steps.size -> step(state, slot, lines.of(state.steps, slot), problems[slot], facts)
+                slot < state.steps.size -> step(state, slot, lines.of(state.steps, slot, met = slot in state.progress.met), problems[slot], facts)
                 slot == state.steps.size -> SlotView.Add
                 else -> SlotView.Free
             }
@@ -182,8 +183,9 @@ class BuilderOverview(
     }
 
     /**
-     * The slot's lines are the step's words, the target in grey while nothing is picked, then the held lines: the reason,
-     * the wait and the dangers, as many as the lines a reason may take; a danger shows whole or not at all.
+     * The slot's lines are the step's words, the target in grey while nothing is picked, the goal on up to two lines,
+     * green once met (S12), then the held lines: the reason, the wait and the dangers, as many as the lines a reason may
+     * take; a danger shows whole or not at all.
      */
     private fun step(state: IdleState, slot: Int, words: SlotWords, problem: String?, facts: OptionFacts): SlotView.Step {
         val icon = words.icon?.let { WidgetPicture.of(it) } ?: WidgetPicture.None
@@ -191,7 +193,8 @@ class BuilderOverview(
         val reason = state.blocked?.takeIf { running } ?: problem
         val waiting = state.waiting?.takeIf { running }
         val targetLine = words.picked?.let { it.label?.let(::fitted) ?: NOT_SET }
-        val details = listOfNotNull(targetLine) + words.details.map(::fitted)
+        val goalLines = words.goal?.let { goal -> font.wrap(goal, BuilderWidgets.LINE_ROOM, GOAL_LINES).map { if (slot in state.progress.met) "@gre@$it" else it } }
+        val details = listOfNotNull(targetLine) + words.details.map(::fitted) + goalLines.orEmpty()
         val held = (reason?.let { heldLines(it, "@red@") }.orEmpty() + waiting?.let { heldLines(it, "@yel@") }.orEmpty()).take(REASON_LINES)
         val threats = dangers.of(state.steps, slot, facts).map { heldLines(it.short, "@yel@") }
         val shown = threats.fold(held) { lines, threat -> if (lines.size + threat.size <= REASON_LINES) lines + threat else lines }
@@ -231,7 +234,7 @@ class BuilderOverview(
     private fun controls(state: IdleState, slots: Int): List<WidgetUpdate> {
         val boosted = state.countBoostedLevels
         val editable = !state.running && (state.steps.isNotEmpty() || state.reflexes.isNotEmpty())
-        return listOf(
+        return stops(state) + listOf(
             WidgetUpdate.Text(BuilderWidgets.TITLE, title(state)),
             WidgetUpdate.Text(BuilderWidgets.STATUS, status(state, slots)),
             WidgetUpdate.Text(BuilderWidgets.BASE_LEVELS, lit("Base", !boosted)),
@@ -246,6 +249,21 @@ class BuilderOverview(
                 BuilderWidgets.ATTACH_ALL_REFLEXES,
                 usable("Attach all reflexes", !state.running && state.steps.isNotEmpty() && state.reflexes.isNotEmpty()),
             ),
+        )
+    }
+
+    /** The Flow stops row (S12): the chosen stop lit as the Levels toggle is, the number box shown for laps and time. */
+    private fun stops(state: IdleState): List<WidgetUpdate> {
+        val stop = state.stop
+        return FlowStops.CHOICES.withIndex().flatMap { (choice, option) ->
+            val chosen = option.value == stop.kind
+            listOf(
+                WidgetUpdate.Text(BuilderWidgets.stopChoice(choice), lit(option.word, chosen)),
+                WidgetUpdate.Colour(BuilderWidgets.stopFrame(choice), frame(lit = chosen)),
+            )
+        } + listOf(
+            WidgetUpdate.Visible(BuilderWidgets.STOPS_AFTER, visible = FlowStops.typed(stop.kind)),
+            WidgetUpdate.Text(BuilderWidgets.STOPS_AFTER_TEXT, FlowStops.afterWords(stop) ?: NOT_TYPED),
         )
     }
 
@@ -264,9 +282,13 @@ class BuilderOverview(
 
     private companion object {
         const val NOT_SET = "@gry@${SlotWords.NOT_SET}"
+        const val NOT_TYPED = "@gry@not set"
         const val ADD_REFLEX = "@gry@+ Add reflex"
 
         /** A reason may take every line but the first, which keeps the target (Maxime, 2026-10-09). */
         const val REASON_LINES = BuilderWidgets.SLOT_LINES - 1
+
+        /** "Goal met: Woodcutting 38" does not fit one line of the small font (Maxime, 2026-10-15 live). */
+        const val GOAL_LINES = 2
     }
 }

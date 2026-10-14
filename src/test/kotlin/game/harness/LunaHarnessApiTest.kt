@@ -1,12 +1,17 @@
 package game.harness
 
 import game.idle.IdleState
+import game.idle.flow.FakeBankStep
+import game.idle.flow.FakeStep
 import game.idle.flow.FakeStepType
 import game.idle.flow.FlowCheck
 import game.idle.flow.FlowResolver
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ReflexSettings
+import game.idle.flow.RunProgress
+import game.idle.flow.StepNeeds
 import game.idle.flow.StepTypes
+import game.idle.flow.StopSettings
 import game.idle.font.ClientFont
 import game.idle.idleState
 import game.testworld.TestWorld
@@ -63,9 +68,13 @@ class LunaHarnessApiTest {
         override fun run(): Boolean = false
     }
 
-    /** A chop whose slot says its word, so a flow view carries the slot's lines. */
-    private val chop = FakeStepType("chop", detailsOf = { settings, _ -> listOfNotNull(settings[FakeStepType.WORD]) })
-    private val flows = FlowCheck(FlowResolver(StepTypes(listOf(chop, FakeStepType("drop")))), ReflexResolver(mapOf(333 to setOf(333))), maxSteps = 2, maxReflexes = 2)
+    /** A chop whose slot says its word, so a flow view carries the slot's lines; it takes a goal (S12). */
+    private val chop = FakeStepType("chop", detailsOf = { settings, _ -> listOfNotNull(settings[FakeStepType.WORD]) }, goal = true)
+
+    /** A light that takes oak logs in, and a bank that withdraws them, for the withdrawals left out (S12). */
+    private val light = FakeStepType("light", resolved = { FakeStep("light", needs = listOf(StepNeeds(inputs = listOf(1521)))) })
+    private val bank = FakeStepType("bank", resolved = { FakeBankStep(setOf(1521, 1511)) })
+    private val flows = FlowCheck(FlowResolver(StepTypes(listOf(chop, FakeStepType("drop"), light, bank))), ReflexResolver(mapOf(333 to setOf(333))), maxSteps = 2, maxReflexes = 2)
 
     private fun api() = LunaHarnessApi(
         TestWorld.world,
@@ -852,8 +861,53 @@ class LunaHarnessApiTest {
 
         val view = api().flow("agent_a")
 
-        val steps = listOf(FlowStepView(1, "chop", mapOf("word" to "oak"), listOf(3), listOf("oak"), null), FlowStepView(2, "drop", emptyMap(), emptyList(), emptyList(), null))
-        assertEquals(FlowView("agent_a", running = false, stepIndex = 1, blocked = null, waiting = null, steps = steps, reflexes = listOf(FlowReflexView(3, mapOf("do" to "run")))), view)
+        val steps = listOf(
+            FlowStepView(1, "chop", mapOf("word" to "oak"), listOf(3), listOf("oak"), null, null, false, 0, emptyList()),
+            FlowStepView(2, "drop", emptyMap(), emptyList(), emptyList(), null, null, false, 0, emptyList()),
+        )
+        assertEquals(
+            FlowView("agent_a", running = false, stepIndex = 1, laps = 0, blocked = null, waiting = null, stop = FlowStopView("never", ""), steps = steps, reflexes = listOf(FlowReflexView(3, mapOf("do" to "run")))),
+            view,
+        )
+    }
+
+    @Test
+    fun `a flow's run reads its laps, its stop and each step's goal, whether met, and what it counted`() {
+        val oaks = step("chop", "oak").copy(values = mapOf("word" to "oak", "goal" to "count", "goalCount" to "3"))
+        agent().idleState = IdleState(steps = listOf(oaks, step("drop")), laps = 2, stop = StopSettings("laps", "5"), progress = RunProgress(totals = mapOf(0 to 2), met = setOf(0)))
+
+        val view = api().flow("agent_a")
+
+        assertEquals(listOf<Any?>(2, FlowStopView("laps", "5"), "Goal met: 3 in all", true, 2, listOf("oak", "Goal met: 3 in all"), null, false, 0), listOf(
+            view.laps, view.stop, view.steps[0].goal, view.steps[0].met, view.steps[0].counted, view.steps[0].lines, view.steps[1].goal, view.steps[1].met, view.steps[1].counted,
+        ))
+    }
+
+    @Test
+    fun `a bank step's withdrawals left out for the run read on it`() {
+        agent().idleState = IdleState(steps = listOf(step("light"), step("bank")), running = true, progress = RunProgress(met = setOf(0)))
+
+        val view = api().flow("agent_a")
+
+        assertEquals(listOf(emptyList(), listOf(1521)), view.steps.map { it.leftOut })
+    }
+
+    @Test
+    fun `replacing a flow takes its stop`() {
+        val player = agent()
+
+        api().replaceFlow("agent_a", listOf(step("drop")), emptyList(), StopSettings("time", "30"))
+
+        assertEquals(StopSettings("time", "30"), player.idleState.stop)
+    }
+
+    @Test
+    fun `a flow with a stop the builder would refuse is a 400 with the reason`() {
+        agent()
+
+        val thrown = assertThrows<HarnessException> { api().replaceFlow("agent_a", listOf(step("drop")), emptyList(), StopSettings("laps", "0")) }
+
+        assertEquals(400 to "Laps take 1 or more, not '0'", thrown.status to thrown.message)
     }
 
     @Test
@@ -870,7 +924,7 @@ class LunaHarnessApiTest {
         val player = agent()
         player.idleState = IdleState(steps = listOf(step("drop")), stepIndex = 1, laps = 3, stage = 2)
 
-        val view = api().replaceFlow("agent_a", listOf(step("chop", "oak").copy(id = 1), step("drop").copy(id = 2)), emptyList())
+        val view = api().replaceFlow("agent_a", listOf(step("chop", "oak").copy(id = 1), step("drop").copy(id = 2)), emptyList(), StopSettings())
 
         assertEquals(IdleState(steps = listOf(step("chop", "oak").copy(id = 1), step("drop").copy(id = 2)), stage = 2), player.idleState)
         assertEquals(listOf(listOf("oak"), emptyList()), view.steps.map { it.lines })
@@ -881,7 +935,7 @@ class LunaHarnessApiTest {
         val player = agent()
         val fight = step("chop").copy(reflexes = listOf(1))
 
-        api().replaceFlow("agent_a", listOf(fight, step("drop").copy(id = 1)), listOf(ReflexSettings()))
+        api().replaceFlow("agent_a", listOf(fight, step("drop").copy(id = 1)), listOf(ReflexSettings()), StopSettings())
 
         assertEquals(listOf(2, 1), player.idleState.steps.map { it.id })
         assertEquals(listOf(1), player.idleState.reflexes.map { it.id })
@@ -892,7 +946,7 @@ class LunaHarnessApiTest {
         agent()
 
         val thrown = assertThrows<HarnessException> {
-            api().replaceFlow("agent_a", listOf(step("drop")), listOf(ReflexSettings(1, mapOf("do" to "pray"))))
+            api().replaceFlow("agent_a", listOf(step("drop")), listOf(ReflexSettings(1, mapOf("do" to "pray"))), StopSettings())
         }
 
         assertEquals(400 to "Reflex 1: 'pray' is not something a reflex does", thrown.status to thrown.message)
@@ -902,14 +956,14 @@ class LunaHarnessApiTest {
     fun `a running flow is not replaced`() {
         agent().idleState = IdleState(steps = listOf(step("drop")), running = true)
 
-        assertEquals(409, status { api().replaceFlow("agent_a", emptyList(), emptyList()) })
+        assertEquals(409, status { api().replaceFlow("agent_a", emptyList(), emptyList(), StopSettings()) })
     }
 
     @Test
     fun `a flow the builder would refuse is a 400 with the reason`() {
         val player = agent()
 
-        val thrown = assertThrows<HarnessException> { api().replaceFlow("agent_a", listOf(step("chop", "bad")), emptyList()) }
+        val thrown = assertThrows<HarnessException> { api().replaceFlow("agent_a", listOf(step("chop", "bad")), emptyList(), StopSettings()) }
 
         assertEquals(400 to "Step 1: 'bad' is refused", thrown.status to thrown.message)
         assertEquals(IdleState(), player.idleState)
@@ -919,7 +973,7 @@ class LunaHarnessApiTest {
     fun `a bot has no flow to replace`() {
         TestWorld.bot("botty", spawn)
 
-        assertEquals(409, status { api().replaceFlow("botty", emptyList(), emptyList()) })
+        assertEquals(409, status { api().replaceFlow("botty", emptyList(), emptyList(), StopSettings()) })
     }
 
     @Test

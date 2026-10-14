@@ -1,5 +1,6 @@
 package game.idle.flow
 
+import io.luna.game.model.mob.Skill
 import game.idle.flow.FakeStepType.Companion.step
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -143,5 +144,34 @@ class FlowResolverTest {
         resolver.resolve(listOf(step("rest"), step("walk", "gather"), step("rest")))
 
         assertEquals(mapOf(1 to 2), rest.contexts.last().gatheredBy)
+    }
+
+    private val chop = FakeStepType("chop", skill = Skill.WOODCUTTING, goal = true)
+    private val goaled = FlowResolver(StepTypes(listOf(chop, walk)))
+    private val oaksTo45 = StepSettings("chop", mapOf("goal" to "level", "goalLevel" to "45"))
+
+    @Test
+    fun `each step's goal is resolved with it, none for a step without one`() {
+        assertEquals(
+            listOf(null, ResolvedGoal(Goal.Level(Skill.WOODCUTTING, 45), WhenMet.SKIP)),
+            goaled.goals(listOf(step("walk"), oaksTo45)),
+        )
+    }
+
+    @Test
+    fun `a goal that is wrong is the step's problem`() {
+        assertEquals(listOf(null, "Needs a level"), goaled.problems(listOf(step("walk"), StepSettings("chop", mapOf("goal" to "level")))))
+    }
+
+    @Test
+    fun `a goal that is wrong names its step`() {
+        val error = assertThrows<FlowError> { goaled.goals(listOf(step("walk"), StepSettings("chop", mapOf("goal" to "level")))) }
+
+        assertEquals("Step 2: Needs a level", error.message)
+    }
+
+    @Test
+    fun `a step with a wrong goal does not resolve`() {
+        assertEquals(listOf<ResolvedStep?>(null), goaled.resolvedEach(listOf(StepSettings("chop", mapOf("goal" to "xp")))))
     }
 }

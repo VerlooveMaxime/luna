@@ -28,8 +28,11 @@ interface Fisher {
     /** The anchor of the step's area, where a walk back goes. */
     fun anchor(): Tile
 
-    /** How many of the step's catches the player carries. */
+    /** How many of the step's fish the player carries: what the step counts (Maxime, 2026-10-15). */
     fun catches(): Int
+
+    /** How much of everything the method pulls up the player carries, by-catch included: a cast that gave anything made progress. */
+    fun pulledUp(): Int
 
     /** Breaks off the fishing in progress. */
     fun interrupt()
@@ -77,10 +80,10 @@ object FishingPlanner {
     }
 }
 
-/** The fish step's work: carries out [FishingPlanner] decisions, its catches the count. */
+/** The fish step's work: carries out [FishingPlanner] decisions, its fish the count, anything pulled up progress. */
 class FishingWork(private val fisher: Fisher) : StepWork {
 
-    private val retry = RetrySkip.forTheTurn(fisher::catches)
+    private val retry = RetrySkip.forTheTurn(fisher::pulledUp)
 
     override val meter: Meter = Meter.Rises(fisher::catches)
 

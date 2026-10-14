@@ -3,6 +3,7 @@ package game.idle.flow
 import game.idle.autopilot.Candidate
 import game.idle.autopilot.fishing.FakeFisher
 import game.idle.autopilot.fishing.FishStep
+import game.idle.autopilot.fishing.FishingCatch
 import game.idle.autopilot.fishing.FishingMethod
 import game.idle.autopilot.fishing.FishingView
 import game.idle.autopilot.fishing.FishingWork
@@ -14,6 +15,7 @@ import game.idle.autopilot.woodcutting.ChopStep
 import game.idle.autopilot.woodcutting.FakeWoodcutter
 import game.idle.autopilot.woodcutting.WoodcuttingView
 import game.idle.autopilot.woodcutting.WoodcuttingWork
+import game.skill.fishing.catchFish.Fish
 import game.skill.fishing.catchFish.Tool
 import game.skill.mining.Pickaxe
 import game.skill.mining.Ore
@@ -117,7 +119,7 @@ class FishFixture : SpotFixture("fish", LevelNeed(Skill.FISHING, 20), bag = setO
         TestWorld.world
     }
 
-    private val step = FishStep(FishingMethod(Tool.FLY_FISHING_ROD), RADIUS, WorkSpot.At(anchor))
+    private val step = FishStep(FishingCatch(Fish.TROUT, FishingMethod(Tool.FLY_FISHING_ROD)), RADIUS, WorkSpot.At(anchor))
     private val spot = Candidate(id = 1, targetTile, distance = 0, usableFromHere = true, anchor.toPosition())
     private val fisher = FakeFisher(FishingView(atLocation = true, listOf(spot)), anchor)
 
@@ -127,6 +129,7 @@ class FishFixture : SpotFixture("fish", LevelNeed(Skill.FISHING, 20), bag = setO
 
     override fun gain(units: Int) {
         fisher.catches += units
+        fisher.pulledUp += units
     }
 
     override fun adapterBusy(busy: Boolean) {

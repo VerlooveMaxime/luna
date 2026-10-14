@@ -32,6 +32,8 @@ class StepWarningsTest {
 
         override fun empties(id: Int): Boolean = banks(id)
 
+        override fun without(items: Set<Int>): ResolvedStep = copy(withdraws = withdraws - items)
+
         override fun work(player: Player, runTile: Tile): StepWork = FakeStepWork(StepOutcome.Finished)
     }
 

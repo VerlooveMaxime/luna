@@ -1,5 +1,6 @@
 package game.harness
 
+import game.idle.flow.StopSettings
 import game.idle.flow.ReflexSettings
 import game.idle.flow.StepSettings
 import game.idle.ui.SearchPrompt
@@ -277,5 +278,19 @@ class HarnessRoutesTest {
         val response = post("/player/agent_a/flow", """{"steps": [{"values": {}}]}""")
 
         assertEquals(HarnessResponse(400, ErrorView("field 'kind' is required and must be a string")), response)
+    }
+
+    @Test
+    fun `a posted flow carries its stop, read as text`() {
+        post("/player/agent_a/flow", """{"steps": [], "stop": {"kind": "laps", "after": 5}}""")
+
+        assertEquals(listOf(StopSettings("laps", "5")), api.replacedStops)
+    }
+
+    @Test
+    fun `a flow posted without a stop never stops`() {
+        post("/player/agent_a/flow", """{"steps": []}""")
+
+        assertEquals(listOf(StopSettings()), api.replacedStops)
     }
 }

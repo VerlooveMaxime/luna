@@ -42,6 +42,8 @@ class LightStepType(names: GameNames) : StepType {
 
     override val description = "Lights the logs picked where it stands or at its work spot, from earlier steps or the bank."
 
+    override val goal = true
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.FIREMAKING)
 
     override fun skill(settings: StepSettings): Int = Skill.FIREMAKING

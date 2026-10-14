@@ -1,5 +1,7 @@
 package game.idle.flow
 
+import org.junit.jupiter.api.Assertions.assertNull
+import io.luna.game.model.mob.Skill
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.OptionIcon
@@ -72,11 +74,40 @@ class StepLinesTest {
 
     @Test
     fun `a step of a kind no type knows shows its kind alone`() {
-        assertEquals(SlotWords("Dig", icon = null, picked = null, details = emptyList(), spot = null), lines.of(listOf(StepSettings("dig")), 0))
+        assertEquals(SlotWords("Dig", icon = null, picked = null, details = emptyList(), goal = null, spot = null), lines.of(listOf(StepSettings("dig")), 0))
     }
 
     @Test
     fun `a kind's name is capitalised as the builder shows it`() {
         assertEquals("Pick up", capitalised("pick up"))
+    }
+
+    private val goaled = FakeStepType("goalchop", skill = Skill.WOODCUTTING, goal = true, detailsOf = { _, _ -> listOf("5 per lap") })
+    private val goalLines = StepLines(FlowResolver(StepTypes(listOf(goaled))), FakeNames())
+    private val oaksTo45 = StepSettings("goalchop", mapOf("goal" to "level", "goalLevel" to "45"))
+
+    @Test
+    fun `a step's goal is its last line`() {
+        assertEquals(listOf("5 per lap", "until Woodcutting 45"), goalLines.of(listOf(oaksTo45), 0).lines)
+    }
+
+    @Test
+    fun `a goal met says so`() {
+        assertEquals("Goal met: Woodcutting 45", goalLines.of(listOf(oaksTo45), 0, met = true).goal)
+    }
+
+    @Test
+    fun `a goal that is wrong gives no line, its reason showing instead`() {
+        assertNull(goalLines.of(listOf(StepSettings("goalchop", mapOf("goal" to "level"))), 0).goal)
+    }
+
+    @Test
+    fun `a step without a goal has no goal line`() {
+        assertNull(goalLines.of(listOf(StepSettings("goalchop")), 0).goal)
+    }
+
+    @Test
+    fun `the goal joins the step's one line`() {
+        assertEquals("Goalchop label: 5 per lap, until Woodcutting 45", goalLines.of(listOf(oaksTo45), 0).line)
     }
 }

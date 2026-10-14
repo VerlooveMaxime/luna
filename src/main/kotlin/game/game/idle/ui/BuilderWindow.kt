@@ -128,6 +128,7 @@ class LunaBuilderUi(
             is BuilderAnswer.Several -> several(player, answer)
             is BuilderAnswer.Attach -> attach(player, answer)
             is BuilderAnswer.Amount -> amount(player, answer.draft)
+            BuilderAnswer.StopAmount -> stopAmount(player)
             is BuilderAnswer.PickTile -> pickTile(player, answer)
             is BuilderAnswer.Replaced -> replaced(player, answer.message)
             is BuilderAnswer.Name -> name(player, answer)
@@ -178,6 +179,12 @@ class LunaBuilderUi(
     private fun amount(player: Player, draft: StepDraft) {
         configure(player, draft, message = "")
         player.overlays.open(AmountInput { plr, value -> answer(plr, screen.typed(autopilotPlayer(plr), window.draft(plr), value)) })
+    }
+
+    /** The overview shows the stop chosen, then the prompt asks for its number (S12). */
+    private fun stopAmount(player: Player) {
+        window.refresh(player, player.idleState)
+        player.overlays.open(AmountInput { plr, value -> answer(plr, screen.typedStop(autopilotPlayer(plr), value)) })
     }
 
     private fun pickTile(player: Player, answer: BuilderAnswer.PickTile) {

@@ -50,6 +50,9 @@ interface StepType {
     /** What the kind does, under its name on the builder's configure screen. */
     val description: String
 
+    /** Whether the kind takes an Until goal (S12): every kind whose Amount counts something. */
+    val goal: Boolean get() = false
+
     /** The settings the configure screen shows, in the order it shows them, options named with [names]. */
     fun fields(names: GameNames): List<StepField>
 
@@ -127,9 +130,8 @@ sealed interface StepField {
         val title: String,
         override val visible: (StepSettings) -> Boolean = ALWAYS,
         val missing: String? = null,
-    ) : StepField {
-        override val column = FieldColumn.LEFT
-    }
+        override val column: FieldColumn = FieldColumn.LEFT,
+    ) : StepField
 
     /**
      * A whole number from [range] typed on the client's "Enter amount" prompt, kept under [key]; [rule] is what the
@@ -144,9 +146,8 @@ sealed interface StepField {
         val shown: (String?) -> String,
         val unbounded: String? = null,
         override val column: FieldColumn = FieldColumn.LEFT,
-    ) : StepField {
-        override val visible = ALWAYS
-    }
+        override val visible: (StepSettings) -> Boolean = ALWAYS,
+    ) : StepField
 
     /**
      * A tile picked on the world map, kept under [key] as [Tile.text]. A field that may hold none words it [none], and
@@ -366,4 +367,7 @@ interface BankMoves {
     val withdraws: Set<Int>
 
     fun banks(id: Int): Boolean
+
+    /** This step without the withdrawals of [items], which feed only steps skipped for the run (S12). */
+    fun without(items: Set<Int>): ResolvedStep
 }

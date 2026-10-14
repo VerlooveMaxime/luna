@@ -23,8 +23,10 @@ import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.skill.fishing.catchFish.Fish
 import game.skill.fishing.catchFish.FishingSpot
 import game.skill.fishing.catchFish.Tool
+import io.luna.game.model.def.ItemDefinition
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
@@ -40,10 +42,11 @@ data class FishingMethod(val tool: Tool) {
 
     val spotIds: Set<Int> = FishingSpot.firstClickIds(tool) + secondClickSpots
 
+    /** Everything the method can pull up, a big net's caskets and boots included: what lands in the bag. */
     val catchIds: Set<Int> = tool.fish.map { it.id }.toSet()
 
-    /** What the fish setting keeps: the method's first fish, `shrimp` for the small net as the tutorial says. */
-    val word: String = tool.fish.first().name.lowercase()
+    /** The raw fish the method catches, in Luna's order: what a fish step can be for. */
+    val fish: List<Fish> = tool.fish.filter { ItemDefinition.ALL.retrieve(it.id).name.startsWith(RAW) }
 
     /** The tool, which Luna's fishing counts in the bag only. */
     val toolNeed: ToolNeed = ToolNeed(word = null, mapOf(tool.id to 1))
@@ -56,14 +59,33 @@ data class FishingMethod(val tool: Tool) {
         /** The fly fishing rod's bait is named "Feather", one of many, so its need reads "feathers" as fishing bait reads "fishing bait". */
         private const val FEATHERS = "feathers"
 
+        /** What the cache calls an uncooked fish, which a casket or seaweed is not. */
+        const val RAW = "Raw "
+
         /** Every tool Luna's table has spots for, lowest level first. */
         val ALL: List<FishingMethod> by lazy { Tool.entries.map(::FishingMethod).filter { it.spotIds.isNotEmpty() } }
-
-        fun named(word: String): FishingMethod? = ALL.firstOrNull { it.word == word.lowercase() }
     }
 }
 
-/** Fish: one fishing method at spots within a radius of the work spot, a count of catches or, without one, until full. */
+/**
+ * What a fish step is for (Maxime, 2026-10-15): one [fish], caught with its [method], which is the only catch the step
+ * counts; whatever else the method pulls up lands in the bag as by-catch. [word] is what the fish setting keeps, the
+ * fish's name as Luna's table spells it ("shrimp", "anchovy", as the tutorial's flow says).
+ */
+data class FishingCatch(val fish: Fish, val method: FishingMethod) {
+
+    val word: String = fish.name.lowercase()
+
+    companion object {
+
+        /** Every raw fish of every method, lowest level first. */
+        val ALL: List<FishingCatch> by lazy { FishingMethod.ALL.flatMap { method -> method.fish.map { FishingCatch(it, method) } }.sortedBy { it.fish.level } }
+
+        fun named(word: String): FishingCatch? = ALL.firstOrNull { it.word == word.lowercase() }
+    }
+}
+
+/** Fish: one fish at the spots of its method within a radius of the work spot, a count of it or, without one, until full. */
 object FishStepType : StepType {
 
     const val FISH = "fish"
@@ -72,7 +94,9 @@ object FishStepType : StepType {
 
     override val label = "fish"
 
-    override val description = "Fishes one catch at the spots around the work spot."
+    override val description = "Fishes one kind of fish at the spots around the work spot."
+
+    override val goal = true
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.FISHING)
 
@@ -93,14 +117,14 @@ object FishStepType : StepType {
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val name = settings[FISH] ?: throw FlowError(Reasons.needs("Catch"))
-        val method = FishingMethod.named(name) ?: throw FlowError(Reasons.notA("Catch", name))
-        return FishStep(method, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
+        val catch = FishingCatch.named(name) ?: throw FlowError(Reasons.notA("Catch", name))
+        return FishStep(catch, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
     }
 }
 
-/** A fish step resolved. Later steps know it gathers its catches. */
+/** A fish step resolved. Later steps know it gathers everything its method pulls up. */
 data class FishStep(
-    val method: FishingMethod,
+    val catch: FishingCatch,
     val radius: Int,
     val workSpot: WorkSpot,
     override val amount: Int? = null,
@@ -108,13 +132,13 @@ data class FishStep(
 
     override val ownArea: Area? get() = workSpot.ownArea(radius)
 
-    override val fills: Set<Int> get() = method.catchIds
+    override val fills: Set<Int> get() = catch.method.catchIds
 
     override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + fills))
 
-    /** The method's tool, its bait if it takes any, and the tool's level. */
+    /** The method's tool, its bait if it takes any, and the fish's level. */
     override fun needs(): List<StepNeeds> =
-        listOf(StepNeeds(tools = listOfNotNull(method.toolNeed, method.baitNeed), level = LevelNeed(Skill.FISHING, method.tool.level)))
+        listOf(StepNeeds(tools = listOfNotNull(catch.method.toolNeed, catch.method.baitNeed), level = LevelNeed(Skill.FISHING, catch.fish.level)))
 
-    override fun work(player: Player, runTile: Tile): StepWork = FishingWork(LunaFisher(player, method, Area(workSpot.tile(runTile), radius)))
+    override fun work(player: Player, runTile: Tile): StepWork = FishingWork(LunaFisher(player, catch, Area(workSpot.tile(runTile), radius)))
 }

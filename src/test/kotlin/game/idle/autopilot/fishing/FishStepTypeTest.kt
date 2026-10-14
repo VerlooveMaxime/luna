@@ -15,6 +15,7 @@ import game.idle.flow.option.InputSource
 import game.idle.flow.option.LunaGameNames
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.skill.fishing.catchFish.Fish
 import game.skill.fishing.catchFish.FishingSpot
 import game.skill.fishing.catchFish.Tool
 import game.testworld.TestWorld
@@ -31,6 +32,8 @@ class FishStepTypeTest {
 
     private fun fish(vararg values: Pair<String, String>) = StepSettings("fish", mapOf(*values))
 
+    private val shrimp = FishingCatch(Fish.SHRIMP, FishingMethod(Tool.SMALL_NET))
+
     /** Luna's fish name themselves from the item definitions, which need the cache. */
     @BeforeEach
     fun `item definitions are loaded`() {
@@ -46,14 +49,39 @@ class FishStepTypeTest {
     fun `a fish step fishes around the work spot, whatever the case`() {
         val step = FishStepType.resolve(fish("fish" to "Shrimp", "amount" to "1", "within" to "15"), FlowContext(workSpot = walkedTo))
 
-        assertEquals(FishStep(FishingMethod(Tool.SMALL_NET), 15, walkedTo, amount = 1), step)
+        assertEquals(FishStep(shrimp, 15, walkedTo, amount = 1), step)
     }
 
     @Test
-    fun `a method is picked by its first fish`() {
+    fun `a fish is picked by its name, with the method that catches it`() {
         val step = FishStepType.resolve(fish("fish" to "shark"), FlowContext())
 
-        assertEquals(FishingMethod(Tool.SHARK_HARPOON), (step as FishStep).method)
+        assertEquals(FishingCatch(Fish.SHARK, FishingMethod(Tool.SHARK_HARPOON)), (step as FishStep).catch)
+    }
+
+    @Test
+    fun `a method's other fish is its own catch, counted on its own level`() {
+        val step = FishStepType.resolve(fish("fish" to "anchovy"), FlowContext()) as FishStep
+
+        assertEquals(listOf(Fish.ANCHOVY, Tool.SMALL_NET, 15), listOf(step.catch.fish, step.catch.method.tool, step.needs().single().level?.level))
+    }
+
+    @Test
+    fun `every raw fish of every method is a catch, lowest level first`() {
+        assertEquals(
+            listOf("shrimp", "sardine", "herring", "anchovy", "mackerel", "trout", "cod", "pike", "salmon", "tuna", "lobster", "bass", "swordfish", "monkfish", "shark"),
+            FishingCatch.ALL.map { it.word },
+        )
+    }
+
+    @Test
+    fun `a method's raw fish leave out what else it pulls up`() {
+        assertEquals(listOf(Fish.MACKEREL, Fish.COD, Fish.BASS), FishingMethod(Tool.BIG_NET).fish)
+    }
+
+    @Test
+    fun `a fish step takes a goal`() {
+        assertEquals(true, FishStepType.goal)
     }
 
     @Test
@@ -115,7 +143,7 @@ class FishStepTypeTest {
 
     @Test
     fun `the steps after a fish step know it gathers its catches`() {
-        val after = FishStep(FishingMethod(Tool.SMALL_NET), 10, walkedTo).after(FlowContext(walkedTo, gathered = setOf(1511)))
+        val after = FishStep(shrimp, 10, walkedTo).after(FlowContext(walkedTo, gathered = setOf(1511)))
 
         assertEquals(FlowContext(walkedTo, setOf(1511, 317, 321)), after)
     }
@@ -145,10 +173,10 @@ class FishStepTypeTest {
     }
 
     @Test
-    fun `a fish step's target is its fishing method, named by its fish and tool`() {
+    fun `a fish step's target is its fish, named with the tool that catches it`() {
         val target = FishStepType.target(LunaGameNames)
 
-        assertEquals(listOf("fish", "Shrimps, anchovies (small fishing net)"), listOf(target.key, target.picked(fish("fish" to "shrimp"))?.label))
+        assertEquals(listOf("fish", "Shrimps (small fishing net)"), listOf(target.key, target.picked(fish("fish" to "shrimp"))?.label))
     }
 
     @Test
@@ -163,21 +191,21 @@ class FishStepTypeTest {
 
     @Test
     fun `a fish step needs its method's tool in the bag and the tool's level`() {
-        val needs = FishStep(FishingMethod(Tool.SMALL_NET), 10, walkedTo).needs()
+        val needs = FishStep(shrimp, 10, walkedTo).needs()
 
         assertEquals(listOf(StepNeeds(tools = listOf(ToolNeed(word = null, mapOf(303 to 1))), level = LevelNeed(Skill.FISHING, 1))), needs)
     }
 
     @Test
     fun `a fish step with bait needs the bait too, which is not counted one by one`() {
-        val tools = FishStep(FishingMethod(Tool.FISHING_ROD), 10, walkedTo).needs().single().tools
+        val tools = FishStep(FishingCatch(Fish.SARDINE, FishingMethod(Tool.FISHING_ROD)), 10, walkedTo).needs().single().tools
 
         assertEquals(listOf(ToolNeed(word = null, mapOf(307 to 1)), ToolNeed(word = null, mapOf(313 to 1), countable = false)), tools)
     }
 
     @Test
     fun `a fly fishing step needs feathers too, by that word`() {
-        val tools = FishStep(FishingMethod(Tool.FLY_FISHING_ROD), 10, walkedTo).needs().single().tools
+        val tools = FishStep(FishingCatch(Fish.TROUT, FishingMethod(Tool.FLY_FISHING_ROD)), 10, walkedTo).needs().single().tools
 
         assertEquals(listOf(ToolNeed(word = null, mapOf(309 to 1)), ToolNeed(word = "feathers", mapOf(314 to 1), countable = false)), tools)
     }
@@ -186,20 +214,20 @@ class FishStepTypeTest {
     fun `a fish step with a picked work spot works around it, not where the flow went`() {
         val step = FishStepType.resolve(fish("fish" to "shrimp", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
 
-        assertEquals(FishStep(FishingMethod(Tool.SMALL_NET), 10, WorkSpot.Own(picked)), step)
+        assertEquals(FishStep(shrimp, 10, WorkSpot.Own(picked)), step)
     }
 
     @Test
     fun `the steps after a fish step with a picked work spot work there`() {
-        val after = FishStep(FishingMethod(Tool.SMALL_NET), 12, WorkSpot.Own(picked)).after(FlowContext())
+        val after = FishStep(shrimp, 12, WorkSpot.Own(picked)).after(FlowContext())
 
         assertEquals(WorkSpot.At(picked), after.workSpot)
     }
 
     @Test
     fun `a fish step walks to its picked spot from outside its area, and to no spot when it works where the flow went`() {
-        val own = FishStep(FishingMethod(Tool.SMALL_NET), 12, WorkSpot.Own(picked))
-        val flows = FishStep(FishingMethod(Tool.SMALL_NET), 12, WorkSpot.At(picked))
+        val own = FishStep(shrimp, 12, WorkSpot.Own(picked))
+        val flows = FishStep(shrimp, 12, WorkSpot.At(picked))
 
         assertEquals(listOf(Area(picked, 12), null), listOf(own.ownArea, flows.ownArea))
     }

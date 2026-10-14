@@ -4,6 +4,7 @@ import game.idle.danger.Aggression
 import game.idle.danger.AggressiveSpawn
 import game.idle.danger.DangerCatalog
 import game.idle.flow.Choice
+import game.idle.flow.FakeBankStep
 import game.idle.flow.FakeStep
 import game.idle.flow.FakeStepType
 import game.idle.flow.FakeStepWork
@@ -16,6 +17,7 @@ import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepDangers
 import game.idle.flow.StepField
+import game.idle.flow.StepItems
 import game.idle.flow.StepNeeds
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
@@ -105,7 +107,8 @@ const val SAW = 8794
  * on the right's first row, 6), drop (none), walk (a tile), light (an input toggle on row 0, an amount on row 1, a list
  * of logs on rows 2-5; new ones take logs from earlier steps), bank (a three-button toggle on the right's first row,
  * then on Chosen a list on the right's rows 1-3, else a note on row 1, 7), stock (a withdrawal list on rows 0-4), saw
- * (needs a saw), goto (takes the flow to [WENT_TO]), fish (a work spot on the right's first row, 6, within on 7).
+ * (needs a saw), goto (takes the flow to [WENT_TO]), fish (a work spot on the right's first row, 6, within on 7), mine (no
+ * rows of its own but the Until rows every goal kind gets, S12), burn (takes oak logs in, which stock withdraws).
  */
 val CONFIGURED_TYPES = StepTypes(
     listOf(
@@ -119,10 +122,12 @@ val CONFIGURED_TYPES = StepTypes(
             inputOf = { if (it["input"] == "bank") InputSource.BANK else InputSource.EARLIER_STEPS },
         ),
         FakeStepType("bank", listOf(DEPOSIT_TOGGLE, BANKS_NOTE, CHOSEN_LIST)),
-        FakeStepType("stock", listOf(WITHDRAW_LIST)),
+        FakeStepType("stock", listOf(WITHDRAW_LIST), resolved = { FakeBankStep(StepItems.ids(it, "withdraw").toSet()) }),
         FakeStepType("saw", resolved = { FakeStep("saw", needs = listOf(StepNeeds(tools = listOf(ToolNeed("saw", mapOf(SAW to 1)))))) }),
         FakeStepType("goto", resolved = { WentThere }),
         FakeStepType("fish", listOf(SPOT, WITHIN)),
+        FakeStepType("mine", skill = Skill.MINING, goal = true),
+        FakeStepType("burn", resolved = { FakeStep("burn", needs = listOf(StepNeeds(inputs = listOf(1521)))) }),
     ),
 )
 

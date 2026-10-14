@@ -46,6 +46,8 @@ object ChopStepType : StepType {
 
     override val description = "Cuts one kind of tree around the work spot."
 
+    override val goal = true
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.WOODCUTTING)
 
     override fun skill(settings: StepSettings): Int = Skill.WOODCUTTING

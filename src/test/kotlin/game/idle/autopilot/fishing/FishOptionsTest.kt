@@ -25,42 +25,42 @@ class FishOptionsTest {
     private fun row(value: String): StepOption = rows().single { it.value == value }
 
     @Test
-    fun `every fishing method is a row, under the word its setting keeps`() {
-        assertEquals(FishingMethod.ALL.map { it.word }, rows().map { it.value })
+    fun `every fish of every method is a row, under the word its setting keeps`() {
+        assertEquals(FishingCatch.ALL.map { it.word }, rows().map { it.value })
     }
 
     @Test
-    fun `a row is named after its fish and its tool`() {
-        assertEquals("Trout, salmon (fly fishing rod)", row("trout").label)
+    fun `a row is named after its fish and the tool that catches it`() {
+        assertEquals("Trout (fly fishing rod)", row("trout").label)
     }
 
     @Test
-    fun `a row names only raw fish, not the big net's caskets and seaweed`() {
-        assertEquals("Mackerel, cod, bass (big fishing net)", row("mackerel").label)
+    fun `a method's other fish is a row of its own`() {
+        assertEquals("Anchovies (small fishing net)", row("anchovy").label)
     }
 
     @Test
-    fun `the note gives the tool's level and the levels of the fish that come later`() {
-        assertEquals("Fishing 5 (herring 10, pike 25)", row("sardine").note)
+    fun `the big net's caskets and seaweed are no rows`() {
+        assertEquals(listOf("mackerel", "cod", "bass"), rows().filter { "big fishing net" in it.label }.map { it.value })
     }
 
     @Test
-    fun `a method with a single fish notes only the tool's level`() {
-        assertEquals("Fishing 40", row("lobster").note)
+    fun `the note gives the fish's level`() {
+        assertEquals("Fishing 15", row("anchovy").note)
     }
 
     @Test
-    fun `a row shows its first fish`() {
+    fun `a row shows its fish`() {
         assertEquals(OptionIcon.Item(335), row("trout").icon)
     }
 
     @Test
-    fun `a method at the player's level can be picked`() {
+    fun `a fish at the player's level can be picked`() {
         assertNull(row("trout").blocked)
     }
 
     @Test
-    fun `a method above the player's level is greyed on the tool's level`() {
-        assertEquals("needs Fishing 35", row("tuna").blocked)
+    fun `a fish above the player's level is greyed on its own level, not its tool's`() {
+        assertEquals("needs Fishing 30", row("salmon").blocked)
     }
 }

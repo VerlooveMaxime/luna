@@ -316,4 +316,53 @@ class BuilderWidgetsTest {
 
         assertEquals(true, TestWorld.messages(player).last().fields["hiddenUntilHovered"])
     }
+
+    @Test
+    fun `a row's five toggle buttons mirror the client's ids, in their own block`() {
+        assertEquals(
+            listOf(42000, 42016, 42029, 42030, 42031, 42176),
+            listOf(
+                BuilderWidgets.toggles(0, 5), BuilderWidgets.toggles(1, 5), BuilderWidgets.toggleFace(1, 5, 4), BuilderWidgets.toggleFrame(1, 5, 4),
+                BuilderWidgets.toggleText(1, 5, 4), BuilderWidgets.toggles(11, 5),
+            ),
+        )
+    }
+
+    @Test
+    fun `a five-button toggle's face names its row and button`() {
+        assertEquals(3 to 4, BuilderWidgets.toggleOf(BuilderWidgets.toggleFace(3, 5, 4)))
+    }
+
+    @Test
+    fun `a toggle shows two, three or five buttons`() {
+        assertEquals(listOf(2, 3, 5), BuilderWidgets.TOGGLE_SIZES)
+    }
+
+    @Test
+    fun `the Flow stops row mirrors the client's ids`() {
+        assertEquals(
+            listOf(42200, 42201, 42202, 42203, 42208, 42209, 42210, 42211, 42212, 42213),
+            listOf(
+                BuilderWidgets.STOPS, BuilderWidgets.STOPS_LABEL, BuilderWidgets.stopFrame(0), BuilderWidgets.stopChoice(0), BuilderWidgets.stopFrame(3),
+                BuilderWidgets.stopChoice(3), BuilderWidgets.STOPS_AFTER, BuilderWidgets.STOPS_AFTER_FACE, BuilderWidgets.STOPS_AFTER_FRAME,
+                BuilderWidgets.STOPS_AFTER_TEXT,
+            ),
+        )
+    }
+
+    @Test
+    fun `a stop choice's button names its choice`() {
+        assertEquals(3, BuilderWidgets.stopOf(BuilderWidgets.stopChoice(3)))
+    }
+
+    @Test
+    fun `a stop choice's frame and the number box are no choice`() {
+        assertNull(BuilderWidgets.stopOf(BuilderWidgets.stopFrame(3)))
+        assertNull(BuilderWidgets.stopOf(BuilderWidgets.STOPS_AFTER_FACE))
+    }
+
+    @Test
+    fun `a line's strike mirrors the client's ids`() {
+        assertEquals(listOf(42300, 42302, 42356, 42410), listOf(BuilderWidgets.lineStrike(0, 0), BuilderWidgets.lineStrike(0, 1), BuilderWidgets.lineStrike(1, 0), BuilderWidgets.lineStrike(1, 27)))
+    }
 }

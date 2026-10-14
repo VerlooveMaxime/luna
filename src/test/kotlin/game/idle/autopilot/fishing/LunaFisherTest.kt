@@ -5,6 +5,7 @@ import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.skill.fishing.catchFish.Fish
 import game.skill.fishing.catchFish.Tool
 import game.testworld.TestWorld
 import io.luna.game.event.impl.NpcClickEvent.NpcFirstClickEvent
@@ -36,7 +37,7 @@ class LunaFisherTest {
 
     private val fishingBait = 313
 
-    private fun fisher(player: Player, tool: Tool = Tool.SMALL_NET) = LunaFisher(player, FishingMethod(tool), area)
+    private fun fisher(player: Player, tool: Tool = Tool.SMALL_NET, fish: Fish = Fish.SHRIMP) = LunaFisher(player, FishingCatch(fish, FishingMethod(tool)), area)
 
     @Test
     fun `an idle player is not busy`() {
@@ -170,13 +171,22 @@ class LunaFisherTest {
     }
 
     @Test
-    fun `catches count every fish the method catches`() {
+    fun `catches count the fish the step is for, not what else the net pulls up`() {
         val player = login()
         player.inventory.add(Item(rawShrimps, 2))
         player.inventory.add(Item(rawAnchovies))
         player.inventory.add(Item(1511))
 
-        assertEquals(3, fisher(player).catches())
+        assertEquals(2, fisher(player).catches())
+    }
+
+    @Test
+    fun `a step for the method's other fish counts that one`() {
+        val player = login()
+        player.inventory.add(Item(rawShrimps, 2))
+        player.inventory.add(Item(rawAnchovies))
+
+        assertEquals(1, fisher(player, fish = Fish.ANCHOVY).catches())
     }
 
     @Test
@@ -189,5 +199,15 @@ class LunaFisherTest {
         TestWorld.tick()
 
         assertFalse(LunaClicks.isActing(player))
+    }
+
+    @Test
+    fun `everything the method pulls up counts as pulled up`() {
+        val player = login()
+        player.inventory.add(Item(rawShrimps, 2))
+        player.inventory.add(Item(rawAnchovies))
+        player.inventory.add(Item(1511))
+
+        assertEquals(3, fisher(player).pulledUp())
     }
 }

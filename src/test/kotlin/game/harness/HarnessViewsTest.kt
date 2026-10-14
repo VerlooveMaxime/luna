@@ -56,17 +56,22 @@ class HarnessViewsTest {
 
     @Test
     fun `a flow`() {
-        val step = FlowStepView(id = 1, kind = "chop", values = mapOf("tree" to "oak"), reflexes = listOf(2), lines = listOf("Oak tree", "5 per lap"), problem = null)
-        val view = FlowView(player = "test", running = true, stepIndex = 0, blocked = "Needs an axe you can use", waiting = "No tree in reach", steps = listOf(step), reflexes = emptyList())
+        val step = FlowStepView(id = 1, kind = "chop", values = mapOf("tree" to "oak"), reflexes = listOf(2), lines = listOf("Oak tree", "5 per lap"), problem = null, goal = null, met = false, counted = 0, leftOut = emptyList())
+        val view = FlowView(player = "test", running = true, stepIndex = 0, laps = 2, blocked = "Needs an axe you can use", waiting = "No tree in reach", stop = FlowStopView("laps", "5"), steps = listOf(step), reflexes = emptyList())
 
-        assertEquals(setOf("player", "running", "step_index", "blocked", "waiting", "steps", "reflexes"), keysOf(view))
+        assertEquals(setOf("player", "running", "step_index", "laps", "blocked", "waiting", "stop", "steps", "reflexes"), keysOf(view))
     }
 
     @Test
     fun `a flow's step`() {
-        val view = FlowStepView(id = 1, kind = "chop", values = mapOf("tree" to "oak"), reflexes = listOf(2), lines = listOf("Oak tree", "5 per lap"), problem = "Needs a tree")
+        val view = FlowStepView(id = 1, kind = "chop", values = mapOf("tree" to "oak"), reflexes = listOf(2), lines = listOf("Oak tree", "5 per lap"), problem = "Needs a tree", goal = "until Strength 20", met = true, counted = 3, leftOut = listOf(1521))
 
-        assertEquals(setOf("id", "kind", "values", "reflexes", "lines", "problem"), keysOf(view))
+        assertEquals(setOf("id", "kind", "values", "reflexes", "lines", "problem", "goal", "met", "counted", "left_out"), keysOf(view))
+    }
+
+    @Test
+    fun `a flow's stop`() {
+        assertEquals(setOf("kind", "after"), keysOf(FlowStopView("laps", "5")))
     }
 
     @Test

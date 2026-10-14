@@ -2,9 +2,11 @@ package game.idle.autopilot
 
 import api.predef.*
 import game.idle.danger.LunaDangers
+import game.idle.flow.Clock
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.FlowRunner
+import game.idle.flow.FlowStops
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ResolvedFlow
 import game.idle.flow.SavedFlows
@@ -53,14 +55,17 @@ val builderWindow = BuilderWindow(
 val ui = IdleUi(AutopilotStatus(StepLines(resolver, LunaGameNames), plainFont), IdleTab.fromCache(ctx.cache, config.savedFlowSlots), builderWindow)
 logger.info("Loaded {} kinds of idle step.", steps.types.all.size)
 
-val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world)) { autopilotPlayer ->
+val clock = Clock { System.currentTimeMillis() }
+
+val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world), clock) { autopilotPlayer ->
     val state = autopilotPlayer.idleState
-    val resolved = try {
-        ResolvedFlow(resolver.resolve(state.steps), reflexResolver.resolve(state.steps, state.reflexes))
+    val runner = try {
+        val resolved = ResolvedFlow(resolver.resolve(state.steps), reflexResolver.resolve(state.steps, state.reflexes), resolver.goals(state.steps))
+        FlowRunner(resolved, state.stepIndex, autopilotPlayer, words, clock, FlowStops.read(state.stop), state.progress, state.laps)
     } catch (e: FlowError) {
         null
     }
-    resolved?.let { AutopilotDriver(FlowRunner(it, state.stepIndex, autopilotPlayer, words), config.decisionDelayTicks) }
+    runner?.let { AutopilotDriver(it, config.decisionDelayTicks) }
 }
 
 val builderUi = LunaBuilderUi(BuilderScreen(autopilot, resolver, reflexResolver, reflexForm, LunaGameNames, config.stepSlots, config.reflexSlots, savedFlows), builderWindow, ui, font)

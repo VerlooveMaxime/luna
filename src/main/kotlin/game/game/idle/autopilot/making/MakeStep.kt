@@ -40,6 +40,8 @@ class MakeStepType(private val catalog: RecipeCatalog, private val names: GameNa
 
     override val description = "Uses one item on another (dough, potions, shafts), from earlier steps or the bank."
 
+    override val goal = true
+
     override fun fields(names: GameNames): List<StepField> =
         listOf(
             ProcessInput.field(ingredients),

@@ -41,6 +41,8 @@ class CookStepType(names: GameNames) : StepType {
 
     override val description = "Cooks the raw food picked on a range or fire, from earlier steps or the bank."
 
+    override val goal = true
+
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(Skill.COOKING)
 
     override fun skill(settings: StepSettings): Int = Skill.COOKING

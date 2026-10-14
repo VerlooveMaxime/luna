@@ -50,4 +50,11 @@ class StepTargetTest {
 
         assertEquals(emptyList<OptionContext>(), asked)
     }
+
+    @Test
+    fun `a step without the setting picks what its other settings give before the target's default`() {
+        val target = StepTarget("tree", trees, default = "willow", defaultOf = { if (it["near"] == "oaks") "oak" else null })
+
+        assertEquals(listOf("oak", "willow"), listOf(target.picked(StepSettings("chop", mapOf("near" to "oaks")))?.label, target.picked(chop())?.label))
+    }
 }

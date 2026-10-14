@@ -9,11 +9,14 @@ import game.idle.content.audit.LunaContentFacts
 import game.idle.content.audit.LunaRegistries
 import game.idle.content.audit.zoneOfRegion
 import game.idle.flow.FlowCheck
+import game.idle.flow.BankMoves
 import game.idle.flow.FlowError
 import game.idle.flow.FlowIds
 import game.idle.flow.ReflexSettings
+import game.idle.flow.SkippedFeeds
 import game.idle.flow.StepLines
 import game.idle.flow.StepSettings
+import game.idle.flow.StopSettings
 import game.idle.flow.option.LunaGameNames
 import game.idle.idleState
 import game.idle.movement.navigateToReach
@@ -114,28 +117,35 @@ class LunaHarnessApi(
     override fun flow(name: String): FlowView = gameThread.run { flowView(online(name)) }
 
     /** The autopilot owns a running flow's state, so a running flow is never replaced under it. */
-    override fun replaceFlow(name: String, steps: List<StepSettings>, reflexes: List<ReflexSettings>): FlowView = gameThread.run {
+    override fun replaceFlow(name: String, steps: List<StepSettings>, reflexes: List<ReflexSettings>, stop: StopSettings): FlowView = gameThread.run {
         val player = online(name)
         if (player.isBot) throw HarnessException(409, "${player.username} is a bot and has no flow")
         if (player.idleState.running) throw HarnessException(409, "${player.username}'s flow is running: click Stop first")
         val identified = FlowIds.steps(steps)
         val identifiedReflexes = FlowIds.reflexes(reflexes)
         try {
-            flows.check(identified, identifiedReflexes)
+            flows.check(identified, identifiedReflexes, stop)
         } catch (e: FlowError) {
             throw HarnessException(400, e.message)
         }
-        player.idleState = player.idleState.withFlow(identified, identifiedReflexes)
+        player.idleState = player.idleState.withFlow(identified, identifiedReflexes, stop)
         flowView(player)
     }
 
     private fun flowView(player: Player): FlowView {
         val state = player.idleState
         val problems = flows.resolver.problems(state.steps)
+        val resolved = flows.resolver.resolvedEach(state.steps)
         val steps = state.steps.mapIndexed { index, step ->
-            FlowStepView(step.id, step.kind, step.values, step.reflexes, lines.of(state.steps, index).lines, problems[index])
+            val met = index in state.progress.met
+            val words = lines.of(state.steps, index, met)
+            val leftOut = (resolved[index] as? BankMoves)?.let { SkippedFeeds.leftOut(resolved, state.progress.met, it) }.orEmpty()
+            FlowStepView(step.id, step.kind, step.values, step.reflexes, words.lines, problems[index], words.goal, met, state.progress.total(index), leftOut.sorted())
         }
-        return FlowView(player.username, state.running, state.stepIndex, state.blocked, state.waiting, steps, state.reflexes.map { FlowReflexView(it.id, it.values) })
+        return FlowView(
+            player.username, state.running, state.stepIndex, state.laps, state.blocked, state.waiting, FlowStopView(state.stop.kind, state.stop.after),
+            steps, state.reflexes.map { FlowReflexView(it.id, it.values) },
+        )
     }
 
     private fun perform(player: Player, action: PlayerAction): ActionView =

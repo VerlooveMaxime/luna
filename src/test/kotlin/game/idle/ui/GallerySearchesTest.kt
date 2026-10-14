@@ -1,7 +1,7 @@
 package game.idle.ui
 
 import game.idle.autopilot.fighting.FightTargetCatalog
-import game.idle.autopilot.fishing.FishingMethod
+import game.idle.autopilot.fishing.FishingCatch
 import game.idle.flow.option.ItemCatalog
 import game.idle.flow.option.LunaGameNames
 import game.idle.flow.option.OptionFacts
@@ -49,8 +49,8 @@ class GallerySearchesTest {
     }
 
     @Test
-    fun `fishing lists every method`() {
-        assertEquals(FishingMethod.ALL.size, searches()[1].options(login()).size)
+    fun `fishing lists every fish`() {
+        assertEquals(FishingCatch.ALL.size, searches()[1].options(login()).size)
     }
 
     @Test

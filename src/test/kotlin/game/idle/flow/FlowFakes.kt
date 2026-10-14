@@ -19,6 +19,8 @@ data class FakeStep(val name: String, val gathers: Set<Int> = emptySet(), val ne
     override fun needs(): List<StepNeeds> = needs
 
     override fun work(player: Player, runTile: Tile): StepWork = FakeStepWork(StepOutcome.Finished)
+
+    override fun toString(): String = name
 }
 
 /**
@@ -37,6 +39,7 @@ class FakeStepType(
     private val resolved: ((StepSettings) -> ResolvedStep)? = null,
     private val icon: StepIcon = StepIcon.Media(kind, 0),
     private val detailsOf: ((StepSettings, FlowContext) -> List<String>)? = null,
+    override val goal: Boolean = false,
 ) : StepType {
 
     val contexts = mutableListOf<FlowContext>()
@@ -83,21 +86,49 @@ class FakeFlowPlayer(override val body: FakeReflexBody = FakeReflexBody()) : Flo
     val log = mutableListOf<String>()
     val told = mutableListOf<String>()
     val started = mutableListOf<FakeStepActivity>()
+    val savedProgress = mutableListOf<RunProgress>()
+    val levels = mutableMapOf<Int, Int>()
+    val bank = mutableMapOf<Int, Int>()
+
+    /** The bank steps started, each with the withdrawals it was asked to leave out. */
+    val leftOut = mutableListOf<Set<Int>>()
 
     override fun tell(message: String) {
         told += message
     }
 
-    override fun activity(step: ResolvedStep): StepActivity =
-        FakeStepActivity((step as FakeStep).name, log).also { started += it }
+    override fun activity(step: ResolvedStep): StepActivity {
+        if (step is FakeBankStep) leftOut += step.leftOut
+        return FakeStepActivity(step.toString(), log).also { started += it }
+    }
 
     override fun saveStep(index: Int) {
         savedSteps += index
     }
 
+    override fun saveProgress(progress: RunProgress) {
+        savedProgress += progress
+    }
+
     override fun lapCompleted() {
         laps++
     }
+
+    override fun level(skill: Int): Int = levels[skill] ?: 1
+
+    override fun banked(items: Set<Int>): Int = items.sumOf { bank[it] ?: 0 }
+}
+
+/** A bank step that withdraws [withdraws] and remembers what it was told to leave out ([leftOut]). */
+data class FakeBankStep(override val withdraws: Set<Int>, val leftOut: Set<Int> = emptySet()) : ResolvedStep, BankMoves {
+
+    override fun banks(id: Int): Boolean = false
+
+    override fun without(items: Set<Int>): ResolvedStep = copy(leftOut = items)
+
+    override fun work(player: Player, runTile: Tile): StepWork = FakeStepWork(StepOutcome.Finished)
+
+    override fun toString(): String = "bank"
 }
 
 /** Words over [EVEN_FONT], where every glyph is 5 px wide, so widths are easy to reckon in a test. */
@@ -139,6 +170,7 @@ class FakeStepActivity(private val name: String, val log: MutableList<String>) :
 
     override fun endTurn() {
         ended++
+        log += "$name:end"
     }
 
     override fun act() {

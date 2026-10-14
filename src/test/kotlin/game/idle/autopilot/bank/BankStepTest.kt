@@ -1,5 +1,7 @@
 package game.idle.autopilot.bank
 
+import org.junit.jupiter.api.Assertions.assertSame
+import game.idle.flow.StepItem
 import game.idle.flow.Reason
 import game.idle.flow.StepOutcome
 import game.idle.flow.Target
@@ -84,5 +86,19 @@ class BankStepTest {
 
         assertEquals(StepOutcome.Blocked(Reason.NoneInReach(Target.BANK_BOOTH)), work.act(left = null))
     }
-}
 
+    private val withdrawing = BankStep(listOf(near), BankOrder(DepositRule.Everything, listOf(StepItem(1521), StepItem(1511, 5)), IfStuck.SKIP))
+
+    @Test
+    fun `without some withdrawals the step keeps the others, in order`() {
+        val without = withdrawing.without(setOf(1521)) as BankStep
+
+        assertEquals(listOf(StepItem(1511, 5)), without.order.withdrawals)
+        assertEquals(near, without.candidates.single())
+    }
+
+    @Test
+    fun `without nothing the step is itself`() {
+        assertSame(withdrawing, withdrawing.without(emptySet()))
+    }
+}

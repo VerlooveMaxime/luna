@@ -103,8 +103,9 @@ data class ContentAuditView(val files: Map<String, String>)
 
 /**
  * A step of a flow: its [id], kind and settings, the ids of the [reflexes] attached to it in its order, the [lines] the
- * builder's slot shows under its kind, and its [problem], the red reason the slot shows when the step cannot work, null
- * when it can.
+ * builder's slot shows under its kind, its [problem], the red reason the slot shows when the step cannot work, null
+ * when it can; and its run (S12): [goal] as the slot words it (null without one), whether it is [met] (the step skipped
+ * for the run), what it [counted] over the run so far, and the withdrawals a bank step leaves out ([leftOut], item ids).
  */
 data class FlowStepView(
     val id: Int,
@@ -113,20 +114,30 @@ data class FlowStepView(
     val reflexes: List<Int>,
     val lines: List<String>,
     val problem: String?,
+    val goal: String?,
+    val met: Boolean,
+    val counted: Int,
+    val leftOut: List<Int>,
 )
 
 data class FlowReflexView(val id: Int, val values: Map<String, String>)
 
+/** A flow's stop condition as its settings keep it (S12): its kind (never, laps, time, goals) and the number typed after it. */
+data class FlowStopView(val kind: String, val after: String)
+
 /**
  * A player's flow; [blocked] is why its running step cannot go on, as the overlay shows it, null while it can, and
- * [waiting] what it waits for the world to supply, null for nothing.
+ * [waiting] what it waits for the world to supply, null for nothing; [laps] counts the laps since Run and [stop] is
+ * when the flow stops (S12).
  */
 data class FlowView(
     val player: String,
     val running: Boolean,
     val stepIndex: Int,
+    val laps: Int,
     val blocked: String?,
     val waiting: String?,
+    val stop: FlowStopView,
     val steps: List<FlowStepView>,
     val reflexes: List<FlowReflexView>,
 )

@@ -168,4 +168,53 @@ class StepWordsTest {
             Arguments.of(Reason.BankFull, "The bank is full"),
         )
     }
+
+    @Test
+    fun `a step that met its goal says so and that it is skipped for the run`() {
+        assertEquals("Autopilot: step 2 met its goal, Strength 20: skipped for this run.", words.goalMet(2, Goal.Level(Skill.STRENGTH, 20)))
+    }
+
+    @Test
+    fun `a goal that stops the flow names the step and the goal`() {
+        assertEquals("Autopilot: stopped, step 2 met its goal: 100 in all.", words.goalStops(2, Goal.Count(100)))
+    }
+
+    @Test
+    fun `a bank goal names its item`() {
+        assertEquals("Autopilot: step 2 met its goal, 100 oak logs in the bank: skipped for this run.", words.goalMet(2, Goal.Bank(oakLogs, setOf(oakLogs), 100)))
+    }
+
+    @Test
+    fun `a bank goal's item name is cut so the line fits the chat box`() {
+        val long = words(FakeNames(mapOf(oakLogs to "A".repeat(100))))
+
+        val line = long.goalStops(2, Goal.Bank(oakLogs, setOf(oakLogs), 100))
+
+        assertEquals("Autopilot: stopped, step 2 met its goal: 100 " + "a".repeat(31) + ".. in the bank.", line)
+    }
+
+    @Test
+    fun `a time goal counts minutes`() {
+        assertEquals("Autopilot: stopped, step 1 met its goal: 30 min.", words.goalStops(1, Goal.Time(30)))
+    }
+
+    @Test
+    fun `the flow stops after its laps, one or more`() {
+        assertEquals(listOf("Autopilot: stopped after 1 lap.", "Autopilot: stopped after 5 laps."), listOf(words.stoppedAfterLaps(1), words.stoppedAfterLaps(5)))
+    }
+
+    @Test
+    fun `the flow stops after its minutes, one or more`() {
+        assertEquals(listOf("Autopilot: stopped after 1 minute.", "Autopilot: stopped after 30 minutes."), listOf(words.stoppedAfterMinutes(1), words.stoppedAfterMinutes(30)))
+    }
+
+    @Test
+    fun `every goal met stops the flow with one line`() {
+        assertEquals("Autopilot: stopped, every goal is met.", StepWords.ALL_GOALS_MET)
+    }
+
+    @Test
+    fun `a flow stopping on every goal met needs a goal`() {
+        assertEquals("Autopilot: no step has an Until goal.", StepWords.NO_GOALS)
+    }
 }

@@ -1,6 +1,7 @@
 package game.idle.autopilot
 
 import game.idle.IdleState
+import game.idle.flow.Clock
 import game.idle.flow.StepWords
 import game.idle.location.Tile
 
@@ -34,10 +35,11 @@ fun interface ScheduledTick {
 /**
  * Starts and stops each player's autopilot from the flow saved in their [IdleState]; at most one runs per player.
  * [newDriver] builds the driver for the saved flow, or gives null when it no longer resolves (a bank removed from
- * the data file). Game thread only.
+ * the data file); a fresh run starts on the [clock]'s time (S12). Game thread only.
  */
 class Autopilot<P : AutopilotPlayer>(
     private val scheduler: TickScheduler,
+    private val clock: Clock,
     private val newDriver: (P) -> AutopilotDriver?,
 ) {
 
@@ -61,15 +63,17 @@ class Autopilot<P : AutopilotPlayer>(
 
     /**
      * Runs the saved flow from its saved step, replacing whatever ran before; false when it does not resolve. A flow
-     * started from its first step takes the player's tile as its run tile, a resumed one keeps its own.
+     * started from its first step takes the player's tile as its run tile and the time as its start, a resumed one
+     * keeps its own; the driver is built from the run as started, so it reads that start.
      */
     fun start(player: P): Boolean {
-        val driver = newDriver(player)
         stop(player)
+        player.idleState = player.idleState.started(player.tile, clock.now())
+        val driver = newDriver(player)
         if (driver == null) {
+            player.idleState = player.idleState.stopped()
             return false
         }
-        player.idleState = player.idleState.started(player.tile)
         running[player.username] = scheduler.everyTick { tick(player, driver) }
         return true
     }

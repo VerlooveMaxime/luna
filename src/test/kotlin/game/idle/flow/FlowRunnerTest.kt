@@ -15,13 +15,18 @@ class FlowRunnerTest {
     private val noAxe = Reason.NeedsTool(ToolNeed("axe", mapOf(1351 to 1), Skill.WOODCUTTING))
     private val stuck = StepStop.Stuck(Reason.NoneLeftInBank(1521))
 
-    private fun runner(vararg names: String, startAt: Int = 0) = FlowRunner(ResolvedFlow(names.map { FakeStep(it) }), startAt, player, words())
+    private val clock = FakeClock()
+
+    private fun runner(vararg names: String, startAt: Int = 0) = runner(ResolvedFlow(names.map { FakeStep(it) }), startAt)
+
+    private fun runner(flow: ResolvedFlow, startAt: Int = 0, stop: FlowStop = FlowStop.Never, progress: RunProgress = RunProgress(), laps: Int = 0) =
+        FlowRunner(flow, startAt, player, words(), clock, stop, progress, laps)
 
     /** A flow of [names] whose first step has a reflex that runs away, then jumps to the step at [to]. */
     private fun jumping(vararg names: String, to: Int): FlowRunner {
         val runAway = ResolvedReflex(1, ReflexTrigger.HitpointsBelow(50), ReflexAction.RunAway(ReflexThen.JumpTo(to)))
         val steps = names.map { FakeStep(it) }
-        return FlowRunner(ResolvedFlow(steps, listOf(listOf(runAway)) + steps.drop(1).map { emptyList() }), 0, player, words())
+        return runner(ResolvedFlow(steps, listOf(listOf(runAway)) + steps.drop(1).map { emptyList() }))
     }
 
     /** The first step's reflex fires on the next act. */
@@ -527,7 +532,7 @@ class FlowRunnerTest {
     @Test
     fun `a reflex that stops the flow stops it`() {
         val stop = ResolvedReflex(2, ReflexTrigger.HitpointsBelow(50), ReflexAction.RunAway(ReflexThen.StopFlow))
-        val runner = FlowRunner(ResolvedFlow(listOf(FakeStep("fight")), listOf(listOf(stop))), 0, player, words())
+        val runner = runner(ResolvedFlow(listOf(FakeStep("fight")), listOf(listOf(stop))))
         hurt()
 
         runner.act()
@@ -553,5 +558,382 @@ class FlowRunnerTest {
     @Test
     fun `a flow resolved with reflexes for some steps only is refused`() {
         assertThrows<IllegalArgumentException> { ResolvedFlow(listOf(FakeStep("chop"), FakeStep("drop")), listOf(emptyList())) }
+    }
+
+    private val strength20 = ResolvedGoal(Goal.Level(Skill.STRENGTH, 20), WhenMet.SKIP)
+    private val count3 = ResolvedGoal(Goal.Count(3), WhenMet.SKIP)
+
+    /** A flow of [names] whose first step has [goal], under [stop], resuming [progress] after [laps] laps. */
+    private fun goaled(vararg names: String, goal: ResolvedGoal?, stop: FlowStop = FlowStop.Never, progress: RunProgress = RunProgress(), laps: Int = 0): FlowRunner {
+        val steps = names.map { FakeStep(it) }
+        return runner(ResolvedFlow(steps, goals = listOf(goal) + steps.drop(1).map { null }), stop = stop, progress = progress, laps = laps)
+    }
+
+    @Test
+    fun `a step whose goal is met before it starts is skipped with a line`() {
+        player.levels[Skill.STRENGTH] = 20
+
+        goaled("fight", "bank", goal = strength20).act()
+
+        assertEquals(listOf("bank:1"), player.log)
+        assertEquals(listOf("Autopilot: step 1 met its goal, Strength 20: skipped for this run."), player.told)
+    }
+
+    @Test
+    fun `a goal met is saved as met`() {
+        player.levels[Skill.STRENGTH] = 20
+
+        goaled("fight", "bank", goal = strength20).act()
+
+        assertEquals(setOf(0), player.savedProgress.last().met)
+    }
+
+    @Test
+    fun `a step met for the run is skipped on every later lap`() {
+        val runner = goaled("fight", "bank", goal = strength20, progress = RunProgress(met = setOf(0)))
+
+        runner.act()
+
+        assertEquals(listOf("bank:1") to emptyList<String>(), player.log to player.told)
+    }
+
+    @Test
+    fun `a goal reached mid-turn makes the flow not busy, so the next decision comes at once`() {
+        val runner = goaled("fight", goal = strength20)
+        runner.act()
+        player.started.single().busy = true
+        player.levels[Skill.STRENGTH] = 20
+
+        assertFalse(runner.isBusy())
+    }
+
+    @Test
+    fun `a goal reached mid-turn ends the turn before the step acts again`() {
+        val runner = goaled("fight", goal = strength20)
+        runner.act()
+        player.levels[Skill.STRENGTH] = 20
+
+        runner.act()
+
+        assertEquals(listOf("fight:1", "fight:end", "fight:2"), player.log)
+    }
+
+    @Test
+    fun `a turn ended for its goal is busy while its unit settles, and ended once`() {
+        val runner = goaled("fight", goal = strength20)
+        runner.act()
+        player.levels[Skill.STRENGTH] = 20
+        runner.act()
+        player.started.single().busy = true
+
+        val busy = runner.isBusy()
+        runner.act()
+
+        assertEquals(true to 1, busy to player.started.single().ended)
+    }
+
+    @Test
+    fun `the time up makes the flow not busy`() {
+        val runner = runner(ResolvedFlow(listOf(FakeStep("chop"))), stop = FlowStop.AfterMinutes(5), progress = RunProgress(startedAt = 1_000))
+        runner.act()
+        player.started.single().busy = true
+        clock.now = 1_000 + 5 * 60_000
+
+        assertFalse(runner.isBusy())
+    }
+
+    @Test
+    fun `a goal that stops the flow at the last step is not overruled by the lap guard`() {
+        player.levels[Skill.STRENGTH] = 20
+        val steps = listOf(FakeStep("chop"), FakeStep("fight"))
+        val runner = runner(ResolvedFlow(steps, goals = listOf(null, ResolvedGoal(Goal.Level(Skill.STRENGTH, 20), WhenMet.STOP))), startAt = 1)
+        runner.act()
+
+        assertEquals("Autopilot: stopped, step 2 met its goal: Strength 20." to 0, runner.stopReason() to player.laps)
+    }
+
+    @Test
+    fun `a goal met as the last step's turn ends is written once with its count`() {
+        val runner = goaled("chop", goal = count3)
+        runner.act()
+        player.started[0].amountDone = 3
+        player.started[0].done = true
+
+        runner.act()
+
+        assertEquals(listOf(RunProgress(totals = mapOf(0 to 3), met = setOf(0))), player.savedProgress)
+    }
+
+    @Test
+    fun `passing met steps saves no step index, a relog passing them again`() {
+        val runner = goaled("fight", "bank", goal = strength20, progress = RunProgress(met = setOf(0)))
+
+        runner.act()
+
+        assertEquals(emptyList<Int>(), player.savedSteps)
+    }
+
+    @Test
+    fun `a goal reached as the step ends is met then`() {
+        val runner = goaled("fight", "bank", goal = strength20)
+        runner.act()
+        player.levels[Skill.STRENGTH] = 20
+        player.started.single().done = true
+
+        runner.act()
+
+        assertEquals(listOf("Autopilot: step 1 met its goal, Strength 20: skipped for this run."), player.told)
+        assertEquals(0, player.started.single().ended)
+    }
+
+    @Test
+    fun `a count goal adds up what every turn counted`() {
+        val runner = goaled("chop", "bank", goal = count3)
+        runner.act()
+        player.started[0].amountDone = 2
+        player.started[0].done = true
+        runner.act()
+        runner.act()
+        player.started[1].done = true
+        runner.act()
+        runner.act()
+        player.started[2].amountDone = 1
+
+        runner.act()
+
+        assertEquals(1, player.started[2].ended)
+    }
+
+    @Test
+    fun `what a turn counted is saved for the run`() {
+        val runner = goaled("chop", "bank", goal = count3)
+        runner.act()
+        player.started[0].amountDone = 2
+        player.started[0].done = true
+
+        runner.act()
+
+        assertEquals(listOf(RunProgress(totals = mapOf(0 to 2))), player.savedProgress)
+    }
+
+    @Test
+    fun `a turn that counted nothing saves nothing`() {
+        val runner = runner("chop", "bank")
+        runner.act()
+        player.started[0].done = true
+
+        runner.act()
+
+        assertEquals(emptyList<RunProgress>(), player.savedProgress)
+    }
+
+    @Test
+    fun `a bank goal reads what the bank holds`() {
+        player.bank[1521] = 60
+        player.bank[1522] = 40
+        val bank = ResolvedGoal(Goal.Bank(1521, setOf(1521, 1522), 100), WhenMet.SKIP)
+
+        goaled("chop", "bank", goal = bank).act()
+
+        assertEquals(listOf("bank:1"), player.log)
+    }
+
+    @Test
+    fun `a bank goal short of its amount lets the step run`() {
+        player.bank[1521] = 99
+        val bank = ResolvedGoal(Goal.Bank(1521, setOf(1521), 100), WhenMet.SKIP)
+
+        goaled("chop", "bank", goal = bank).act()
+
+        assertEquals(listOf("chop:1"), player.log)
+    }
+
+    @Test
+    fun `a lap in which a step worked before every step was met is counted, and the next stops the flow`() {
+        player.levels[Skill.STRENGTH] = 20
+        val steps = listOf(FakeStep("chop"), FakeStep("fight"))
+        val runner = runner(ResolvedFlow(steps, goals = listOf(count3, strength20)))
+        runner.act()
+        player.started[0].amountDone = 3
+        player.started[0].done = true
+        runner.act()
+        runner.act()
+
+        val afterLap = runner.stopReason() to player.laps
+        runner.act()
+
+        assertEquals(listOf(null to 1, StepWords.IDLE_LAP), listOf(afterLap, runner.stopReason()))
+    }
+
+    @Test
+    fun `a time goal counts the minutes since the run started`() {
+        val runner = goaled("chop", goal = ResolvedGoal(Goal.Time(30), WhenMet.SKIP), progress = RunProgress(startedAt = 60_000))
+        runner.act()
+        clock.now = 60_000 + 29 * 60_000
+        runner.act()
+        clock.now = 60_000 + 30 * 60_000
+
+        runner.act()
+
+        assertEquals(1, player.started.single().ended)
+    }
+
+    @Test
+    fun `a goal that stops the flow stops it in its words`() {
+        player.levels[Skill.STRENGTH] = 20
+
+        val runner = goaled("fight", "bank", goal = ResolvedGoal(Goal.Level(Skill.STRENGTH, 20), WhenMet.STOP))
+        runner.act()
+
+        assertEquals("Autopilot: stopped, step 1 met its goal: Strength 20.", runner.stopReason())
+        assertEquals(emptyList<String>() to emptyList<String>(), player.log to player.told)
+    }
+
+    @Test
+    fun `a goal's stop waits while the player is attacked`() {
+        player.levels[Skill.STRENGTH] = 20
+        body.attacked = true
+
+        val runner = goaled("fight", goal = ResolvedGoal(Goal.Level(Skill.STRENGTH, 20), WhenMet.STOP))
+        runner.act()
+
+        assertEquals(null, runner.stopReason())
+        assertEquals(listOf("flee"), body.done)
+    }
+
+    @Test
+    fun `once every goal is met the flow stops when asked to`() {
+        player.levels[Skill.STRENGTH] = 20
+
+        val runner = goaled("fight", "bank", goal = strength20, stop = FlowStop.AllGoalsMet)
+        runner.act()
+
+        assertEquals(StepWords.ALL_GOALS_MET, runner.stopReason())
+    }
+
+    @Test
+    fun `a goal still to meet keeps the flow going`() {
+        player.levels[Skill.STRENGTH] = 20
+        val steps = listOf(FakeStep("fight"), FakeStep("chop"))
+
+        val runner = runner(ResolvedFlow(steps, goals = listOf(strength20, count3)), stop = FlowStop.AllGoalsMet)
+        runner.act()
+
+        assertEquals(null, runner.stopReason())
+        assertEquals(listOf("chop:1"), player.log)
+    }
+
+    @Test
+    fun `without that stop every goal met leaves the flow going`() {
+        player.levels[Skill.STRENGTH] = 20
+
+        val runner = goaled("fight", "bank", goal = strength20)
+        runner.act()
+
+        assertEquals(null, runner.stopReason())
+    }
+
+    @Test
+    fun `a flow with every step met stops as an idle lap`() {
+        val runner = goaled("fight", "bank", goal = strength20, progress = RunProgress(met = setOf(0, 1)))
+
+        runner.act()
+
+        assertEquals(StepWords.IDLE_LAP, runner.stopReason())
+        assertEquals(emptyList<String>(), player.log)
+    }
+
+    @Test
+    fun `after the laps asked for the flow stops`() {
+        val runner = runner(ResolvedFlow(listOf(FakeStep("chop"))), stop = FlowStop.AfterLaps(1))
+        runner.act()
+        player.started[0].done = true
+
+        runner.act()
+
+        assertEquals("Autopilot: stopped after 1 lap." to 1, runner.stopReason() to player.laps)
+    }
+
+    @Test
+    fun `the laps already run count toward the stop`() {
+        val runner = runner(ResolvedFlow(listOf(FakeStep("chop"))), stop = FlowStop.AfterLaps(3), laps = 2)
+        runner.act()
+        player.started[0].done = true
+
+        runner.act()
+
+        assertEquals("Autopilot: stopped after 3 laps.", runner.stopReason())
+    }
+
+    @Test
+    fun `before the laps asked for the flow goes on`() {
+        val runner = runner(ResolvedFlow(listOf(FakeStep("chop"))), stop = FlowStop.AfterLaps(2))
+        runner.act()
+        player.started[0].done = true
+
+        runner.act()
+
+        assertEquals(null, runner.stopReason())
+    }
+
+    @Test
+    fun `after the minutes asked for the flow stops without acting`() {
+        val runner = runner(ResolvedFlow(listOf(FakeStep("chop"))), stop = FlowStop.AfterMinutes(5), progress = RunProgress(startedAt = 1_000))
+        clock.now = 1_000 + 5 * 60_000
+
+        runner.act()
+
+        assertEquals("Autopilot: stopped after 5 minutes.", runner.stopReason())
+        assertEquals(emptyList<String>(), player.log)
+    }
+
+    @Test
+    fun `before the minutes asked for the flow goes on`() {
+        val runner = runner(ResolvedFlow(listOf(FakeStep("chop"))), stop = FlowStop.AfterMinutes(5), progress = RunProgress(startedAt = 1_000))
+        clock.now = 1_000 + 5 * 60_000 - 1
+
+        runner.act()
+
+        assertEquals(listOf("chop:1"), player.log)
+    }
+
+    private val light = FakeStep("light", needs = listOf(StepNeeds(inputs = listOf(1521))))
+    private val bank = FakeBankStep(withdraws = setOf(1521, 1511))
+
+    @Test
+    fun `a bank step leaves out the withdrawals that feed only skipped steps`() {
+        val runner = runner(ResolvedFlow(listOf(light, bank)), startAt = 1, progress = RunProgress(met = setOf(0)))
+
+        runner.act()
+
+        assertEquals(listOf(setOf(1521)), player.leftOut)
+    }
+
+    @Test
+    fun `a bank step with no step skipped withdraws everything`() {
+        val runner = runner(ResolvedFlow(listOf(light, bank)), startAt = 1)
+
+        runner.act()
+
+        assertEquals(listOf(emptySet<Int>()), player.leftOut)
+    }
+
+    @Test
+    fun `a jump folds what the step counted into the run`() {
+        val runner = jumping("fight", "bank", to = 1)
+        runner.act()
+        player.started[0].amountDone = 2
+        hurt()
+        runner.act()
+        healed()
+
+        runner.act()
+
+        assertEquals(mapOf(0 to 2), player.savedProgress.last().totals)
+    }
+
+    @Test
+    fun `a flow resolved with goals for some steps only is refused`() {
+        assertThrows<IllegalArgumentException> { ResolvedFlow(listOf(FakeStep("chop"), FakeStep("bank")), goals = listOf(null)) }
     }
 }

@@ -1,6 +1,8 @@
 package game.idle.ui
 
+import game.idle.flow.StopSettings
 import game.idle.IdleState
+import game.idle.flow.FakeClock
 import game.idle.SavedFlow
 import game.idle.autopilot.Autopilot
 import game.idle.autopilot.AutopilotDriver
@@ -38,7 +40,7 @@ class BuilderWindowTest {
         reflexSlots = 2,
     )
     private val idleUi = IdleUi(status(), idleTab(), window)
-    private val autopilot = Autopilot<LunaAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
+    private val autopilot = Autopilot<LunaAutopilotPlayer>(FakeTickScheduler(), FakeClock()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
     private val ui = LunaBuilderUi(BuilderScreen(autopilot, resolver, REFLEXES, REFLEX_FORM, FakeNames(), slots = 4, reflexSlots = 2, SavedFlows(2)), window, idleUi, font)
 
     private val oak = step("chop", "oak")
@@ -513,5 +515,26 @@ class BuilderWindowTest {
         ui.tab(player, FlowWidgets.rowLoad(1))
 
         assertEquals(StepDraft(0, oak, new = false), window.draft(player))
+    }
+
+    @Test
+    fun `a stop that takes a number opens the amount prompt and shows the stop chosen`() {
+        val player = opened(oak)
+
+        ui.click(player, BuilderWidgets.stopChoice(1))
+
+        assertTrue("NumberInputMessageWriter" in types(player))
+        assertEquals("@whi@After laps", texts(player)[BuilderWidgets.stopChoice(1)])
+    }
+
+    @Test
+    fun `a number typed for the stop is kept and shown`() {
+        val player = opened(oak)
+        ui.click(player, BuilderWidgets.stopChoice(1))
+
+        checkNotNull(player.overlays.getOverlay(AmountInput::class.java)).input(player, 5)
+
+        assertEquals(StopSettings("laps", "5"), player.idleState.stop)
+        assertEquals("5 laps", texts(player)[BuilderWidgets.STOPS_AFTER_TEXT])
     }
 }

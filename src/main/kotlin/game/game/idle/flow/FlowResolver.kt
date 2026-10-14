@@ -7,7 +7,12 @@ package game.idle.flow
 class FlowResolver(val types: StepTypes) {
 
     /** Throws [FlowError] naming the first step that is wrong. */
-    fun resolve(steps: List<StepSettings>): List<ResolvedStep> =
+    fun resolve(steps: List<StepSettings>): List<ResolvedStep> = numbered(steps).map { it.step }
+
+    /** Each step's Until goal, null for none (S12); throws [FlowError] naming the first step that is wrong. */
+    fun goals(steps: List<StepSettings>): List<ResolvedGoal?> = numbered(steps).map { it.goal }
+
+    private fun numbered(steps: List<StepSettings>): List<Resolved> =
         outcomes(steps).mapIndexed { index, outcome ->
             outcome.getOrElse { e -> throw FlowError("Step ${index + 1}: ${e.message}") }
         }
@@ -19,7 +24,7 @@ class FlowResolver(val types: StepTypes) {
     fun problems(steps: List<StepSettings>): List<String?> = outcomes(steps).map { it.exceptionOrNull()?.message }
 
     /** Each step resolved, null for one that cannot work, as [problems] checks them. */
-    fun resolvedEach(steps: List<StepSettings>): List<ResolvedStep?> = outcomes(steps).map { it.getOrNull() }
+    fun resolvedEach(steps: List<StepSettings>): List<ResolvedStep?> = outcomes(steps).map { it.getOrNull()?.step }
 
     /** What the steps before the one at [index] set up, for its options; a step that does not resolve adds nothing. */
     fun contextBefore(steps: List<StepSettings>, index: Int): FlowContext =
@@ -27,15 +32,18 @@ class FlowResolver(val types: StepTypes) {
             resolvedOrNull(settings, context)?.let { after(it, context, number = before + 1) } ?: context
         }
 
+    /** A step checked against the data, with its goal (S12). */
+    private data class Resolved(val step: ResolvedStep, val goal: ResolvedGoal?)
+
     /** Each step's outcome against what the steps before it set up; a [FlowError] is the only failure kept. */
-    private fun outcomes(steps: List<StepSettings>): List<Result<ResolvedStep>> {
+    private fun outcomes(steps: List<StepSettings>): List<Result<Resolved>> {
         var context = FlowContext(lap = lap(steps))
         return steps.mapIndexed { index, settings ->
             try {
                 val type = types.find(settings.kind) ?: throw FlowError(Reasons.notA("kind of step", settings.kind))
                 val step = type.resolve(settings, context)
                 context = after(step, context, number = index + 1)
-                Result.success(step)
+                Result.success(Resolved(step, types.goal(settings)))
             } catch (e: FlowError) {
                 Result.failure(e)
             }

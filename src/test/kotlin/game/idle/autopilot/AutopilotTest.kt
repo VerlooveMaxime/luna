@@ -1,6 +1,8 @@
 package game.idle.autopilot
 
+import game.idle.flow.RunProgress
 import game.idle.IdleState
+import game.idle.flow.FakeClock
 import game.idle.flow.StepSettings
 import game.idle.flow.StepWords
 import game.idle.location.Tile
@@ -12,8 +14,9 @@ import org.junit.jupiter.api.Test
 class AutopilotTest {
 
     private val scheduler = FakeTickScheduler()
+    private val clock = FakeClock(now = 1_000)
     private val activity = FakeActivity()
-    private val autopilot = Autopilot<FakeAutopilotPlayer>(scheduler) { player ->
+    private val autopilot = Autopilot<FakeAutopilotPlayer>(scheduler, clock) { player ->
         if (BROKEN in player.idleState.steps) null else AutopilotDriver(activity, decisionDelayTicks = 1)
     }
 
@@ -376,5 +379,38 @@ class AutopilotTest {
     private companion object {
         val LOOP = StepSettings("loop")
         val BROKEN = StepSettings("broken")
+    }
+
+    @Test
+    fun `the driver is built from the run as started, so it reads the start time`() {
+        var seen = -1L
+        val autopilot = Autopilot<FakeAutopilotPlayer>(scheduler, clock) { player -> seen = player.idleState.progress.startedAt; AutopilotDriver(activity, decisionDelayTicks = 1) }
+
+        autopilot.start(idle)
+
+        assertEquals(1_000L, seen)
+    }
+
+    @Test
+    fun `a flow that does not resolve is left stopped`() {
+        autopilot.start(broken)
+
+        assertEquals(false to false, broken.idleState.running to autopilot.isRunning(broken))
+    }
+
+    @Test
+    fun `a fresh run starts on the clock's time`() {
+        autopilot.start(idle)
+
+        assertEquals(1_000L, idle.idleState.progress.startedAt)
+    }
+
+    @Test
+    fun `a resumed run keeps the time it started at`() {
+        val resuming = FakeAutopilotPlayer("maxime", IdleState(steps = listOf(LOOP), running = true, runTile = Tile(3200, 3200), progress = RunProgress(startedAt = 5)))
+
+        autopilot.start(resuming)
+
+        assertEquals(5L, resuming.idleState.progress.startedAt)
     }
 }

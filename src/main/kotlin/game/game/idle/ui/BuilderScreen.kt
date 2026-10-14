@@ -5,11 +5,14 @@ import game.idle.autopilot.AutopilotPlayer
 import game.idle.flow.FlowError
 import game.idle.flow.FlowIds
 import game.idle.flow.FlowResolver
+import game.idle.flow.FlowStop
+import game.idle.flow.FlowStops
 import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ReflexSettings
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepWords
+import game.idle.flow.StopSettings
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
 import game.idle.flow.StepItems
@@ -59,6 +62,9 @@ sealed interface BuilderAnswer {
     /** Shows [draft], the field it types framed, and opens the client's "Enter amount" prompt. */
     data class Amount(val draft: StepDraft) : BuilderAnswer
 
+    /** Shows the overview and opens the client's "Enter amount" prompt for the Flow stops row's number (S12). */
+    data object StopAmount : BuilderAnswer
+
     /** Shows [draft] and opens the world map for a tile, centred on [centre]. */
     data class PickTile(val draft: StepDraft, val centre: Tile) : BuilderAnswer
 
@@ -103,10 +109,12 @@ class BuilderScreen<P : AutopilotPlayer>(
             BuilderWidgets.SAVE_FLOW -> saveFromBuilder(player)
             BuilderWidgets.BASE_LEVELS -> levels(player, boosted = false)
             BuilderWidgets.BOOSTED_LEVELS -> levels(player, boosted = true)
+            BuilderWidgets.STOPS_AFTER_FACE -> stopAmount(player)
             BuilderWidgets.KINDS_BACK, BuilderWidgets.STEPS_TAB -> BuilderAnswer.Show(BuilderPage.OVERVIEW)
             BuilderWidgets.REFLEXES_TAB -> BuilderAnswer.Show(BuilderPage.REFLEXES)
             BuilderWidgets.ATTACH_ALL_REFLEXES -> attachAllReflexes(player)
             else -> BuilderWidgets.slotOf(widgetId)?.let { slot(player, it) }
+                ?: BuilderWidgets.stopOf(widgetId)?.let { stops(player, it) }
                 ?: BuilderWidgets.kindOf(widgetId)?.let { kind(player, it) }
                 ?: BuilderWidgets.reflexRowOf(widgetId)?.let { reflexRow(player, it) }
                 ?: draft?.let { configure(player, widgetId, it) }
@@ -276,6 +284,7 @@ class BuilderScreen<P : AutopilotPlayer>(
         player.tell("${StepWords.PREFIX}stopped.")
     }
 
+    /** Run checks every step, reflex and the stop first; a stop on every goal met needs a step with a goal (S12). */
     private fun run(player: P): BuilderAnswer {
         val steps = player.idleState.steps
         if (steps.isEmpty()) return say(EMPTY_FLOW)
@@ -283,9 +292,42 @@ class BuilderScreen<P : AutopilotPlayer>(
         if (cannot >= 0) return BuilderAnswer.Show(message = StepWords.cannotWork(cannot + 1))
         val reflex = reflexes.problems(steps, player.idleState.reflexes).indexOfFirst { it != null }
         if (reflex >= 0) return BuilderAnswer.Show(message = StepWords.reflexCannotWork(reflex + 1))
+        val stop = try {
+            FlowStops.read(player.idleState.stop)
+        } catch (e: FlowError) {
+            return BuilderAnswer.Show(message = told(e.message))
+        }
+        if (stop == FlowStop.AllGoalsMet && resolver.goals(steps).all { it == null }) return BuilderAnswer.Show(message = StepWords.NO_GOALS)
         player.idleState = player.idleState.fromStart()
         autopilot.start(player)
         return say("running from step 1.")
+    }
+
+    /**
+     * A choice of the Flow stops row (S12): kept, the number typed before staying; After laps and After time with no
+     * number yet open the prompt for it, as the mockup does.
+     */
+    private fun stops(player: P, choice: Int): BuilderAnswer {
+        if (autopilot.isRunning(player)) return BuilderAnswer.Show(message = STOP_FIRST)
+        val state = player.idleState
+        val kind = FlowStops.CHOICES[choice].value
+        player.idleState = state.copy(stop = state.stop.copy(kind = kind))
+        return if (FlowStops.typed(kind) && state.stop.after.isEmpty()) BuilderAnswer.StopAmount else BuilderAnswer.Show()
+    }
+
+    private fun stopAmount(player: P): BuilderAnswer {
+        if (autopilot.isRunning(player)) return BuilderAnswer.Show(message = STOP_FIRST)
+        return if (FlowStops.typed(player.idleState.stop.kind)) BuilderAnswer.StopAmount else BuilderAnswer.Show()
+    }
+
+    /** [value] entered on the prompt the Flow stops row opened: laps or minutes, 1 or more. */
+    fun typedStop(player: P, value: Int): BuilderAnswer {
+        if (autopilot.isRunning(player)) return BuilderAnswer.Show(message = STOP_FIRST)
+        val state = player.idleState
+        if (!FlowStops.typed(state.stop.kind)) return BuilderAnswer.Ignored
+        if (value < 1) return BuilderAnswer.Show(message = told(if (state.stop.kind == FlowStops.LAPS) FlowStops.LAPS_RULE else FlowStops.MINUTES_RULE))
+        player.idleState = state.copy(stop = state.stop.copy(after = value.toString()))
+        return BuilderAnswer.Show()
     }
 
     private fun stop(player: P): BuilderAnswer {
@@ -293,11 +335,11 @@ class BuilderScreen<P : AutopilotPlayer>(
         return say("stopped.")
     }
 
-    /** A cleared flow is a new one: no step and no reflex. */
+    /** A cleared flow is a new one: no step, no reflex, no stop. */
     private fun clear(player: P): BuilderAnswer {
         if (autopilot.isRunning(player)) return BuilderAnswer.Show(message = STOP_FIRST)
         if (player.idleState.steps.isEmpty() && player.idleState.reflexes.isEmpty()) return BuilderAnswer.Show()
-        player.idleState = player.idleState.withFlow(emptyList(), emptyList())
+        player.idleState = player.idleState.withFlow(emptyList(), emptyList(), StopSettings())
         return say("flow cleared.")
     }
 
@@ -528,7 +570,7 @@ class BuilderScreen<P : AutopilotPlayer>(
 
     /** The fields the configure screen shows for [draft]'s settings, as [BuilderConfigure] lays them out. */
     private fun fields(player: P, draft: StepDraft): List<StepField> {
-        val all = if (draft.subject == DraftSubject.REFLEX) form.fields(player.idleState.steps) else resolver.types.find(draft.settings.kind)?.fields(names).orEmpty()
+        val all = if (draft.subject == DraftSubject.REFLEX) form.fields(player.idleState.steps) else resolver.types.find(draft.settings.kind)?.let { resolver.types.fields(it, names) }.orEmpty()
         return ConfigureRows.shown(all, draft.settings)
     }
 

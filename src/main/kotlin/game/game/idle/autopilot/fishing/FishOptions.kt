@@ -1,5 +1,6 @@
 package game.idle.autopilot.fishing
 
+import game.idle.flow.capitalised
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.GatherOptions
 import game.idle.flow.option.OptionContext
@@ -8,32 +9,23 @@ import game.idle.flow.option.StepOption
 import io.luna.game.model.mob.Skill
 
 /**
- * The fishing methods a fish step can use, one row each named by the fish it catches and its tool ("Trout, salmon (fly
- * fishing rod)"), greyed below the tool's level; the note adds the levels of the fish that come later ("Fishing 20
- * (salmon 30)"). Only raw fish are named: a big net's caskets and seaweed are not what the row is picked for.
+ * The fish a fish step can be for, one row each named by the fish and the tool that catches it ("Anchovies (small
+ * fishing net)"), greyed below the fish's level (Maxime, 2026-10-15: the step counts its fish, not its method). Only
+ * raw fish are rows: a big net's caskets and seaweed are by-catch.
  */
 class FishOptions(private val names: GameNames) : OptionSource {
 
-    override fun options(context: OptionContext): List<StepOption> = FishingMethod.ALL.map { option(context, it) }
+    override fun options(context: OptionContext): List<StepOption> = FishingCatch.ALL.map { option(context, it) }
 
-    private fun option(context: OptionContext, method: FishingMethod): StepOption {
-        val fish = method.tool.fish.filter { names.item(it.id).startsWith(RAW) }
-        val caught = fish.joinToString(", ") { fishName(it.id) }.let { it.take(1).uppercase() + it.drop(1) }
-        val row = GatherOptions.option(
+    private fun option(context: OptionContext, catch: FishingCatch): StepOption =
+        GatherOptions.option(
             context,
-            value = method.word,
-            label = "$caught (${names.item(method.tool.id).lowercase()})",
-            item = fish.first().id,
+            value = catch.word,
+            label = "${fishName(catch.fish.id)} (${names.item(catch.method.tool.id).lowercase()})",
+            item = catch.fish.id,
             skill = Skill.FISHING,
-            level = method.tool.level,
+            level = catch.fish.level,
         )
-        val later = fish.filter { it.level > method.tool.level }.joinToString(", ") { "${fishName(it.id)} ${it.level}" }
-        return if (later.isEmpty()) row else row.copy(note = "${row.note} ($later)")
-    }
 
-    private fun fishName(id: Int): String = names.item(id).removePrefix(RAW).lowercase()
-
-    private companion object {
-        const val RAW = "Raw "
-    }
+    private fun fishName(id: Int): String = capitalised(names.item(id).removePrefix(FishingMethod.RAW))
 }

@@ -52,4 +52,17 @@ class IdleStepsTest {
     fun `the steps load over the data files`() {
         assertEquals(types.map { it.kind }, IdleSteps.load().types.all.map { it.kind })
     }
+
+    @Test
+    fun `every counted kind takes an Until goal`() {
+        assertEquals(
+            listOf("chop", "mine", "fish", "light", "cook", "make", "smelt", "smith", "fight", "pick up"),
+            types.filter { it.goal }.map { it.label },
+        )
+    }
+
+    @Test
+    fun `resting, walking, dropping and banking take none`() {
+        assertEquals(listOf("rest", "walk", "drop", "bank"), types.filterNot { it.goal }.map { it.label })
+    }
 }

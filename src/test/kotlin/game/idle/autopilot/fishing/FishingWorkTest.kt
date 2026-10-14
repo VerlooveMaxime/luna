@@ -99,4 +99,26 @@ class FishingWorkTest {
 
         assertEquals(FishingDecision.Settled(StepOutcome.Blocked(Reason.NoneInReach(Target.FISHING_SPOT))), decision)
     }
+
+    @Test
+    fun `a cast that pulled up by-catch alone made progress, so the spot is fished again`() {
+        fisher.view = view(listOf(inReach))
+        work.act(null)
+        fisher.pulledUp = 1
+
+        val outcome = work.act(null)
+
+        assertEquals(StepOutcome.Worked to listOf("fish 3100,3092", "fish 3100,3092"), outcome to fisher.steps)
+    }
+
+    @Test
+    fun `a spot fished twice with nothing pulled up is set aside, its fish counted or not`() {
+        fisher.view = view(listOf(inReach))
+        work.act(null)
+        fisher.catches = 1
+
+        val outcome = work.act(null)
+
+        assertEquals(StepOutcome.Blocked(Reason.NoneInReach(Target.FISHING_SPOT)), outcome)
+    }
 }
