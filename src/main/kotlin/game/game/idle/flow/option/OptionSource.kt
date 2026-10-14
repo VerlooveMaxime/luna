@@ -40,7 +40,9 @@ data class OptionContext(
 /**
  * The player's levels options grey on, by skill id, what the bank holds, by item id, and what the player carries: the
  * ids in the [bag] and those [worn], which the configure screen's tool warnings read (S07b). [here] is the player's tile,
- * which stands for the work spot when no walk step comes before (the flow then works where Run is pressed).
+ * which stands for the work spot when no walk step comes before (the flow then works where Run is pressed). [combat] is
+ * the player's combat level, which the danger warnings judge aggressive npcs against (S08); [NEW_COMBAT] is a new
+ * character's.
  */
 data class OptionFacts(
     val levels: Map<Int, Int> = emptyMap(),
@@ -48,6 +50,7 @@ data class OptionFacts(
     val bag: Set<Int> = emptySet(),
     val worn: Set<Int> = emptySet(),
     val here: Tile? = null,
+    val combat: Int = NEW_COMBAT,
 ) {
 
     fun level(skill: Int): Int = levels[skill] ?: 1
@@ -60,6 +63,10 @@ data class OptionFacts(
 
     /** What the bank holds of [item], as a row's note says it. */
     fun bankNote(item: Int): String = banked(item).let { if (it == 0) "none in bank" else "$it in bank" }
+
+    companion object {
+        const val NEW_COMBAT = 3
+    }
 }
 
 /** The names the cache gives items, npcs and objects, as the client shows them. */

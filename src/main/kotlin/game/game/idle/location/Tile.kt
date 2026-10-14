@@ -22,6 +22,12 @@ data class Area(val anchor: Tile, val radius: Int) {
     operator fun contains(tile: Tile): Boolean =
         tile.z == anchor.z && abs(tile.x - anchor.x) <= radius && abs(tile.y - anchor.y) <= radius
 
+    /** Whether any tile lies in both this area and [other]. */
+    fun overlaps(other: Area): Boolean {
+        val reach = radius + other.radius
+        return other.anchor.z == anchor.z && abs(other.anchor.x - anchor.x) <= reach && abs(other.anchor.y - anchor.y) <= reach
+    }
+
     companion object {
         const val MAX_RADIUS = 32
     }

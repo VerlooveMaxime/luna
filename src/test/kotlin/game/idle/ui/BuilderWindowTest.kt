@@ -32,8 +32,8 @@ class BuilderWindowTest {
     private val resolver = FlowResolver(CONFIGURED_TYPES)
     private val font = ClientFont(IntArray(256) { 5 })
     private val window = BuilderWindow(
-        BuilderOverview(resolver, REFLEXES, REFLEX_FORM, FakeNames(), font, SavedFlows(2)),
-        BuilderConfigure(resolver, REFLEXES, REFLEX_FORM, FakeNames(), font),
+        BuilderOverview(resolver, REFLEXES, REFLEX_FORM, FakeNames(), font, SavedFlows(2), CONFIGURED_DANGERS),
+        BuilderConfigure(resolver, REFLEXES, REFLEX_FORM, FakeNames(), font, CONFIGURED_DANGERS),
         slots = 4,
         reflexSlots = 2,
     )

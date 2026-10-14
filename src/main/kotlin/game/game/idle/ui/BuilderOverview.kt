@@ -7,10 +7,12 @@ import game.idle.flow.ReflexResolver
 import game.idle.flow.ReflexSettings
 import game.idle.flow.SavedFlows
 import game.idle.flow.SlotWords
+import game.idle.flow.StepDangers
 import game.idle.flow.StepLines
 import game.idle.flow.StepSettings
 import game.idle.flow.capitalised
 import game.idle.flow.option.GameNames
+import game.idle.flow.option.OptionFacts
 import game.idle.flow.option.OptionIcon
 import game.idle.font.ClientFont
 
@@ -70,8 +72,10 @@ sealed interface ReflexRowView {
  * kind and details, framed green while it runs and red with its reason when it cannot work (Maxime, 2026-10-09: what
  * the resolver refuses, or the running step's block); then the status line, the levels toggle and the buttons. Texts
  * are fitted to the client's small font, [font]; a reason takes the last lines, up to three, the details giving way to
- * it. The Reflexes tab (S07c) shows a row per reflex slot, each reflex as [form] words it, red when [reflexes] refuses
- * it; the Steps tab's "Attach all reflexes" (S07c2b) is greyed unless a stopped flow holds steps and reflexes.
+ * it, and what never stops the step follows it in yellow on those lines: the running step's wait, then the aggressive
+ * npcs within reach of where the step works ([dangers], S08). The Reflexes tab (S07c) shows a row per reflex slot, each
+ * reflex as [form] words it, red when [reflexes] refuses it; the Steps tab's "Attach all reflexes" (S07c2b) is greyed
+ * unless a stopped flow holds steps and reflexes.
  */
 class BuilderOverview(
     private val resolver: FlowResolver,
@@ -80,16 +84,18 @@ class BuilderOverview(
     private val names: GameNames,
     private val font: ClientFont,
     private val savedFlows: SavedFlows,
+    private val dangers: StepDangers,
 ) {
 
     private val types = resolver.types
     private val lines = StepLines(resolver, names)
 
-    fun slots(state: IdleState, slots: Int): List<SlotView> {
+    /** The slots as the player [facts] describe sees them (the dangers depend on their combat level and tile). */
+    fun slots(state: IdleState, slots: Int, facts: OptionFacts): List<SlotView> {
         val problems = resolver.problems(state.steps)
         return (0 until slots).map { slot ->
             when {
-                slot < state.steps.size -> step(state, slot, lines.of(state.steps, slot), problems[slot])
+                slot < state.steps.size -> step(state, slot, lines.of(state.steps, slot), problems[slot], facts)
                 slot == state.steps.size -> SlotView.Add
                 else -> SlotView.Free
             }
@@ -122,8 +128,8 @@ class BuilderOverview(
     }
 
     /** Every widget of the overview: slots, reflex rows, status, levels toggle and buttons. */
-    fun updates(state: IdleState, slots: Int, reflexSlots: Int): List<WidgetUpdate> =
-        slots(state, slots).withIndex().flatMap { (slot, view) -> slotUpdates(slot, view) } +
+    fun updates(state: IdleState, slots: Int, reflexSlots: Int, facts: OptionFacts): List<WidgetUpdate> =
+        slots(state, slots, facts).withIndex().flatMap { (slot, view) -> slotUpdates(slot, view) } +
             reflexRows(state, reflexSlots).withIndex().flatMap { (row, view) -> reflexRowUpdates(row, view) } + controls(state, slots)
 
     /** The kind picker: its title and a button per kind of step, the buttons left over hidden. */
@@ -175,22 +181,27 @@ class BuilderOverview(
         )
     }
 
-    /** The slot's lines are the step's words, the target in grey while nothing is picked, then the reason and the wait. */
-    private fun step(state: IdleState, slot: Int, words: SlotWords, problem: String?): SlotView.Step {
+    /**
+     * The slot's lines are the step's words, the target in grey while nothing is picked, then the held lines: the reason,
+     * the wait and the dangers, as many as the lines a reason may take; a danger shows whole or not at all.
+     */
+    private fun step(state: IdleState, slot: Int, words: SlotWords, problem: String?, facts: OptionFacts): SlotView.Step {
         val icon = words.icon?.let { WidgetPicture.of(it) } ?: WidgetPicture.None
         val running = state.running && state.stepIndex == slot
         val reason = state.blocked?.takeIf { running } ?: problem
         val waiting = state.waiting?.takeIf { running }
         val targetLine = words.picked?.let { it.label?.let(::fitted) ?: NOT_SET }
         val details = listOfNotNull(targetLine) + words.details.map(::fitted)
-        val reasonLines = reason?.let { heldLines(it, "@red@") }.orEmpty() + waiting?.let { heldLines(it, "@yel@") }.orEmpty()
+        val held = (reason?.let { heldLines(it, "@red@") }.orEmpty() + waiting?.let { heldLines(it, "@yel@") }.orEmpty()).take(REASON_LINES)
+        val threats = dangers.of(state.steps, slot, facts).map { heldLines(it.short, "@yel@") }
+        val shown = threats.fold(held) { lines, threat -> if (lines.size + threat.size <= REASON_LINES) lines + threat else lines }
         val pictures = StepPictures.of(icon, words.picked?.icon)
         return SlotView.Step(
             number = slot + 1,
             picture = pictures.picture,
             corner = pictures.corner,
             kind = words.kind,
-            lines = details.take(BuilderWidgets.SLOT_LINES - reasonLines.size) + reasonLines,
+            lines = details.take(BuilderWidgets.SLOT_LINES - shown.size) + shown,
             frame = when {
                 reason != null -> BuilderWidgets.PROBLEM
                 running -> BuilderWidgets.RUNNING
@@ -240,7 +251,7 @@ class BuilderOverview(
 
     private fun fitted(line: String): String = font.fit(line, BuilderWidgets.LINE_ROOM)
 
-    /** A block or a wait under the step's lines, in [colour], on the lines a reason may take. */
+    /** A block, a wait or a danger under the step's lines, in [colour], on the lines a reason may take. */
     private fun heldLines(text: String, colour: String): List<String> =
         font.wrap("! $text", BuilderWidgets.LINE_ROOM, REASON_LINES).map { line -> "$colour$line" }
 

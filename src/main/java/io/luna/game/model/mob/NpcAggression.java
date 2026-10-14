@@ -139,12 +139,7 @@ public class NpcAggression {
      * @param policy The aggression policy currently governing this NPC.
      */
     private void scanPlayers(World world, NpcAggressionPolicy policy) {
-        int radius = DEFAULT_AGGRESSION_RADIUS;
-        if (attacker.isBoss()) {
-            radius = 0; // 0 = Attack as soon as you're in viewing distance.
-        } else if (policy == NpcAggressionPolicy.ALWAYS) {
-            radius *= 2; // NPCs that are always aggressive have increased range.
-        }
+        int radius = aggressionRadius(policy, attacker.isBoss());
         for (Player victim : world.getLocator().findViewablePlayers(attacker)) {
             // Bots are ignored for the first 48h of playtime.
             boolean ignored = victim.isBot() && victim.getTimePlayed().toDays() < 2;
@@ -160,6 +155,22 @@ public class NpcAggression {
                 return;
             }
         }
+    }
+
+    /**
+     * Determines the radius, in tiles, within which an NPC scans for players to aggress.
+     *
+     * @param policy The aggression policy governing the NPC.
+     * @param boss Whether the NPC is a boss.
+     * @return The scan radius, or {@code 0} for a boss, which attacks as soon as a player is in viewing distance.
+     */
+    public static int aggressionRadius(NpcAggressionPolicy policy, boolean boss) {
+        if (boss) {
+            return 0;
+        } else if (policy == NpcAggressionPolicy.ALWAYS) {
+            return DEFAULT_AGGRESSION_RADIUS * 2; // NPCs that are always aggressive have increased range.
+        }
+        return DEFAULT_AGGRESSION_RADIUS;
     }
 
     /**

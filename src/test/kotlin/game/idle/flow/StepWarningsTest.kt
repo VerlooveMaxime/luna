@@ -1,5 +1,8 @@
 package game.idle.flow
 
+import game.idle.danger.Aggression
+import game.idle.danger.AggressiveSpawn
+import game.idle.danger.DangerCatalog
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
@@ -86,9 +89,13 @@ class StepWarningsTest {
         override fun warnings(settings: StepSettings, before: FlowContext, facts: OptionFacts): List<String> =
             listOf("${before.gatheredBy.size} items before")
     }
-    private val warnings = StepWarnings(resolver, FakeNames(
+    private val names = FakeNames(
         mapOf(net to "Small fishing net", bait to "Fishing bait", logs to "Logs", tinderbox to "Tinderbox", knife to "Knife", flour to "Pot of flour", jug to "Jug of water"),
-    ))
+    )
+
+    /** A dark wizard reaching the tile the player stands on. */
+    private val dangers = DangerCatalog(listOf(AggressiveSpawn("Dark wizard", 7, Tile(3084, 3236), reach = 10, Aggression.BelowCombat(15))))
+    private val warnings = StepWarnings(resolver, names, StepDangers(resolver, dangers, names))
 
     private val woodcutter = OptionFacts(levels = mapOf(Skill.WOODCUTTING to 1))
 
@@ -231,6 +238,13 @@ class StepWarningsTest {
     @Test
     fun `a drop step of other items does not empty the bag of what the step gets`() {
         assertEquals(listOf("No step empties the bag"), of(listOf(StepSettings("drop", mapOf("drops" to "$bronzeAxe")), step("mine")), index = 1))
+    }
+
+    @Test
+    fun `the aggressive npcs in reach of where the step works come last`() {
+        val facts = woodcutter.copy(here = Tile(3087, 3229))
+
+        assertEquals(listOf("No step empties the bag", "Dark wizard wanders here, level 7, attacks below combat 15"), of(listOf(step("mine")), facts = facts))
     }
 
     @Test

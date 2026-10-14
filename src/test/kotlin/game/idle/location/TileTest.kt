@@ -37,6 +37,25 @@ class TileTest {
     }
 
     @Test
+    fun `two areas overlap when a tile lies in both, as far as their radii add up`() {
+        val area = Area(Tile(3200, 3200), radius = 2)
+
+        assertEquals(listOf(true, true), listOf(area.overlaps(Area(Tile(3205, 3200), radius = 3)), area.overlaps(Area(Tile(3200, 3195), radius = 3))))
+    }
+
+    @Test
+    fun `two areas apart by more than their radii do not overlap`() {
+        val area = Area(Tile(3200, 3200), radius = 2)
+
+        assertEquals(listOf(false, false), listOf(area.overlaps(Area(Tile(3206, 3200), radius = 3)), area.overlaps(Area(Tile(3200, 3194), radius = 3))))
+    }
+
+    @Test
+    fun `areas on other floors never overlap`() {
+        assertEquals(false, Area(Tile(3200, 3200), radius = 2).overlaps(Area(Tile(3200, 3200, 1), radius = 2)))
+    }
+
+    @Test
     fun `an area leaves out other floors`() {
         assertEquals(false, Tile(3200, 3200, 1) in Area(Tile(3200, 3200), radius = 2))
     }

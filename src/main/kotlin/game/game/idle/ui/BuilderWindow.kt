@@ -64,15 +64,16 @@ class BuilderWindow(
     /** Called on every idle state change: the open screens follow it. */
     fun refresh(player: Player, state: IdleState) {
         if (!isOpen(player)) return
-        WidgetUpdate.send(player, overview.updates(state, slots, reflexSlots))
-        draft(player)?.let { WidgetUpdate.send(player, configure.updates(state, it, LunaOptionFacts.of(player))) }
+        val facts = LunaOptionFacts.of(player)
+        WidgetUpdate.send(player, overview.updates(state, slots, reflexSlots, facts))
+        draft(player)?.let { WidgetUpdate.send(player, configure.updates(state, it, facts)) }
     }
 
     /** Fills the overview and the kind picker and shows [page], dropping the step being configured. */
     fun show(player: Player, page: BuilderPage) {
         player.builderDraft = null
         val state = player.idleState
-        WidgetUpdate.send(player, overview.updates(state, slots, reflexSlots) + overview.kinds(state) + overview.page(page))
+        WidgetUpdate.send(player, overview.updates(state, slots, reflexSlots, LunaOptionFacts.of(player)) + overview.kinds(state) + overview.page(page))
     }
 
     /** Shows the configure screen of [draft], which becomes the step being configured. */

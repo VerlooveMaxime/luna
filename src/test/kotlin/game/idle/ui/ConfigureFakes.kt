@@ -1,15 +1,20 @@
 package game.idle.ui
 
+import game.idle.danger.Aggression
+import game.idle.danger.AggressiveSpawn
+import game.idle.danger.DangerCatalog
 import game.idle.flow.Choice
 import game.idle.flow.FakeStep
 import game.idle.flow.FakeStepType
 import game.idle.flow.FakeStepWork
 import game.idle.flow.FieldColumn
 import game.idle.flow.FlowContext
+import game.idle.flow.FlowResolver
 import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
+import game.idle.flow.StepDangers
 import game.idle.flow.StepField
 import game.idle.flow.StepNeeds
 import game.idle.flow.StepRadius
@@ -120,6 +125,23 @@ val CONFIGURED_TYPES = StepTypes(
         FakeStepType("fish", listOf(SPOT, WITHIN)),
     ),
 )
+
+/** The tile the dark wizard below reaches, as [WENT_TO] is. */
+val DANGEROUS = Tile(3087, 3229)
+
+/** The tile the scorpion below reaches. */
+val SCORPIONS = Tile(3300, 3300)
+
+/** A dark wizard, which attacks below combat 15, reaching [DANGEROUS] and [WENT_TO]; a scorpion attacking everyone at [SCORPIONS]. */
+val DANGERS = DangerCatalog(
+    listOf(
+        AggressiveSpawn("Dark wizard", 7, Tile(3084, 3236), reach = 10, Aggression.BelowCombat(15)),
+        AggressiveSpawn("Scorpion", 14, SCORPIONS, reach = 10, Aggression.Always),
+    ),
+)
+
+/** The dangers over the configured kinds. */
+val CONFIGURED_DANGERS = StepDangers(FlowResolver(CONFIGURED_TYPES), DANGERS, FakeNames())
 
 /** Where a list's placement goes among updates keyed by widget id: below every id. */
 fun placementKey(list: Int): Int = -1 - list

@@ -8,6 +8,7 @@ import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ReflexSettings
 import game.idle.flow.StepAmount
+import game.idle.flow.StepDangers
 import game.idle.flow.StepField
 import game.idle.flow.StepItem
 import game.idle.flow.StepItems
@@ -102,7 +103,8 @@ object ConfigureRows {
  * the level of its skill as the player's [OptionFacts] count it and what it does; its settings on rows, the one being
  * typed framed yellow, a choice as a row of buttons and several items as a list (S07a), a withdrawal's with its amount
  * (S07b); the reason it cannot work, checked on the settings as edited (the running step's block first), then the
- * warnings that never stop it in yellow (S07b), else "No warnings." (Maxime, 2026-10-09); then Delete, Back and Save,
+ * warnings that never stop it in yellow (S07b; the aggressive npcs in reach of where it works last, [dangers], S08),
+ * else "No warnings." (Maxime, 2026-10-09); then Delete, Back and Save,
  * greyed when they cannot be used. A step's screen has two tabs (S07c2b): Settings, those rows, and Reflexes, the
  * reflexes attached to it as numbered sentences, red when they cannot work, with the line that attaches or detaches
  * them and Attach all; the warnings band and buttons stay under both. A reflex's screen (S07c) is the same screen over
@@ -115,10 +117,11 @@ class BuilderConfigure(
     private val form: ReflexForm,
     private val names: GameNames,
     private val font: ClientFont,
+    dangers: StepDangers,
 ) {
 
     private val types = resolver.types
-    private val stepWarnings = StepWarnings(resolver, names)
+    private val stepWarnings = StepWarnings(resolver, names, dangers)
 
     fun updates(state: IdleState, draft: StepDraft, facts: OptionFacts): List<WidgetUpdate> {
         val screen = if (draft.subject == DraftSubject.REFLEX) reflexScreen(state, draft, facts) else stepScreen(state, draft, facts)

@@ -1,12 +1,14 @@
 package game.idle.autopilot
 
 import api.predef.*
+import game.idle.danger.LunaDangers
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.FlowRunner
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ResolvedFlow
 import game.idle.flow.SavedFlows
+import game.idle.flow.StepDangers
 import game.idle.flow.StepLines
 import game.idle.flow.StepWords
 import game.idle.font.ClientFont
@@ -41,9 +43,10 @@ val font = ClientFont.fromCache(ctx.cache)
 val plainFont = ClientFont.fromCache(ctx.cache, ClientFont.PLAIN)
 val words = StepWords(LunaGameNames, plainFont)
 val savedFlows = SavedFlows(config.savedFlowSlots)
+val dangers = StepDangers(resolver, LunaDangers(LunaGameNames).catalog(), LunaGameNames)
 val builderWindow = BuilderWindow(
-    BuilderOverview(resolver, reflexResolver, reflexForm, LunaGameNames, font, savedFlows),
-    BuilderConfigure(resolver, reflexResolver, reflexForm, LunaGameNames, font),
+    BuilderOverview(resolver, reflexResolver, reflexForm, LunaGameNames, font, savedFlows, dangers),
+    BuilderConfigure(resolver, reflexResolver, reflexForm, LunaGameNames, font, dangers),
     config.stepSlots,
     config.reflexSlots,
 )

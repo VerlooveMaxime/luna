@@ -21,7 +21,7 @@ class BuilderConfigureTest {
 
     /** Five pixels a glyph: a field holds 20 characters, a note 32, a warning line 98. */
     private val font = ClientFont(IntArray(256) { 5 })
-    private val configure = BuilderConfigure(FlowResolver(CONFIGURED_TYPES), REFLEXES, REFLEX_FORM, FakeNames(), font)
+    private val configure = BuilderConfigure(FlowResolver(CONFIGURED_TYPES), REFLEXES, REFLEX_FORM, FakeNames(), font, CONFIGURED_DANGERS)
 
     private val oak = step("chop", "oak")
     private val facts = OptionFacts(levels = mapOf(Skill.WOODCUTTING to 15))
@@ -214,6 +214,23 @@ class BuilderConfigureTest {
     @Test
     fun `a step that can work has no warnings`() {
         assertEquals(listOf("@gre@No warnings.", "", ""), (0 until 3).map { text(chopping, BuilderWidgets.warning(it)) })
+    }
+
+    @Test
+    fun `the aggressive npcs in reach of where the step works are its last yellow lines`() {
+        val sent = configure.updates(IdleState(steps = listOf(oak)), chopping, facts.copy(here = DANGEROUS))
+
+        assertEquals(
+            listOf("@yel@! Dark wizard wanders here, level 7, attacks below combat 15", ""),
+            (0 until 2).map { line -> (sent.single { it is WidgetUpdate.Text && it.id == BuilderWidgets.warning(line) } as WidgetUpdate.Text).text },
+        )
+    }
+
+    @Test
+    fun `a player the npcs in reach leave alone sees no warning`() {
+        val sent = configure.updates(IdleState(steps = listOf(oak)), chopping, facts.copy(here = DANGEROUS, combat = 15))
+
+        assertEquals("@gre@No warnings.", (sent.single { it is WidgetUpdate.Text && it.id == BuilderWidgets.warning(0) } as WidgetUpdate.Text).text)
     }
 
     @Test
@@ -472,7 +489,7 @@ class BuilderConfigureTest {
     @Test
     fun `a withdrawal's name is fitted to the room the amount box leaves`() {
         val long = stocking.copy(settings = StepSettings("stock", mapOf("withdraw" to "1511")))
-        val configure = BuilderConfigure(FlowResolver(CONFIGURED_TYPES), REFLEXES, REFLEX_FORM, FakeNames(mapOf(1511 to "Logs of a very long name")), font)
+        val configure = BuilderConfigure(FlowResolver(CONFIGURED_TYPES), REFLEXES, REFLEX_FORM, FakeNames(mapOf(1511 to "Logs of a very long name")), font, CONFIGURED_DANGERS)
 
         val name = configure.updates(IdleState(), long, facts).filterIsInstance<WidgetUpdate.Text>().single { it.id == BuilderWidgets.lineName(0, 0) }
 

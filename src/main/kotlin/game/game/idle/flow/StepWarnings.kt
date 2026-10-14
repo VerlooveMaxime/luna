@@ -9,10 +9,11 @@ import game.idle.flow.option.OptionFacts
  * carries nor has a bank step withdraw, and an input a step takes from the bank that no bank step withdraws. Bank steps
  * anywhere in the flow count, since it loops (Maxime, 2026-10-10). Then a kind's own ([OwnWarnings], S07d), a step that
  * fills the bag with items no bank or drop step of the flow takes out of it (Maxime, 2026-10-11), and a step that fights
- * with no reflex attached that eats or runs (S07c). Items are named with [names]. A warning takes the form of the red
- * reasons ([Reasons]), as the configure screen's band shows both (Maxime, 2026-10-11, Q13).
+ * with no reflex attached that eats or runs (S07c), and last the aggressive npcs within reach of where the step works
+ * ([dangers], S08). Items are named with [names]. A warning takes the form of the red reasons ([Reasons]), as the
+ * configure screen's band shows both (Maxime, 2026-10-11, Q13).
  */
-class StepWarnings(private val resolver: FlowResolver, private val names: GameNames) {
+class StepWarnings(private val resolver: FlowResolver, private val names: GameNames, private val dangers: StepDangers) {
 
     /**
      * The warnings for the step at [index] of [steps], none when it does not resolve (its reason shows instead); [facts]
@@ -29,7 +30,8 @@ class StepWarnings(private val resolver: FlowResolver, private val names: GameNa
         val needs = if (ways.any { it.isEmpty() }) emptyList() else ways.firstOrNull().orEmpty()
         val own = resolver.types.warnings(steps[index], before, facts)
         val emptying = NO_EMPTYING.takeIf { step is FillsBag && step.fills.none { id -> emptied(resolved, id) } }
-        return needs + own + listOfNotNull(emptying, NO_SURVIVAL.takeIf { step is Fights && !survives(steps[index], reflexes) })
+        val survival = NO_SURVIVAL.takeIf { step is Fights && !survives(steps[index], reflexes) }
+        return needs + own + listOfNotNull(emptying, survival) + dangers.of(steps, index, facts).map { it.line }
     }
 
     private fun emptied(resolved: List<ResolvedStep?>, id: Int): Boolean = resolved.any { it is EmptiesBag && it.empties(id) }

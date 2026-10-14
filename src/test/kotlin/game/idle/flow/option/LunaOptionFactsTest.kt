@@ -78,6 +78,15 @@ class LunaOptionFactsTest {
     }
 
     @Test
+    fun `the facts hold the player's combat level as Luna reckons it`() {
+        val player = boostedWoodcutter()
+        player.skills.getSkill(Skill.STRENGTH).staticLevel = 10
+        player.skills.resetCombatLevel()
+
+        assertEquals(6, LunaOptionFacts.of(player).combat)
+    }
+
+    @Test
     fun `the cache names items, npcs and objects`() {
         TestWorld.context
 

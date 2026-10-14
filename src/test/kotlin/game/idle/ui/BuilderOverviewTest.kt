@@ -3,6 +3,7 @@ package game.idle.ui
 import game.idle.IdleState
 import game.idle.SavedFlow
 import game.idle.flow.FakeStepType
+import game.idle.flow.StepDangers
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
@@ -17,11 +18,13 @@ import game.idle.flow.StepType
 import game.idle.flow.StepTypes
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.GameNames
+import game.idle.flow.option.OptionFacts
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
 import game.idle.flow.option.StepOption
 import game.idle.flow.option.StepTarget
 import game.idle.font.ClientFont
+import game.idle.location.Tile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -51,16 +54,23 @@ class BuilderOverviewTest {
 
     private val font = ClientFont(IntArray(256) { 5 })
     private val types = StepTypes(listOf(Chop, FakeStepType("drop")))
-    private val overview = BuilderOverview(FlowResolver(types), REFLEXES, REFLEX_FORM, FakeNames(items = mapOf(1521 to "Oak")), font, SavedFlows(2))
+    private val resolver = FlowResolver(types)
+    private val overview = BuilderOverview(resolver, REFLEXES, REFLEX_FORM, FakeNames(items = mapOf(1521 to "Oak")), font, SavedFlows(2), StepDangers(resolver, DANGERS, FakeNames()))
 
     private val oak = StepSettings("chop", mapOf("tree" to "oak"))
     private val drop = StepSettings("drop")
 
-    private fun slot(state: IdleState, slot: Int = 0): SlotView = overview.slots(state, slots = 4)[slot]
+    /** A new character standing where no aggressive npc reaches. */
+    private val safe = OptionFacts(here = Tile(3200, 3200))
 
-    private fun step(state: IdleState, slot: Int = 0): SlotView.Step = slot(state, slot) as SlotView.Step
+    /** A new character standing where a dark wizard reaches. */
+    private val endangered = OptionFacts(here = DANGEROUS)
 
-    private fun updates(state: IdleState): Map<Int, WidgetUpdate> = overview.updates(state, slots = 4, reflexSlots = 2).associateBy {
+    private fun slot(state: IdleState, slot: Int = 0, facts: OptionFacts = safe): SlotView = overview.slots(state, slots = 4, facts)[slot]
+
+    private fun step(state: IdleState, slot: Int = 0, facts: OptionFacts = safe): SlotView.Step = slot(state, slot, facts) as SlotView.Step
+
+    private fun updates(state: IdleState): Map<Int, WidgetUpdate> = overview.updates(state, slots = 4, reflexSlots = 2, safe).associateBy {
         when (it) {
             is WidgetUpdate.Text -> it.id
             is WidgetUpdate.Picture -> it.id
@@ -72,7 +82,7 @@ class BuilderOverviewTest {
 
     @Test
     fun `a slot shows each step slot the player has`() {
-        assertEquals(4, overview.slots(IdleState(), slots = 4).size)
+        assertEquals(4, overview.slots(IdleState(), slots = 4, safe).size)
     }
 
     @Test
@@ -187,6 +197,59 @@ class BuilderOverviewTest {
         val state = IdleState(steps = listOf(oak, oak), stepIndex = 1, running = true, waiting = "No tree in reach")
 
         assertEquals(listOf("Oak", "5 per lap"), step(state, slot = 0).lines)
+    }
+
+    @Test
+    fun `an aggressive npc in reach of where a stopped step works takes its last lines in yellow, the frame unchanged`() {
+        val step = step(IdleState(steps = listOf(oak)), facts = endangered)
+
+        assertEquals(
+            listOf("Oak", "5 per lap", "@yel@! Dark wizard, level", "@yel@7, attacks below 15") to BuilderWidgets.EDGE,
+            step.lines to step.frame,
+        )
+    }
+
+    @Test
+    fun `a danger comes after the reason and never pushes out the target`() {
+        val state = IdleState(steps = listOf(oak), running = true, blocked = "Needs an axe that you have the level to use")
+
+        assertEquals(
+            listOf("Oak", "@red@! Needs an axe that", "@red@you have the level to", "@red@use"),
+            step(state, facts = endangered).lines,
+        )
+    }
+
+    @Test
+    fun `a danger follows the running step's wait`() {
+        val state = IdleState(steps = listOf(oak), running = true, waiting = "No tree in reach")
+
+        assertEquals(
+            listOf("Oak", "@yel@! No tree in reach", "@yel@! Dark wizard, level", "@yel@7, attacks below 15"),
+            step(state, facts = endangered).lines,
+        )
+    }
+
+    @Test
+    fun `a danger shows whole or not at all, so a second one under a long first waits for the band`() {
+        val state = IdleState(steps = listOf(oak, oak), running = true, stepIndex = 1, waiting = "No tree in reach for now")
+
+        assertEquals(
+            listOf("Oak", "5 per lap", "@yel@! No tree in reach", "@yel@for now"),
+            step(state, slot = 1, facts = endangered).lines,
+        )
+    }
+
+    @Test
+    fun `a step that cannot work shows its reason, not the dangers`() {
+        assertEquals(
+            listOf("@gry@not set yet", "5 per lap", "@red@! Needs a tree"),
+            step(IdleState(steps = listOf(StepSettings("chop"))), facts = endangered).lines,
+        )
+    }
+
+    @Test
+    fun `a player the npc leaves alone sees no danger`() {
+        assertEquals(listOf("Oak", "5 per lap"), step(IdleState(steps = listOf(oak)), facts = endangered.copy(combat = 15)).lines)
     }
 
     @Test

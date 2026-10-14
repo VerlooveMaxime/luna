@@ -2,10 +2,13 @@ package game.idle.flow
 
 import game.idle.autopilot.IdleSteps
 import game.idle.autopilot.reflex.FoodOptions
+import game.idle.danger.DangerCatalog
+import game.idle.danger.LunaDangers
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.LunaGameNames
 import game.idle.flow.option.OptionFacts
 import game.idle.font.ClientFont
+import game.idle.location.Tile
 import game.idle.ui.BuilderWidgets
 import game.testworld.TestWorld
 import io.luna.game.model.def.ItemDefinition
@@ -25,7 +28,7 @@ import org.junit.jupiter.params.provider.MethodSource
  * 2026-10-11, Q13: sentence case, no period, no "Autopilot:", the bag never "inventory") and fits two of the slot's
  * lines in the client's small font, as the run-time reasons do (`StepWordsFitTest`); the warnings take the form, and
  * every kind's description fits the configure screen's header. Measured with the fonts of the cache, so these run on
- * [TestWorld].
+ * [TestWorld]. Every danger line of Luna's spawns takes the form too, and its slot form fits the slot (S08).
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ReasonsFitTest {
@@ -34,6 +37,7 @@ class ReasonsFitTest {
     private lateinit var steps: IdleSteps
     private lateinit var resolver: FlowResolver
     private lateinit var reflexes: ReflexResolver
+    private lateinit var dangers: DangerCatalog
     private lateinit var warnings: StepWarnings
     private lateinit var form: ReflexForm
 
@@ -43,7 +47,8 @@ class ReasonsFitTest {
         steps = IdleSteps.load()
         resolver = FlowResolver(steps.types)
         reflexes = ReflexResolver(FoodOptions.portions())
-        warnings = StepWarnings(resolver, LunaGameNames)
+        dangers = LunaDangers(LunaGameNames).catalog()
+        warnings = StepWarnings(resolver, LunaGameNames, StepDangers(resolver, dangers, LunaGameNames))
         form = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames)
     }
 
@@ -82,7 +87,25 @@ class ReasonsFitTest {
 
     @Test
     fun `every warning the kinds and reflexes can give is measured`() {
-        assertEquals(11, warned().size)
+        assertEquals(14, warned().size)
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("threats")
+    fun `a danger's band line takes the form`(name: String, line: String, short: String) {
+        assertInForm(line)
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("threats")
+    fun `a danger's slot line takes the form and fits the lines a slot holds for it`(name: String, line: String, short: String) {
+        assertInForm(short)
+        assertFitsSlot(short, lines = BuilderWidgets.SLOT_LINES - 1)
+    }
+
+    @Test
+    fun `every aggressive npc of the world is measured`() {
+        assertTrue(threats().size > 100, "${threats().size} kinds of aggressive npc")
     }
 
     @ParameterizedTest(name = "{0}")
@@ -102,10 +125,10 @@ class ReasonsFitTest {
         assertFalse("Autopilot" in text || "inventory" in text, "'$text' is a fragment")
     }
 
-    private fun assertFitsSlot(reason: String) {
+    private fun assertFitsSlot(reason: String, lines: Int = StepWords.SLOT_LINES) {
         val held = "! $reason"
-        val lines = small.wrap(held, BuilderWidgets.LINE_ROOM, StepWords.SLOT_LINES)
-        assertEquals(held, lines.joinToString(" "), "'$held' takes more than ${StepWords.SLOT_LINES} lines")
+        val wrapped = small.wrap(held, BuilderWidgets.LINE_ROOM, lines)
+        assertEquals(held, wrapped.joinToString(" "), "'$held' takes more than $lines lines")
     }
 
     private val walk = StepSettings("walk", mapOf("tile" to "3101 3509"))
@@ -166,6 +189,7 @@ class ReasonsFitTest {
             listOf(step("light", "input" to "bank", "logs" to "1511")) to 0,
             listOf(step("pickup", "items" to "526")) to 0,
             listOf(chop, step("bank", "deposit" to "everything")) to 0,
+            listOf(step("chop", "tree" to "willow", "spot" to DRAYNOR_WILLOWS.text())) to 0,
         )
         val facts = OptionFacts(bag = setOf(BRONZE_AXE))
         val eatAnyFood = requireNotNull(form.need(ReflexSettings(1))) { "an eat reflex needs food" }
@@ -173,6 +197,9 @@ class ReasonsFitTest {
             warnings.of(flow, index, facts, emptyList()).map { Arguments.of("${flow[index].kind}: $it", it) }
         } + listOfNotNull(warnings.supplies(listOf(chop), eatAnyFood, facts)).map { Arguments.of("reflex: $it", it) }
     }
+
+    /** Every kind of aggressive npc Luna spawns: its band line and its slot line. */
+    fun threats(): List<Arguments> = dangers.all.map { Arguments.of("${it.name} ${it.level}", it.line, it.short) }
 
     fun descriptions(): List<Arguments> =
         steps.types.all.map { Arguments.of(it.kind, it.description) } +
@@ -182,5 +209,8 @@ class ReasonsFitTest {
 
     private companion object {
         const val BRONZE_AXE = 1351
+
+        /** Within reach of the two dark wizards and, as Luna's data has it, a Black Knight (S08). */
+        val DRAYNOR_WILLOWS = Tile(3087, 3229)
     }
 }
