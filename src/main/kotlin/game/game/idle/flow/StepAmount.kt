@@ -9,23 +9,32 @@ object StepAmount {
 
     const val KEY = "amount"
 
+    /** The row's label on every kind but fight, whose row counts kills. */
+    const val LABEL = "Amount"
+
     /** Every count from 1 up, as a withdrawal's amount too. */
     val RANGE = 1..Int.MAX_VALUE
 
-    const val RULE = "the amount takes 1 or more"
+    private const val ONE_OR_MORE = "1 or more"
+
+    /** What the chat box says of a withdrawal's amount out of range. */
+    val RULE = Reasons.takes(LABEL, ONE_OR_MORE)
 
     /**
      * The configure screen's amount under [label]: "5 per lap", or [unbounded], the step's words for as much as it can,
      * which the button worded [button] sets.
      */
     fun field(label: String, unbounded: String, button: String): StepField.Typed =
-        StepField.Typed(KEY, label, RANGE, RULE, shown = { it?.let { count -> "${short(count)} per lap" } ?: unbounded }, unbounded = button)
+        StepField.Typed(
+            KEY, label, RANGE, Reasons.takes(label, ONE_OR_MORE),
+            shown = { it?.let { count -> "${short(count)} per lap" } ?: unbounded }, unbounded = button,
+        )
 
-    /** The count [settings] hold, null for none; throws [FlowError] when it is not a count of 1 or more. */
-    fun read(settings: StepSettings): Int? {
+    /** The count [settings] hold, null for none; throws [FlowError] naming the row [label] when it is not a count of 1 or more. */
+    fun read(settings: StepSettings, label: String = LABEL): Int? {
         val text = settings[KEY] ?: return null
         val count = text.toIntOrNull()
-        if (count == null || count !in RANGE) throw FlowError("$RULE, not '$text'")
+        if (count == null || count !in RANGE) throw FlowError(Reasons.takes(label, ONE_OR_MORE, text))
         return count
     }
 
@@ -47,7 +56,4 @@ object StepAmount {
     }
 
     fun short(count: Int): String = short(count.toString())
-
-    /** The count as a summary writes it before what the step works on: a number and a space, or nothing. */
-    fun prefix(settings: StepSettings): String = settings[KEY]?.let { "$it " } ?: ""
 }

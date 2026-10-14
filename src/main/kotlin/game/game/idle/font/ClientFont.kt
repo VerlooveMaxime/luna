@@ -1,4 +1,4 @@
-package game.idle.ui
+package game.idle.font
 
 import io.luna.game.cache.Archive
 import io.luna.game.cache.Cache

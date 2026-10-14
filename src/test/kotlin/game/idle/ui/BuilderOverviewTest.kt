@@ -21,6 +21,7 @@ import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
 import game.idle.flow.option.StepOption
 import game.idle.flow.option.StepTarget
+import game.idle.font.ClientFont
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -34,8 +35,6 @@ class BuilderOverviewTest {
 
         override fun fields(names: GameNames): List<StepField> = emptyList()
 
-        override fun summary(settings: StepSettings): String = "chop"
-
         override fun icon(settings: StepSettings): StepIcon = StepIcon.Media("axe", 0)
 
         override fun target(names: GameNames): StepTarget =
@@ -45,7 +44,7 @@ class BuilderOverviewTest {
             listOf("5 per lap") + context.stepsGathering(setOf(1)).map { "after step $it" }
 
         override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
-            settings["tree"] ?: throw FlowError("chop needs a tree")
+            settings["tree"] ?: throw FlowError("Needs a tree")
             return FakeStepType("chop").resolve(StepSettings("chop"), context)
         }
     }
@@ -151,7 +150,7 @@ class BuilderOverviewTest {
     @Test
     fun `its reason takes the last line in red`() {
         assertEquals(
-            listOf("@gry@not set yet", "5 per lap", "@red@! chop needs a tree"),
+            listOf("@gry@not set yet", "5 per lap", "@red@! Needs a tree"),
             step(IdleState(steps = listOf(StepSettings("chop")))).lines,
         )
     }

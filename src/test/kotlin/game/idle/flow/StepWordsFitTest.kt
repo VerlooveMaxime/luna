@@ -7,8 +7,8 @@ import game.idle.autopilot.mining.MineStepType
 import game.idle.autopilot.smithing.SmithStepType
 import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.flow.option.LunaGameNames
+import game.idle.font.ClientFont
 import game.idle.ui.BuilderWidgets
-import game.idle.ui.ClientFont
 import game.testworld.TestWorld
 import io.luna.game.model.def.ItemDefinition
 import io.luna.game.model.mob.Skill

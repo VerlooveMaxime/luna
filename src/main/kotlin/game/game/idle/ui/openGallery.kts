@@ -7,6 +7,7 @@ import game.idle.autopilot.fighting.FightTargetCatalog
 import game.idle.flow.option.ItemCatalog
 import game.idle.flow.option.LunaGameNames
 import game.idle.flow.option.LunaOptionFacts
+import game.idle.font.ClientFont
 import game.idle.location.BankCatalog
 import io.luna.game.event.impl.ArrangeItemEvent
 import io.luna.game.event.impl.ButtonClickEvent

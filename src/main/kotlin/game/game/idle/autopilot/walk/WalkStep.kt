@@ -3,9 +3,11 @@ package game.idle.autopilot.walk
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.Place
+import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
+import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.StepType
 import game.idle.flow.StepWork
@@ -20,6 +22,8 @@ object WalkStepType : StepType {
 
     const val TILE = "tile"
 
+    private const val LABEL = "Tile"
+
     override val kind = "walk"
 
     override val label = "walk"
@@ -28,16 +32,14 @@ object WalkStepType : StepType {
 
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Media("mapmarker", 0)
 
-    override fun details(settings: StepSettings, context: FlowContext): List<String> =
-        listOf(settings[TILE]?.let { "to ${it.replace(" ", ", ")}" } ?: "not set yet")
+    /** The tile is what a walk step picks, so the slot greys "not set yet" as it does for every kind: "to 3101, 3509". */
+    override fun pick(settings: StepSettings, names: GameNames): StepPick = StepPick(settings[TILE]?.let { "to ${it.replace(" ", ", ")}" }, icon = null)
 
-    override fun fields(names: GameNames): List<StepField> = listOf(StepField.MapTile(TILE, "Tile"))
-
-    override fun summary(settings: StepSettings): String = "walk ${settings[TILE] ?: "?"}"
+    override fun fields(names: GameNames): List<StepField> = listOf(StepField.MapTile(TILE, LABEL))
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
-        val text = settings[TILE] ?: throw FlowError("walk needs a tile")
-        return WalkStep(TileText.read(text, "walk"))
+        val text = settings[TILE] ?: throw FlowError(Reasons.needs("Tile"))
+        return WalkStep(TileText.read(text, LABEL))
     }
 }
 

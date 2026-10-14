@@ -3,6 +3,7 @@ package game.idle.autopilot.rest
 import game.idle.autopilot.reflex.healthOf
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -23,7 +24,11 @@ object RestStepType : StepType {
 
     val RANGE = 1..FULL
 
-    const val RULE = "rest takes 1 to 100 percent"
+    private const val LABEL = "Until"
+
+    private const val PERCENT = "1 to $FULL percent"
+
+    val RULE = Reasons.takes(LABEL, PERCENT)
 
     override val kind = "rest"
 
@@ -35,9 +40,7 @@ object RestStepType : StepType {
 
     override fun details(settings: StepSettings, context: FlowContext): List<String> = listOf("until ${shown(settings[HITPOINTS])}")
 
-    override fun fields(names: GameNames): List<StepField> = listOf(StepField.Typed(HITPOINTS, "Until", RANGE, RULE, shown = ::shown))
-
-    override fun summary(settings: StepSettings): String = "rest until ${shown(settings[HITPOINTS])}"
+    override fun fields(names: GameNames): List<StepField> = listOf(StepField.Typed(HITPOINTS, LABEL, RANGE, RULE, shown = ::shown))
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep = RestStep(percent(settings))
 
@@ -45,7 +48,7 @@ object RestStepType : StepType {
     private fun percent(settings: StepSettings): Int {
         val text = settings[HITPOINTS] ?: return FULL
         val percent = text.toIntOrNull()
-        if (percent == null || percent !in RANGE) throw FlowError("$RULE, not '$text'")
+        if (percent == null || percent !in RANGE) throw FlowError(Reasons.takes(LABEL, PERCENT, text))
         return percent
     }
 

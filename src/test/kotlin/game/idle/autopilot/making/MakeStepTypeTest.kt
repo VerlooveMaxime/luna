@@ -32,15 +32,13 @@ class MakeStepTypeTest {
     private fun settings(vararg values: Pair<String, String>) = StepSettings("make", mapOf(*values))
 
     @Test
-    fun `a make step reads as its product, its count written when it has one`() {
-        assertEquals("make bread dough", make.summary(settings("product" to "bread dough")))
-        assertEquals("make 5 guam potion (unf)", make.summary(settings("product" to "guam potion (unf)", "amount" to "5")))
+    fun `a make step shows the product it makes`() {
+        assertEquals("Bread dough", make.pick(settings("product" to "bread dough"), FakeNames())?.label)
     }
 
     @Test
-    fun `a make step without a product reads with a question mark and is rejected`() {
-        assertEquals("make ?", make.summary(settings()))
-        assertRejected("make needs a product") { make.resolve(settings(), FlowContext()) }
+    fun `a make step without a product is rejected`() {
+        assertRejected("Needs a product") { make.resolve(settings(), FlowContext()) }
     }
 
     @Test
@@ -51,7 +49,7 @@ class MakeStepTypeTest {
 
     @Test
     fun `a product without a recipe is rejected`() {
-        assertRejected("Nothing called 'cake' can be made.") {
+        assertRejected("'cake' is not a product") {
             make.resolve(settings("product" to "cake"), FlowContext())
         }
     }
@@ -86,7 +84,7 @@ class MakeStepTypeTest {
 
     @Test
     fun `a make step on earlier steps names what no step before gets`() {
-        assertRejected("no step before gets bucket of water") {
+        assertRejected("No step before gets bucket of water") {
             make.resolve(settings("product" to "bread dough", "input" to "earlier"), flourMilled)
         }
     }

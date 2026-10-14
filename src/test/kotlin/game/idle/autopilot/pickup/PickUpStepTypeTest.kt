@@ -43,16 +43,6 @@ class PickUpStepTypeTest {
     private fun pickUp(vararg values: Pair<String, String>) = StepSettings("pickup", mapOf(*values))
 
     @Test
-    fun `a pick-up step with nothing picked reads as pick up alone`() {
-        assertEquals("pick up", type.summary(pickUp()))
-    }
-
-    @Test
-    fun `a pick-up step's summary names its count, its items and its distance`() {
-        assertEquals("pick up 5 bones, cowhide within 15", type.summary(pickUp("amount" to "5", "items" to "$bones,$cowhide", "within" to "15")))
-    }
-
-    @Test
     fun `pick up takes the items picked, their notes too, all lying around the flow's work spot`() {
         val step = type.resolve(pickUp("items" to "$bones,$cowhide"), FlowContext())
 
@@ -75,7 +65,7 @@ class PickUpStepTypeTest {
     fun `pick up with no items picked cannot work`() {
         val error = assertThrows<FlowError> { type.resolve(pickUp(), FlowContext()) }
 
-        assertEquals("pick up needs items picked", error.message)
+        assertEquals("Needs items", error.message)
     }
 
     @Test
@@ -134,7 +124,7 @@ class PickUpStepTypeTest {
     @Test
     fun `items nothing before drops and none spawns are warned about`() {
         assertEquals(
-            listOf("No fight step before drops feather, egg, and none spawns here."),
+            listOf("No fight step before drops feather, egg, and none spawns here"),
             type.warnings(pickUp("items" to "$bones,$feather,$egg"), afterCows, OptionFacts()),
         )
     }
@@ -173,11 +163,6 @@ class PickUpStepTypeTest {
         val step = type.resolve(pickUp("items" to "$bones", "spot" to "3101 3509"), FlowContext(workSpot = WorkSpot.At(pen)))
 
         assertEquals(PickUpStep(setOf(bones, notedBones), 10, WorkSpot.Own(picked)), step)
-    }
-
-    @Test
-    fun `a pick-up step's summary ends with its picked work spot`() {
-        assertEquals("pick up bones at 3101 3509", type.summary(pickUp("items" to "$bones", "spot" to "3101 3509")))
     }
 
     @Test

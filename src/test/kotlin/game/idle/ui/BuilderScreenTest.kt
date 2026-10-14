@@ -447,7 +447,7 @@ class BuilderScreenTest {
     fun `a typed number below the range says the field's rule`() {
         val answer = screen.typed(player(chop), choppingDraft.copy(typing = Typing("amount")), 0)
 
-        assertEquals(BuilderAnswer.Configure(choppingDraft, "Autopilot: the amount takes 1 or more."), answer)
+        assertEquals(BuilderAnswer.Configure(choppingDraft, "Autopilot: amount takes 1 or more."), answer)
     }
 
     @Test
@@ -929,7 +929,7 @@ class BuilderScreenTest {
     fun `a withdrawal of none says the amount's rule`() {
         val answer = screen.typed(player(stock), stocking.copy(typing = Typing("withdraw", 1521)), 0)
 
-        assertEquals(BuilderAnswer.Configure(stocking, "Autopilot: the amount takes 1 or more."), answer)
+        assertEquals(BuilderAnswer.Configure(stocking, "Autopilot: amount takes 1 or more."), answer)
     }
 
     @Test

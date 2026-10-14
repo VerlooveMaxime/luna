@@ -36,12 +36,7 @@ class StepSpotTest {
     fun `a picked spot that is no tile is refused`() {
         val error = assertThrows<FlowError> { StepSpot.read(spot("by the yews")) }
 
-        assertEquals("the work spot needs a tile: x y, or x y floor, not 'by the yews'", error.message)
-    }
-
-    @Test
-    fun `a summary ends with the picked spot, nothing for from the flow`() {
-        assertEquals(listOf(" at 3101 3509", ""), listOf(StepSpot.suffix(spot("3101 3509")), StepSpot.suffix(StepSettings("chop"))))
+        assertEquals("'by the yews' is not a work spot", error.message)
     }
 
     @Test

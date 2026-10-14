@@ -9,7 +9,8 @@ import game.idle.flow.option.OptionFacts
  * carries nor has a bank step withdraw, and an input a step takes from the bank that no bank step withdraws. Bank steps
  * anywhere in the flow count, since it loops (Maxime, 2026-10-10). Then a kind's own ([OwnWarnings], S07d), a step that
  * fills the bag with items no bank or drop step of the flow takes out of it (Maxime, 2026-10-11), and a step that fights
- * with no reflex attached that eats or runs (S07c). Items are named with [names].
+ * with no reflex attached that eats or runs (S07c). Items are named with [names]. A warning takes the form of the red
+ * reasons ([Reasons]), as the configure screen's band shows both (Maxime, 2026-10-11, Q13).
  */
 class StepWarnings(private val resolver: FlowResolver, private val names: GameNames) {
 
@@ -47,7 +48,7 @@ class StepWarnings(private val resolver: FlowResolver, private val names: GameNa
 
     private fun warnings(needs: StepNeeds, banking: List<Banking>, facts: OptionFacts, fromBank: Boolean): List<String> {
         val inputs = needs.inputs.filter { fromBank && banking.none { bank -> it in bank.moves.withdraws } }
-        return needs.tools.mapNotNull { tool(it, banking, facts) } + inputs.map { "No bank step withdraws ${names.item(it).lowercase()}." }
+        return needs.tools.mapNotNull { tool(it, banking, facts) } + inputs.map { "No bank step withdraws ${names.item(it).lowercase()}" }
     }
 
     /**
@@ -58,7 +59,7 @@ class StepWarnings(private val resolver: FlowResolver, private val names: GameNa
         val usable = need.allowed(facts::level)
         if (usable.any { need.worn && it in facts.worn || banking.any { bank -> it in bank.moves.withdraws } }) return null
         val word = need.word ?: names.item(need.items.keys.first()).lowercase()
-        val withdrawn = "no bank step withdraws ${if (need.countable) "one" else "any"}."
+        val withdrawn = "no bank step withdraws ${if (need.countable) "one" else "any"}"
         val carried = usable.filter { it in facts.bag }
         if (carried.isEmpty()) return "You carry no $word and $withdrawn"
         if (carried.any { id -> banking.none { it.moves.banks(id) } }) return null
@@ -70,7 +71,7 @@ class StepWarnings(private val resolver: FlowResolver, private val names: GameNa
     private data class Banking(val number: Int, val moves: BankMoves)
 
     companion object {
-        const val NO_SURVIVAL = "No reflex eats or runs during this step."
-        const val NO_EMPTYING = "No step empties the bag."
+        const val NO_SURVIVAL = "No reflex eats or runs during this step"
+        const val NO_EMPTYING = "No step empties the bag"
     }
 }

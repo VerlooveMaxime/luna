@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 class IdleUiTest {
 
     private val running = IdleState(steps = listOf(StepSettings("chop"), StepSettings("drop")), stepIndex = 1, running = true)
-    private val idleUi = IdleUi({ it.kind }, idleTab(slots = 3))
+    private val idleUi = IdleUi(status(), idleTab(slots = 3))
 
     @AfterEach
     fun resetWorld() = TestWorld.reset()
@@ -59,7 +59,7 @@ class IdleUiTest {
         idleUi.refresh(player, running)
 
         val overlay = TestWorld.messages(player).single { it.type == "StatusOverlayMessageWriter" }
-        assertEquals("@gre@Autopilot@whi@ step 2/2|@yel@drop", overlay.fields["text"])
+        assertEquals("@gre@Autopilot@whi@ step 2/2|@yel@Drop label", overlay.fields["text"])
         assertEquals("Autopilot: running step 2 of 2", texts(player)[FlowWidgets.TAB_STATUS_1])
     }
 

@@ -32,9 +32,9 @@ import io.luna.game.model.mob.Skill
  * Light: lights a count of the kinds of logs picked or, without one, all of them, where the player stands or from a tile
  * picked for it (S07e). The logs come from earlier steps or the bank (S07a), named with [names].
  */
-class LightStepType(private val names: GameNames) : StepType {
+class LightStepType(names: GameNames) : StepType {
 
-    private val logs = ProcessKinds(LOGS, kind = "light", what = "logs", usable = Log.entries.map { it.id }.toSet(), names)
+    private val logs = ProcessKinds(LOGS, label = "Logs", usable = Log.entries.map { it.id }.toSet(), names)
 
     override val kind = "light"
 
@@ -57,21 +57,17 @@ class LightStepType(private val names: GameNames) : StepType {
 
     override fun details(settings: StepSettings, context: FlowContext): List<String> =
         listOf(
-            StepInput.detail("Logs", input(settings, context), context, logs.ids(settings).toSet()),
+            StepInput.detail(input(settings, context), context, logs.ids(settings).toSet()),
             StepAmount.detail(settings, unbounded = "all of them"),
         )
 
     override fun fields(names: GameNames): List<StepField> =
         listOf(
             ProcessInput.field(logs.usable),
-            StepAmount.field("Amount", unbounded = "all of them", button = "All"),
-            logs.field("Logs", LogOptions(names), "Which logs would you like to light?"),
+            StepAmount.field(StepAmount.LABEL, unbounded = "all of them", button = "All"),
+            logs.field(LogOptions(names), "Which logs would you like to light?"),
             StepSpot.field(),
         )
-
-    override fun summary(settings: StepSettings): String =
-        "light ${StepAmount.prefix(settings)}${logs.ids(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd() +
-            StepSpot.suffix(settings)
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep =
         LightStep(logs.resolve(settings, context, input(settings, context)), StepAmount.read(settings), StepSpot.read(settings))

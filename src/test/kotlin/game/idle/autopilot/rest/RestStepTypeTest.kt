@@ -21,16 +21,6 @@ class RestStepTypeTest {
     private fun rest(percent: String) = StepSettings("rest", mapOf("hitpoints" to percent))
 
     @Test
-    fun `a rest step rests until full hitpoints by default`() {
-        assertEquals("rest until 100% hitpoints", RestStepType.summary(rest))
-    }
-
-    @Test
-    fun `a rest step reads with its percent`() {
-        assertEquals("rest until 70% hitpoints", RestStepType.summary(rest("70")))
-    }
-
-    @Test
     fun `the configure screen types the percent until which it rests`() {
         val fields = RestStepType.fields(FakeNames())
 
@@ -58,7 +48,7 @@ class RestStepTypeTest {
     fun `a percent that is no number cannot work`() {
         val error = assertThrows<FlowError> { RestStepType.resolve(rest("half"), FlowContext()) }
 
-        assertEquals("rest takes 1 to 100 percent, not 'half'", error.message)
+        assertEquals("Until takes 1 to 100 percent, not 'half'", error.message)
     }
 
     @Test

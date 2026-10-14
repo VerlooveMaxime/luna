@@ -51,6 +51,6 @@ class FlowCheckTest {
 
     @Test
     fun `a flow with a wrong reflex is refused with the reflex resolver's reason`() {
-        assertEquals("Reflex 1: item 1511 is not something you can eat", refusal(listOf(walk(1)), listOf(ReflexSettings(1, mapOf("foods" to "1511")))))
+        assertEquals("Reflex 1: '1511' is not food", refusal(listOf(walk(1)), listOf(ReflexSettings(1, mapOf("foods" to "1511")))))
     }
 }

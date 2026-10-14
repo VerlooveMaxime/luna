@@ -2,6 +2,7 @@ package game.idle.flow.option
 
 import game.idle.flow.StepSettings
 import game.idle.flow.StepTypes
+import game.idle.flow.capitalised
 
 /**
  * The steps of a flow a reflex can jump to (S07c), any of them, by id: "Step 3: Bank" over what the step picked as its
@@ -14,7 +15,7 @@ class JumpTargetOptions(private val steps: List<StepSettings>, private val types
             types.find(step.kind)?.let { type ->
                 StepOption(
                     value = step.id.toString(),
-                    label = "Step ${index + 1}: ${type.label.take(1).uppercase()}${type.label.drop(1)}",
+                    label = "Step ${index + 1}: ${capitalised(type.label)}",
                     icon = OptionIcon.of(type.icon(step)),
                     note = type.pick(step, names)?.label.orEmpty(),
                     group = index,

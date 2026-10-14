@@ -4,6 +4,7 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.StepIcon
 import game.idle.flow.StepNeeds
+import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.WorkSpot
 import game.idle.flow.described
@@ -21,14 +22,13 @@ class WalkStepTypeTest {
     private fun resolve(tile: String) = WalkStepType.resolve(walk(tile), FlowContext())
 
     @Test
-    fun `a walk step reads as its tile`() {
-        assertEquals("walk 3086 3233", WalkStepType.summary(walk("3086 3233")))
+    fun `a walk step picks its tile, with no picture`() {
+        assertEquals(StepPick("to 3086, 3233", icon = null), WalkStepType.pick(walk("3086 3233"), FakeNames()))
     }
 
     @Test
-    fun `a walk step without a tile reads with a question mark and is rejected`() {
-        assertEquals("walk ?", WalkStepType.summary(walk()))
-        assertRejected("walk needs a tile") { WalkStepType.resolve(walk(), FlowContext()) }
+    fun `a walk step without a tile is rejected`() {
+        assertRejected("Needs a tile") { WalkStepType.resolve(walk(), FlowContext()) }
     }
 
     @Test
@@ -39,17 +39,17 @@ class WalkStepTypeTest {
 
     @Test
     fun `a tile is two or three numbers`() {
-        assertRejected("walk needs a tile: x y, or x y floor, not '3086'") { resolve("3086") }
-        assertRejected("walk needs a tile: x y, or x y floor, not '3086 north'") { resolve("3086 north") }
-        assertRejected("walk needs a tile: x y, or x y floor, not '1 2 3 4'") { resolve("1 2 3 4") }
+        assertRejected("'3086' is not a tile") { resolve("3086") }
+        assertRejected("'3086 north' is not a tile") { resolve("3086 north") }
+        assertRejected("'1 2 3 4' is not a tile") { resolve("1 2 3 4") }
     }
 
     @Test
     fun `a tile lies on the map`() {
-        assertRejected("A tile has no negative coordinates: -1 5") { resolve("-1 5") }
-        assertRejected("A tile has no negative coordinates: 5 -1") { resolve("5 -1") }
-        assertRejected("The floor is 0 to 3, not 4") { resolve("5 5 4") }
-        assertRejected("The floor is 0 to 3, not -1") { resolve("5 5 -1") }
+        assertRejected("'-1 5' is not a tile") { resolve("-1 5") }
+        assertRejected("'5 -1' is not a tile") { resolve("5 -1") }
+        assertRejected("'5 5 4' is not a tile") { resolve("5 5 4") }
+        assertRejected("'5 5 -1' is not a tile") { resolve("5 5 -1") }
     }
 
     @Test
@@ -81,13 +81,13 @@ class WalkStepTypeTest {
     }
 
     @Test
-    fun `a walk step's slot says where it walks to`() {
-        assertEquals(listOf("to 3086, 3233"), WalkStepType.details(walk("3086 3233"), FlowContext()))
+    fun `a walk step's slot has no detail under its tile`() {
+        assertEquals(listOf<String>(), WalkStepType.details(walk("3086 3233"), FlowContext()))
     }
 
     @Test
-    fun `a walk step without a tile says it is not set yet`() {
-        assertEquals(listOf("not set yet"), WalkStepType.details(walk(), FlowContext()))
+    fun `a walk step without a tile has nothing picked yet`() {
+        assertEquals(StepPick(label = null, icon = null), WalkStepType.pick(walk(), FakeNames()))
     }
 
     @Test

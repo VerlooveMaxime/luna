@@ -102,15 +102,16 @@ data class ActionView(val player: String, val action: String, val detail: String
 data class ContentAuditView(val files: Map<String, String>)
 
 /**
- * A step of a flow: its [id], kind and settings, the ids of the [reflexes] attached to it in its order, how it reads, and
- * its [problem], the red reason the builder's slot shows when the step cannot work, null when it can.
+ * A step of a flow: its [id], kind and settings, the ids of the [reflexes] attached to it in its order, the [lines] the
+ * builder's slot shows under its kind, and its [problem], the red reason the slot shows when the step cannot work, null
+ * when it can.
  */
 data class FlowStepView(
     val id: Int,
     val kind: String,
     val values: Map<String, String>,
     val reflexes: List<Int>,
-    val summary: String,
+    val lines: List<String>,
     val problem: String?,
 )
 

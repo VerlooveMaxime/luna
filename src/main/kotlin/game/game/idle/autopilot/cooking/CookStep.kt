@@ -31,9 +31,9 @@ import io.luna.game.model.mob.Skill
  * Cook: cooks a count of the kinds of raw food picked or, without one, all of it, on a fire or range within a radius of
  * the work spot. The food comes from earlier steps or the bank (S07a), named with [names].
  */
-class CookStepType(private val names: GameNames) : StepType {
+class CookStepType(names: GameNames) : StepType {
 
-    private val food = ProcessKinds(RAW, kind = "cook", what = "raw food", usable = Food.RAW_TO_FOOD.keys, names)
+    private val food = ProcessKinds(RAW, label = "Raw food", usable = Food.RAW_TO_FOOD.keys, names)
 
     override val kind = "cook"
 
@@ -56,22 +56,18 @@ class CookStepType(private val names: GameNames) : StepType {
 
     override fun details(settings: StepSettings, context: FlowContext): List<String> =
         listOf(
-            StepInput.detail("Raw food", input(settings, context), context, food.ids(settings).toSet()),
+            StepInput.detail(input(settings, context), context, food.ids(settings).toSet()),
             StepAmount.detail(settings, unbounded = "all of them"),
         )
 
     override fun fields(names: GameNames): List<StepField> =
         listOf(
             ProcessInput.field(food.usable),
-            StepAmount.field("Amount", unbounded = "all of them", button = "All"),
-            food.field("Raw food", RawFoodOptions(names), "What would you like to cook?"),
+            StepAmount.field(StepAmount.LABEL, unbounded = "all of them", button = "All"),
+            food.field(RawFoodOptions(names), "What would you like to cook?"),
             StepSpot.field(),
             StepRadius.field(),
         )
-
-    override fun summary(settings: StepSettings): String =
-        "cook ${StepAmount.prefix(settings)}${food.ids(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd() +
-            StepRadius.suffix(settings) + StepSpot.suffix(settings)
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep =
         CookStep(food.resolve(settings, context, input(settings, context)), StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))

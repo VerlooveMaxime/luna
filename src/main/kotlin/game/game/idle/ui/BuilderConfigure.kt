@@ -13,8 +13,10 @@ import game.idle.flow.StepItem
 import game.idle.flow.StepItems
 import game.idle.flow.StepSettings
 import game.idle.flow.StepWarnings
+import game.idle.flow.capitalised
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.OptionFacts
+import game.idle.font.ClientFont
 import io.luna.game.model.mob.Skill
 
 /**

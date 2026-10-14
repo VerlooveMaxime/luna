@@ -4,6 +4,7 @@ import game.idle.flow.Choice
 import game.idle.flow.EmptiesBag
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -57,18 +58,14 @@ class DropStepType(private val items: ItemCatalog, private val names: GameNames)
             ),
         )
 
-    /** "drop gathered", "drop logs, oak logs". */
-    override fun summary(settings: StepSettings): String =
-        when (choice(settings)) {
-            DropChoice.GATHERED -> "drop gathered"
-            DropChoice.CHOSEN -> "drop ${picked(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd()
-        }
-
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep =
         when (choice(settings)) {
-            DropChoice.GATHERED -> DropStep(context.lap.ifEmpty { throw FlowError("drop needs a step that gathers something") })
-            DropChoice.CHOSEN -> DropStep(picked(settings).ifEmpty { throw FlowError("drop needs items picked") }.flatMap(items::alike).toSet())
+            DropChoice.GATHERED -> DropStep(context.lap.ifEmpty { throw FlowError(Reasons.needs("step that gathers something")) })
+            DropChoice.CHOSEN -> DropStep(chosen(settings).flatMap(items::alike).toSet())
         }
+
+    private fun chosen(settings: StepSettings): List<Int> =
+        picked(settings).ifEmpty { throw FlowError(Reasons.needs("Chosen items", countable = false)) }
 
     /** The items picked that name an item; text naming none is left out. */
     private fun picked(settings: StepSettings): List<Int> = StepItems.ids(settings, ITEMS).filter { items.alike(it).isNotEmpty() }

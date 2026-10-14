@@ -1,7 +1,7 @@
 package game.idle.flow
 
 import game.idle.flow.option.GameNames
-import game.idle.ui.ClientFont
+import game.idle.font.ClientFont
 import io.luna.game.model.mob.Skill
 
 /**
@@ -70,7 +70,7 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
     private fun needs(tool: ToolNeed): String {
         val word = tool.word ?: item(tool.items.keys.first())
         val usable = if (tool.skill == null) "" else " you can use"
-        return if (tool.countable) "Needs ${article(word)} $word$usable" else "Needs $word"
+        return if (tool.countable) "Needs ${Reasons.article(word)} $word$usable" else "Needs $word"
     }
 
     private fun noneInReach(target: Target): String =
@@ -100,8 +100,6 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
 
     private fun item(id: Int): String = names.item(id).lowercase()
 
-    private fun article(word: String): String = if (word.first() in VOWELS) "an" else "a"
-
     companion object {
         /** The chat box draws from x 4 and clips at 463 px (`client.java`), so a line has this much room. */
         const val CHAT_ROOM = 459
@@ -109,9 +107,8 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
         /** How many of the slot's lines a block may take (Maxime, 2026-10-11): the rest keep the target and a detail. */
         const val SLOT_LINES = 2
 
-        private const val PREFIX = "Autopilot: "
-
-        private const val VOWELS = "aeiou"
+        /** What every chat line of the autopilot starts with, the builder's own lines included. */
+        const val PREFIX = "Autopilot: "
 
         const val DIED = "${PREFIX}stopped, you died."
 
@@ -125,5 +122,8 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
          * slot, and in full it is often too long for a chat line (Maxime, 2026-10-09).
          */
         fun cannotWork(number: Int): String = "${PREFIX}step $number cannot work yet. See its slot warning in the builder."
+
+        /** The chat line for reflex [number] when it cannot work: its row in the builder shows why. */
+        fun reflexCannotWork(number: Int): String = "${PREFIX}reflex $number cannot work yet. See its row in the builder."
     }
 }

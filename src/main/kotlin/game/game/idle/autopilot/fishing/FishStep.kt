@@ -6,6 +6,7 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
+import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
@@ -48,9 +49,12 @@ data class FishingMethod(val tool: Tool) {
     val toolNeed: ToolNeed = ToolNeed(word = null, mapOf(tool.id to 1))
 
     /** The bait, when the method takes any (S03b: bait like tools), counted in the bag only and not one by one. */
-    val baitNeed: ToolNeed? = tool.bait?.let { ToolNeed(word = null, mapOf(it to 1), countable = false) }
+    val baitNeed: ToolNeed? = tool.bait?.let { ToolNeed(word = FEATHERS.takeIf { tool == Tool.FLY_FISHING_ROD }, mapOf(it to 1), countable = false) }
 
     companion object {
+
+        /** The fly fishing rod's bait is named "Feather", one of many, so its need reads "feathers" as fishing bait reads "fishing bait". */
+        private const val FEATHERS = "feathers"
 
         /** Every tool Luna's table has spots for, lowest level first. */
         val ALL: List<FishingMethod> by lazy { Tool.entries.map(::FishingMethod).filter { it.spotIds.isNotEmpty() } }
@@ -82,18 +86,14 @@ object FishStepType : StepType {
     override fun fields(names: GameNames): List<StepField> =
         listOf(
             StepField.Search("Catch", target(names), "What would you like to fish?"),
-            StepAmount.field("Amount", unbounded = "until the bag is full", button = "Full"),
+            StepAmount.field(StepAmount.LABEL, unbounded = "until the bag is full", button = "Full"),
             StepSpot.field(),
             StepRadius.field(),
         )
 
-    override fun summary(settings: StepSettings): String =
-        "fish ${StepAmount.prefix(settings)}${settings[FISH] ?: "?"}${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
-
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
-        val name = settings[FISH] ?: throw FlowError("fish needs a fish")
-        val method = FishingMethod.named(name)
-            ?: throw FlowError("'$name' is not a fish you can catch yet. Fish: ${FishingMethod.ALL.joinToString(", ") { it.word }}")
+        val name = settings[FISH] ?: throw FlowError(Reasons.needs("Catch"))
+        val method = FishingMethod.named(name) ?: throw FlowError(Reasons.notA("Catch", name))
         return FishStep(method, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
     }
 }

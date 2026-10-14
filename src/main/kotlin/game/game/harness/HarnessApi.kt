@@ -27,7 +27,7 @@ interface HarnessApi {
     /** Audits the whole world's content: what its spawned npcs and placed objects lack. Holds the game for a moment. */
     fun contentAudit(): ContentAuditView
 
-    /** The player's flow as structured steps, each with how it reads. */
+    /** The player's flow as structured steps, each with its slot's lines and its problem. */
     fun flow(name: String): FlowView
 
     /**

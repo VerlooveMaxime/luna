@@ -127,7 +127,7 @@ class BuilderScreen<P : AutopilotPlayer>(
         val saved = try {
             savedFlows.save(player.idleState, slot, name)
         } catch (e: FlowError) {
-            return say("${e.message.take(1).lowercase()}${e.message.drop(1)}.")
+            return BuilderAnswer.Show(message = told(e.message))
         }
         player.idleState = saved
         return say("flow saved as '${name.trim()}'.")
@@ -182,7 +182,7 @@ class BuilderScreen<P : AutopilotPlayer>(
         val current = draft?.takeIf { it.sameStep(opened) } ?: return BuilderAnswer.Ignored
         val id = value.toIntOrNull() ?: return BuilderAnswer.Ignored
         val ids = StepItems.ids(current.settings, key)
-        if (id !in ids && ids.size >= StepItems.MOST) return BuilderAnswer.Configure(current, "$PREFIX the list holds ${StepItems.MOST} items.")
+        if (id !in ids && ids.size >= StepItems.MOST) return BuilderAnswer.Configure(current, "${StepWords.PREFIX}the list holds ${StepItems.MOST} items.")
         return BuilderAnswer.Configure(current.copy(settings = StepItems.toggled(current.settings, key, id), typing = null))
     }
 
@@ -206,13 +206,13 @@ class BuilderScreen<P : AutopilotPlayer>(
         val item = typing.item
         if (item != null) return typedLine(draft, typing.key, item, value)
         val field = fields(player, draft).filterIsInstance<StepField.Typed>().firstOrNull { it.key == typing.key } ?: return BuilderAnswer.Ignored
-        if (value !in field.range) return BuilderAnswer.Configure(draft.notTyping(), "$PREFIX ${field.rule}.")
+        if (value !in field.range) return BuilderAnswer.Configure(draft.notTyping(), told(field.rule))
         return BuilderAnswer.Configure(draft.with(field.key, value.toString()))
     }
 
     /** A withdrawal takes any count of 1 or more, as every amount does (Maxime, 2026-10-10): no Int is past the top. */
     private fun typedLine(draft: StepDraft, key: String, item: Int, value: Int): BuilderAnswer {
-        if (value < StepAmount.RANGE.first) return BuilderAnswer.Configure(draft.notTyping(), "$PREFIX ${StepAmount.RULE}.")
+        if (value < StepAmount.RANGE.first) return BuilderAnswer.Configure(draft.notTyping(), told(StepAmount.RULE))
         return BuilderAnswer.Configure(draft.copy(settings = StepItems.withAmount(draft.settings, key, item, value), typing = null))
     }
 
@@ -253,7 +253,7 @@ class BuilderScreen<P : AutopilotPlayer>(
     private fun load(player: P, slot: Int, name: String): BuilderAnswer {
         stopForChange(player)
         player.idleState = savedFlows.load(player.idleState, slot)
-        return BuilderAnswer.Replaced("$PREFIX loaded '$name'.")
+        return BuilderAnswer.Replaced("${StepWords.PREFIX}loaded '$name'.")
     }
 
     private fun startNew(player: P, slot: Int): BuilderAnswer {
@@ -273,7 +273,7 @@ class BuilderScreen<P : AutopilotPlayer>(
     private fun stopForChange(player: P) {
         if (!autopilot.isRunning(player)) return
         autopilot.stop(player)
-        player.tell("$PREFIX stopped.")
+        player.tell("${StepWords.PREFIX}stopped.")
     }
 
     private fun run(player: P): BuilderAnswer {
@@ -282,7 +282,7 @@ class BuilderScreen<P : AutopilotPlayer>(
         val cannot = resolver.problems(steps).indexOfFirst { it != null }
         if (cannot >= 0) return BuilderAnswer.Show(message = StepWords.cannotWork(cannot + 1))
         val reflex = reflexes.problems(steps, player.idleState.reflexes).indexOfFirst { it != null }
-        if (reflex >= 0) return say("reflex ${reflex + 1} cannot work yet. See its row in the builder.")
+        if (reflex >= 0) return BuilderAnswer.Show(message = StepWords.reflexCannotWork(reflex + 1))
         player.idleState = player.idleState.fromStart()
         autopilot.start(player)
         return say("running from step 1.")
@@ -392,7 +392,9 @@ class BuilderScreen<P : AutopilotPlayer>(
      */
     private fun attach(player: P, draft: StepDraft): BuilderAnswer {
         val state = player.idleState
-        if (state.reflexes.isEmpty()) return BuilderAnswer.Configure(draft.notTyping(), "$PREFIX the flow has no reflexes yet. Add them on the Reflexes tab.")
+        if (state.reflexes.isEmpty()) {
+            return BuilderAnswer.Configure(draft.notTyping(), "${StepWords.PREFIX}the flow has no reflexes yet. Add them on the Reflexes tab.")
+        }
         return BuilderAnswer.Attach(draft.notTyping(), "Which reflexes should step ${draft.slot + 1} use?", form.attachOptions(state.reflexes, state.steps))
     }
 
@@ -448,11 +450,11 @@ class BuilderScreen<P : AutopilotPlayer>(
         val steps = player.idleState.steps
         // A draft's slot is never negative, so one comparison says whether the step is still there.
         val replacing = !draft.new && draft.slot < steps.size
-        if (!replacing && steps.size >= slots) return BuilderAnswer.Configure(draft.notTyping(), "$PREFIX the flow has room for $slots steps.")
+        if (!replacing && steps.size >= slots) return BuilderAnswer.Configure(draft.notTyping(), "${StepWords.PREFIX}the flow has room for $slots steps.")
         val slot = if (replacing) draft.slot else steps.size
         val saved = if (replacing) steps.toMutableList().apply { set(slot, draft.settings) } else steps + draft.settings
         player.idleState = player.idleState.withFlow(FlowIds.steps(saved))
-        return BuilderAnswer.Show(BuilderPage.OVERVIEW, "$PREFIX step ${slot + 1} saved.")
+        return BuilderAnswer.Show(BuilderPage.OVERVIEW, "${StepWords.PREFIX}step ${slot + 1} saved.")
     }
 
     /** A reflex saved over the one it edits, or added after the last while the flow has room (S07c). */
@@ -462,13 +464,13 @@ class BuilderScreen<P : AutopilotPlayer>(
         // A draft's slot is never negative, so one comparison says whether the reflex is still there.
         val replacing = !draft.new && draft.slot < all.size
         if (!replacing && all.size >= reflexSlots) {
-            return BuilderAnswer.Configure(draft.notTyping(), "$PREFIX the flow has room for $reflexSlots reflexes.")
+            return BuilderAnswer.Configure(draft.notTyping(), "${StepWords.PREFIX}the flow has room for $reflexSlots reflexes.")
         }
         val reflex = form.reflex(draft.settings)
         val slot = if (replacing) draft.slot else all.size
         val saved = if (replacing) all.toMutableList().apply { set(slot, reflex) } else all + reflex
         player.idleState = state.withFlow(state.steps, FlowIds.reflexes(saved))
-        return BuilderAnswer.Show(BuilderPage.REFLEXES, "$PREFIX reflex ${slot + 1} saved.")
+        return BuilderAnswer.Show(BuilderPage.REFLEXES, "${StepWords.PREFIX}reflex ${slot + 1} saved.")
     }
 
     /** A deleted reflex leaves every step it was attached to (S07c). */
@@ -477,14 +479,14 @@ class BuilderScreen<P : AutopilotPlayer>(
         val deleted = state.reflexes.getOrNull(draft.slot) ?: return BuilderAnswer.Show(BuilderPage.REFLEXES)
         val steps = state.steps.map { it.copy(reflexes = it.reflexes - deleted.id) }
         player.idleState = state.withFlow(steps, state.reflexes - deleted)
-        return BuilderAnswer.Show(BuilderPage.REFLEXES, "$PREFIX reflex ${draft.slot + 1} deleted.")
+        return BuilderAnswer.Show(BuilderPage.REFLEXES, "${StepWords.PREFIX}reflex ${draft.slot + 1} deleted.")
     }
 
     private fun delete(player: P, draft: StepDraft): BuilderAnswer {
         val steps = player.idleState.steps
         if (draft.slot >= steps.size) return BuilderAnswer.Show(BuilderPage.OVERVIEW)
         player.idleState = player.idleState.withFlow(steps.filterIndexed { index, _ -> index != draft.slot })
-        return BuilderAnswer.Show(BuilderPage.OVERVIEW, "$PREFIX step ${draft.slot + 1} deleted.")
+        return BuilderAnswer.Show(BuilderPage.OVERVIEW, "${StepWords.PREFIX}step ${draft.slot + 1} deleted.")
     }
 
     private fun field(player: P, draft: StepDraft, row: Int): BuilderAnswer? {
@@ -534,11 +536,13 @@ class BuilderScreen<P : AutopilotPlayer>(
     private fun tileOf(text: String?): Tile? =
         text?.split(" ")?.mapNotNull(String::toIntOrNull)?.takeIf { it.size >= 2 }?.let { (x, y) -> Tile(x, y) }
 
-    private fun say(message: String): BuilderAnswer = BuilderAnswer.Show(message = "$PREFIX $message")
+    private fun say(message: String): BuilderAnswer = BuilderAnswer.Show(message = "${StepWords.PREFIX}$message")
+
+    /** A reason or a rule said in the chat box, as a sentence after the prefix: "Autopilot: amount takes 1 or more." */
+    private fun told(reason: String): String = "${StepWords.PREFIX}${reason.take(1).lowercase()}${reason.drop(1)}."
 
     companion object {
-        const val PREFIX = "Autopilot:"
-        const val STOP_FIRST = "$PREFIX stop the flow before editing it."
+        const val STOP_FIRST = "${StepWords.PREFIX}stop the flow before editing it."
         private const val EMPTY_FLOW = "the flow is empty. Add a step first."
     }
 }

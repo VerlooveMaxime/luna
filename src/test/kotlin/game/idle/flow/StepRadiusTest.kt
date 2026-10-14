@@ -20,17 +20,9 @@ class StepRadiusTest {
 
     @Test
     fun `a radius is a number of tiles from 1 to 32`() {
-        assertRejected("within takes 1 to 32 tiles, not 'far'") { StepRadius.read(within("far")) }
-        assertRejected("within takes 1 to 32 tiles, not '0'") { StepRadius.read(within("0")) }
-        assertRejected("within takes 1 to 32 tiles, not '33'") { StepRadius.read(within("33")) }
-    }
-
-    @Test
-    fun `the default radius is left out of a summary, any other is written`() {
-        assertEquals(
-            listOf("", "", " within 5"),
-            listOf(StepRadius.suffix(StepSettings("chop")), StepRadius.suffix(within("10")), StepRadius.suffix(within("5"))),
-        )
+        assertRejected("Within takes 1 to 32 tiles, not 'far'") { StepRadius.read(within("far")) }
+        assertRejected("Within takes 1 to 32 tiles, not '0'") { StepRadius.read(within("0")) }
+        assertRejected("Within takes 1 to 32 tiles, not '33'") { StepRadius.read(within("33")) }
     }
 
     @Test
@@ -45,7 +37,7 @@ class StepRadiusTest {
 
     @Test
     fun `a typed radius out of range is refused with its rule`() {
-        assertEquals("within takes 1 to 32 tiles", StepRadius.field().rule)
+        assertEquals("Within takes 1 to 32 tiles", StepRadius.field().rule)
     }
 
     private fun assertRejected(message: String, action: () -> Unit) {

@@ -7,6 +7,7 @@ import game.idle.flow.option.OptionOrder
 import game.idle.flow.option.OptionPacket
 import game.idle.flow.option.OptionSearch
 import game.idle.flow.option.StepOption
+import game.idle.font.ClientFont
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.overlay.AbstractOverlay
 import io.luna.game.model.mob.overlay.OverlayType

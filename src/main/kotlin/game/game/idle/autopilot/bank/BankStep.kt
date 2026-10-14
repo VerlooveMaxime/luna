@@ -6,6 +6,7 @@ import game.idle.flow.EmptiesBag
 import game.idle.flow.FieldColumn
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
@@ -76,8 +77,6 @@ data class BankOrder(val deposit: DepositRule, val withdrawals: List<StepItem>, 
  */
 class BankStepType(private val catalog: BankCatalog, private val items: ItemCatalog, private val names: GameNames) : StepType {
 
-    private val ids: List<String> = catalog.banks.map { it.id }
-
     override val kind = "bank"
 
     override val label = "bank"
@@ -119,15 +118,6 @@ class BankStepType(private val catalog: BankCatalog, private val items: ItemCata
             ),
         )
 
-    /** "bank nearest, deposit gathered, withdraw 1 tinderbox, all oak logs". */
-    override fun summary(settings: StepSettings): String {
-        val withdrawals = StepItems.read(settings, WITHDRAW).joinToString(", ") { item ->
-            "${item.amount ?: "all"} ${names.item(item.id).lowercase()}"
-        }
-        val withdraw = withdrawals.takeIf { it.isNotEmpty() }?.let { ", withdraw $it" }.orEmpty()
-        return "bank ${settings[BANK] ?: NEAREST}, deposit ${deposit(settings).value}$withdraw"
-    }
-
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val rule = when (deposit(settings)) {
             DepositChoice.EVERYTHING -> DepositRule.Everything
@@ -137,8 +127,7 @@ class BankStepType(private val catalog: BankCatalog, private val items: ItemCata
         val order = BankOrder(rule, StepItems.read(settings, WITHDRAW), ifStuck(settings))
         val id = settings[BANK] ?: NEAREST
         if (id == NEAREST) return BankStep(catalog.banks, order)
-        val bank = catalog.find(id.lowercase())
-            ?: throw FlowError("Unknown bank '$id'. Banks: ${ids.sorted().joinToString(", ")}")
+        val bank = catalog.find(id.lowercase()) ?: throw FlowError(Reasons.notA("Bank", id))
         return BankStep(listOf(bank), order)
     }
 

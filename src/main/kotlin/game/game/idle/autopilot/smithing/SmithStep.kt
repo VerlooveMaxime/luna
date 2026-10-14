@@ -6,6 +6,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
+import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
@@ -57,7 +58,7 @@ class SmithStepType(private val names: GameNames) : StepType {
 
     override fun details(settings: StepSettings, context: FlowContext): List<String> =
         listOf(
-            StepInput.detail("Bars", input(settings, context), context, smithed(settings)?.let { setOf(it.second.barType.id) }.orEmpty()),
+            StepInput.detail(input(settings, context), context, smithed(settings)?.let { setOf(it.second.barType.id) }.orEmpty()),
             StepAmount.detail(settings, unbounded = "all of them"),
         )
 
@@ -66,19 +67,14 @@ class SmithStepType(private val names: GameNames) : StepType {
             ProcessInput.field(BAR_IDS),
             StepField.Search("Item", target(names), "What would you like to smith?"),
             StepField.Note("Uses") { settings, _ -> uses(settings) },
-            StepAmount.field("Amount", unbounded = "all of them", button = "All"),
+            StepAmount.field(StepAmount.LABEL, unbounded = "all of them", button = "All"),
             StepSpot.field(),
             StepRadius.field(),
         )
 
-    override fun summary(settings: StepSettings): String {
-        val name = smithed(settings)?.let { (_, smithed) -> names.item(smithed.item.id).lowercase() } ?: settings[ITEM] ?: "?"
-        return "smith ${StepAmount.prefix(settings)}$name${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
-    }
-
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
-        val item = settings[ITEM] ?: throw FlowError("smith needs an item")
-        val (table, smithed) = smithed(settings) ?: throw FlowError("'$item' is not an item to smith")
+        val item = settings[ITEM] ?: throw FlowError(Reasons.needs("Item"))
+        val (table, smithed) = smithed(settings) ?: throw FlowError(Reasons.notA("Item to smith", item))
         ProcessInput.requireGathered(input(settings, context), context, listOf(smithed.barType.id), names)
         return SmithStep(smithed.barType, table, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
     }

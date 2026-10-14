@@ -43,16 +43,8 @@ class BankStepTypeTest {
         (fields()[4] as StepField.Note).text(settings, before)
 
     @Test
-    fun `a bank step reads as its bank, what it deposits and withdraws`() {
-        assertEquals(
-            "bank draynor, deposit chosen, withdraw 1 tinderbox, all oak logs",
-            bank.summary(settings("bank" to "draynor", "deposit" to "chosen", "withdraw" to "590:1,1521")),
-        )
-    }
-
-    @Test
-    fun `a bank step without settings reads as the nearest bank depositing what was gathered`() {
-        assertEquals("bank nearest, deposit gathered", bank.summary(settings()))
+    fun `a bank step shows the bank it goes to`() {
+        assertEquals("Draynor bank", bank.pick(settings("bank" to "draynor"), FakeNames())?.label)
     }
 
     @Test
@@ -71,10 +63,10 @@ class BankStepTypeTest {
     }
 
     @Test
-    fun `an unknown bank lists the known ones`() {
+    fun `an unknown bank is rejected`() {
         val error = assertThrows<FlowError> { bank.resolve(settings("bank" to "lumbridge"), FlowContext()) }
 
-        assertEquals("Unknown bank 'lumbridge'. Banks: draynor, varrock_west", error.message)
+        assertEquals("'lumbridge' is not a bank", error.message)
     }
 
     @Test

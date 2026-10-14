@@ -35,15 +35,8 @@ class MineStepTypeTest {
     }
 
     @Test
-    fun `a mine step reads as its ore, its defaults left out, anything else written`() {
-        assertEquals("mine copper", MineStepType.summary(mine("ore" to "copper", "within" to "10")))
-        assertEquals("mine 1 tin within 5", MineStepType.summary(mine("ore" to "tin", "amount" to "1", "within" to "5")))
-    }
-
-    @Test
-    fun `a mine step without an ore reads with a question mark and is rejected`() {
-        assertEquals("mine ?", MineStepType.summary(mine()))
-        assertRejected("mine needs an ore") { MineStepType.resolve(mine(), FlowContext()) }
+    fun `a mine step without a rock is rejected`() {
+        assertRejected("Needs a rock") { MineStepType.resolve(mine(), FlowContext()) }
     }
 
     @Test
@@ -60,7 +53,7 @@ class MineStepTypeTest {
 
     @Test
     fun `an ore without rocks is rejected`() {
-        assertRejected("'rune_essence' is not an ore with rocks to mine") {
+        assertRejected("'rune_essence' is not a rock") {
             MineStepType.resolve(mine("ore" to "rune_essence"), FlowContext())
         }
     }
@@ -152,11 +145,6 @@ class MineStepTypeTest {
         val step = MineStepType.resolve(mine("ore" to "tin", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
 
         assertEquals(MineStep(Ore.TIN, 10, WorkSpot.Own(picked)), step)
-    }
-
-    @Test
-    fun `a mine step's summary ends with its picked work spot`() {
-        assertEquals("mine tin at 3101 3509", MineStepType.summary(mine("ore" to "tin", "spot" to "3101 3509")))
     }
 
     @Test

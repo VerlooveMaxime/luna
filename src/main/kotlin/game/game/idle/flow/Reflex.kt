@@ -23,7 +23,10 @@ object ReflexKeys {
     const val BELOW = "below"
     const val DEFAULT_BELOW = 50
     val BELOW_RANGE = 1..99
-    const val BELOW_RULE = "hitpoints below takes 1 to 99 percent"
+    /** The row is labelled When and shows "Hitpoints below N%", which its rule names. */
+    const val BELOW_LABEL = "Hitpoints below"
+    const val BELOW_WORDS = "1 to 99 percent"
+    val BELOW_RULE = Reasons.takes(BELOW_LABEL, BELOW_WORDS)
 
     /** What an eat reflex eats ([StepItems]), any food when none. */
     const val FOODS = "foods"

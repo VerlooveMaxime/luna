@@ -12,7 +12,9 @@ import game.idle.flow.FlowCheck
 import game.idle.flow.FlowError
 import game.idle.flow.FlowIds
 import game.idle.flow.ReflexSettings
+import game.idle.flow.StepLines
 import game.idle.flow.StepSettings
+import game.idle.flow.option.LunaGameNames
 import game.idle.idleState
 import game.idle.movement.navigateToReach
 import game.idle.ui.ChatboxPrompt
@@ -50,6 +52,8 @@ class LunaHarnessApi(
     private val contentRegistries: ContentRegistries = LunaRegistries,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) : HarnessApi {
+
+    private val lines = StepLines(flows.resolver, LunaGameNames)
 
     override fun world(): WorldView = gameThread.run {
         WorldView(
@@ -129,7 +133,7 @@ class LunaHarnessApi(
         val state = player.idleState
         val problems = flows.resolver.problems(state.steps)
         val steps = state.steps.mapIndexed { index, step ->
-            FlowStepView(step.id, step.kind, step.values, step.reflexes, flows.resolver.types.summary(step), problems[index])
+            FlowStepView(step.id, step.kind, step.values, step.reflexes, lines.of(state.steps, index).lines, problems[index])
         }
         return FlowView(player.username, state.running, state.stepIndex, state.blocked, state.waiting, steps, state.reflexes.map { FlowReflexView(it.id, it.values) })
     }

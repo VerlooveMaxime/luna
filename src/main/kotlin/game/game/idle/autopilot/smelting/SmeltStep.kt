@@ -6,6 +6,7 @@ import game.idle.flow.FlowError
 import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
 import game.idle.flow.ProcessInput
+import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
@@ -53,7 +54,7 @@ class SmeltStepType(private val names: GameNames) : StepType {
 
     override fun details(settings: StepSettings, context: FlowContext): List<String> =
         listOf(
-            StepInput.detail("Ores", input(settings, context), context, bar(settings)?.let(::ores).orEmpty().map { it.id }.toSet()),
+            StepInput.detail(input(settings, context), context, bar(settings)?.let(::ores).orEmpty().map { it.id }.toSet()),
             StepAmount.detail(settings, unbounded = "all of them"),
         )
 
@@ -62,17 +63,14 @@ class SmeltStepType(private val names: GameNames) : StepType {
             ProcessInput.field(ORE_IDS),
             StepField.Search("Bar", target(names), "Which bar would you like to smelt?"),
             StepField.Note("Uses") { settings, _ -> uses(settings) },
-            StepAmount.field("Amount", unbounded = "all of them", button = "All"),
+            StepAmount.field(StepAmount.LABEL, unbounded = "all of them", button = "All"),
             StepSpot.field(),
             StepRadius.field(),
         )
 
-    override fun summary(settings: StepSettings): String =
-        "smelt ${StepAmount.prefix(settings)}${settings[BAR] ?: "?"}${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
-
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
-        val name = settings[BAR] ?: throw FlowError("smelt needs a bar")
-        val bar = bar(settings) ?: throw FlowError("'$name' is not a bar to smelt")
+        val name = settings[BAR] ?: throw FlowError(Reasons.needs("Bar"))
+        val bar = bar(settings) ?: throw FlowError(Reasons.notA("Bar", name))
         ProcessInput.requireGathered(input(settings, context), context, ores(bar).map { it.id }, names)
         return SmeltStep(bar, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
     }

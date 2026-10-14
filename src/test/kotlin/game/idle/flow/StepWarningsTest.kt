@@ -114,7 +114,7 @@ class StepWarningsTest {
 
     @Test
     fun `a tool neither carried nor withdrawn is warned about`() {
-        assertEquals(listOf("You carry no axe and no bank step withdraws one."), of(listOf(step("chop"))))
+        assertEquals(listOf("You carry no axe and no bank step withdraws one"), of(listOf(step("chop"))))
     }
 
     @Test
@@ -129,12 +129,12 @@ class StepWarningsTest {
 
     @Test
     fun `a tool worn counts only when Luna counts it worn, so a worn net is still warned about`() {
-        assertEquals(listOf("You carry no small fishing net and no bank step withdraws one.", "You carry no fishing bait and no bank step withdraws any."), of(listOf(step("fish")), facts = woodcutter.copy(worn = setOf(net, bait))))
+        assertEquals(listOf("You carry no small fishing net and no bank step withdraws one", "You carry no fishing bait and no bank step withdraws any"), of(listOf(step("fish")), facts = woodcutter.copy(worn = setOf(net, bait))))
     }
 
     @Test
     fun `a tool above the player's level does not count`() {
-        assertEquals(listOf("You carry no axe and no bank step withdraws one."), of(listOf(step("chop")), facts = woodcutter.copy(bag = setOf(runeAxe))))
+        assertEquals(listOf("You carry no axe and no bank step withdraws one"), of(listOf(step("chop")), facts = woodcutter.copy(bag = setOf(runeAxe))))
     }
 
     @Test
@@ -153,7 +153,7 @@ class StepWarningsTest {
     fun `a carried tool a bank step banks is warned about, naming that step`() {
         val steps = listOf(step("chop"), step("walk"), bank("banks" to "$bronzeAxe"))
 
-        assertEquals(listOf("Step 3 banks your axe and no bank step withdraws one."), of(steps, facts = woodcutter.copy(bag = setOf(bronzeAxe))))
+        assertEquals(listOf("Step 3 banks your axe and no bank step withdraws one"), of(steps, facts = woodcutter.copy(bag = setOf(bronzeAxe))))
     }
 
     @Test
@@ -166,7 +166,7 @@ class StepWarningsTest {
     @Test
     fun `a tool without a word is named after its item, and bait is not counted one by one`() {
         assertEquals(
-            listOf("You carry no small fishing net and no bank step withdraws one.", "You carry no fishing bait and no bank step withdraws any."),
+            listOf("You carry no small fishing net and no bank step withdraws one", "You carry no fishing bait and no bank step withdraws any"),
             of(listOf(step("fish"))),
         )
     }
@@ -174,7 +174,7 @@ class StepWarningsTest {
     @Test
     fun `an input from the bank that no bank step withdraws is warned about after the tools`() {
         assertEquals(
-            listOf("You carry no tinderbox and no bank step withdraws one.", "No bank step withdraws logs."),
+            listOf("You carry no tinderbox and no bank step withdraws one", "No bank step withdraws logs"),
             of(listOf(step("light")), facts = woodcutter.copy(bag = emptySet())),
         )
     }
@@ -195,7 +195,7 @@ class StepWarningsTest {
 
     @Test
     fun `a step that can work several ways is warned about its first way`() {
-        assertEquals(listOf("You carry no knife and no bank step withdraws one.", "No bank step withdraws pot of flour."), of(listOf(step("make"))))
+        assertEquals(listOf("You carry no knife and no bank step withdraws one", "No bank step withdraws pot of flour"), of(listOf(step("make"))))
     }
 
     @Test
@@ -205,12 +205,12 @@ class StepWarningsTest {
 
     @Test
     fun `the step warned about is the one at the index given`() {
-        assertEquals(listOf("You carry no axe and no bank step withdraws one."), of(listOf(step("walk"), step("chop")), index = 1))
+        assertEquals(listOf("You carry no axe and no bank step withdraws one"), of(listOf(step("walk"), step("chop")), index = 1))
     }
 
     @Test
     fun `a step that fills the bag warns when no step empties it`() {
-        assertEquals(listOf("No step empties the bag."), of(listOf(step("mine"))))
+        assertEquals(listOf("No step empties the bag"), of(listOf(step("mine"))))
     }
 
     @Test
@@ -220,7 +220,7 @@ class StepWarningsTest {
 
     @Test
     fun `a bank step that banks other items does not empty the bag of what the step gets`() {
-        assertEquals(listOf("No step empties the bag."), of(listOf(step("mine"), bank("banks" to "$bronzeAxe"))))
+        assertEquals(listOf("No step empties the bag"), of(listOf(step("mine"), bank("banks" to "$bronzeAxe"))))
     }
 
     @Test
@@ -230,12 +230,12 @@ class StepWarningsTest {
 
     @Test
     fun `a drop step of other items does not empty the bag of what the step gets`() {
-        assertEquals(listOf("No step empties the bag."), of(listOf(StepSettings("drop", mapOf("drops" to "$bronzeAxe")), step("mine")), index = 1))
+        assertEquals(listOf("No step empties the bag"), of(listOf(StepSettings("drop", mapOf("drops" to "$bronzeAxe")), step("mine")), index = 1))
     }
 
     @Test
     fun `a fight step with no reflex attached warns that nothing eats or runs`() {
-        assertEquals(listOf("No reflex eats or runs during this step."), of(listOf(step("fight"))))
+        assertEquals(listOf("No reflex eats or runs during this step"), of(listOf(step("fight"))))
     }
 
     @Test

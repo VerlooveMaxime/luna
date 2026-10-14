@@ -4,8 +4,8 @@ import game.idle.flow.option.FakeNames
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
+import game.idle.font.EVEN_FONT
 import game.idle.location.Tile
-import game.idle.ui.EVEN_FONT
 import io.luna.game.model.mob.Player
 
 /**
@@ -22,9 +22,10 @@ data class FakeStep(val name: String, val gathers: Set<Int> = emptySet(), val ne
 }
 
 /**
- * A kind of step with one optional setting, [WORD], the configure screen's [fields], and optionally a [skill] and a
- * [target]. Resolving records the context it was given, refuses the word "bad", and gathers item 1 when the word is
- * "gather"; with [resolved] it resolves to what that gives instead.
+ * A kind of step with one optional setting, [WORD], the configure screen's [fields], and optionally a [skill], a
+ * [target] and the slot's [detailsOf] its settings. Resolving records the context it was given, refuses the word "bad",
+ * names its [FakeStep] after its kind and word, and gathers item 1 when the word is "gather"; with [resolved] it
+ * resolves to what that gives instead.
  */
 class FakeStepType(
     override val kind: String,
@@ -35,6 +36,7 @@ class FakeStepType(
     private val inputOf: ((StepSettings) -> InputSource)? = null,
     private val resolved: ((StepSettings) -> ResolvedStep)? = null,
     private val icon: StepIcon = StepIcon.Media(kind, 0),
+    private val detailsOf: ((StepSettings, FlowContext) -> List<String>)? = null,
 ) : StepType {
 
     val contexts = mutableListOf<FlowContext>()
@@ -44,8 +46,6 @@ class FakeStepType(
     override val description = "Does $kind things."
 
     override fun fields(names: GameNames): List<StepField> = fields
-
-    override fun summary(settings: StepSettings): String = listOfNotNull(kind, settings[WORD]).joinToString(" ")
 
     override fun icon(settings: StepSettings): StepIcon = icon
 
@@ -57,11 +57,13 @@ class FakeStepType(
 
     override fun input(settings: StepSettings, before: FlowContext): InputSource = inputOf?.invoke(settings) ?: super.input(settings, before)
 
+    override fun details(settings: StepSettings, context: FlowContext): List<String> = detailsOf?.invoke(settings, context) ?: super.details(settings, context)
+
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         contexts += context
         if (settings[WORD] == "bad") throw FlowError("'bad' is refused")
         resolved?.let { return it(settings) }
-        return FakeStep(summary(settings), gathers = if (settings[WORD] == "gather") setOf(1) else emptySet())
+        return FakeStep(listOfNotNull(kind, settings[WORD]).joinToString(" "), gathers = if (settings[WORD] == "gather") setOf(1) else emptySet())
     }
 
     companion object {

@@ -8,6 +8,7 @@ import game.idle.autopilot.LunaAutopilotPlayer
 import game.idle.flow.StepItems
 import game.idle.flow.SavedFlows
 import game.idle.flow.option.LunaOptionFacts
+import game.idle.font.ClientFont
 import game.idle.idleState
 import game.idle.location.Tile
 import io.luna.game.model.mob.Player

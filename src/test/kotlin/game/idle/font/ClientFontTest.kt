@@ -1,4 +1,4 @@
-package game.idle.ui
+package game.idle.font
 
 import game.testworld.TestWorld
 import org.junit.jupiter.api.Assertions.assertEquals

@@ -27,21 +27,13 @@ class FightStepTypeTest {
     private fun fight(vararg values: Pair<String, String>) = StepSettings("fight", mapOf(*values))
 
     @Test
-    fun `a fight step reads as its npc, its defaults left out`() {
-        assertEquals("fight cow", type.summary(fight("npc" to "cow", "within" to "10")))
+    fun `a fight step shows the npc it fights`() {
+        assertEquals("Cow", type.pick(fight("npc" to "cow"), FakeNames())?.label)
     }
 
     @Test
-    fun `a fight step writes every setting that is not the default`() {
-        val settings = fight("npc" to "giant rat", "amount" to "3", "within" to "5")
-
-        assertEquals("fight 3 giant rat within 5", type.summary(settings))
-    }
-
-    @Test
-    fun `a fight step without an npc reads with a question mark and is rejected`() {
-        assertEquals("fight ?", type.summary(fight()))
-        assertRejected("fight needs an npc") { type.resolve(fight(), FlowContext()) }
+    fun `a fight step without an npc is rejected`() {
+        assertRejected("Needs an npc") { type.resolve(fight(), FlowContext()) }
     }
 
     @Test
@@ -49,6 +41,11 @@ class FightStepTypeTest {
         val step = type.resolve(fight("npc" to "Giant Rat", "amount" to "3", "within" to "15"), FlowContext(workSpot = walkedTo))
 
         assertEquals(FightStep(rats, 15, walkedTo, amount = 3), step)
+    }
+
+    @Test
+    fun `a count of no kills names the kills row`() {
+        assertRejected("Kills take 1 or more, not '0'") { type.resolve(fight("npc" to "cow", "amount" to "0"), FlowContext()) }
     }
 
     @Test
@@ -60,7 +57,7 @@ class FightStepTypeTest {
 
     @Test
     fun `an npc of no fight target is rejected`() {
-        assertRejected("'goblin' is not something you can fight") {
+        assertRejected("'goblin' is not an npc to fight") {
             type.resolve(fight("npc" to "goblin"), FlowContext())
         }
     }
@@ -121,11 +118,6 @@ class FightStepTypeTest {
         val step = type.resolve(fight("npc" to "cow", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
 
         assertEquals(FightStep(cows, 10, WorkSpot.Own(picked)), step)
-    }
-
-    @Test
-    fun `a fight step's summary ends with its picked work spot`() {
-        assertEquals("fight cow at 3101 3509", type.summary(fight("npc" to "cow", "spot" to "3101 3509")))
     }
 
     @Test

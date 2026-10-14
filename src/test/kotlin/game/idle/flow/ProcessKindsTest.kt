@@ -14,7 +14,7 @@ class ProcessKindsTest {
     private val oakLogs = 1521
     private val rawShrimps = 317
     private val names = FakeNames(items = mapOf(logs to "Logs", oakLogs to "Oak logs"))
-    private val kinds = ProcessKinds("logs", kind = "light", what = "logs", usable = setOf(logs, oakLogs), names)
+    private val kinds = ProcessKinds("logs", label = "Logs", usable = setOf(logs, oakLogs), names)
 
     private fun light(list: String? = null) = StepSettings("light", list?.let { mapOf("logs" to it) }.orEmpty())
 
@@ -47,7 +47,7 @@ class ProcessKindsTest {
 
     @Test
     fun `the list adds or removes the step's items over four rows`() {
-        val field = kinds.field("Logs", OptionSource { emptyList() }, "Which logs would you like to light?")
+        val field = kinds.field(OptionSource { emptyList() }, "Which logs would you like to light?")
 
         assertEquals(listOf("logs", "Logs", "+ Add or remove logs...", "4"), listOf(field.key, field.label, field.add, field.rows.toString()))
     }
@@ -56,14 +56,14 @@ class ProcessKindsTest {
     fun `nothing picked cannot work`() {
         val error = assertThrows<FlowError> { kinds.resolve(light(), FlowContext(), InputSource.BANK) }
 
-        assertEquals("light needs logs picked", error.message)
+        assertEquals("Needs logs", error.message)
     }
 
     @Test
     fun `a kind no step before gets cannot work on earlier steps`() {
         val error = assertThrows<FlowError> { kinds.resolve(light("$oakLogs"), FlowContext(gathered = setOf(logs)), InputSource.EARLIER_STEPS) }
 
-        assertEquals("no step before gets oak logs", error.message)
+        assertEquals("No step before gets oak logs", error.message)
     }
 
     @Test

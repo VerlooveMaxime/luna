@@ -5,6 +5,7 @@ import game.idle.flow.Fights
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.OwnSpot
+import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
@@ -44,23 +45,22 @@ class FightStepType(private val catalog: FightTargetCatalog) : StepType {
     override fun fields(names: GameNames): List<StepField> =
         listOf(
             StepField.Search("Npc", target(names), "What would you like to fight?"),
-            StepAmount.field("Kills", unbounded = "no end", button = "No end"),
+            StepAmount.field(KILLS, unbounded = "no end", button = "No end"),
             StepSpot.field(),
             StepRadius.field(),
         )
 
-    override fun summary(settings: StepSettings): String =
-        "fight ${StepAmount.prefix(settings)}${settings[NPC] ?: "?"}${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
-
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
-        val name = settings[NPC]?.lowercase() ?: throw FlowError("fight needs an npc")
-        val target = catalog.find(name)
-            ?: throw FlowError("'$name' is not something you can fight")
-        return FightStep(target, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
+        val name = settings[NPC]?.lowercase() ?: throw FlowError(Reasons.needs("Npc"))
+        val target = catalog.find(name) ?: throw FlowError(Reasons.notA("Npc to fight", name))
+        return FightStep(target, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings, KILLS))
     }
 
     companion object {
         const val NPC = "npc"
+
+        /** The amount's row, which counts kills. */
+        private const val KILLS = "Kills"
     }
 }
 

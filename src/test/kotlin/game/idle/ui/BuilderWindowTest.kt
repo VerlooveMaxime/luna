@@ -14,6 +14,7 @@ import game.idle.flow.ReflexSettings
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepSettings
 import game.idle.flow.option.FakeNames
+import game.idle.font.ClientFont
 import game.idle.idleState
 import game.idle.location.Tile
 import game.testworld.TestWorld
@@ -36,7 +37,7 @@ class BuilderWindowTest {
         slots = 4,
         reflexSlots = 2,
     )
-    private val idleUi = IdleUi({ it.kind }, idleTab(), window)
+    private val idleUi = IdleUi(status(), idleTab(), window)
     private val autopilot = Autopilot<LunaAutopilotPlayer>(FakeTickScheduler()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
     private val ui = LunaBuilderUi(BuilderScreen(autopilot, resolver, REFLEXES, REFLEX_FORM, FakeNames(), slots = 4, reflexSlots = 2, SavedFlows(2)), window, idleUi, font)
 

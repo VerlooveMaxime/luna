@@ -7,15 +7,17 @@ import game.idle.flow.FlowRunner
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ResolvedFlow
 import game.idle.flow.SavedFlows
+import game.idle.flow.StepLines
 import game.idle.flow.StepWords
+import game.idle.font.ClientFont
 import game.idle.idleState
 import game.idle.flow.option.LunaGameNames
+import game.idle.ui.AutopilotStatus
 import game.idle.ui.BuilderConfigure
 import game.idle.ui.BuilderOverview
 import game.idle.ui.BuilderScreen
 import game.idle.ui.BuilderWidgets
 import game.idle.ui.BuilderWindow
-import game.idle.ui.ClientFont
 import game.idle.ui.FlowWidgets
 import game.idle.ui.IdleTab
 import game.idle.ui.IdleUi
@@ -36,7 +38,8 @@ val resolver = FlowResolver(steps.types)
 val reflexResolver = ReflexResolver(FoodOptions.portions())
 val reflexForm = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames)
 val font = ClientFont.fromCache(ctx.cache)
-val words = StepWords(LunaGameNames, ClientFont.fromCache(ctx.cache, ClientFont.PLAIN))
+val plainFont = ClientFont.fromCache(ctx.cache, ClientFont.PLAIN)
+val words = StepWords(LunaGameNames, plainFont)
 val savedFlows = SavedFlows(config.savedFlowSlots)
 val builderWindow = BuilderWindow(
     BuilderOverview(resolver, reflexResolver, reflexForm, LunaGameNames, font, savedFlows),
@@ -44,7 +47,7 @@ val builderWindow = BuilderWindow(
     config.stepSlots,
     config.reflexSlots,
 )
-val ui = IdleUi(steps.types::summary, IdleTab.fromCache(ctx.cache, config.savedFlowSlots), builderWindow)
+val ui = IdleUi(AutopilotStatus(StepLines(resolver, LunaGameNames), plainFont), IdleTab.fromCache(ctx.cache, config.savedFlowSlots), builderWindow)
 logger.info("Loaded {} kinds of idle step.", steps.types.all.size)
 
 val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world)) { autopilotPlayer ->

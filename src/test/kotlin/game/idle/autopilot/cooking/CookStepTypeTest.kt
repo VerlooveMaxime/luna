@@ -38,16 +38,6 @@ class CookStepTypeTest {
     private fun cook(vararg values: Pair<String, String>) = StepSettings("cook", mapOf(*values))
 
     @Test
-    fun `a cook step with its defaults reads as cook alone`() {
-        assertEquals("cook", type.summary(cook("within" to "10")))
-    }
-
-    @Test
-    fun `a cook step's count, food and radius are written`() {
-        assertEquals("cook 1 raw shrimps within 5", type.summary(cook("amount" to "1", "raw" to "$rawShrimps", "within" to "5")))
-    }
-
-    @Test
     fun `cook cooks the raw food picked, around the work spot`() {
         val step = type.resolve(cook("amount" to "2", "within" to "15", "input" to "earlier", "raw" to "$rawShrimps,$rawAnchovies"), fished)
 
@@ -58,7 +48,7 @@ class CookStepTypeTest {
     fun `cook with no raw food picked cannot work`() {
         val error = assertThrows<FlowError> { type.resolve(cook("input" to "bank"), FlowContext()) }
 
-        assertEquals("cook needs raw food picked", error.message)
+        assertEquals("Needs raw food", error.message)
     }
 
     @Test
@@ -134,11 +124,6 @@ class CookStepTypeTest {
         val step = type.resolve(cook("input" to "bank", "raw" to "$rawShrimps", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
 
         assertEquals(CookStep(setOf(rawShrimps), 10, WorkSpot.Own(picked)), step)
-    }
-
-    @Test
-    fun `a cook step's summary ends with its picked work spot`() {
-        assertEquals("cook raw shrimps at 3101 3509", type.summary(cook("input" to "bank", "raw" to "$rawShrimps", "spot" to "3101 3509")))
     }
 
     @Test

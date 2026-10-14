@@ -32,7 +32,7 @@ class FlowResolver(val types: StepTypes) {
         var context = FlowContext(lap = lap(steps))
         return steps.mapIndexed { index, settings ->
             try {
-                val type = types.find(settings.kind) ?: throw FlowError("'${settings.kind}' is not a kind of step")
+                val type = types.find(settings.kind) ?: throw FlowError(Reasons.notA("kind of step", settings.kind))
                 val step = type.resolve(settings, context)
                 context = after(step, context, number = index + 1)
                 Result.success(step)

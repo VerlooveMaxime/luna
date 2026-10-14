@@ -21,8 +21,13 @@ class StepAmountTest {
 
     @Test
     fun `a count is 1 or more`() {
-        assertEquals("the amount takes 1 or more, not '0'", assertThrows<FlowError> { StepAmount.read(amount("0")) }.message)
-        assertEquals("the amount takes 1 or more, not 'lots'", assertThrows<FlowError> { StepAmount.read(amount("lots")) }.message)
+        assertEquals("Amount takes 1 or more, not '0'", assertThrows<FlowError> { StepAmount.read(amount("0")) }.message)
+        assertEquals("Amount takes 1 or more, not 'lots'", assertThrows<FlowError> { StepAmount.read(amount("lots")) }.message)
+    }
+
+    @Test
+    fun `a count out of range names the row it is typed on`() {
+        assertEquals("Kills take 1 or more, not '0'", assertThrows<FlowError> { StepAmount.read(amount("0"), "Kills") }.message)
     }
 
     @Test
@@ -32,7 +37,7 @@ class StepAmountTest {
 
     @Test
     fun `a count past what Enter amount takes is refused`() {
-        assertEquals("the amount takes 1 or more, not '2147483648'", assertThrows<FlowError> { StepAmount.read(amount("2147483648")) }.message)
+        assertEquals("Amount takes 1 or more, not '2147483648'", assertThrows<FlowError> { StepAmount.read(amount("2147483648")) }.message)
     }
 
     @Test
@@ -56,11 +61,6 @@ class StepAmountTest {
     }
 
     @Test
-    fun `a summary writes a count before the resource and nothing for as much as it can`() {
-        assertEquals(listOf("5 ", ""), listOf(StepAmount.prefix(amount("5")), StepAmount.prefix(StepSettings("chop"))))
-    }
-
-    @Test
     fun `the configure screen types an amount of 1 or more, a button removing it`() {
         assertEquals(
             listOf("Kills (left): typed amount 1..2147483647, button 'No end'"),
@@ -81,8 +81,13 @@ class StepAmountTest {
     }
 
     @Test
-    fun `a typed amount out of range is refused with its rule`() {
-        assertEquals("the amount takes 1 or more", StepAmount.field("Amount", unbounded = "all of them", button = "All").rule)
+    fun `a typed amount out of range is refused with its row's rule`() {
+        assertEquals("Kills take 1 or more", StepAmount.field("Kills", unbounded = "no end", button = "No end").rule)
+    }
+
+    @Test
+    fun `the rule of a withdrawal's amount names the amount`() {
+        assertEquals("Amount takes 1 or more", StepAmount.RULE)
     }
 
     @Test

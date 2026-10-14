@@ -1,15 +1,18 @@
 package game.idle.ui
 
 import game.idle.IdleState
-import game.idle.flow.FlowContext
 import game.idle.flow.FlowResolver
 import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ReflexSettings
 import game.idle.flow.SavedFlows
+import game.idle.flow.SlotWords
+import game.idle.flow.StepLines
 import game.idle.flow.StepSettings
+import game.idle.flow.capitalised
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.OptionIcon
+import game.idle.font.ClientFont
 
 /**
  * The builder's screens the server shows one at a time: the overview on its Steps tab or its Reflexes tab (S07c), the
@@ -80,13 +83,13 @@ class BuilderOverview(
 ) {
 
     private val types = resolver.types
+    private val lines = StepLines(resolver, names)
 
     fun slots(state: IdleState, slots: Int): List<SlotView> {
         val problems = resolver.problems(state.steps)
         return (0 until slots).map { slot ->
-            val settings = state.steps.getOrNull(slot)
             when {
-                settings != null -> step(state, slot, settings, problems[slot], resolver.contextBefore(state.steps, slot))
+                slot < state.steps.size -> step(state, slot, lines.of(state.steps, slot), problems[slot])
                 slot == state.steps.size -> SlotView.Add
                 else -> SlotView.Free
             }
@@ -172,22 +175,21 @@ class BuilderOverview(
         )
     }
 
-    private fun step(state: IdleState, slot: Int, settings: StepSettings, problem: String?, before: FlowContext): SlotView.Step {
-        val type = types.find(settings.kind)
-        val icon = type?.let { WidgetPicture.of(it.icon(settings)) } ?: WidgetPicture.None
-        val pick = type?.pick(settings, names)
+    /** The slot's lines are the step's words, the target in grey while nothing is picked, then the reason and the wait. */
+    private fun step(state: IdleState, slot: Int, words: SlotWords, problem: String?): SlotView.Step {
+        val icon = words.icon?.let { WidgetPicture.of(it) } ?: WidgetPicture.None
         val running = state.running && state.stepIndex == slot
         val reason = state.blocked?.takeIf { running } ?: problem
         val waiting = state.waiting?.takeIf { running }
-        val targetLine = pick?.let { it.label?.let(::fitted) ?: NOT_SET }
-        val details = (listOfNotNull(targetLine) + type?.details(settings, before).orEmpty().map(::fitted))
+        val targetLine = words.picked?.let { it.label?.let(::fitted) ?: NOT_SET }
+        val details = listOfNotNull(targetLine) + words.details.map(::fitted)
         val reasonLines = reason?.let { heldLines(it, "@red@") }.orEmpty() + waiting?.let { heldLines(it, "@yel@") }.orEmpty()
-        val pictures = StepPictures.of(icon, pick?.icon)
+        val pictures = StepPictures.of(icon, words.picked?.icon)
         return SlotView.Step(
             number = slot + 1,
             picture = pictures.picture,
             corner = pictures.corner,
-            kind = capitalised(type?.label ?: settings.kind),
+            kind = words.kind,
             lines = details.take(BuilderWidgets.SLOT_LINES - reasonLines.size) + reasonLines,
             frame = when {
                 reason != null -> BuilderWidgets.PROBLEM
@@ -250,13 +252,10 @@ class BuilderOverview(
 
 
     private companion object {
-        const val NOT_SET = "@gry@not set yet"
+        const val NOT_SET = "@gry@${SlotWords.NOT_SET}"
         const val ADD_REFLEX = "@gry@+ Add reflex"
 
         /** A reason may take every line but the first, which keeps the target (Maxime, 2026-10-09). */
         const val REASON_LINES = BuilderWidgets.SLOT_LINES - 1
     }
 }
-
-/** [word] with a capital first letter, as the builder shows a kind's name. */
-internal fun capitalised(word: String): String = word.take(1).uppercase() + word.drop(1)

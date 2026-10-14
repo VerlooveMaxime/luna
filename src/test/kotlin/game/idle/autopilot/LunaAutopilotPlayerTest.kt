@@ -43,7 +43,6 @@ import game.idle.flow.Reason
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepTurn
-import game.idle.flow.StepTypes
 import game.idle.flow.StepWork
 import game.idle.flow.WorkSpot
 import game.idle.idleState
@@ -51,6 +50,7 @@ import game.idle.location.Bank
 import game.idle.location.Tile
 import game.idle.ui.IdleUi
 import game.idle.ui.idleTab
+import game.idle.ui.status
 import game.skill.fishing.catchFish.Tool
 import game.skill.mining.Ore
 import game.skill.smithing.BarType
@@ -87,7 +87,7 @@ class LunaAutopilotPlayerTest {
     /** The work inside a step's turn. */
     private fun workOf(step: ResolvedStep): StepWork = (autopilotPlayer().activity(step) as StepTurn).work
 
-    private val ui = IdleUi(StepTypes(listOf(FakeStepType("chop"), FakeStepType("drop")))::summary, idleTab())
+    private val ui = IdleUi(status(FakeStepType("chop"), FakeStepType("drop")), idleTab())
 
     private val chopOak = step("chop", "oak")
 
@@ -154,7 +154,7 @@ class LunaAutopilotPlayerTest {
 
         autopilot.idleState = IdleState(steps = listOf(chopOak, step("drop"))).started(runTile)
 
-        assertEquals(listOf("@gre@Autopilot@whi@ step 1/2|@yel@chop oak"), overlayTexts(autopilot))
+        assertEquals(listOf("@gre@Autopilot@whi@ step 1/2|@yel@Chop label"), overlayTexts(autopilot))
     }
 
     @Test
@@ -173,7 +173,7 @@ class LunaAutopilotPlayerTest {
 
         autopilot.saveStep(1)
 
-        assertEquals("@gre@Autopilot@whi@ step 2/2|@yel@drop", overlayTexts(autopilot).last())
+        assertEquals("@gre@Autopilot@whi@ step 2/2|@yel@Drop label", overlayTexts(autopilot).last())
     }
 
     @Test

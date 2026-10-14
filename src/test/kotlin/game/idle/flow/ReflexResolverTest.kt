@@ -77,13 +77,13 @@ class ReflexResolverTest {
 
         val error = assertThrows<FlowError> { resolver.resolve(listOf(bank), reflexes) }
 
-        assertEquals("Reflex 2: hitpoints below takes 1 to 99 percent, not '0'", error.message)
+        assertEquals("Reflex 2: Hitpoints below takes 1 to 99 percent, not '0'", error.message)
     }
 
     @Test
     fun `hitpoints below takes 1 to 99 percent`() {
         assertEquals(
-            listOf("hitpoints below takes 1 to 99 percent, not 'half'", "hitpoints below takes 1 to 99 percent, not '100'", null),
+            listOf("Hitpoints below takes 1 to 99 percent, not 'half'", "Hitpoints below takes 1 to 99 percent, not '100'", null),
             listOf(problemOf("below" to "half"), problemOf("below" to "100"), problemOf("below" to "99")),
         )
     }
@@ -95,7 +95,7 @@ class ReflexResolverTest {
 
     @Test
     fun `an eat reflex eats only food`() {
-        assertEquals("item 1511 is not something you can eat", problemOf("foods" to "333,$logs"))
+        assertEquals("'1511' is not food", problemOf("foods" to "333,$logs"))
     }
 
     @Test
@@ -105,12 +105,12 @@ class ReflexResolverTest {
 
     @Test
     fun `a jump needs its step picked`() {
-        assertEquals("pick the step to jump to", problemOf("do" to "run", "then" to "jump"))
+        assertEquals("Needs a step", problemOf("do" to "run", "then" to "jump"))
     }
 
     @Test
     fun `a jump to a step that was deleted cannot work`() {
-        assertEquals("jumps to a step that was deleted", problemOf("do" to "run", "then" to "jump", "step" to "9"))
+        assertEquals("Jumps to a step that was deleted", problemOf("do" to "run", "then" to "jump", "step" to "9"))
     }
 
     @Test

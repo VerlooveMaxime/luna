@@ -41,15 +41,13 @@ class SmeltStepTypeTest {
     }
 
     @Test
-    fun `a smelt step reads as its bar, its defaults left out, anything else written`() {
-        assertEquals("smelt bronze", type.summary(smelt("bar" to "bronze", "within" to "10")))
-        assertEquals("smelt 1 bronze within 5", type.summary(smelt("bar" to "bronze", "amount" to "1", "within" to "5")))
+    fun `a smelt step shows the bar it smelts`() {
+        assertEquals("Bronze bar", type.pick(smelt("bar" to "bronze"), LunaGameNames)?.label)
     }
 
     @Test
-    fun `a smelt step without a bar reads with a question mark and is rejected`() {
-        assertEquals("smelt ?", type.summary(smelt()))
-        assertEquals("smelt needs a bar", assertThrows<FlowError> { type.resolve(smelt(), FlowContext()) }.message)
+    fun `a smelt step without a bar is rejected`() {
+        assertEquals("Needs a bar", assertThrows<FlowError> { type.resolve(smelt(), FlowContext()) }.message)
     }
 
     @Test
@@ -68,7 +66,7 @@ class SmeltStepTypeTest {
     fun `an unknown bar is rejected`() {
         val error = assertThrows<FlowError> { type.resolve(smelt("bar" to "tin"), FlowContext()) }
 
-        assertEquals("'tin' is not a bar to smelt", error.message)
+        assertEquals("'tin' is not a bar", error.message)
     }
 
     @Test
@@ -100,7 +98,7 @@ class SmeltStepTypeTest {
     fun `a smelt step on earlier steps needs every ore from a step before it`() {
         val error = assertThrows<FlowError> { type.resolve(smelt("bar" to "bronze", "input" to "earlier"), FlowContext(gathered = setOf(copperOre))) }
 
-        assertEquals("no step before gets tin ore", error.message)
+        assertEquals("No step before gets tin ore", error.message)
     }
 
     @Test
@@ -168,11 +166,6 @@ class SmeltStepTypeTest {
         val step = type.resolve(smelt("bar" to "bronze", "input" to "bank", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
 
         assertEquals(SmeltStep(BarType.BRONZE, 10, WorkSpot.Own(picked)), step)
-    }
-
-    @Test
-    fun `a smelt step's summary ends with its picked work spot`() {
-        assertEquals("smelt bronze at 3101 3509", type.summary(smelt("bar" to "bronze", "input" to "bank", "spot" to "3101 3509")))
     }
 
     @Test

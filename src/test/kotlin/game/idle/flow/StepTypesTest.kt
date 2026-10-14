@@ -27,16 +27,6 @@ class StepTypesTest {
     }
 
     @Test
-    fun `a step reads as its kind of step words it`() {
-        assertEquals("walk north", types.summary(step("walk", "north")))
-    }
-
-    @Test
-    fun `a step of an unknown kind reads as its kind`() {
-        assertEquals("fly", types.summary(step("fly", "away")))
-    }
-
-    @Test
     fun `a flow needs a kind of step`() {
         assertThrows<IllegalArgumentException> { StepTypes(emptyList()) }
     }

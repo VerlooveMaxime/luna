@@ -27,19 +27,8 @@ class ChopStepTypeTest {
     private fun chop(vararg values: Pair<String, String>) = StepSettings("chop", mapOf(*values))
 
     @Test
-    fun `a chop step reads as its tree, its defaults left out`() {
-        assertEquals("chop oak", ChopStepType.summary(chop("tree" to "oak", "within" to "10")))
-    }
-
-    @Test
-    fun `a chop step's count and radius are written`() {
-        assertEquals("chop 1 oak within 5", ChopStepType.summary(chop("tree" to "oak", "amount" to "1", "within" to "5")))
-    }
-
-    @Test
-    fun `a chop step without a tree reads with a question mark and is rejected`() {
-        assertEquals("chop ?", ChopStepType.summary(chop()))
-        assertRejected("chop needs a tree") { ChopStepType.resolve(chop(), FlowContext()) }
+    fun `a chop step without a tree is rejected`() {
+        assertRejected("Needs a tree") { ChopStepType.resolve(chop(), FlowContext()) }
     }
 
     @Test
@@ -56,12 +45,12 @@ class ChopStepTypeTest {
 
     @Test
     fun `an unknown tree is rejected`() {
-        assertRejected("'palm' is not a kind of tree") { ChopStepType.resolve(chop("tree" to "palm"), FlowContext()) }
+        assertRejected("'palm' is not a tree") { ChopStepType.resolve(chop("tree" to "palm"), FlowContext()) }
     }
 
     @Test
     fun `a tree Luna has no standing objects for is rejected`() {
-        assertRejected("There are no teak trees to cut in this world yet") { ChopStepType.resolve(chop("tree" to "teak"), FlowContext()) }
+        assertRejected("No teak trees in this world yet") { ChopStepType.resolve(chop("tree" to "teak"), FlowContext()) }
     }
 
     @Test
@@ -149,11 +138,6 @@ class ChopStepTypeTest {
         val step = ChopStepType.resolve(chop("tree" to "oak", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
 
         assertEquals(ChopStep(Tree.OAK, 10, WorkSpot.Own(picked)), step)
-    }
-
-    @Test
-    fun `a chop step's summary ends with its picked work spot`() {
-        assertEquals("chop oak at 3101 3509", ChopStepType.summary(chop("tree" to "oak", "spot" to "3101 3509")))
     }
 
     @Test

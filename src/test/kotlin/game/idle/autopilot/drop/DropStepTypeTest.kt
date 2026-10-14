@@ -41,21 +41,6 @@ class DropStepTypeTest {
     }
 
     @Test
-    fun `a drop step on gathered reads as drop gathered`() {
-        assertEquals("drop gathered", type.summary(gathered))
-    }
-
-    @Test
-    fun `a drop step on chosen names its items`() {
-        assertEquals("drop logs, oak logs", type.summary(chosen))
-    }
-
-    @Test
-    fun `a drop step on chosen with nothing picked reads as drop alone`() {
-        assertEquals("drop", type.summary(StepSettings("drop", mapOf("drop" to "chosen"))))
-    }
-
-    @Test
     fun `the configure screen has the drop toggle, the note on gathered and the list on chosen`() {
         assertEquals(
             listOf(
@@ -108,7 +93,7 @@ class DropStepTypeTest {
     fun `drop on gathered when no step gathers anything cannot work`() {
         val error = assertThrows<FlowError> { type.resolve(gathered, FlowContext(gathered = setOf(logs))) }
 
-        assertEquals("drop needs a step that gathers something", error.message)
+        assertEquals("Needs a step that gathers something", error.message)
     }
 
     @Test
@@ -125,7 +110,7 @@ class DropStepTypeTest {
     fun `drop on chosen with nothing picked cannot work`() {
         val error = assertThrows<FlowError> { type.resolve(StepSettings("drop", mapOf("drop" to "chosen")), FlowContext()) }
 
-        assertEquals("drop needs items picked", error.message)
+        assertEquals("Needs chosen items", error.message)
     }
 
     @Test

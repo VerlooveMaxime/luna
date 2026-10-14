@@ -35,8 +35,8 @@ data class StepSettings(
 }
 
 /**
- * One kind of flow step, everything about it in one place: which settings the flow builder shows for it, how it reads
- * in a few words, and what it resolves to. The runner, resolver and builder only know this interface, so a new kind of
+ * One kind of flow step, everything about it in one place: which settings the flow builder shows for it, what its slot
+ * says, and what it resolves to. The runner, resolver and builder only know this interface, so a new kind of
  * step is a new implementation added to the registry (`IdleSteps`).
  */
 interface StepType {
@@ -52,9 +52,6 @@ interface StepType {
 
     /** The settings the configure screen shows, in the order it shows them, options named with [names]. */
     fun fields(names: GameNames): List<StepField>
-
-    /** The step in a few words, for the status lines. */
-    fun summary(settings: StepSettings): String
 
     /** What the builder's slot shows for this kind, which may follow the settings (make shows its recipe's skill). */
     fun icon(settings: StepSettings): StepIcon
@@ -259,16 +256,16 @@ data class FlowContext(
 }
 
 /**
- * The builder's slot line saying where a processing step takes [what] from: "from the bank", or the earlier steps that
- * get [items], "from step 2" ("No logs before it" when none does).
+ * The builder's slot line saying where a processing step takes what it works on: "from the bank", or the earlier steps
+ * that get [items], "from step 2" ("from no step" when none does).
  */
 object StepInput {
 
-    fun detail(what: String, input: InputSource, context: FlowContext, items: Set<Int>): String {
+    fun detail(input: InputSource, context: FlowContext, items: Set<Int>): String {
         if (input == InputSource.BANK) return "from the bank"
         val steps = context.stepsGathering(items)
         return when (steps.size) {
-            0 -> "No ${what.lowercase()} before it"
+            0 -> "from no step"
             1 -> "from step ${steps.single()}"
             else -> "from steps ${steps.joinToString(", ")}"
         }

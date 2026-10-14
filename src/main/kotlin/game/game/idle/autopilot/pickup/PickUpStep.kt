@@ -6,6 +6,7 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.OwnSpot
 import game.idle.flow.OwnWarnings
+import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
@@ -48,19 +49,15 @@ class PickUpStepType(drops: DropLookup, spawns: SpawnCatalog, private val items:
 
     override fun fields(names: GameNames): List<StepField> =
         listOf(
-            StepAmount.field("Amount", unbounded = ALL_LYING, button = "All"),
+            StepAmount.field(StepAmount.LABEL, unbounded = ALL_LYING, button = "All"),
             StepField.Items(ITEMS, "Items", options, "What would you like to pick up?", add = "+ Add or remove items...", rows = ROWS),
             StepSpot.field(),
             StepRadius.field(),
         )
 
-    override fun summary(settings: StepSettings): String =
-        "pick up ${StepAmount.prefix(settings)}${picked(settings).joinToString(", ") { names.item(it).lowercase() }}".trimEnd() +
-            StepRadius.suffix(settings) + StepSpot.suffix(settings)
-
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val picked = picked(settings)
-        if (picked.isEmpty()) throw FlowError("pick up needs items picked")
+        if (picked.isEmpty()) throw FlowError(Reasons.needs("Items", countable = false))
         return PickUpStep(picked.flatMap(items::alike).toSet(), StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
     }
 
@@ -72,7 +69,7 @@ class PickUpStepType(drops: DropLookup, spawns: SpawnCatalog, private val items:
         val around = options.dropsBefore(before) + options.spawnsAround(settings, before, facts)
         val missing = picked(settings).filter { item -> items.alike(item).none { it in around } }
         if (missing.isEmpty()) return emptyList()
-        return listOf("No fight step before drops ${missing.joinToString(", ") { names.item(it).lowercase() }}, and none spawns here.")
+        return listOf("No fight step before drops ${missing.joinToString(", ") { names.item(it).lowercase() }}, and none spawns here")
     }
 
     /** The items picked that name an item; text naming none is left out. */

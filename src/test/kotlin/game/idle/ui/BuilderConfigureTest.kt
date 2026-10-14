@@ -9,6 +9,7 @@ import game.idle.flow.StepField
 import game.idle.flow.StepSettings
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.OptionFacts
+import game.idle.font.ClientFont
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -492,7 +493,7 @@ class BuilderConfigureTest {
 
     @Test
     fun `a warning that does not stop the step shows in yellow`() {
-        assertEquals(listOf("@yel@! You carry no saw and no bank step withdraws one.", "", ""), (0 until 3).map { text(sawing, BuilderWidgets.warning(it), IdleState()) })
+        assertEquals(listOf("@yel@! You carry no saw and no bank step withdraws one", "", ""), (0 until 3).map { text(sawing, BuilderWidgets.warning(it), IdleState()) })
     }
 
     @Test
@@ -507,7 +508,7 @@ class BuilderConfigureTest {
         val state = IdleState(steps = listOf(StepSettings("saw")), running = true, blocked = "Needs a saw")
 
         assertEquals(
-            listOf("@red@! Needs a saw", "@yel@! You carry no saw and no bank step withdraws one."),
+            listOf("@red@! Needs a saw", "@yel@! You carry no saw and no bank step withdraws one"),
             (0 until 2).map { text(sawing.copy(new = false), BuilderWidgets.warning(it), state) },
         )
     }
@@ -516,7 +517,7 @@ class BuilderConfigureTest {
     fun `a step edited is warned about in its place in the flow`() {
         val state = IdleState(steps = listOf(oak, oak))
 
-        assertEquals("@yel@! You carry no saw and no bank step withdraws one.", text(StepDraft(1, StepSettings("saw"), new = false), BuilderWidgets.warning(0), state))
+        assertEquals("@yel@! You carry no saw and no bank step withdraws one", text(StepDraft(1, StepSettings("saw"), new = false), BuilderWidgets.warning(0), state))
     }
 
     @Test
@@ -590,7 +591,7 @@ class BuilderConfigureTest {
 
     @Test
     fun `a reflex that jumps to a deleted step says so in red`() {
-        assertEquals("@red@! jumps to a step that was deleted", text(running, BuilderWidgets.warning(0), IdleState(reflexes = listOf(troutReflex))))
+        assertEquals("@red@! Jumps to a step that was deleted", text(running, BuilderWidgets.warning(0), IdleState(reflexes = listOf(troutReflex))))
     }
 
     @Test
@@ -607,7 +608,7 @@ class BuilderConfigureTest {
 
     @Test
     fun `an eat reflex whose food is neither carried nor withdrawn warns in yellow`() {
-        assertEquals("@yel@! You carry no food and no bank step withdraws any.", text(eating, BuilderWidgets.warning(0), cows))
+        assertEquals("@yel@! You carry no food and no bank step withdraws any", text(eating, BuilderWidgets.warning(0), cows))
     }
 
     @Test

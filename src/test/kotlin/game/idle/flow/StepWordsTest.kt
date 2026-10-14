@@ -1,7 +1,7 @@
 package game.idle.flow
 
 import game.idle.flow.option.FakeNames
-import game.idle.ui.EVEN_FONT
+import game.idle.font.EVEN_FONT
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -119,6 +119,16 @@ class StepWordsTest {
     @Test
     fun `a step that cannot work points at its slot`() {
         assertEquals("Autopilot: step 4 cannot work yet. See its slot warning in the builder.", StepWords.cannotWork(4))
+    }
+
+    @Test
+    fun `a reflex that cannot work points at its row`() {
+        assertEquals("Autopilot: reflex 2 cannot work yet. See its row in the builder.", StepWords.reflexCannotWork(2))
+    }
+
+    @Test
+    fun `the chat prefix is Autopilot and a space`() {
+        assertEquals("Autopilot: ", StepWords.PREFIX)
     }
 
     @Test

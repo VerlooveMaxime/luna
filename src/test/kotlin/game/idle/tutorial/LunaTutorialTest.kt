@@ -30,6 +30,7 @@ import game.idle.tutorial.TutorialStep.WATCH_THE_AUTOPILOT
 import game.idle.ui.FlowWidgets
 import game.idle.ui.IdleUi
 import game.idle.ui.idleTab
+import game.idle.ui.status
 import game.player.login.firstLogin
 import game.skill.firemaking.LightAction
 import game.skill.smithing.BarType
@@ -71,7 +72,7 @@ class LunaTutorialTest {
     @AfterEach
     fun resetWorld() = TestWorld.reset()
 
-    private val idleUi = IdleUi(summary = { it.kind }, tab = idleTab())
+    private val idleUi = IdleUi(status(), idleTab())
 
     private fun tutorial() = LunaTutorial(TutorialScript(data), data, TestWorld.world, idleUi)
 

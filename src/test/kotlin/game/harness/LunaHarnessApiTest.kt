@@ -7,6 +7,7 @@ import game.idle.flow.FlowResolver
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ReflexSettings
 import game.idle.flow.StepTypes
+import game.idle.font.ClientFont
 import game.idle.idleState
 import game.testworld.TestWorld
 import io.luna.game.action.Action
@@ -15,7 +16,6 @@ import io.luna.game.event.Event
 import game.idle.ui.MapPickEvent
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.StepOption
-import game.idle.ui.ClientFont
 import game.idle.ui.SearchClosedEvent
 import game.idle.ui.SearchNameEvent
 import game.idle.ui.SearchPageEvent
@@ -63,7 +63,9 @@ class LunaHarnessApiTest {
         override fun run(): Boolean = false
     }
 
-    private val flows = FlowCheck(FlowResolver(StepTypes(listOf(FakeStepType("chop"), FakeStepType("drop")))), ReflexResolver(mapOf(333 to setOf(333))), maxSteps = 2, maxReflexes = 2)
+    /** A chop whose slot says its word, so a flow view carries the slot's lines. */
+    private val chop = FakeStepType("chop", detailsOf = { settings, _ -> listOfNotNull(settings[FakeStepType.WORD]) })
+    private val flows = FlowCheck(FlowResolver(StepTypes(listOf(chop, FakeStepType("drop")))), ReflexResolver(mapOf(333 to setOf(333))), maxSteps = 2, maxReflexes = 2)
 
     private fun api() = LunaHarnessApi(
         TestWorld.world,
@@ -843,14 +845,14 @@ class LunaHarnessApiTest {
     }
 
     @Test
-    fun `a player's flow reads as its steps, each with how it reads, and its reflexes`() {
+    fun `a player's flow reads as its steps, each with its slot's lines, and its reflexes`() {
         val chop = step("chop", "oak").copy(id = 1, reflexes = listOf(3))
         val reflex = ReflexSettings(3, mapOf("do" to "run"))
         agent().idleState = IdleState(steps = listOf(chop, step("drop").copy(id = 2)), reflexes = listOf(reflex), stepIndex = 1)
 
         val view = api().flow("agent_a")
 
-        val steps = listOf(FlowStepView(1, "chop", mapOf("word" to "oak"), listOf(3), "chop oak", null), FlowStepView(2, "drop", emptyMap(), emptyList(), "drop", null))
+        val steps = listOf(FlowStepView(1, "chop", mapOf("word" to "oak"), listOf(3), listOf("oak"), null), FlowStepView(2, "drop", emptyMap(), emptyList(), emptyList(), null))
         assertEquals(FlowView("agent_a", running = false, stepIndex = 1, blocked = null, waiting = null, steps = steps, reflexes = listOf(FlowReflexView(3, mapOf("do" to "run")))), view)
     }
 
@@ -871,7 +873,7 @@ class LunaHarnessApiTest {
         val view = api().replaceFlow("agent_a", listOf(step("chop", "oak").copy(id = 1), step("drop").copy(id = 2)), emptyList())
 
         assertEquals(IdleState(steps = listOf(step("chop", "oak").copy(id = 1), step("drop").copy(id = 2)), stage = 2), player.idleState)
-        assertEquals(listOf("chop oak", "drop"), view.steps.map { it.summary })
+        assertEquals(listOf(listOf("oak"), emptyList()), view.steps.map { it.lines })
     }
 
     @Test

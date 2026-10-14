@@ -6,6 +6,7 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
+import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
@@ -58,18 +59,14 @@ object MineStepType : StepType {
     override fun fields(names: GameNames): List<StepField> =
         listOf(
             StepField.Search("Rock", target(names), "Which rock would you like to mine?"),
-            StepAmount.field("Amount", unbounded = "until the bag is full", button = "Full"),
+            StepAmount.field(StepAmount.LABEL, unbounded = "until the bag is full", button = "Full"),
             StepSpot.field(),
             StepRadius.field(),
         )
 
-    override fun summary(settings: StepSettings): String =
-        "mine ${StepAmount.prefix(settings)}${settings[ORE] ?: "?"}${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
-
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
-        val name = settings[ORE] ?: throw FlowError("mine needs an ore")
-        val ore = MINEABLE.firstOrNull { it.name.equals(name, ignoreCase = true) }
-            ?: throw FlowError("'$name' is not an ore with rocks to mine")
+        val name = settings[ORE] ?: throw FlowError(Reasons.needs("Rock"))
+        val ore = MINEABLE.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: throw FlowError(Reasons.notA("Rock", name))
         return MineStep(ore, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
     }
 }

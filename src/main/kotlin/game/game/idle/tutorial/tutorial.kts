@@ -4,6 +4,11 @@ import api.combat.player.PlayerCombatHandler.playerDefence
 import api.predef.*
 import game.idle.autopilot.AutopilotConfig
 import game.idle.autopilot.IdleSteps
+import game.idle.flow.FlowResolver
+import game.idle.flow.StepLines
+import game.idle.flow.option.LunaGameNames
+import game.idle.font.ClientFont
+import game.idle.ui.AutopilotStatus
 import game.idle.ui.IdleTab
 import game.idle.ui.IdleUi
 import io.luna.game.event.impl.FlashingTabClickEvent
@@ -13,7 +18,8 @@ import io.luna.game.model.mob.combat.damage.CombatDamageRequest
 
 val tutorialData = TutorialData.load(TutorialData.PATH)
 val idleTab = IdleTab.fromCache(ctx.cache, AutopilotConfig.load(AutopilotConfig.PATH).savedFlowSlots)
-val tutorial = LunaTutorial(TutorialScript(tutorialData), tutorialData, world, IdleUi(IdleSteps.load().types::summary, idleTab))
+val status = AutopilotStatus(StepLines(FlowResolver(IdleSteps.load().types), LunaGameNames), ClientFont.fromCache(ctx.cache, ClientFont.PLAIN))
+val tutorial = LunaTutorial(TutorialScript(tutorialData), tutorialData, world, IdleUi(status, idleTab))
 
 on(LoginEvent::class)
     .filter { !plr.isBot }

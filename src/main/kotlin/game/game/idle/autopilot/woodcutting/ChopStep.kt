@@ -6,6 +6,7 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.LevelNeed
 import game.idle.flow.OwnSpot
+import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
@@ -57,19 +58,16 @@ object ChopStepType : StepType {
     override fun fields(names: GameNames): List<StepField> =
         listOf(
             StepField.Search("Tree", target(names), "Which tree would you like to cut?"),
-            StepAmount.field("Amount", unbounded = "until the bag is full", button = "Full"),
+            StepAmount.field(StepAmount.LABEL, unbounded = "until the bag is full", button = "Full"),
             StepSpot.field(),
             StepRadius.field(),
         )
 
-    override fun summary(settings: StepSettings): String =
-        "chop ${StepAmount.prefix(settings)}${settings[TREE] ?: "?"}${StepRadius.suffix(settings)}${StepSpot.suffix(settings)}"
-
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
-        val name = settings[TREE] ?: throw FlowError("chop needs a tree")
+        val name = settings[TREE] ?: throw FlowError(Reasons.needs("Tree"))
         val tree = Tree.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
-            ?: throw FlowError("'$name' is not a kind of tree")
-        if (tree !in CUTTABLE) throw FlowError("There are no $name trees to cut in this world yet")
+            ?: throw FlowError(Reasons.notA("Tree", name))
+        if (tree !in CUTTABLE) throw FlowError("No ${tree.name.lowercase()} trees in this world yet")
         return ChopStep(tree, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
     }
 }

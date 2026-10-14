@@ -6,6 +6,7 @@ import game.idle.flow.LevelNeed
 import game.idle.flow.StepField
 import game.idle.flow.StepIcon
 import game.idle.flow.StepNeeds
+import game.idle.flow.StepPick
 import game.idle.flow.StepSettings
 import game.idle.flow.Uses
 import game.idle.flow.WorkSpot
@@ -41,24 +42,13 @@ class SmithStepTypeTest {
     }
 
     @Test
-    fun `a smith step reads as its item, its defaults left out, anything else written`() {
-        assertEquals("smith bronze dagger", type.summary(smith("item" to "$BRONZE_DAGGER", "within" to "10")))
-        assertEquals("smith 1 bronze dagger within 5", type.summary(smith("item" to "$BRONZE_DAGGER", "amount" to "1", "within" to "5")))
-    }
-
-    @Test
-    fun `a smith step without an item reads with a question mark`() {
-        assertEquals("smith ?", type.summary(smith()))
-    }
-
-    @Test
-    fun `a smith step whose item is no smithing item reads as it is kept`() {
-        assertEquals(listOf("smith dagger", "smith 4"), listOf(type.summary(smith("item" to "dagger")), type.summary(smith("item" to "4"))))
+    fun `a smith step shows an item no table row smiths as it is kept, without a picture`() {
+        assertEquals(StepPick("dagger", null), type.pick(smith("item" to "dagger"), FakeNames()))
     }
 
     @Test
     fun `a smith step without an item is rejected`() {
-        assertRejected("smith needs an item") { type.resolve(smith(), FlowContext()) }
+        assertRejected("Needs an item") { type.resolve(smith(), FlowContext()) }
     }
 
     @Test
@@ -108,7 +98,7 @@ class SmithStepTypeTest {
 
     @Test
     fun `a smith step on earlier steps needs its bar from a step before it`() {
-        assertRejected("no step before gets iron bar") { type.resolve(smith("item" to "$IRON_PLATEBODY", "input" to "earlier"), smelted) }
+        assertRejected("No step before gets iron bar") { type.resolve(smith("item" to "$IRON_PLATEBODY", "input" to "earlier"), smelted) }
     }
 
     @Test
@@ -153,7 +143,7 @@ class SmithStepTypeTest {
 
     @Test
     fun `a smith step without an item takes no bar from the steps before`() {
-        assertEquals("No bars before it", type.details(smith("input" to "earlier"), smelted).first())
+        assertEquals("from no step", type.details(smith("input" to "earlier"), smelted).first())
     }
 
     @Test
@@ -187,11 +177,6 @@ class SmithStepTypeTest {
         val step = type.resolve(smith("item" to "$BRONZE_DAGGER", "input" to "bank", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
 
         assertEquals(SmithStep(BarType.BRONZE, SmithingTable.DAGGER, 10, WorkSpot.Own(picked)), step)
-    }
-
-    @Test
-    fun `a smith step's summary ends with its picked work spot`() {
-        assertEquals("smith bronze dagger at 3101 3509", type.summary(smith("item" to "$BRONZE_DAGGER", "input" to "bank", "spot" to "3101 3509")))
     }
 
     @Test

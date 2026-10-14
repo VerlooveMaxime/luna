@@ -38,15 +38,8 @@ class FishStepTypeTest {
     }
 
     @Test
-    fun `a fish step reads as its fish, its defaults left out, anything else written`() {
-        assertEquals("fish shrimp", FishStepType.summary(fish("fish" to "shrimp", "within" to "10")))
-        assertEquals("fish 1 shrimp within 5", FishStepType.summary(fish("fish" to "shrimp", "amount" to "1", "within" to "5")))
-    }
-
-    @Test
-    fun `a fish step without a fish reads with a question mark and is rejected`() {
-        assertEquals("fish ?", FishStepType.summary(fish()))
-        assertRejected("fish needs a fish") { FishStepType.resolve(fish(), FlowContext()) }
+    fun `a fish step without a catch is rejected`() {
+        assertRejected("Needs a catch") { FishStepType.resolve(fish(), FlowContext()) }
     }
 
     @Test
@@ -64,8 +57,8 @@ class FishStepTypeTest {
     }
 
     @Test
-    fun `a fish not caught yet lists the ones that are`() {
-        assertRejected("'karambwan' is not a fish you can catch yet. Fish: $WORDS") {
+    fun `a fish not caught yet is rejected`() {
+        assertRejected("'karambwan' is not a catch") {
             FishStepType.resolve(fish("fish" to "karambwan"), FlowContext())
         }
     }
@@ -146,10 +139,6 @@ class FishStepTypeTest {
         assertEquals(message, assertThrows<FlowError> { action() }.message)
     }
 
-    private companion object {
-        const val WORDS = "shrimp, sardine, mackerel, trout, tuna, lobster, monkfish, shark"
-    }
-
     @Test
     fun `a fish step shows the Fishing icon`() {
         assertEquals(StepIcon.Skill(Skill.FISHING), FishStepType.icon(StepSettings("fish")))
@@ -181,9 +170,16 @@ class FishStepTypeTest {
 
     @Test
     fun `a fish step with bait needs the bait too, which is not counted one by one`() {
+        val tools = FishStep(FishingMethod(Tool.FISHING_ROD), 10, walkedTo).needs().single().tools
+
+        assertEquals(listOf(ToolNeed(word = null, mapOf(307 to 1)), ToolNeed(word = null, mapOf(313 to 1), countable = false)), tools)
+    }
+
+    @Test
+    fun `a fly fishing step needs feathers too, by that word`() {
         val tools = FishStep(FishingMethod(Tool.FLY_FISHING_ROD), 10, walkedTo).needs().single().tools
 
-        assertEquals(listOf(ToolNeed(word = null, mapOf(309 to 1)), ToolNeed(word = null, mapOf(314 to 1), countable = false)), tools)
+        assertEquals(listOf(ToolNeed(word = null, mapOf(309 to 1)), ToolNeed(word = "feathers", mapOf(314 to 1), countable = false)), tools)
     }
 
     @Test
@@ -191,11 +187,6 @@ class FishStepTypeTest {
         val step = FishStepType.resolve(fish("fish" to "shrimp", "spot" to "3101 3509"), FlowContext(workSpot = walkedTo))
 
         assertEquals(FishStep(FishingMethod(Tool.SMALL_NET), 10, WorkSpot.Own(picked)), step)
-    }
-
-    @Test
-    fun `a fish step's summary ends with its picked work spot`() {
-        assertEquals("fish shrimp at 3101 3509", FishStepType.summary(fish("fish" to "shrimp", "spot" to "3101 3509")))
     }
 
     @Test

@@ -2,6 +2,7 @@ package game.idle.ui
 
 import game.idle.IdleState
 import game.idle.flow.SavedFlows
+import game.idle.font.ClientFont
 import io.luna.game.cache.Cache
 
 /**

@@ -4,6 +4,7 @@ import game.harness.RecordedMessage
 import game.idle.flow.SavedFlows
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.StepOption
+import game.idle.font.ClientFont
 import game.testworld.TestWorld
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Player

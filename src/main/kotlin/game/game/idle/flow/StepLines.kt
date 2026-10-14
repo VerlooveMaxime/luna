@@ -1,0 +1,52 @@
+package game.idle.flow
+
+import game.idle.flow.option.GameNames
+
+/**
+ * What a step's slot in the builder says (S06a), which overlay line 2 and the harness say too (Maxime, 2026-10-11,
+ * Q6): the [kind]'s name and [icon], what the step [picked] (null for a kind that picks nothing), its [details] after
+ * what the steps before it set up, and its own [spot] as the setting keeps it, null for From the flow.
+ */
+data class SlotWords(
+    val kind: String,
+    val icon: StepIcon?,
+    val picked: StepPick?,
+    val details: List<String>,
+    val spot: String?,
+) {
+
+    /** The lines under the kind: what was picked, [NOT_SET] while nothing is, then the details. */
+    val lines: List<String> get() = listOfNotNull(picked?.let { it.label ?: NOT_SET }) + details
+
+    /** The slot on one line, the spot last: "Chop: Oak tree, 5 per lap at 3101, 3509"; a kind with no lines is its name. */
+    val line: String
+        get() {
+            val under = lines.joinToString(", ")
+            val at = spot?.let { " at ${it.replace(" ", ", ")}" }.orEmpty()
+            return if (under.isEmpty()) "$kind$at" else "$kind: $under$at"
+        }
+
+    companion object {
+        const val NOT_SET = "not set yet"
+    }
+}
+
+/** The words of every slot of a flow over [resolver]'s kinds, items named with [names]. */
+class StepLines(private val resolver: FlowResolver, private val names: GameNames) {
+
+    /** The step at [index] of [steps]; a step of a kind no type knows shows its kind alone. */
+    fun of(steps: List<StepSettings>, index: Int): SlotWords {
+        val settings = steps[index]
+        val type = resolver.types.find(settings.kind)
+        return SlotWords(
+            kind = capitalised(type?.label ?: settings.kind),
+            icon = type?.icon(settings),
+            picked = type?.pick(settings, names),
+            details = type?.details(settings, resolver.contextBefore(steps, index)).orEmpty(),
+            spot = settings[StepSpot.KEY],
+        )
+    }
+}
+
+/** [word] with a capital first letter, as the builder shows a kind's name. */
+fun capitalised(word: String): String = word.take(1).uppercase() + word.drop(1)

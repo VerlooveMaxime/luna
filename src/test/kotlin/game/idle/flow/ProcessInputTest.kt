@@ -61,7 +61,7 @@ class ProcessInputTest {
     fun `an input no step before gets is named`() {
         val error = assertThrows<FlowError> { ProcessInput.requireGathered(InputSource.EARLIER_STEPS, chopped, listOf(logs, oakLogs), names) }
 
-        assertEquals("no step before gets oak logs", error.message)
+        assertEquals("No step before gets oak logs", error.message)
     }
 
     @Test

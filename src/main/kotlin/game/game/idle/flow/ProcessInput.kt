@@ -35,7 +35,7 @@ object ProcessInput {
     fun requireGathered(input: InputSource, before: FlowContext, needed: List<Int>, names: GameNames) {
         if (input == InputSource.BANK) return
         val missing = needed.firstOrNull { it !in before.gathered } ?: return
-        throw FlowError("no step before gets ${names.item(missing).lowercase()}")
+        throw FlowError("No step before gets ${names.item(missing).lowercase()}")
     }
 
     fun word(input: InputSource): String = if (input == InputSource.BANK) BANK else EARLIER

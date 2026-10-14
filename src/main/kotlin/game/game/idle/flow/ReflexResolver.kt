@@ -2,7 +2,8 @@ package game.idle.flow
 
 import game.idle.flow.ReflexKeys.BELOW
 import game.idle.flow.ReflexKeys.BELOW_RANGE
-import game.idle.flow.ReflexKeys.BELOW_RULE
+import game.idle.flow.ReflexKeys.BELOW_LABEL
+import game.idle.flow.ReflexKeys.BELOW_WORDS
 import game.idle.flow.ReflexKeys.DEFAULT_BELOW
 import game.idle.flow.ReflexKeys.DO
 import game.idle.flow.ReflexKeys.EAT
@@ -49,7 +50,7 @@ class ReflexResolver(private val portions: Map<Int, Set<Int>>) {
 
     private fun trigger(reflex: ReflexSettings): ReflexTrigger {
         val text = reflex[BELOW] ?: return ReflexTrigger.HitpointsBelow(DEFAULT_BELOW)
-        val percent = text.toIntOrNull()?.takeIf { it in BELOW_RANGE } ?: throw FlowError("$BELOW_RULE, not '$text'")
+        val percent = text.toIntOrNull()?.takeIf { it in BELOW_RANGE } ?: throw FlowError(Reasons.takes(BELOW_LABEL, BELOW_WORDS, text))
         return ReflexTrigger.HitpointsBelow(percent)
     }
 
@@ -61,7 +62,7 @@ class ReflexResolver(private val portions: Map<Int, Set<Int>>) {
         }
 
     private fun foods(reflex: ReflexSettings): Set<Int> =
-        StepItems.parse(reflex[FOODS]).flatMap { portions[it.id] ?: throw FlowError("item ${it.id} is not something you can eat") }.toSet()
+        StepItems.parse(reflex[FOODS]).flatMap { portions[it.id] ?: throw FlowError(Reasons.notA("Food", it.id.toString(), countable = false)) }.toSet()
 
     private fun then(reflex: ReflexSettings, steps: List<StepSettings>): ReflexThen =
         when (val then = reflex[THEN] ?: STOP) {
@@ -71,7 +72,7 @@ class ReflexResolver(private val portions: Map<Int, Set<Int>>) {
         }
 
     private fun jumpTarget(step: String?, steps: List<StepSettings>): Int {
-        val id = step?.toIntOrNull() ?: throw FlowError("pick the step to jump to")
-        return steps.indexOfFirst { it.id == id }.takeIf { it >= 0 } ?: throw FlowError("jumps to a step that was deleted")
+        val id = step?.toIntOrNull() ?: throw FlowError(Reasons.needs("Step"))
+        return steps.indexOfFirst { it.id == id }.takeIf { it >= 0 } ?: throw FlowError("Jumps to a step that was deleted")
     }
 }

@@ -15,9 +15,6 @@ class StepTypes(val all: List<StepType>) {
 
     fun find(kind: String): StepType? = byKind[kind]
 
-    /** The step in a few words; a step of a kind no type knows shows its kind alone. */
-    fun summary(step: StepSettings): String = find(step.kind)?.summary(step) ?: step.kind
-
     /** Where [step] takes what it works on, after what the steps [before] it set up; the bank for a kind no type knows. */
     fun input(step: StepSettings, before: FlowContext): InputSource = find(step.kind)?.input(step, before) ?: InputSource.BANK
 

@@ -33,16 +33,6 @@ class LightStepTypeTest {
     private fun light(vararg values: Pair<String, String>) = StepSettings("light", mapOf(*values))
 
     @Test
-    fun `a light step with nothing picked reads as light alone`() {
-        assertEquals("light", type.summary(light()))
-    }
-
-    @Test
-    fun `a light step's summary names its count and its logs`() {
-        assertEquals("light 2 logs, oak logs", type.summary(light("amount" to "2", "logs" to "$logs,$oakLogs")))
-    }
-
-    @Test
     fun `light lights the logs picked, from the steps before it`() {
         val step = type.resolve(light("amount" to "1", "input" to "earlier", "logs" to "$logs"), chopped)
 
@@ -63,14 +53,14 @@ class LightStepTypeTest {
     fun `light with no logs picked cannot work`() {
         val error = assertThrows<FlowError> { type.resolve(light("input" to "bank"), FlowContext()) }
 
-        assertEquals("light needs logs picked", error.message)
+        assertEquals("Needs logs", error.message)
     }
 
     @Test
     fun `light on earlier steps cannot light logs no step before gets`() {
         val error = assertThrows<FlowError> { type.resolve(light("input" to "earlier", "logs" to "$oakLogs"), chopped) }
 
-        assertEquals("no step before gets oak logs", error.message)
+        assertEquals("No step before gets oak logs", error.message)
     }
 
     @Test
@@ -151,11 +141,6 @@ class LightStepTypeTest {
         val step = type.resolve(light("input" to "bank", "logs" to "$oakLogs", "spot" to "3101 3509"), chopped)
 
         assertEquals(LightStep(setOf(oakLogs), spot = picked), step)
-    }
-
-    @Test
-    fun `a light step's summary ends with its picked work spot`() {
-        assertEquals("light oak logs at 3101 3509", type.summary(light("logs" to "$oakLogs", "spot" to "3101 3509")))
     }
 
     @Test

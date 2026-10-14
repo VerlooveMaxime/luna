@@ -5,6 +5,7 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.LevelNeed
 import game.idle.flow.ProcessInput
+import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepAmount
 import game.idle.flow.StepField
@@ -44,10 +45,8 @@ class MakeStepType(private val catalog: RecipeCatalog, private val names: GameNa
             ProcessInput.field(ingredients),
             StepField.Search("Product", target(names), "What would you like to make?"),
             StepField.Note("Uses") { settings, _ -> uses(settings) },
-            StepAmount.field("Amount", unbounded = "all of them", button = "All"),
+            StepAmount.field(StepAmount.LABEL, unbounded = "all of them", button = "All"),
         )
-
-    override fun summary(settings: StepSettings): String = "make ${StepAmount.prefix(settings)}${settings[PRODUCT] ?: "?"}"
 
     /** The recipe's skill, Crafting until one is picked (S01). */
     override fun icon(settings: StepSettings): StepIcon = StepIcon.Skill(skill(settings))
@@ -63,14 +62,14 @@ class MakeStepType(private val catalog: RecipeCatalog, private val names: GameNa
     override fun details(settings: StepSettings, context: FlowContext): List<String> {
         val inputs = recipe(settings)?.ways?.flatMap { it.inputs.keys }.orEmpty().toSet()
         return listOf(
-            StepInput.detail("Ingredients", input(settings, context), context, inputs),
+            StepInput.detail(input(settings, context), context, inputs),
             StepAmount.detail(settings, unbounded = "all of them"),
         )
     }
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
-        val name = settings[PRODUCT]?.lowercase() ?: throw FlowError("make needs a product")
-        val recipe = catalog.find(name) ?: throw FlowError("Nothing called '$name' can be made.")
+        val name = settings[PRODUCT]?.lowercase() ?: throw FlowError(Reasons.needs("Product"))
+        val recipe = catalog.find(name) ?: throw FlowError(Reasons.notA("Product", name))
         // One way taking only what the steps before get is enough; else the first way names what is missing.
         val way = recipe.ways.firstOrNull { context.gathered.containsAll(it.inputs.keys) } ?: recipe.ways.first()
         ProcessInput.requireGathered(input(settings, context), context, way.inputs.keys.toList(), names)
