@@ -321,10 +321,10 @@ class BuilderWindowTest {
         assertEquals("0 Logs / item 1511", fields(player, "SearchRowsMessageWriter").last()["rows"])
     }
 
-    /** The window open on step 1's Reflexes page, the flow holding reflexes 1 (eat trout) and 2 (run away), 2 attached. */
+    /** The window open on step 1's Reflexes page, the flow holding reflexes 1 (eat trout) and 2 (stop the flow), 2 attached. */
     private fun attaching(): Player =
         opened(oak.copy(id = 1, reflexes = listOf(2))).also {
-            it.idleState = it.idleState.copy(reflexes = listOf(ReflexSettings(1, mapOf("foods" to "333")), ReflexSettings(2, mapOf("do" to "run"))))
+            it.idleState = it.idleState.copy(reflexes = listOf(ReflexSettings(1, mapOf("foods" to "333")), ReflexSettings(2, mapOf("do" to "stop"))))
             ui.click(it, BuilderWidgets.slotFace(0))
             ui.click(it, BuilderWidgets.STEP_REFLEXES_TAB)
         }
@@ -340,7 +340,7 @@ class BuilderWindowTest {
         attachSearch(player)
 
         assertEquals(
-            listOf<Any>("Which reflexes should step 1 use?", "SEVERAL", "0 2 Hitpoints below 50%: run away, then stop the flow / chosen / item 1061; " +
+            listOf<Any>("Which reflexes should step 1 use?", "SEVERAL", "0 2 Hitpoints below 50%: stop the flow / chosen / media cross 5; " +
                 "1 1 Hitpoints below 50%: eat trout / item 333"),
             listOf(
                 fields(player, "SearchOpenMessageWriter").single().getValue("title"),
@@ -369,7 +369,7 @@ class BuilderWindowTest {
 
         SearchPrompts.page(player, serial, offset = 0, count = 1, query = "")
 
-        assertEquals("0 2 Hitpoints below 50%: run away, then stop the flow / item 1061", fields(player, "SearchRowsMessageWriter").last()["rows"])
+        assertEquals("0 2 Hitpoints below 50%: stop the flow / media cross 5", fields(player, "SearchRowsMessageWriter").last()["rows"])
     }
 
     @Test

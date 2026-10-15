@@ -25,7 +25,7 @@ import io.luna.game.model.mob.Skill
 
 /**
  * Fight: fights the npcs of a [FightTargetCatalog] target around the work spot one at a time, a count of kills or,
- * without one, until stopped. Eating and running away are the flow's reflexes since S07c (Maxime, 2026-10-10).
+ * without one, until stopped. Eating and leaving the fight are the flow's reflexes since S07c (Maxime, 2026-10-10).
  */
 class FightStepType(private val catalog: FightTargetCatalog) : StepType {
 

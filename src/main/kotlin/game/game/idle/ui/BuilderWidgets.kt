@@ -101,9 +101,6 @@ object BuilderWidgets {
     const val STOPS_AFTER_FRAME = 42212
     const val STOPS_AFTER_TEXT = 42213
 
-    /** A strike through a list line's name, for a withdrawal left out while the flow runs (S12). */
-    private const val STRIKE_BASE = 42300
-
     /** A configure list per column (Maxime, 2026-10-10), a line to add or remove, then one line per item. */
     const val LISTS = 2
     const val LIST_LINES = 28
@@ -274,9 +271,6 @@ object BuilderWidgets {
 
     /** The stop row's choice whose button [widgetId] is, or null. */
     fun stopOf(widgetId: Int): Int? = (0 until STOP_CHOICES).firstOrNull { stopChoice(it) == widgetId }
-
-    /** The layer of the strike through list [list]'s [line], shown while its withdrawal is left out. */
-    fun lineStrike(list: Int, line: Int): Int = STRIKE_BASE + (list * LIST_LINES + line) * 2
 
     fun toggleFace(row: Int, count: Int, button: Int): Int = toggles(row, count) + 1 + 3 * button
 

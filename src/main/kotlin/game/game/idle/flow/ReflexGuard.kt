@@ -26,43 +26,45 @@ interface ReflexBody {
 }
 
 /**
- * What a reflex's run ends with, besides going on with the step: the flow stops, or goes on from the step at [Jump.index].
- * Both say which reflex ([number]) fired and at what [health], for the line the player is told.
+ * What a reflex's stop or jump ends with, besides going on with the step: the flow stops, or goes on from the step at
+ * [Jump.index]. Both say which reflex ([number]) fired and at what ([fired]), for the line the player is told.
  */
 sealed interface ReflexOutcome {
 
     val number: Int
 
-    val health: Health
+    val fired: Fired
 
-    data class Stop(override val number: Int, override val health: Health) : ReflexOutcome
+    data class Stop(override val number: Int, override val fired: Fired) : ReflexOutcome
 
-    data class Jump(val index: Int, override val number: Int, override val health: Health) : ReflexOutcome
+    data class Jump(val index: Int, override val number: Int, override val fired: Fired) : ReflexOutcome
 }
 
 /**
  * The running [step]'s activity with the [reflexes] attached to it, in its order (S07c). At each decision the first
  * reflex whose When holds and whose Do can be done fires, else the step acts as usual; the step is not busy while one
  * would fire, so the driver decides after its pause, mid-fight included. Eating leaves the step going, as a 2006 player's
- * meal did. Running away owns the step until nothing attacks the player, cornered or not, then its Then: the flow
- * stops or jumps (Maxime, 2026-10-10: never while attacked).
+ * meal did. A stop or a jump owns the step until nothing attacks the player, who runs clear meanwhile, cornered or not,
+ * and only then stops the flow or jumps (Maxime, 2026-10-10: never while attacked; S13, Q15: every stop and jump).
  */
 class ReflexGuard(private val step: StepActivity, private val reflexes: List<ResolvedReflex>, private val body: ReflexBody) : StepActivity {
 
-    private var running: Running? = null
+    private var leaving: Firing.Leave? = null
     private var outcome: ReflexOutcome? = null
 
-    override fun isBusy(): Boolean = step.isBusy() && running == null && firing() == null
+    override fun isBusy(): Boolean = step.isBusy() && leaving == null && firing() == null
 
     override fun isDone(): Boolean = step.isDone()
 
-    override fun blocked(): Reason? = step.blocked()
+    /** None while the player runs clear before a stop or a jump: the step no longer works, so its block is stale. */
+    override fun blocked(): Reason? = if (leaving != null) null else step.blocked()
 
-    override fun stopping(): StepStop? = (outcome as? ReflexOutcome.Stop)?.let { StepStop.Reflex(it.number, it.health) } ?: step.stopping()
+    override fun stopping(): StepStop? = (outcome as? ReflexOutcome.Stop)?.let { StepStop.Reflex(it.number, it.fired) } ?: step.stopping()
 
     override fun said(): Said? = step.said()
 
-    override fun waiting(): Reason? = step.waiting()
+    /** Running clear before a stop or a jump is what the step waits for, as the slot and the overlay show it. */
+    override fun waiting(): Reason? = leaving?.let { Reason.RunningClear(it.jumpTo?.plus(1)) } ?: step.waiting()
 
     override fun amountDone(): Int = step.amountDone()
 
@@ -70,53 +72,46 @@ class ReflexGuard(private val step: StepActivity, private val reflexes: List<Res
 
     override fun endTurn() = step.endTurn()
 
-    /** Where a reflex sends the flow once its run is over; null while the step goes on. */
+    /** Where a reflex sends the flow once the player is clear; null while the step goes on. */
     fun jump(): ReflexOutcome.Jump? = outcome as? ReflexOutcome.Jump
 
     override fun act() {
-        carryOut(running?.run ?: firing())
+        carryOut(leaving ?: firing())
     }
 
     private fun carryOut(firing: Firing?) = when (firing) {
         null -> step.act()
         is Firing.Eat -> body.eat(firing.slot)
-        is Firing.RunAway -> runAway(firing)
+        is Firing.Leave -> leave(firing)
     }
 
-    /** The Then's outcome gives the hitpoints the reflex fired at, not those the run ended with. */
-    private fun runAway(run: Firing.RunAway) {
-        val started = running ?: Running(run, body.health())
-        running = started
+    /** The outcome gives what the reflex fired at, not what the player was at once clear. */
+    private fun leave(firing: Firing.Leave) {
         if (body.underAttack()) {
+            leaving = firing
             body.flee()
             return
         }
-        running = null
+        leaving = null
         body.calm()
-        outcome = then(run, started.health)
+        outcome = firing.jumpTo?.let { ReflexOutcome.Jump(it, firing.number, firing.fired) } ?: ReflexOutcome.Stop(firing.number, firing.fired)
     }
 
-    private fun then(run: Firing.RunAway, health: Health): ReflexOutcome =
-        when (val then = run.then) {
-            ReflexThen.StopFlow -> ReflexOutcome.Stop(run.number, health)
-            is ReflexThen.JumpTo -> ReflexOutcome.Jump(then.index, run.number, health)
-        }
-
     /** The first reflex whose When holds and whose Do can be done, as what it would do. */
-    private fun firing(): Firing? = reflexes.firstNotNullOfOrNull { reflex -> if (reflex.trigger.holds(body)) firing(reflex) else null }
+    private fun firing(): Firing? = reflexes.firstNotNullOfOrNull { reflex -> reflex.trigger.fired(body)?.let { firing(reflex, it) } }
 
-    private fun firing(reflex: ResolvedReflex): Firing? =
+    private fun firing(reflex: ResolvedReflex, fired: Fired): Firing? =
         when (val action = reflex.action) {
             is ReflexAction.Eat -> body.foodSlot(action.foods)?.let(Firing::Eat)
-            is ReflexAction.RunAway -> Firing.RunAway(reflex.number, action.then)
+            ReflexAction.StopFlow -> Firing.Leave(reflex.number, fired, jumpTo = null)
+            is ReflexAction.JumpTo -> Firing.Leave(reflex.number, fired, action.index)
         }
-
-    private data class Running(val run: Firing.RunAway, val health: Health)
 
     private sealed interface Firing {
 
         data class Eat(val slot: Int) : Firing
 
-        data class RunAway(val number: Int, val then: ReflexThen) : Firing
+        /** A stop, or a jump to the step at [jumpTo]. */
+        data class Leave(val number: Int, val fired: Fired, val jumpTo: Int?) : Firing
     }
 }

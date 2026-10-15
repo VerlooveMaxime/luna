@@ -9,7 +9,7 @@ import game.idle.flow.option.OptionFacts
  * carries nor has a bank step withdraw, and an input a step takes from the bank that no bank step withdraws. Bank steps
  * anywhere in the flow count, since it loops (Maxime, 2026-10-10). Then a kind's own ([OwnWarnings], S07d), a step that
  * fills the bag with items no bank or drop step of the flow takes out of it (Maxime, 2026-10-11), and a step that fights
- * with no reflex attached that eats or runs (S07c), and last the aggressive npcs within reach of where the step works
+ * with no reflex attached (S07c), and last the aggressive npcs within reach of where the step works
  * ([dangers], S08). Items are named with [names]. A warning takes the form of the red reasons ([Reasons]), as the
  * configure screen's band shows both (Maxime, 2026-10-11, Q13).
  */
@@ -45,7 +45,7 @@ class StepWarnings(private val resolver: FlowResolver, private val names: GameNa
     private fun banking(resolved: List<ResolvedStep?>): List<Banking> =
         resolved.withIndex().mapNotNull { (at, other) -> (other as? BankMoves)?.let { Banking(at + 1, it) } }
 
-    /** Whether a reflex attached to [step] eats or runs: every reflex S07c builds does one or the other. */
+    /** Whether a reflex is attached to [step]: every reflex eats, or stops or jumps after running clear. */
     private fun survives(step: StepSettings, reflexes: List<ReflexSettings>): Boolean = reflexes.any { it.id in step.reflexes }
 
     private fun warnings(needs: StepNeeds, banking: List<Banking>, facts: OptionFacts, fromBank: Boolean): List<String> {

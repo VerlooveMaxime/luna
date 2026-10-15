@@ -361,10 +361,23 @@ data class ToolNeed(
     fun allowed(level: (Int) -> Int): Set<Int> = items.filter { (_, needed) -> skill == null || level(skill) >= needed }.keys
 }
 
+/**
+ * A kind whose slot says which of its withdrawals the run leaves out, since the steps they feed met their goals (S13:
+ * the bank step's "Withdraw: trout (logs left out)").
+ */
+interface LeavesOut {
+
+    /** The slot's lines under the pick, with the withdrawals of [leftOut] said to be left out. */
+    fun details(settings: StepSettings, context: FlowContext, leftOut: Set<Int>): List<String>
+}
+
 /** A step that moves items between the bag and the bank: the ids it [withdraws], and whether it banks [id] from the bag. */
 interface BankMoves {
 
     val withdraws: Set<Int>
+
+    /** How many of [item] it withdraws, null for all of them. */
+    fun amount(item: Int): Int?
 
     fun banks(id: Int): Boolean
 

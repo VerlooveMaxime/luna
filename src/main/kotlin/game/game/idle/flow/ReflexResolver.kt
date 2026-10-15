@@ -1,18 +1,19 @@
 package game.idle.flow
 
+import game.idle.flow.ReflexKeys.ATTACKED
 import game.idle.flow.ReflexKeys.BELOW
-import game.idle.flow.ReflexKeys.BELOW_RANGE
 import game.idle.flow.ReflexKeys.BELOW_LABEL
+import game.idle.flow.ReflexKeys.BELOW_RANGE
 import game.idle.flow.ReflexKeys.BELOW_WORDS
 import game.idle.flow.ReflexKeys.DEFAULT_BELOW
 import game.idle.flow.ReflexKeys.DO
 import game.idle.flow.ReflexKeys.EAT
 import game.idle.flow.ReflexKeys.FOODS
+import game.idle.flow.ReflexKeys.HITPOINTS
 import game.idle.flow.ReflexKeys.JUMP
-import game.idle.flow.ReflexKeys.RUN_AWAY
 import game.idle.flow.ReflexKeys.STEP
 import game.idle.flow.ReflexKeys.STOP
-import game.idle.flow.ReflexKeys.THEN
+import game.idle.flow.ReflexKeys.WHEN
 
 /**
  * Checks a flow's reflexes against its steps (S07c): a jump becomes the index of the step whose id it holds, so it
@@ -48,28 +49,30 @@ class ReflexResolver(private val portions: Map<Int, Set<Int>>) {
             }
         }
 
-    private fun trigger(reflex: ReflexSettings): ReflexTrigger {
-        val text = reflex[BELOW] ?: return ReflexTrigger.HitpointsBelow(DEFAULT_BELOW)
-        val percent = text.toIntOrNull()?.takeIf { it in BELOW_RANGE } ?: throw FlowError(Reasons.takes(BELOW_LABEL, BELOW_WORDS, text))
-        return ReflexTrigger.HitpointsBelow(percent)
+    private fun trigger(reflex: ReflexSettings): ReflexTrigger =
+        when (val type = reflex[WHEN] ?: HITPOINTS) {
+            HITPOINTS -> ReflexTrigger.HitpointsBelow(below(reflex[BELOW]))
+            ATTACKED -> ReflexTrigger.UnderAttack
+            else -> throw FlowError("'$type' is not a choice for When")
+        }
+
+    private fun below(text: String?): Int {
+        if (text == null) return DEFAULT_BELOW
+        return text.toIntOrNull()?.takeIf { it in BELOW_RANGE } ?: throw FlowError(Reasons.takes(BELOW_LABEL, BELOW_WORDS, text))
     }
 
-    private fun action(reflex: ReflexSettings, steps: List<StepSettings>): ReflexAction =
-        when (val what = reflex[DO] ?: EAT) {
+    private fun action(reflex: ReflexSettings, steps: List<StepSettings>): ReflexAction {
+        val what = reflex[DO] ?: EAT
+        return when (what) {
             EAT -> ReflexAction.Eat(foods(reflex))
-            RUN_AWAY -> ReflexAction.RunAway(then(reflex, steps))
+            STOP -> ReflexAction.StopFlow
+            JUMP -> ReflexAction.JumpTo(jumpTarget(reflex[STEP], steps))
             else -> throw FlowError("'$what' is not something a reflex does")
         }
+    }
 
     private fun foods(reflex: ReflexSettings): Set<Int> =
         StepItems.parse(reflex[FOODS]).flatMap { portions[it.id] ?: throw FlowError(Reasons.notA("Food", it.id.toString(), countable = false)) }.toSet()
-
-    private fun then(reflex: ReflexSettings, steps: List<StepSettings>): ReflexThen =
-        when (val then = reflex[THEN] ?: STOP) {
-            STOP -> ReflexThen.StopFlow
-            JUMP -> ReflexThen.JumpTo(jumpTarget(reflex[STEP], steps))
-            else -> throw FlowError("'$then' is not what a reflex does after running away")
-        }
 
     private fun jumpTarget(step: String?, steps: List<StepSettings>): Int {
         val id = step?.toIntOrNull() ?: throw FlowError(Reasons.needs("Step"))

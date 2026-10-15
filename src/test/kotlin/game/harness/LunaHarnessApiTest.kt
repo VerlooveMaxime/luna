@@ -856,7 +856,7 @@ class LunaHarnessApiTest {
     @Test
     fun `a player's flow reads as its steps, each with its slot's lines, and its reflexes`() {
         val chop = step("chop", "oak").copy(id = 1, reflexes = listOf(3))
-        val reflex = ReflexSettings(3, mapOf("do" to "run"))
+        val reflex = ReflexSettings(3, mapOf("do" to "stop"))
         agent().idleState = IdleState(steps = listOf(chop, step("drop").copy(id = 2)), reflexes = listOf(reflex), stepIndex = 1)
 
         val view = api().flow("agent_a")
@@ -866,7 +866,7 @@ class LunaHarnessApiTest {
             FlowStepView(2, "drop", emptyMap(), emptyList(), emptyList(), null, null, false, 0, emptyList()),
         )
         assertEquals(
-            FlowView("agent_a", running = false, stepIndex = 1, laps = 0, blocked = null, waiting = null, stop = FlowStopView("never", ""), steps = steps, reflexes = listOf(FlowReflexView(3, mapOf("do" to "run")))),
+            FlowView("agent_a", running = false, stepIndex = 1, laps = 0, blocked = null, waiting = null, stop = FlowStopView("never", ""), steps = steps, reflexes = listOf(FlowReflexView(3, mapOf("do" to "stop")))),
             view,
         )
     }

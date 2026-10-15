@@ -21,7 +21,7 @@ class AutopilotStatus(private val lines: StepLines, private val font: ClientFont
     }
 
     private fun current(state: IdleState): String? =
-        state.steps.getOrNull(state.stepIndex)?.let { font.fit(lines.of(state.steps, state.stepIndex).line, ROOM) }
+        state.steps.getOrNull(state.stepIndex)?.let { font.fit(lines.of(state.steps, state.stepIndex, state.progress.met).line, ROOM) }
 
     /** Settings can come from outside the game (the harness), so a line must not carry the separator or the string terminator. */
     private fun plain(line: String): String =

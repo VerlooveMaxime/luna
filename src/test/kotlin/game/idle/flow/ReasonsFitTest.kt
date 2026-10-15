@@ -87,7 +87,7 @@ class ReasonsFitTest {
 
     @Test
     fun `every warning the kinds and reflexes can give is measured`() {
-        assertEquals(14, warned().size)
+        assertEquals(15, warned().size)
     }
 
     @ParameterizedTest(name = "{0}")
@@ -187,9 +187,9 @@ class ReasonsFitTest {
         "a reflex below nothing" to ReflexSettings(1, mapOf("below" to "0")),
         "a reflex doing what no reflex does" to ReflexSettings(1, mapOf("do" to "pray")),
         "a reflex eating what is not food" to ReflexSettings(1, mapOf("foods" to "1511")),
-        "a reflex running away to do what none does" to ReflexSettings(1, mapOf("do" to "run", "then" to "rest")),
-        "a reflex jumping to no step" to ReflexSettings(1, mapOf("do" to "run", "then" to "jump")),
-        "a reflex jumping to a deleted step" to ReflexSettings(1, mapOf("do" to "run", "then" to "jump", "step" to "99")),
+        "a reflex firing on what no reflex watches" to ReflexSettings(1, mapOf("when" to "poisoned")),
+        "a reflex jumping to no step" to ReflexSettings(1, mapOf("do" to "jump")),
+        "a reflex jumping to a deleted step" to ReflexSettings(1, mapOf("do" to "jump", "step" to "99")),
     ).map { (name, reflex) -> Arguments.of(name, reflex) }
 
     /** Every warning the configure screen can show, from flows that earn each one. */
@@ -208,7 +208,8 @@ class ReasonsFitTest {
         val eatAnyFood = requireNotNull(form.need(ReflexSettings(1))) { "an eat reflex needs food" }
         return flows.flatMap { (flow, index) ->
             warnings.of(flow, index, facts, emptyList()).map { Arguments.of("${flow[index].kind}: $it", it) }
-        } + listOfNotNull(warnings.supplies(listOf(chop), eatAnyFood, facts)).map { Arguments.of("reflex: $it", it) }
+        } + (listOfNotNull(warnings.supplies(listOf(chop), eatAnyFood, facts)) + form.warnings(ReflexSettings(1, mapOf("when" to "attacked"))))
+            .map { Arguments.of("reflex: $it", it) }
     }
 
     /** Every kind of aggressive npc Luna spawns: its band line and its slot line. */
@@ -216,7 +217,7 @@ class ReasonsFitTest {
 
     fun descriptions(): List<Arguments> =
         steps.types.all.map { Arguments.of(it.kind, it.description) } +
-            listOf(ReflexSettings(1), ReflexSettings(1, mapOf("do" to "run"))).map { Arguments.of(form.label(it), form.description(it)) }
+            listOf("eat", "stop", "jump").map { ReflexSettings(1, mapOf("do" to it)) }.map { Arguments.of(form.label(it), form.description(it)) }
 
     private fun longestNamedItem(): Int = ItemDefinition.ALL.stream().filter { it.name != "null" }.toList().maxBy { it.name.length }.id()
 

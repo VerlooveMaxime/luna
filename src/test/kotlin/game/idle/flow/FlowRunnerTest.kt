@@ -22,11 +22,11 @@ class FlowRunnerTest {
     private fun runner(flow: ResolvedFlow, startAt: Int = 0, stop: FlowStop = FlowStop.Never, progress: RunProgress = RunProgress(), laps: Int = 0) =
         FlowRunner(flow, startAt, player, words(), clock, stop, progress, laps)
 
-    /** A flow of [names] whose first step has a reflex that runs away, then jumps to the step at [to]. */
+    /** A flow of [names] whose first step has a reflex that jumps to the step at [to], running clear first while attacked. */
     private fun jumping(vararg names: String, to: Int): FlowRunner {
-        val runAway = ResolvedReflex(1, ReflexTrigger.HitpointsBelow(50), ReflexAction.RunAway(ReflexThen.JumpTo(to)))
+        val jump = ResolvedReflex(1, ReflexTrigger.HitpointsBelow(50), ReflexAction.JumpTo(to))
         val steps = names.map { FakeStep(it) }
-        return runner(ResolvedFlow(steps, listOf(listOf(runAway)) + steps.drop(1).map { emptyList() }))
+        return runner(ResolvedFlow(steps, listOf(listOf(jump)) + steps.drop(1).map { emptyList() }))
     }
 
     /** The first step's reflex fires on the next act. */
@@ -77,14 +77,14 @@ class FlowRunnerTest {
     }
 
     @Test
-    fun `a reflex that stops the flow is worded with its number and hitpoints`() {
+    fun `a reflex that stops the flow is worded with its number and what it fired at`() {
         val runner = runner("fight")
         runner.act()
-        player.started.single().stop = StepStop.Reflex(2, Health(9, 20))
+        player.started.single().stop = StepStop.Reflex(2, Fired.AtHitpoints(Health(9, 20)))
 
         runner.act()
 
-        assertEquals("Autopilot: stopped, reflex 2 ran at 9/20 hitpoints.", runner.stopReason())
+        assertEquals("Autopilot: stopped, reflex 2 fired at 9/20 hitpoints.", runner.stopReason())
     }
 
     @Test
@@ -113,6 +113,46 @@ class FlowRunnerTest {
 
         assertEquals("Autopilot: stopped, step 1 is stuck: no item 1521 left in the bank.", runner.stopReason())
         assertEquals(listOf("flee", "calm"), body.done)
+    }
+
+    @Test
+    fun `while a stop waits the flow waits for the player to run clear`() {
+        val runner = runner("fight")
+        runner.act()
+        player.started.single().stop = stuck
+        player.started.single().waiting = Reason.NoneInReach(Target.NPC)
+        body.attacked = true
+
+        runner.act()
+
+        assertEquals("Running clear before stopping", runner.waiting())
+    }
+
+    @Test
+    fun `while a stop waits the step's block is not shown`() {
+        val runner = runner("fight")
+        runner.act()
+        player.started.single().stop = stuck
+        player.started.single().blocked = noAxe
+        body.attacked = true
+
+        runner.act()
+
+        assertEquals(null, runner.blocked())
+    }
+
+    @Test
+    fun `once clear the flow no longer waits to run clear`() {
+        val runner = runner("fight")
+        runner.act()
+        player.started.single().stop = stuck
+        body.attacked = true
+        runner.act()
+        body.attacked = false
+
+        runner.act()
+
+        assertEquals(null, runner.waiting())
     }
 
     @Test
@@ -445,7 +485,7 @@ class FlowRunnerTest {
 
         jumping("fight", "bank", to = 1).act()
 
-        assertEquals(listOf("Autopilot: reflex 1 ran at 4/20 hitpoints, jumping to step 2."), player.told)
+        assertEquals(listOf("Autopilot: reflex 1 fired at 4/20 hitpoints, jumping to step 2."), player.told)
     }
 
     @Test
@@ -531,13 +571,13 @@ class FlowRunnerTest {
 
     @Test
     fun `a reflex that stops the flow stops it`() {
-        val stop = ResolvedReflex(2, ReflexTrigger.HitpointsBelow(50), ReflexAction.RunAway(ReflexThen.StopFlow))
+        val stop = ResolvedReflex(2, ReflexTrigger.HitpointsBelow(50), ReflexAction.StopFlow)
         val runner = runner(ResolvedFlow(listOf(FakeStep("fight")), listOf(listOf(stop))))
         hurt()
 
         runner.act()
 
-        assertEquals("Autopilot: stopped, reflex 2 ran at 4/20 hitpoints.", runner.stopReason())
+        assertEquals("Autopilot: stopped, reflex 2 fired at 4/20 hitpoints.", runner.stopReason())
     }
 
     @Test
@@ -907,6 +947,56 @@ class FlowRunnerTest {
         runner.act()
 
         assertEquals(listOf(setOf(1521)), player.leftOut)
+    }
+
+    @Test
+    fun `a bank step tells what it leaves out and for which step`() {
+        val bank = FakeBankStep(withdraws = setOf(1521, 1511), amounts = mapOf(1521 to 5))
+        val runner = runner(ResolvedFlow(listOf(light, bank)), startAt = 1, progress = RunProgress(met = setOf(0)))
+
+        runner.act()
+
+        assertEquals(listOf("Autopilot: step 2 leaves out 5 item 1521, step 1 met its goal."), player.told)
+    }
+
+    @Test
+    fun `a bank step leaving out all of a withdrawal names no amount`() {
+        val runner = runner(ResolvedFlow(listOf(light, bank)), startAt = 1, progress = RunProgress(met = setOf(0)))
+
+        runner.act()
+
+        assertEquals(listOf("Autopilot: step 2 leaves out item 1521, step 1 met its goal."), player.told)
+    }
+
+    @Test
+    fun `a bank step tells what it leaves out once a run`() {
+        val runner = runner(ResolvedFlow(listOf(light, bank)), startAt = 1, progress = RunProgress(met = setOf(0)))
+        runner.act()
+        player.started.single().done = true
+        runner.act()
+
+        runner.act()
+
+        assertEquals(1, player.told.size)
+    }
+
+    @Test
+    fun `what a bank step told it leaves out is saved with the run`() {
+        val runner = runner(ResolvedFlow(listOf(light, bank)), startAt = 1, progress = RunProgress(met = setOf(0)))
+
+        runner.act()
+
+        assertEquals(mapOf(1 to setOf(1521)), player.savedProgress.last().toldLeftOut)
+    }
+
+    @Test
+    fun `a run resumed after a relog does not tell again what it left out`() {
+        val told = RunProgress(met = setOf(0), toldLeftOut = mapOf(1 to setOf(1521)))
+        val runner = runner(ResolvedFlow(listOf(light, bank)), startAt = 1, progress = told)
+
+        runner.act()
+
+        assertEquals(emptyList<String>(), player.told)
     }
 
     @Test

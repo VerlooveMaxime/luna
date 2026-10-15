@@ -194,6 +194,22 @@ class BankStepTypeTest {
     }
 
     @Test
+    fun `a bank step's slot says which withdrawals the run leaves out`() {
+        assertEquals(
+            listOf("Deposit: gathered", "Withdraw: tinderbox (oak logs left out)"),
+            bank.details(settings("withdraw" to "590:1,1521"), FlowContext(), leftOut = setOf(1521)),
+        )
+    }
+
+    @Test
+    fun `a bank step whose every withdrawal is left out withdraws nothing`() {
+        assertEquals(
+            listOf("Deposit: gathered", "Withdraw: nothing (tinderbox, oak logs left out)"),
+            bank.details(settings("withdraw" to "590:1,1521"), FlowContext(), leftOut = setOf(590, 1521)),
+        )
+    }
+
+    @Test
     fun `a bank step's slot counts the items it deposits by choice and says nothing of withdrawals it has none of`() {
         assertEquals(listOf("Deposit: 2 chosen"), bank.details(settings("deposit" to "chosen", "depositItems" to "1511,1521"), FlowContext()))
     }

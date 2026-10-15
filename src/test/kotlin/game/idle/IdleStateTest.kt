@@ -44,7 +44,7 @@ class IdleStateTest {
 
     @Test
     fun `a new flow takes the reflexes it is given`() {
-        val reflexes = listOf(ReflexSettings(2, mapOf("do" to "run")))
+        val reflexes = listOf(ReflexSettings(2, mapOf("do" to "stop")))
 
         assertEquals(reflexes, state.withFlow(listOf(chop), reflexes).reflexes)
     }

@@ -48,6 +48,6 @@ sealed interface StepStop {
 
     data class Stuck(val reason: Reason.Stuck) : StepStop
 
-    /** The reflex at [number] fired at [health]. */
-    data class Reflex(val number: Int, val health: Health) : StepStop
+    /** The reflex at [number] stopped the flow; [fired] is what it fired at. */
+    data class Reflex(val number: Int, val fired: Fired) : StepStop
 }

@@ -360,9 +360,4 @@ class BuilderWidgetsTest {
         assertNull(BuilderWidgets.stopOf(BuilderWidgets.stopFrame(3)))
         assertNull(BuilderWidgets.stopOf(BuilderWidgets.STOPS_AFTER_FACE))
     }
-
-    @Test
-    fun `a line's strike mirrors the client's ids`() {
-        assertEquals(listOf(42300, 42302, 42356, 42410), listOf(BuilderWidgets.lineStrike(0, 0), BuilderWidgets.lineStrike(0, 1), BuilderWidgets.lineStrike(1, 0), BuilderWidgets.lineStrike(1, 27)))
-    }
 }

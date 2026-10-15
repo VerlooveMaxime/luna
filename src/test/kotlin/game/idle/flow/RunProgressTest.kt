@@ -45,6 +45,13 @@ class RunProgressTest {
         assertEquals(120_500L, clock.now())
     }
 
+    @Test
+    fun `a withdrawal told left out is remembered for its bank step alone`() {
+        val progress = RunProgress().telling(3, setOf(oakLogs)).telling(3, setOf(logs))
+
+        assertEquals(listOf(true, true, false), listOf(progress.told(3, oakLogs), progress.told(3, logs), progress.told(2, oakLogs)))
+    }
+
     private fun feeder(name: String, vararg inputs: Int) = FakeStep(name, needs = listOf(StepNeeds(inputs = inputs.toList())))
 
     private val bank = FakeBankStep(setOf(oakLogs, logs))
@@ -52,6 +59,13 @@ class RunProgressTest {
     @Test
     fun `a withdrawal feeding only a step met for the run is left out`() {
         assertEquals(setOf(oakLogs), SkippedFeeds.leftOut(listOf(feeder("light", oakLogs), bank), met = setOf(0), bank))
+    }
+
+    @Test
+    fun `a withdrawal left out names the first met step it fed`() {
+        val steps = listOf(feeder("make", logs), feeder("light", oakLogs), feeder("burn", oakLogs), bank)
+
+        assertEquals(mapOf(oakLogs to 1, logs to 0), SkippedFeeds.fed(steps, met = setOf(2, 1, 0), bank))
     }
 
     @Test

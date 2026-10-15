@@ -56,8 +56,10 @@ data class ResolvedFlow(
  * Goals (S12, Maxime 2026-10-15): a step whose goal is met is skipped for the rest of the run, or stops the flow; the
  * goal is read before the step starts and after each of its acts, ending the turn at once as the Amount does (Q14); a
  * Count goal adds up what every turn counted ([RunProgress.totals]); a bank step leaves out the withdrawals that feed
- * only skipped steps. The flow [stop]s after a number of laps, after a number of minutes on the [clock] since the run
- * started, or once every goal is met, which is judged before the lap guard.
+ * only skipped steps, telling the player once a run for each (S13). While a stop waits for the player to run clear,
+ * that is what the flow waits for, as the slot and the overlay show it, and the step's block is no longer shown. The
+ * flow [stop]s after a number of laps, after a number of minutes on the [clock] since the run started, or once every
+ * goal is met, which is judged before the lap guard.
  */
 class FlowRunner(
     private val flow: ResolvedFlow,
@@ -89,6 +91,10 @@ class FlowRunner(
     /** Whether the current turn was ended for its goal: the step then settles its unit as the Amount's ending does. */
     private var ending = false
 
+    /** Whether the player runs clear of what attacks them before the flow stops. */
+    private var fleeing = false
+
+
     /**
      * Busy while the current step is, unless the flow has a reason to stop, the time is up or the step's goal is
      * reached: the kind's action would hold the player, so the next decision is taken at once to end the turn.
@@ -97,11 +103,11 @@ class FlowRunner(
 
     override fun stopReason(): String? = if (player.body.dead()) StepWords.DIED else stopped
 
-    /** The current step's block; none between two steps. */
-    override fun blocked(): String? = current?.blocked()?.let(words::block)
+    /** The current step's block; none between two steps, nor while the player runs clear before the flow stops. */
+    override fun blocked(): String? = if (fleeing) null else current?.blocked()?.let(words::block)
 
-    /** What the current step waits for, in the block's words; none between two steps. */
-    override fun waiting(): String? = current?.waiting()?.let(words::block)
+    /** What the current step waits for, in the block's words, or running clear before the flow stops. */
+    override fun waiting(): String? = (if (fleeing) Reason.RunningClear() else current?.waiting())?.let(words::block)
 
     override fun act() {
         if (steps.isEmpty()) return
@@ -132,7 +138,8 @@ class FlowRunner(
     private fun stopping(): String? = stopReason ?: current?.stopping()?.let { words.stop(index + 1, it) }
 
     private fun leave(reason: String) {
-        if (player.body.underAttack()) {
+        fleeing = player.body.underAttack()
+        if (fleeing) {
             player.body.flee()
             return
         }
@@ -164,11 +171,23 @@ class FlowRunner(
 
     private fun startStep(): ReflexGuard {
         val step = steps[index]
-        val run = if (step is BankMoves) step.without(SkippedFeeds.leftOut(steps, progress.met, step)) else step
+        val run = if (step is BankMoves) step.without(leaveOut(step)) else step
         val started = ReflexGuard(player.activity(run), flow.reflexes[index], player.body)
         current = started
         ending = false
         return started
+    }
+
+    /** What the bank step at [index] leaves out, each told the first time this run, a relog included. */
+    private fun leaveOut(bank: BankMoves): Set<Int> {
+        val fed = SkippedFeeds.fed(steps, progress.met, bank)
+        val fresh = fed.filterKeys { !progress.told(index, it) }
+        fresh.forEach { (item, step) -> player.tell(words.leftOut(index + 1, bank.amount(item), item, step + 1)) }
+        if (fresh.isNotEmpty()) {
+            progress = progress.telling(index, fresh.keys)
+            player.saveProgress(progress)
+        }
+        return fed.keys
     }
 
     private fun advance(over: StepActivity) {
@@ -248,7 +267,7 @@ class FlowRunner(
             stopReason = words.cutShort(index + 1)
             return
         }
-        player.tell(words.jump(jump.number, jump.health, jump.index + 1))
+        player.tell(words.jump(jump.number, jump.fired, jump.index + 1))
         cutShort += index
         finishTurn(activity)
         index = jump.index

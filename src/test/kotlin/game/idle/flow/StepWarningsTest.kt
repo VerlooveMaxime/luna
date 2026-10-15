@@ -28,6 +28,8 @@ class StepWarningsTest {
     /** A bank step that withdraws [withdraws] and banks [banked] from the bag. */
     private data class FakeBank(override val withdraws: Set<Int>, val banked: Set<Int>) : ResolvedStep, BankMoves, EmptiesBag {
 
+        override fun amount(item: Int): Int? = null
+
         override fun banks(id: Int): Boolean = id in banked
 
         override fun empties(id: Int): Boolean = banks(id)

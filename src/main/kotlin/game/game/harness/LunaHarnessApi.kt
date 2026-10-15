@@ -138,7 +138,7 @@ class LunaHarnessApi(
         val resolved = flows.resolver.resolvedEach(state.steps)
         val steps = state.steps.mapIndexed { index, step ->
             val met = index in state.progress.met
-            val words = lines.of(state.steps, index, met)
+            val words = lines.of(state.steps, index, state.progress.met)
             val leftOut = (resolved[index] as? BankMoves)?.let { SkippedFeeds.leftOut(resolved, state.progress.met, it) }.orEmpty()
             FlowStepView(step.id, step.kind, step.values, step.reflexes, words.lines, problems[index], words.goal, met, state.progress.total(index), leftOut.sorted())
         }

@@ -948,7 +948,7 @@ class BuilderScreenTest {
     }
 
     private val eatTrout = ReflexSettings(1, mapOf("foods" to "333"))
-    private val runAway = ReflexSettings(2, mapOf("do" to "run"))
+    private val runAway = ReflexSettings(2, mapOf("do" to "stop"))
 
     private fun withReflexes(vararg reflexes: ReflexSettings, steps: List<StepSettings> = listOf(chop)) =
         FakeAutopilotPlayer("maxime", IdleState(steps = steps, reflexes = reflexes.toList()))
@@ -1075,33 +1075,38 @@ class BuilderScreenTest {
 
     @Test
     fun `a reflex's Do toggle switches what it does`() {
-        assertEquals(BuilderAnswer.Configure(newReflex.with("do", "run")), click(player(chop), BuilderWidgets.toggleFace(0, 2, 1), newReflex))
+        assertEquals(BuilderAnswer.Configure(newReflex.with("do", "stop")), click(player(chop), BuilderWidgets.toggleFace(6, 3, 1), newReflex))
     }
 
     @Test
-    fun `a reflex's When is typed`() {
+    fun `a reflex's When toggle switches what it fires on`() {
+        assertEquals(BuilderAnswer.Configure(newReflex.with("when", "attacked")), click(player(chop), BuilderWidgets.toggleFace(0, 2, 1), newReflex))
+    }
+
+    @Test
+    fun `a reflex's Below is typed`() {
         assertEquals(BuilderAnswer.Amount(newReflex.copy(typing = Typing("below"))), click(player(chop), BuilderWidgets.rowFace(1), newReflex))
     }
 
     @Test
-    fun `a typed When out of range says its rule`() {
+    fun `a typed Below out of range says its rule`() {
         val answer = screen.typed(player(chop), newReflex.copy(typing = Typing("below")), 100)
 
-        assertEquals(BuilderAnswer.Configure(newReflex, "Autopilot: hitpoints below takes 1 to 99 percent."), answer)
+        assertEquals(BuilderAnswer.Configure(newReflex, "Autopilot: below takes 1 to 99 percent of hitpoints."), answer)
     }
 
     @Test
     fun `a reflex's food list opens the search over food that stays open`() {
-        val answer = click(player(chop), BuilderWidgets.listAdd(0), newReflex) as BuilderAnswer.Several
+        val answer = click(player(chop), BuilderWidgets.listAdd(1), newReflex) as BuilderAnswer.Several
 
         assertEquals(listOf<Any>("foods", OptionContext(settings = newReflex.settings, input = InputSource.BANK)), listOf(answer.field.key, answer.context))
     }
 
     @Test
     fun `a jump's step is searched among the flow's steps`() {
-        val jumping = reflexDraft(0, ReflexSettings(1, mapOf("do" to "run", "then" to "jump")))
+        val jumping = reflexDraft(0, ReflexSettings(1, mapOf("do" to "jump")))
 
-        val answer = click(player(chop.copy(id = 4)), BuilderWidgets.rowFace(3), jumping) as BuilderAnswer.Search
+        val answer = click(player(chop.copy(id = 4)), BuilderWidgets.rowFace(7), jumping) as BuilderAnswer.Search
 
         assertEquals(listOf("4"), answer.field.target.source.options(answer.context).map { it.value })
     }

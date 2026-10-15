@@ -6,6 +6,7 @@ import game.idle.flow.EmptiesBag
 import game.idle.flow.FieldColumn
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
+import game.idle.flow.LeavesOut
 import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepField
@@ -75,7 +76,7 @@ data class BankOrder(val deposit: DepositRule, val withdrawals: List<StepItem>, 
  * walking distance when the step starts, from where the player stands. Withdrawals and chosen deposits are any item of
  * [items], named with [names]; a chosen deposit takes every item of its name, notes too (S07f, as drop and pick up).
  */
-class BankStepType(private val catalog: BankCatalog, private val items: ItemCatalog, private val names: GameNames) : StepType {
+class BankStepType(private val catalog: BankCatalog, private val items: ItemCatalog, private val names: GameNames) : StepType, LeavesOut {
 
     override val kind = "bank"
 
@@ -88,12 +89,23 @@ class BankStepType(private val catalog: BankCatalog, private val items: ItemCata
     override fun target(names: GameNames): StepTarget = StepTarget(BANK, BankOptions(catalog), default = NEAREST)
 
     /** "Deposit: gathered", then what it withdraws, if anything. */
-    override fun details(settings: StepSettings, context: FlowContext): List<String> {
+    override fun details(settings: StepSettings, context: FlowContext): List<String> = details(settings, context, emptySet())
+
+    /** As [details], the withdrawals of [leftOut] said after the others: "Withdraw: trout (logs left out)". */
+    override fun details(settings: StepSettings, context: FlowContext, leftOut: Set<Int>): List<String> {
         val chosen = StepItems.ids(settings, DEPOSIT_ITEMS).size
         val deposit = deposit(settings).let { if (it == DepositChoice.CHOSEN) "$chosen chosen" else it.value }
-        val withdrawn = StepItems.ids(settings, WITHDRAW).joinToString(", ") { names.item(it).lowercase() }
-        return listOfNotNull("Deposit: $deposit", withdrawn.takeIf { it.isNotEmpty() }?.let { "Withdraw: $it" })
+        val (left, kept) = StepItems.ids(settings, WITHDRAW).partition { it in leftOut }
+        return listOfNotNull("Deposit: $deposit", withdraw(kept, left))
     }
+
+    private fun withdraw(kept: List<Int>, left: List<Int>): String? {
+        if (kept.isEmpty() && left.isEmpty()) return null
+        val after = if (left.isEmpty()) "" else " (${named(left)} left out)"
+        return "Withdraw: ${named(kept).ifEmpty { "nothing" }}$after"
+    }
+
+    private fun named(ids: List<Int>): String = ids.joinToString(", ") { names.item(it).lowercase() }
 
     override fun fields(names: GameNames): List<StepField> =
         listOf(
@@ -170,6 +182,8 @@ interface BankTerrain {
 data class BankStep(val candidates: List<Bank>, val order: BankOrder) : ResolvedStep, BankMoves, EmptiesBag {
 
     override val withdraws: Set<Int> = order.withdrawals.map { it.id }.toSet()
+
+    override fun amount(item: Int): Int? = order.withdrawals.firstOrNull { it.id == item }?.amount
 
     override fun banks(id: Int): Boolean = order.banks(id)
 

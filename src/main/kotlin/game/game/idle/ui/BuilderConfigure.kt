@@ -3,13 +3,11 @@ package game.idle.ui
 import game.idle.IdleState
 import game.idle.flow.FieldColumn
 import game.idle.flow.FlowContext
-import game.idle.flow.BankMoves
 import game.idle.flow.FlowResolver
 import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ReflexSettings
 import game.idle.flow.StepAmount
-import game.idle.flow.SkippedFeeds
 import game.idle.flow.StepDangers
 import game.idle.flow.StepField
 import game.idle.flow.StepItem
@@ -137,7 +135,7 @@ class BuilderConfigure(
             WidgetUpdate.Text(BuilderWidgets.HEADER_NAME, screen.name),
             WidgetUpdate.Text(BuilderWidgets.HEADER_DESCRIPTION, font.fit(screen.description, BuilderWidgets.DESCRIPTION_ROOM)),
         ) + (0 until BuilderWidgets.ROWS).flatMap { row -> row(row, rows[row], draft, screen.before) } +
-            (0 until BuilderWidgets.LISTS).flatMap { list(it, rows, ConfigureRows.list(fields, it), draft, screen.leftOut) } +
+            (0 until BuilderWidgets.LISTS).flatMap { list(it, rows, ConfigureRows.list(fields, it), draft) } +
             tabs(draft) + attached(state, draft, reflexPage) + warnings(screen.reason, screen.warnings) + buttons(state, draft)
     }
 
@@ -180,10 +178,7 @@ class BuilderConfigure(
         }
     }
 
-    /**
-     * What sets a step's screen apart from a reflex's: its header, fields, what the steps before set up, its warnings,
-     * and the withdrawals [leftOut] while the flow runs because they feed only skipped steps (S12).
-     */
+    /** What sets a step's screen apart from a reflex's: its header, fields, what the steps before set up, its warnings. */
     private data class Screen(
         val pictures: StepPictures,
         val name: String,
@@ -192,7 +187,6 @@ class BuilderConfigure(
         val before: FlowContext,
         val reason: String?,
         val warnings: List<String>,
-        val leftOut: Set<Int> = emptySet(),
     )
 
     private fun stepScreen(state: IdleState, draft: StepDraft, facts: OptionFacts): Screen {
@@ -212,15 +206,7 @@ class BuilderConfigure(
             before = resolver.contextBefore(flow, index),
             reason = block ?: resolver.problems(state.steps.take(draft.slot) + settings).last(),
             warnings = listOfNotNull(waiting) + stepWarnings.of(flow, index, facts, state.reflexes),
-            leftOut = leftOut(state, draft.slot),
         )
-    }
-
-    /** The withdrawals the bank step at [slot] leaves out: those feeding only steps whose goal the run met, until the next run. */
-    private fun leftOut(state: IdleState, slot: Int): Set<Int> {
-        val resolved = resolver.resolvedEach(state.steps)
-        val bank = resolved.getOrNull(slot) as? BankMoves ?: return emptySet()
-        return SkippedFeeds.leftOut(resolved, state.progress.met, bank)
     }
 
     private fun reflexScreen(state: IdleState, draft: StepDraft, facts: OptionFacts): Screen {
@@ -235,7 +221,7 @@ class BuilderConfigure(
             fields = form.fields(state.steps),
             before = FlowContext(),
             reason = reflexes.problems(state.steps, inFlow)[index],
-            warnings = listOfNotNull(form.need(reflex)?.let { stepWarnings.supplies(state.steps, it, facts) }),
+            warnings = listOfNotNull(form.need(reflex)?.let { stepWarnings.supplies(state.steps, it, facts) }) + form.warnings(reflex),
         )
     }
 
@@ -302,7 +288,7 @@ class BuilderConfigure(
      * remove, then a line per item: its picture and its name, and for a withdrawal its amount. Lines past the last lie
      * outside the list (the client sizes it to its lines), so they need no update.
      */
-    private fun list(list: Int, rows: Map<Int, StepField>, field: StepField.Items?, draft: StepDraft, leftOut: Set<Int>): List<WidgetUpdate> {
+    private fun list(list: Int, rows: Map<Int, StepField>, field: StepField.Items?, draft: StepDraft): List<WidgetUpdate> {
         if (field == null) return listOf(WidgetUpdate.Visible(BuilderWidgets.list(list), visible = false))
         val firstRow = rows.entries.first { it.value === field }.key % BuilderWidgets.ROWS_PER_COLUMN
         val items = StepItems.read(draft.settings, field.key).take(BuilderWidgets.LIST_LINES)
@@ -316,7 +302,6 @@ class BuilderConfigure(
                 WidgetUpdate.Picture(BuilderWidgets.linePicture(list, line), WidgetPicture.Item(item.id)),
                 WidgetUpdate.Text(BuilderWidgets.lineName(list, line), font.fit(names.item(item.id), nameRoom)),
                 WidgetUpdate.Visible(BuilderWidgets.lineAmount(list, line), visible = field.amounts),
-                WidgetUpdate.Visible(BuilderWidgets.lineStrike(list, line), visible = item.id in leftOut),
             ) + if (field.amounts) amount(list, line, field.key, item, draft) else emptyList()
         }
     }

@@ -90,6 +90,11 @@ class BankStepTest {
     private val withdrawing = BankStep(listOf(near), BankOrder(DepositRule.Everything, listOf(StepItem(1521), StepItem(1511, 5)), IfStuck.SKIP))
 
     @Test
+    fun `a bank step withdraws the amount it holds of an item, null for all of it`() {
+        assertEquals(listOf(5, null, null), listOf(withdrawing.amount(1511), withdrawing.amount(1521), withdrawing.amount(590)))
+    }
+
+    @Test
     fun `without some withdrawals the step keeps the others, in order`() {
         val without = withdrawing.without(setOf(1521)) as BankStep
 

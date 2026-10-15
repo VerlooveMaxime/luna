@@ -36,7 +36,7 @@ class AutopilotTest {
     @Test
     fun `an activity's reason to stop stops the autopilot`() {
         autopilot.start(idle)
-        activity.stop = "Autopilot: stopped, reflex 1 ran at 9/20 hitpoints."
+        activity.stop = "Autopilot: stopped, reflex 1 fired at 9/20 hitpoints."
 
         scheduler.tick()
 
@@ -46,17 +46,17 @@ class AutopilotTest {
     @Test
     fun `an activity's reason to stop is told to the player`() {
         autopilot.start(idle)
-        activity.stop = "Autopilot: stopped, reflex 1 ran at 9/20 hitpoints."
+        activity.stop = "Autopilot: stopped, reflex 1 fired at 9/20 hitpoints."
 
         scheduler.tick()
 
-        assertEquals(listOf("Autopilot: stopped, reflex 1 ran at 9/20 hitpoints."), idle.told)
+        assertEquals(listOf("Autopilot: stopped, reflex 1 fired at 9/20 hitpoints."), idle.told)
     }
 
     @Test
     fun `an activity's reason to stop saves the flow as stopped`() {
         autopilot.start(idle)
-        activity.stop = "Autopilot: stopped, reflex 1 ran at 9/20 hitpoints."
+        activity.stop = "Autopilot: stopped, reflex 1 fired at 9/20 hitpoints."
 
         scheduler.tick()
 
@@ -278,7 +278,7 @@ class AutopilotTest {
     @Test
     fun `an activity's reason to stop leaves its walk going`() {
         autopilot.start(idle)
-        activity.stop = "Autopilot: stopped, reflex 1 ran at 9/20 hitpoints."
+        activity.stop = "Autopilot: stopped, reflex 1 fired at 9/20 hitpoints."
 
         scheduler.tick()
 

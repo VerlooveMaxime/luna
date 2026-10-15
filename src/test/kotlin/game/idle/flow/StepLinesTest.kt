@@ -93,7 +93,7 @@ class StepLinesTest {
 
     @Test
     fun `a goal met says so`() {
-        assertEquals("Goal met: Woodcutting 45", goalLines.of(listOf(oaksTo45), 0, met = true).goal)
+        assertEquals("Goal met: Woodcutting 45", goalLines.of(listOf(oaksTo45), 0, met = setOf(0)).goal)
     }
 
     @Test
@@ -104,6 +104,49 @@ class StepLinesTest {
     @Test
     fun `a step without a goal has no goal line`() {
         assertNull(goalLines.of(listOf(StepSettings("goalchop")), 0).goal)
+    }
+
+    @Test
+    fun `another step's goal met leaves this one's goal to come`() {
+        assertEquals("until Woodcutting 45", goalLines.of(listOf(oaksTo45, oaksTo45), 1, met = setOf(0)).goal)
+    }
+
+    /** A bank-like kind whose slot lists what the run leaves out, fed by a burn step taking logs. */
+    private object Stock : StepType, LeavesOut {
+        override val kind = "stock"
+        override val label = "stock"
+        override val description = "Stocks up."
+
+        override fun fields(names: game.idle.flow.option.GameNames): List<StepField> = emptyList()
+
+        override fun icon(settings: StepSettings): StepIcon = StepIcon.BANK
+
+        override fun details(settings: StepSettings, context: FlowContext): List<String> = details(settings, context, emptySet())
+
+        override fun details(settings: StepSettings, context: FlowContext, leftOut: Set<Int>): List<String> = listOf("left $leftOut")
+
+        override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep =
+            if (settings["word"] == "bad") throw FlowError("'bad' is refused") else FakeBankStep(withdraws = setOf(1511))
+    }
+
+    private val burn = FakeStepType("burn", resolved = { FakeStep("burn", needs = listOf(StepNeeds(inputs = listOf(1511)))) })
+    private val stockLines = StepLines(FlowResolver(StepTypes(listOf(burn, Stock))), FakeNames())
+
+    @Test
+    fun `a bank step's slot says what the run's met goals leave out`() {
+        assertEquals(listOf("left [1511]"), stockLines.of(listOf(StepSettings("burn"), StepSettings("stock")), 1, met = setOf(0)).details)
+    }
+
+    @Test
+    fun `a bank step leaves nothing out before any goal is met`() {
+        assertEquals(listOf("left []"), stockLines.of(listOf(StepSettings("burn"), StepSettings("stock")), 1).details)
+    }
+
+    @Test
+    fun `a bank step that cannot work leaves nothing out`() {
+        val steps = listOf(StepSettings("burn"), StepSettings("stock", mapOf("word" to "bad")))
+
+        assertEquals(listOf("left []"), stockLines.of(steps, 1, met = setOf(0)).details)
     }
 
     @Test

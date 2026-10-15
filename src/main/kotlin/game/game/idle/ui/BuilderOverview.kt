@@ -96,7 +96,7 @@ class BuilderOverview(
         val problems = resolver.problems(state.steps)
         return (0 until slots).map { slot ->
             when {
-                slot < state.steps.size -> step(state, slot, lines.of(state.steps, slot, met = slot in state.progress.met), problems[slot], facts)
+                slot < state.steps.size -> step(state, slot, lines.of(state.steps, slot, state.progress.met), problems[slot], facts)
                 slot == state.steps.size -> SlotView.Add
                 else -> SlotView.Free
             }

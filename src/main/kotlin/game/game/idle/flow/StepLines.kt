@@ -37,18 +37,29 @@ data class SlotWords(
 /** The words of every slot of a flow over [resolver]'s kinds, items named with [names]. */
 class StepLines(private val resolver: FlowResolver, private val names: GameNames) {
 
-    /** The step at [index] of [steps], its goal [met] or not; a step of a kind no type knows shows its kind alone. */
-    fun of(steps: List<StepSettings>, index: Int, met: Boolean = false): SlotWords {
+    /**
+     * The step at [index] of [steps] while the steps at [met] met their goals this run: its own goal met or not, a bank
+     * step's withdrawals for met steps alone left out (S13); a step of a kind no type knows shows its kind alone.
+     */
+    fun of(steps: List<StepSettings>, index: Int, met: Set<Int> = emptySet()): SlotWords {
         val settings = steps[index]
         val type = resolver.types.find(settings.kind)
         return SlotWords(
             kind = capitalised(type?.label ?: settings.kind),
             icon = type?.icon(settings),
             picked = type?.pick(settings, names),
-            details = type?.details(settings, resolver.contextBefore(steps, index)).orEmpty(),
-            goal = goal(settings)?.let { if (met) GoalWords.met(it.goal, names) else GoalWords.detail(it.goal, names) },
+            details = type?.let { details(it, steps, index, met) }.orEmpty(),
+            goal = goal(settings)?.let { if (index in met) GoalWords.met(it.goal, names) else GoalWords.detail(it.goal, names) },
             spot = settings[StepSpot.KEY],
         )
+    }
+
+    private fun details(type: StepType, steps: List<StepSettings>, index: Int, met: Set<Int>): List<String> {
+        val context = resolver.contextBefore(steps, index)
+        if (type !is LeavesOut || met.isEmpty()) return type.details(steps[index], context)
+        val resolved = resolver.resolvedEach(steps)
+        val leftOut = (resolved[index] as? BankMoves)?.let { SkippedFeeds.leftOut(resolved, met, it) }.orEmpty()
+        return type.details(steps[index], context, leftOut)
     }
 
     private fun goal(settings: StepSettings): ResolvedGoal? =

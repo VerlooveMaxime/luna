@@ -27,6 +27,12 @@ sealed interface Reason {
     data class NoWay(val place: Place) : Reason
 
     /**
+     * A stop or a reflex's jump held while something attacks the player, who runs until nothing does (S13): before the
+     * flow stops, or, with [toStep], before it goes on from that step (its number, from 1).
+     */
+    data class RunningClear(val toStep: Int? = null) : Reason
+
+    /**
      * What the bag or the bank holds stands in the way: what a bank step with something to do is stuck on, what ends a
      * step that fills the bag ([BagFull]); the only reasons a step ends or skips its turn on.
      */

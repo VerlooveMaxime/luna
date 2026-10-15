@@ -583,11 +583,11 @@ class BuilderOverviewTest {
 
     @Test
     fun `a reflex that cannot work shows in red`() {
-        val deleted = ReflexSettings(1, mapOf("do" to "run", "then" to "jump", "step" to "9"))
+        val deleted = ReflexSettings(1, mapOf("do" to "jump", "step" to "9"))
 
         val row = overview.reflexRows(IdleState(reflexes = listOf(deleted)), reflexSlots = 1)[0] as ReflexRowView.Reflex
 
-        assertEquals(listOf("@red@Hitpoints below 50%: run away, then jump to a deleted step", BuilderWidgets.PROBLEM), listOf(row.sentence, row.frame))
+        assertEquals(listOf("@red@Hitpoints below 50%: jump to a deleted step", BuilderWidgets.PROBLEM), listOf(row.sentence, row.frame))
     }
 
     @Test

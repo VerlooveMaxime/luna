@@ -31,57 +31,60 @@ class ReflexFormTest {
 
     @Test
     fun `a reflex's screen edits it as settings and gives it back`() {
-        val reflex = reflex("do" to "run")
+        val reflex = reflex("do" to "stop")
 
-        assertEquals(StepSettings(ReflexForm.KIND, mapOf("do" to "run"), id = 2), form.settings(reflex))
+        assertEquals(StepSettings(ReflexForm.KIND, mapOf("do" to "stop"), id = 2), form.settings(reflex))
         assertEquals(reflex, form.reflex(form.settings(reflex)))
     }
 
     @Test
-    fun `an eat reflex's screen shows Do, When and its food list`() {
+    fun `an eat reflex's screen shows When and Below on the left, Do and its food list on the right`() {
         assertEquals(
             listOf(
-                "Do (left): toggle do eat 'Eat' / run 'Run away'",
-                "When (left): typed below 1..99",
-                "Food (left): list foods on 4 rows, 'What would you like to eat?'",
+                "When (left): toggle when hitpoints 'Hitpoints' / attacked 'Under attack'",
+                "Below (left): typed below 1..99",
+                "Do (right): toggle do eat 'Eat' / stop 'Stop' / jump 'Jump'",
+                "Food (right): list foods on 4 rows, 'What would you like to eat?'",
             ),
             shown(),
         )
     }
 
     @Test
-    fun `a reflex that runs away and stops shows Then instead of the food list`() {
-        assertEquals(
-            listOf("Do (left): toggle do eat 'Eat' / run 'Run away'", "When (left): typed below 1..99", "Then (left): toggle then stop 'Stop the flow' / jump 'Jump to a step'"),
-            shown("do" to "run"),
-        )
+    fun `an under attack reflex has no Below`() {
+        assertEquals(listOf("When", "Do", "Food"), shown("when" to "attacked").map { it.substringBefore(" (") })
+    }
+
+    @Test
+    fun `a stop reflex shows When and Do alone`() {
+        assertEquals(listOf("When", "Below", "Do"), shown("do" to "stop").map { it.substringBefore(" (") })
     }
 
     @Test
     fun `a reflex that jumps shows the step it jumps to`() {
-        assertEquals("Step (left): search step, 'Which step should it jump to?'", shown("do" to "run", "then" to "jump").last())
+        assertEquals("Step (right): search step, 'Which step should it jump to?'", shown("do" to "jump").last())
     }
 
     @Test
-    fun `the toggles light eat and stop the flow by default`() {
+    fun `the toggles light hitpoints and eat by default`() {
         val toggles = form.fields(steps).filterIsInstance<StepField.Toggle>()
 
-        assertEquals(listOf("eat", "stop"), toggles.map { it.current(StepSettings(), FlowContext()) })
+        assertEquals(listOf("hitpoints", "eat"), toggles.map { it.current(StepSettings(), FlowContext()) })
     }
 
     @Test
     fun `the toggles light what the reflex holds`() {
         val toggles = form.fields(steps).filterIsInstance<StepField.Toggle>()
-        val settings = form.settings(reflex("do" to "run", "then" to "jump"))
+        val settings = form.settings(reflex("when" to "attacked", "do" to "jump"))
 
-        assertEquals(listOf("run", "jump"), toggles.map { it.current(settings, FlowContext()) })
+        assertEquals(listOf("attacked", "jump"), toggles.map { it.current(settings, FlowContext()) })
     }
 
     @Test
-    fun `When shows the share of hitpoints, half without one`() {
+    fun `Below shows the share of hitpoints, half without one`() {
         val typed = form.fields(steps).filterIsInstance<StepField.Typed>().single()
 
-        assertEquals(listOf("Hitpoints below 30%", "Hitpoints below 50%"), listOf(typed.shown("30"), typed.shown(null)))
+        assertEquals(listOf("30%", "50%"), listOf(typed.shown("30"), typed.shown(null)))
     }
 
     @Test
@@ -103,7 +106,7 @@ class ReflexFormTest {
         val eat = reflex("foods" to "$lobster,$trout")
 
         assertEquals(
-            listOf("Eat", "Eats when hitpoints fall below a share of full.", StepIcon.Item(lobster)),
+            listOf("Eat", "Eats the first of its foods the bag holds.", StepIcon.Item(lobster)),
             listOf(form.label(eat), form.description(eat), form.icon(eat)),
         )
     }
@@ -114,13 +117,28 @@ class ReflexFormTest {
     }
 
     @Test
-    fun `a run away reflex is named, described and pictured by leather boots`() {
-        val run = reflex("do" to "run")
+    fun `a stop reflex is named, described and pictured by the red cross`() {
+        val stop = reflex("do" to "stop")
 
         assertEquals(
-            listOf("Run away", "Runs from what attacks you, then goes on or stops the flow.", StepIcon.Item(ReflexForm.LEATHER_BOOTS)),
-            listOf(form.label(run), form.description(run), form.icon(run)),
+            listOf("Stop the flow", "Stops the flow, running clear first while attacked.", ReflexForm.STOP_ICON),
+            listOf(form.label(stop), form.description(stop), form.icon(stop)),
         )
+    }
+
+    @Test
+    fun `a jump reflex is named, described and pictured by the hint arrow`() {
+        val jump = reflex("do" to "jump")
+
+        assertEquals(
+            listOf("Jump to a step", "Goes on from another step, running clear first while attacked.", ReflexForm.JUMP_ICON),
+            listOf(form.label(jump), form.description(jump), form.icon(jump)),
+        )
+    }
+
+    @Test
+    fun `a reflex with a Do no reflex has shows as stopping`() {
+        assertEquals(listOf("Stop the flow", ReflexForm.STOP_ICON), listOf(form.label(reflex("do" to "run")), form.icon(reflex("do" to "run"))))
     }
 
     @Test
@@ -134,20 +152,25 @@ class ReflexFormTest {
     }
 
     @Test
-    fun `a run away reflex reads as running, then stopping the flow`() {
-        assertEquals("Hitpoints below 50%: run away, then stop the flow", form.sentence(reflex("do" to "run"), steps))
+    fun `a stop reflex reads as stopping the flow`() {
+        assertEquals("Hitpoints below 50%: stop the flow", form.sentence(reflex("do" to "stop"), steps))
+    }
+
+    @Test
+    fun `an under attack reflex reads as such`() {
+        assertEquals("Under attack: stop the flow", form.sentence(reflex("when" to "attacked", "do" to "stop"), steps))
     }
 
     @Test
     fun `a jump reads as the number its step stands at`() {
-        assertEquals("Hitpoints below 50%: run away, then jump to step 2", form.sentence(reflex("do" to "run", "then" to "jump", "step" to "7"), steps))
+        assertEquals("Hitpoints below 50%: jump to step 2", form.sentence(reflex("do" to "jump", "step" to "7"), steps))
     }
 
     @Test
     fun `a jump with no step picked, or a deleted one, says so`() {
         assertEquals(
-            listOf("Hitpoints below 50%: run away, then jump to a step", "Hitpoints below 50%: run away, then jump to a deleted step"),
-            listOf(form.sentence(reflex("do" to "run", "then" to "jump"), steps), form.sentence(reflex("do" to "run", "then" to "jump", "step" to "9"), steps)),
+            listOf("Hitpoints below 50%: jump to a step", "Hitpoints below 50%: jump to a deleted step"),
+            listOf(form.sentence(reflex("do" to "jump"), steps), form.sentence(reflex("do" to "jump", "step" to "9"), steps)),
         )
     }
 
@@ -167,18 +190,28 @@ class ReflexFormTest {
     }
 
     @Test
-    fun `a run away reflex needs nothing`() {
-        assertNull(form.need(reflex("do" to "run")))
+    fun `a stop reflex needs nothing`() {
+        assertNull(form.need(reflex("do" to "stop")))
+    }
+
+    @Test
+    fun `eating under attack warns that it eats at full hitpoints`() {
+        assertEquals(listOf(ReflexForm.EATS_AT_FULL), form.warnings(reflex("when" to "attacked")))
+    }
+
+    @Test
+    fun `eating on hitpoints and stopping under attack waste nothing`() {
+        assertEquals(listOf(emptyList<String>(), emptyList()), listOf(form.warnings(reflex()), form.warnings(reflex("when" to "attacked", "do" to "stop"))))
     }
 
     @Test
     fun `the attach search offers the flow's reflexes by id, numbered sentences in the flow's order`() {
-        val options = form.attachOptions(listOf(reflex("foods" to "$trout"), ReflexSettings(5, mapOf("do" to "run", "then" to "jump", "step" to "7"))), steps)
+        val options = form.attachOptions(listOf(reflex("foods" to "$trout"), ReflexSettings(5, mapOf("do" to "jump", "step" to "7"))), steps)
 
         assertEquals(
             listOf(
                 StepOption("2", "1 Hitpoints below 50%: eat trout", OptionIcon.Item(trout), group = 0),
-                StepOption("5", "2 Hitpoints below 50%: run away, then jump to step 2", OptionIcon.Item(ReflexForm.LEATHER_BOOTS), group = 1),
+                StepOption("5", "2 Hitpoints below 50%: jump to step 2", OptionIcon.Media("headicons_hint", 0), group = 1),
             ),
             options,
         )

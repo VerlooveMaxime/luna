@@ -555,13 +555,13 @@ class BuilderConfigureTest {
 
     private val troutReflex = ReflexSettings(1, mapOf("foods" to "333"))
     private val eating = StepDraft(0, REFLEX_FORM.settings(troutReflex), new = false, subject = DraftSubject.REFLEX)
-    private val running = StepDraft(0, REFLEX_FORM.settings(ReflexSettings(1, mapOf("do" to "run", "then" to "jump", "step" to "5"))), new = false, subject = DraftSubject.REFLEX)
+    private val running = StepDraft(0, REFLEX_FORM.settings(ReflexSettings(1, mapOf("do" to "jump", "step" to "5"))), new = false, subject = DraftSubject.REFLEX)
     private val cows = IdleState(steps = listOf(step("chop", "oak").copy(id = 5)), reflexes = listOf(troutReflex))
 
     @Test
     fun `a reflex's header shows its first food, its number and what it does`() {
         assertEquals(
-            listOf<Any>(WidgetPicture.Item(333), false, "Reflex 1: Eat", "Eats when hitpoints fall below a share of full."),
+            listOf<Any>(WidgetPicture.Item(333), false, "Reflex 1: Eat", "Eats the first of its foods the bag holds."),
             listOf(
                 picture(eating, BuilderWidgets.HEADER_PICTURE),
                 visible(eating, BuilderWidgets.HEADER_CORNER_LAYER),
@@ -579,15 +579,18 @@ class BuilderConfigureTest {
     }
 
     @Test
-    fun `an eat reflex's rows are its Do toggle, its When and its food list`() {
+    fun `an eat reflex's rows are When and Below on the left, Do and its food list on the right`() {
         assertEquals(
-            listOf<Any>("@whi@Eat", "Run away", "Hitpoints below 50%", WidgetUpdate.Placement(0, firstRow = 2, rows = 4, lines = 2), "item 333"),
+            listOf<Any>("@whi@Hitpoints", "Under attack", "50%", "@whi@Eat", "Stop", "Jump", WidgetUpdate.Placement(1, firstRow = 1, rows = 4, lines = 2), "item 333"),
             listOf(
                 text(eating, BuilderWidgets.toggleText(0, 2, 0), cows),
                 text(eating, BuilderWidgets.toggleText(0, 2, 1), cows),
                 text(eating, BuilderWidgets.rowPlainText(1), cows),
-                updates(eating, cows).getValue(placementKey(0)),
-                text(eating, BuilderWidgets.lineName(0, 0), cows),
+                text(eating, BuilderWidgets.toggleText(6, 3, 0), cows),
+                text(eating, BuilderWidgets.toggleText(6, 3, 1), cows),
+                text(eating, BuilderWidgets.toggleText(6, 3, 2), cows),
+                updates(eating, cows).getValue(placementKey(1)),
+                text(eating, BuilderWidgets.lineName(1, 0), cows),
             ),
         )
     }
@@ -596,14 +599,14 @@ class BuilderConfigureTest {
     fun `an eat reflex with no food picked offers to pick some`() {
         val anyFood = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1)))
 
-        assertEquals("+ Any food: pick some...", text(anyFood, BuilderWidgets.listAddText(0), cows))
+        assertEquals("+ Any food: pick some...", text(anyFood, BuilderWidgets.listAddText(1), cows))
     }
 
     @Test
-    fun `a reflex that jumps shows Then and the step it jumps to`() {
+    fun `a reflex that jumps shows the step it jumps to under Do`() {
         assertEquals(
-            listOf("@whi@Jump to a step", "Step 1: Chop label"),
-            listOf(text(running, BuilderWidgets.toggleText(2, 2, 1), cows), text(running, BuilderWidgets.rowText(3), cows)),
+            listOf("@whi@Jump", "Step 1: Chop label"),
+            listOf(text(running, BuilderWidgets.toggleText(6, 3, 2), cows), text(running, BuilderWidgets.rowText(7), cows)),
         )
     }
 
@@ -614,7 +617,7 @@ class BuilderConfigureTest {
 
     @Test
     fun `a jump to a deleted step says so in its field`() {
-        assertEquals("Deleted step", text(running, BuilderWidgets.rowText(3), IdleState(reflexes = listOf(troutReflex))))
+        assertEquals("Deleted step", text(running, BuilderWidgets.rowText(7), IdleState(reflexes = listOf(troutReflex))))
     }
 
     @Test
@@ -636,8 +639,16 @@ class BuilderConfigureTest {
         assertEquals("@gre@No warnings.", carried.single { it.id == BuilderWidgets.warning(0) }.text)
     }
 
-    private val runAway = ReflexSettings(2, mapOf("do" to "run", "then" to "jump", "step" to "9"))
-    private val guarded = IdleState(steps = listOf(oak), reflexes = listOf(troutReflex, runAway))
+    @Test
+    fun `an eat reflex under attack warns in yellow that it eats at full hitpoints`() {
+        val attacked = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("when" to "attacked", "foods" to "333"))))
+        val sent = configure.updates(cows, attacked, facts.copy(bag = setOf(333))).filterIsInstance<WidgetUpdate.Text>()
+
+        assertEquals("@yel@! Eats while attacked, even at full hitpoints", sent.single { it.id == BuilderWidgets.warning(0) }.text)
+    }
+
+    private val jumpAway = ReflexSettings(2, mapOf("do" to "jump", "step" to "9"))
+    private val guarded = IdleState(steps = listOf(oak), reflexes = listOf(troutReflex, jumpAway))
     private val attaching = StepDraft(0, oak.copy(reflexes = listOf(2, 1)), new = false, tab = StepTab.REFLEXES)
 
     @Test
@@ -698,7 +709,7 @@ class BuilderConfigureTest {
         val sent = updates(attaching, guarded)
 
         assertEquals(
-            listOf<Any>("2", WidgetPicture.Item(ReflexForm.LEATHER_BOOTS), "1", WidgetPicture.Item(333), "Hitpoints below 50%: eat trout"),
+            listOf<Any>("2", WidgetPicture.Media("headicons_hint", 0), "1", WidgetPicture.Item(333), "Hitpoints below 50%: eat trout"),
             listOf(
                 (sent.getValue(BuilderWidgets.attachedNumber(0)) as WidgetUpdate.Text).text,
                 (sent.getValue(BuilderWidgets.attachedPicture(0)) as WidgetUpdate.Picture).picture,
@@ -712,7 +723,7 @@ class BuilderConfigureTest {
     @Test
     fun `a reflex attached that cannot work shows in red`() {
         assertEquals(
-            "@red@Hitpoints below 50%: run away, then jump to a deleted step",
+            "@red@Hitpoints below 50%: jump to a deleted step",
             text(attaching, BuilderWidgets.attachedSentence(0), guarded),
         )
     }
@@ -806,40 +817,5 @@ class BuilderConfigureTest {
             listOf<Any>("Item", "@gry@Search...", "Count", "100 in the bank"),
             listOf(text(draft, BuilderWidgets.rowLabel(7)), text(draft, BuilderWidgets.rowText(7)), text(draft, BuilderWidgets.rowLabel(8)), text(draft, BuilderWidgets.rowPlainText(8))),
         )
-    }
-
-    private val burnThenStock = listOf(StepSettings("burn"), StepSettings("stock", mapOf("withdraw" to "1521,1511")))
-    private val stockDraft = StepDraft(1, burnThenStock[1], new = false)
-
-    @Test
-    fun `a withdrawal feeding only a step met for the run is struck through while the flow runs`() {
-        val state = IdleState(steps = burnThenStock, running = true, progress = RunProgress(met = setOf(0)))
-
-        assertEquals(
-            listOf(true, false),
-            listOf(
-                (updates(stockDraft, state).getValue(BuilderWidgets.lineStrike(0, 0)) as WidgetUpdate.Visible).visible,
-                (updates(stockDraft, state).getValue(BuilderWidgets.lineStrike(0, 1)) as WidgetUpdate.Visible).visible,
-            ),
-        )
-    }
-
-    @Test
-    fun `a withdrawal stays struck through after the flow stopped, as the goal met line does`() {
-        val state = IdleState(steps = burnThenStock, progress = RunProgress(met = setOf(0)))
-
-        assertTrue((updates(stockDraft, state).getValue(BuilderWidgets.lineStrike(0, 0)) as WidgetUpdate.Visible).visible)
-    }
-
-    @Test
-    fun `nothing is struck through while no goal is met`() {
-        assertFalse((updates(stockDraft, IdleState(steps = burnThenStock, running = true)).getValue(BuilderWidgets.lineStrike(0, 0)) as WidgetUpdate.Visible).visible)
-    }
-
-    @Test
-    fun `a running step that is no bank step strikes nothing`() {
-        val state = IdleState(steps = listOf(oak, StepSettings("light", mapOf("logs" to "1521"))), running = true, progress = RunProgress(met = setOf(0)))
-
-        assertFalse((updates(lighting, state).getValue(BuilderWidgets.lineStrike(0, 0)) as WidgetUpdate.Visible).visible)
     }
 }

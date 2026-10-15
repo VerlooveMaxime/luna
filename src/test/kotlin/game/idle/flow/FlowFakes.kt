@@ -119,8 +119,17 @@ class FakeFlowPlayer(override val body: FakeReflexBody = FakeReflexBody()) : Flo
     override fun banked(items: Set<Int>): Int = items.sumOf { bank[it] ?: 0 }
 }
 
-/** A bank step that withdraws [withdraws] and remembers what it was told to leave out ([leftOut]). */
-data class FakeBankStep(override val withdraws: Set<Int>, val leftOut: Set<Int> = emptySet()) : ResolvedStep, BankMoves {
+/**
+ * A bank step that withdraws [withdraws], [amounts] of them (all of an item it has no amount for), and remembers what it
+ * was told to leave out ([leftOut]).
+ */
+data class FakeBankStep(
+    override val withdraws: Set<Int>,
+    val leftOut: Set<Int> = emptySet(),
+    val amounts: Map<Int, Int> = emptyMap(),
+) : ResolvedStep, BankMoves {
+
+    override fun amount(item: Int): Int? = amounts[item]
 
     override fun banks(id: Int): Boolean = false
 

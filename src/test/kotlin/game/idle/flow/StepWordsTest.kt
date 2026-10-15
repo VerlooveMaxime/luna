@@ -103,7 +103,12 @@ class StepWordsTest {
 
     @Test
     fun `a reflex that stops the flow says which reflex and at what hitpoints`() {
-        assertEquals("Autopilot: stopped, reflex 2 ran at 9/20 hitpoints.", words.stop(1, StepStop.Reflex(2, hurt)))
+        assertEquals("Autopilot: stopped, reflex 2 fired at 9/20 hitpoints.", words.stop(1, StepStop.Reflex(2, Fired.AtHitpoints(hurt))))
+    }
+
+    @Test
+    fun `a reflex that fired under attack says so`() {
+        assertEquals("Autopilot: stopped, reflex 2 fired under attack.", words.stop(1, StepStop.Reflex(2, Fired.UnderAttack)))
     }
 
     @Test
@@ -113,7 +118,17 @@ class StepWordsTest {
 
     @Test
     fun `a jump names the reflex, its hitpoints and the step it goes to`() {
-        assertEquals("Autopilot: reflex 2 ran at 9/20 hitpoints, jumping to step 3.", words.jump(2, hurt, 3))
+        assertEquals("Autopilot: reflex 2 fired at 9/20 hitpoints, jumping to step 3.", words.jump(2, Fired.AtHitpoints(hurt), 3))
+    }
+
+    @Test
+    fun `a bank step says what it leaves out and the step whose goal let it`() {
+        assertEquals("Autopilot: step 3 leaves out 5 oak logs, step 1 met its goal.", words.leftOut(3, amount = 5, oakLogs, fed = 1))
+    }
+
+    @Test
+    fun `a withdrawal of all left out names no amount`() {
+        assertEquals("Autopilot: step 3 leaves out oak logs, step 1 met its goal.", words.leftOut(3, amount = null, oakLogs, fed = 1))
     }
 
     @Test
@@ -164,6 +179,8 @@ class StepWordsTest {
             Arguments.of(Reason.OtherFloor(Place.WORK_SPOT), "The work spot is on another floor"),
             Arguments.of(Reason.NoWay(Place.TILE), "No way there from here"),
             Arguments.of(Reason.NoWay(Place.WORK_SPOT), "No way to the work spot from here"),
+            Arguments.of(Reason.RunningClear(), "Running clear before stopping"),
+            Arguments.of(Reason.RunningClear(toStep = 2), "Running clear to jump to step 2"),
             Arguments.of(Reason.BagFull(emptyList()), "The bag is full"),
             Arguments.of(Reason.BankFull, "The bank is full"),
         )

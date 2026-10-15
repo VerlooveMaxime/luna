@@ -18,11 +18,15 @@ class ReflexGuardTest {
 
     private fun eat(number: Int = 1, foods: Set<Int> = emptySet(), percent: Int = 50) = ResolvedReflex(number, below(percent), ReflexAction.Eat(foods))
 
-    private fun runAway(number: Int = 2, then: ReflexThen = ReflexThen.StopFlow) = ResolvedReflex(number, below(50), ReflexAction.RunAway(then))
+    private fun stop(number: Int = 2, trigger: ReflexTrigger = below(50)) = ResolvedReflex(number, trigger, ReflexAction.StopFlow)
+
+    private fun jump(index: Int, number: Int = 2) = ResolvedReflex(number, below(50), ReflexAction.JumpTo(index))
 
     private fun guard(vararg reflexes: ResolvedReflex) = ReflexGuard(step, reflexes.toList(), body)
 
     private val hurtTo = Health(9, 20)
+
+    private val atHurt = Fired.AtHitpoints(hurtTo)
 
     private fun hurt() {
         body.health = hurtTo
@@ -86,23 +90,23 @@ class ReflexGuardTest {
 
     @Test
     fun `an eat reflex with no food left falls through to the next`() {
-        val guard = guard(eat(), runAway())
+        val guard = guard(eat(), stop())
         hurt()
 
         guard.act()
 
-        assertEquals(StepStop.Reflex(2, hurtTo), guard.stopping())
+        assertEquals(StepStop.Reflex(2, atHurt), guard.stopping())
     }
 
     @Test
     fun `the first reflex in the step's order fires`() {
-        val guard = guard(runAway(number = 1), eat(number = 2))
+        val guard = guard(stop(number = 1), eat(number = 2))
         body.bag[0] = trout
         hurt()
 
         guard.act()
 
-        assertEquals(StepStop.Reflex(1, hurtTo), guard.stopping())
+        assertEquals(StepStop.Reflex(1, atHurt), guard.stopping())
     }
 
     @Test
@@ -118,8 +122,29 @@ class ReflexGuardTest {
     }
 
     @Test
-    fun `running away while attacked flees`() {
-        val guard = guard(runAway())
+    fun `an under attack reflex fires while something attacks the player`() {
+        val guard = guard(stop(trigger = ReflexTrigger.UnderAttack))
+        body.attacked = true
+        guard.act()
+        body.attacked = false
+
+        guard.act()
+
+        assertEquals(StepStop.Reflex(2, Fired.UnderAttack), guard.stopping())
+    }
+
+    @Test
+    fun `an under attack reflex does not fire while nothing attacks`() {
+        val guard = guard(stop(trigger = ReflexTrigger.UnderAttack))
+
+        guard.act()
+
+        assertEquals(listOf("fight:1"), log)
+    }
+
+    @Test
+    fun `a stop while attacked runs clear first`() {
+        val guard = guard(stop())
         body.attacked = true
         hurt()
 
@@ -130,8 +155,8 @@ class ReflexGuardTest {
     }
 
     @Test
-    fun `a run goes on while attacked, healed or not`() {
-        val guard = guard(runAway())
+    fun `running clear goes on while attacked, healed or not`() {
+        val guard = guard(stop())
         body.attacked = true
         hurt()
         guard.act()
@@ -143,8 +168,8 @@ class ReflexGuardTest {
     }
 
     @Test
-    fun `once nothing attacks the run ends with its then`() {
-        val guard = guard(runAway(then = ReflexThen.JumpTo(1)))
+    fun `once nothing attacks a jump goes on from its step`() {
+        val guard = guard(jump(index = 1))
         body.attacked = true
         hurt()
         guard.act()
@@ -152,12 +177,46 @@ class ReflexGuardTest {
 
         guard.act()
 
-        assertEquals(ReflexOutcome.Jump(index = 1, number = 2, health = hurtTo), guard.jump())
+        assertEquals(ReflexOutcome.Jump(index = 1, number = 2, fired = atHurt), guard.jump())
     }
 
     @Test
-    fun `the run's then gives the hitpoints the reflex fired at`() {
-        val guard = guard(runAway())
+    fun `running clear before a stop is what the step waits for`() {
+        val guard = guard(stop())
+        body.attacked = true
+        hurt()
+
+        guard.act()
+
+        assertEquals(Reason.RunningClear(), guard.waiting())
+    }
+
+    @Test
+    fun `running clear hides the step's block, which no longer holds`() {
+        val guard = guard(stop())
+        step.blocked = Reason.NoneInReach(Target.NPC)
+        body.attacked = true
+        hurt()
+
+        guard.act()
+
+        assertNull(guard.blocked())
+    }
+
+    @Test
+    fun `running clear before a jump names the step it goes on from`() {
+        val guard = guard(jump(index = 2))
+        body.attacked = true
+        hurt()
+
+        guard.act()
+
+        assertEquals(Reason.RunningClear(toStep = 3), guard.waiting())
+    }
+
+    @Test
+    fun `the stop gives the hitpoints the reflex fired at`() {
+        val guard = guard(stop())
         body.attacked = true
         hurt()
         guard.act()
@@ -166,23 +225,23 @@ class ReflexGuardTest {
 
         guard.act()
 
-        assertEquals(StepStop.Reflex(2, hurtTo), guard.stopping())
+        assertEquals(StepStop.Reflex(2, atHurt), guard.stopping())
     }
 
     @Test
-    fun `with nothing attacking a run goes straight to its then`() {
-        val guard = guard(runAway())
+    fun `with nothing attacking a stop stops at once`() {
+        val guard = guard(stop())
         hurt()
 
         guard.act()
 
         assertEquals(listOf("calm"), body.done)
-        assertEquals(StepStop.Reflex(2, hurtTo), guard.stopping())
+        assertEquals(StepStop.Reflex(2, atHurt), guard.stopping())
     }
 
     @Test
-    fun `a run that ends puts the player's running back before its then`() {
-        val guard = guard(runAway())
+    fun `running clear puts the player's running back once clear`() {
+        val guard = guard(stop())
         body.attacked = true
         hurt()
         guard.act()
@@ -194,8 +253,8 @@ class ReflexGuardTest {
     }
 
     @Test
-    fun `a run that stops the flow sends nobody anywhere`() {
-        val guard = guard(runAway())
+    fun `a stop sends nobody anywhere`() {
+        val guard = guard(stop())
         hurt()
 
         guard.act()
@@ -243,8 +302,8 @@ class ReflexGuardTest {
     }
 
     @Test
-    fun `a run on lets the guard act at each decision`() {
-        val guard = guard(runAway())
+    fun `running clear lets the guard act at each decision`() {
+        val guard = guard(stop())
         body.attacked = true
         hurt()
         guard.act()

@@ -46,18 +46,33 @@ class ReflexResolverTest {
     }
 
     @Test
-    fun `a run away reflex stops the flow unless told otherwise`() {
-        assertEquals(ReflexAction.RunAway(ReflexThen.StopFlow), resolvedAlone("do" to "run").action)
+    fun `a reflex fires under attack when told so`() {
+        assertEquals(ReflexTrigger.UnderAttack, resolvedAlone("when" to "attacked", "below" to "0").trigger)
+    }
+
+    @Test
+    fun `a reflex fires on hitpoints when told so`() {
+        assertEquals(ReflexTrigger.HitpointsBelow(40), resolvedAlone("when" to "hitpoints", "below" to "40").trigger)
+    }
+
+    @Test
+    fun `a reflex fires only on what reflexes watch`() {
+        assertEquals("'poison' is not a choice for When", problemOf("when" to "poison"))
+    }
+
+    @Test
+    fun `a stop reflex stops the flow`() {
+        assertEquals(ReflexAction.StopFlow, resolvedAlone("do" to "stop").action)
     }
 
     @Test
     fun `a jump follows its step to wherever it stands`() {
-        assertEquals(ReflexAction.RunAway(ReflexThen.JumpTo(1)), resolvedAlone("do" to "run", "then" to "jump", "step" to "3").action)
+        assertEquals(ReflexAction.JumpTo(1), resolvedAlone("do" to "jump", "step" to "3").action)
     }
 
     @Test
     fun `each step gets its attached reflexes in its own order, numbered as the flow lists them`() {
-        val reflexes = listOf(reflex(1, "below" to "40"), reflex(2, "do" to "run"))
+        val reflexes = listOf(reflex(1, "below" to "40"), reflex(2, "do" to "stop"))
 
         val resolved = resolver.resolve(listOf(fight, bank), reflexes)
 
@@ -77,13 +92,13 @@ class ReflexResolverTest {
 
         val error = assertThrows<FlowError> { resolver.resolve(listOf(bank), reflexes) }
 
-        assertEquals("Reflex 2: Hitpoints below takes 1 to 99 percent, not '0'", error.message)
+        assertEquals("Reflex 2: Below takes 1 to 99 percent of hitpoints, not '0'", error.message)
     }
 
     @Test
-    fun `hitpoints below takes 1 to 99 percent`() {
+    fun `below takes 1 to 99 percent`() {
         assertEquals(
-            listOf("Hitpoints below takes 1 to 99 percent, not 'half'", "Hitpoints below takes 1 to 99 percent, not '100'", null),
+            listOf("Below takes 1 to 99 percent of hitpoints, not 'half'", "Below takes 1 to 99 percent of hitpoints, not '100'", null),
             listOf(problemOf("below" to "half"), problemOf("below" to "100"), problemOf("below" to "99")),
         )
     }
@@ -99,22 +114,17 @@ class ReflexResolverTest {
     }
 
     @Test
-    fun `a run away reflex stops or jumps afterwards, nothing else`() {
-        assertEquals("'rest' is not what a reflex does after running away", problemOf("do" to "run", "then" to "rest"))
-    }
-
-    @Test
     fun `a jump needs its step picked`() {
-        assertEquals("Needs a step", problemOf("do" to "run", "then" to "jump"))
+        assertEquals("Needs a step", problemOf("do" to "jump"))
     }
 
     @Test
     fun `a jump to a step that was deleted cannot work`() {
-        assertEquals("Jumps to a step that was deleted", problemOf("do" to "run", "then" to "jump", "step" to "9"))
+        assertEquals("Jumps to a step that was deleted", problemOf("do" to "jump", "step" to "9"))
     }
 
     @Test
     fun `a reflex reads its settings by key`() {
-        assertEquals(listOf("run", null), listOf(reflex(1, "do" to "run")["do"], ReflexSettings()["do"]))
+        assertEquals(listOf("stop", null), listOf(reflex(1, "do" to "stop")["do"], ReflexSettings()["do"]))
     }
 }
