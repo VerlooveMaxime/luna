@@ -1,5 +1,33 @@
 // IdleRS additions to the upstream build, applied from the last line of build.gradle.kts.
 
+// Upstream's bot and skill tests fill JVM-wide state with fixtures: definitions in the global repositories, which take
+// each id once and then lock, and a mocked context bound for api.predef, which reads it once. TestWorld fills the same
+// state from the cache, so whichever comes first in a JVM breaks the other. Those tests, and every test that reaches
+// their fixtures, run in a JVM of their own (fixtureTest, part of check: it takes about nine minutes, since many of
+// them wait out real timed actions). TestContexts binds TestWorld's own context, so it is no fixture.
+fun fixtureTestClasses(): List<String> {
+    val sources = listOf("src/test/kotlin", "src/test/java").map(::file).flatMap { root ->
+        fileTree(root) { include("**/*.kt", "**/*.java") }.files.map { it to it.relativeTo(root).invariantSeparatorsPath }
+    }
+    val texts = sources.associate { (source, _) -> source to source.readText() }
+    val fillsGlobals = Regex("""\bstore(Definition|AndLock)\(|"setBindings"""")
+    var fixtures = sources.filter { (source, _) ->
+        source.name != "TestContexts.java" && fillsGlobals.containsMatchIn(texts.getValue(source))
+    }.toSet()
+    while (true) {
+        val names = fixtures.map { (source, _) -> Regex("""\b${source.nameWithoutExtension}\b""") }
+        val reached = fixtures + sources.filter { (source, _) -> names.any { it.containsMatchIn(texts.getValue(source)) } }
+        if (reached.size == fixtures.size) break
+        fixtures = reached
+    }
+    return fixtures.flatMap { (_, path) ->
+        val className = path.substringBeforeLast('.')
+        listOf("$className.class", "$className$*.class")
+    }
+}
+
+val fixtureTests = fixtureTestClasses()
+
 // Tests that read the cache decode the whole map, about 10 M tiles; the 512 MB default runs out of heap.
 // LocationsDataTest reads data/idle and NpcCombatFileTest npc_combat.jsonc, so an edit there must rerun the tests
 // instead of leaving them up to date.
@@ -7,7 +35,22 @@ tasks.named<Test>("test") {
     maxHeapSize = "2g"
     inputs.dir("data/idle")
     inputs.file("data/game/def/npcs/npc_combat.jsonc")
+    exclude(fixtureTests)
 }
+
+tasks.register<Test>("fixtureTest") {
+    description = "Runs the upstream tests that fill JVM-wide state with fixtures, in a JVM apart from TestWorld's."
+    group = "verification"
+    val testSources = project.the<SourceSetContainer>()["test"]
+    testClassesDirs = testSources.output.classesDirs
+    classpath = testSources.runtimeClasspath
+    useJUnitPlatform()
+    maxHeapSize = "2g"
+    include(fixtureTests)
+    onlyIf("some test fills JVM-wide state with fixtures") { fixtureTests.isNotEmpty() }
+}
+
+tasks.named("check") { dependsOn("fixtureTest") }
 
 tasks.register<JavaExec>("treeSurvey") {
     group = "idlers"
