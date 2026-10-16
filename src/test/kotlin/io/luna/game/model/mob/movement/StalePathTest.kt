@@ -5,7 +5,7 @@ import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
 import io.luna.game.model.path.GamePathfinder
 import io.luna.game.model.path.PathResult
-import io.luna.game.model.path.PlayerPathfinder
+import io.luna.game.model.path.Pathfinders
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -22,12 +22,12 @@ class StalePathTest {
     fun resetWorld() = TestWorld.reset()
 
     /** Finds the real path, but runs [meanwhile] first: what happens on the game thread while an async search runs. */
-    private class SearchingWhile(player: Player, private val meanwhile: () -> Unit) :
+    private class SearchingWhile(private val player: Player, private val meanwhile: () -> Unit) :
         GamePathfinder<Position>(player.world.collisionManager) {
 
         override fun find(origin: Position, target: Position): PathResult<Position> {
             meanwhile()
-            return PlayerPathfinder(collisionManager, origin.z).find(origin, target)
+            return Pathfinders.forPlayer(player).find(origin, target)
         }
     }
 
