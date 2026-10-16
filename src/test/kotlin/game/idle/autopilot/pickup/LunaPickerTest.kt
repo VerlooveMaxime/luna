@@ -13,6 +13,7 @@ import io.luna.game.model.Direction
 import io.luna.game.model.Position
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.interact.InteractionPolicy
 import io.luna.game.model.mob.overlay.StandardInterface
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -24,6 +25,9 @@ import org.junit.jupiter.api.Test
 class LunaPickerTest {
 
     private val anchor = Position(3200, 3200)
+
+    /** `pickupItem.kts` takes an item from its own tile. */
+    private val PICKUP_REACH = InteractionPolicy.EQUAL_POSITION_BIF
     private val bones = 526
     private val cowhide = 1739
     private val logs = 1511
@@ -40,13 +44,13 @@ class LunaPickerTest {
 
     private fun takes(): MutableList<Int> {
         val taken = mutableListOf<Int>()
-        TestWorld.listen(PickupItemEvent::class.java) { taken += it.groundItem.id }
+        TestWorld.listen(PickupItemEvent::class.java, PICKUP_REACH) { taken += it.groundItem.id }
         return taken
     }
 
     /** Luna's pickup as `pickupItem.kts` does it: off the ground and into the bag. */
     private fun pickingUp(player: Player) =
-        TestWorld.listen(PickupItemEvent::class.java) {
+        TestWorld.listen(PickupItemEvent::class.java, PICKUP_REACH) {
             TestWorld.world.items.unregister(it.groundItem)
             player.inventory.add(it.groundItem.toItem())
         }

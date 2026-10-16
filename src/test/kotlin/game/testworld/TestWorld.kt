@@ -24,6 +24,7 @@ import io.luna.game.event.Event
 import io.luna.game.event.EventListener
 import io.luna.game.event.EventListenerPipelineSet
 import io.luna.game.event.EventPriority
+import io.luna.game.model.Entity
 import io.luna.game.model.EntityState
 import io.luna.game.model.Position
 import io.luna.game.model.World
@@ -44,6 +45,7 @@ import io.luna.util.parser.impl.NpcCombatDefinitionFileParser
 import io.luna.util.parser.impl.WeaponDefinitionFileParser
 import io.luna.util.parser.impl.WeaponTypeDefinitionFileParser
 import org.junit.jupiter.api.Assumptions.assumeTrue
+import java.util.function.BiFunction
 import java.util.function.Consumer
 
 /**
@@ -147,10 +149,14 @@ object TestWorld {
         return obj
     }
 
-    /** Stands in for a content script's listener; clicks reach it from a tile next to the target. */
-    fun <E : Event> listen(type: Class<E>, listener: (E) -> Unit) {
+    /** Stands in for a content script's listener; clicks reach it as [policy] says, by default from a tile next to it. */
+    fun <E : Event> listen(
+        type: Class<E>,
+        policy: BiFunction<Player, Entity, InteractionPolicy> = InteractionPolicy.STANDARD_SIZE_BIF,
+        listener: (E) -> Unit,
+    ) {
         val consumer = Consumer<E> { listener(it) }
-        context.plugins.pipelines.add(EventListener(type, consumer, EventPriority.NORMAL, InteractionPolicy.STANDARD_SIZE_BIF))
+        context.plugins.pipelines.add(EventListener(type, consumer, EventPriority.NORMAL, policy))
     }
 
     fun reset() {
