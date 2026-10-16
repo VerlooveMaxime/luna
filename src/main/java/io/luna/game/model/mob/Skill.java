@@ -266,7 +266,7 @@ public final class Skill {
             Mob mob = set.getMob();
             double multiplier = mob instanceof Bot ? 1.0 : Luna.settings().game().experienceMultiplier();
             double gained = amount * multiplier;
-            if (mob instanceof Player player && !player.isBot()) {
+            if (mob instanceof Player player && !(mob instanceof Bot)) {
                 gained = player.getWorld().getExperienceModifier().modify(player, id, gained);
             }
             if (gained > 0) {
