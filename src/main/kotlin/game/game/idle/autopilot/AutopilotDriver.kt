@@ -15,6 +15,9 @@ interface AutopilotActivity {
 
     /** What the activity waits for the world to supply, as the fragment the overlay and the slot show in yellow, or null. */
     fun waiting(): String?
+
+    /** The autopilot is done with the activity, stopped for whatever reason: it lets go of what it holds for the player (the prayers it lit, S13 part 3). */
+    fun end()
 }
 
 /**
@@ -34,6 +37,8 @@ class AutopilotDriver(private val activity: AutopilotActivity, private val decis
     fun blocked(): String? = activity.blocked()
 
     fun waiting(): String? = activity.waiting()
+
+    fun end() = activity.end()
 
     fun tick() {
         if (activity.isBusy()) {

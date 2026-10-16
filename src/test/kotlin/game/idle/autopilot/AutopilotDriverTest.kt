@@ -36,6 +36,13 @@ class AutopilotDriverTest {
     }
 
     @Test
+    fun `ending the driver ends its activity`() {
+        driver.end()
+
+        assertEquals(1, activity.ended)
+    }
+
+    @Test
     fun `nothing happens before the player has been idle for the delay`() {
         driver.tick()
 

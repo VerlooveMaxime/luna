@@ -6,6 +6,7 @@ import game.idle.flow.option.OptionContext
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
 import game.idle.flow.option.StepOption
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -19,7 +20,8 @@ class ReflexFormTest {
     private val foods = OptionSource { listOf(StepOption("$trout", "Trout", OptionIcon.Item(trout))) }
     private val portions = mapOf(trout to setOf(trout), lobster to setOf(lobster), cake to setOf(cake, slice))
     private val types = StepTypes(listOf(FakeStepType("fight"), FakeStepType("bank")))
-    private val form = ReflexForm(foods, portions, types, FakeNames(mapOf(trout to "Trout", lobster to "Lobster", 113 to "Strength potion(4)", 2440 to "Super strength(4)")), OptionSource { emptyList() }, mapOf(113 to listOf(119, 117, 115, 113), 2440 to listOf(161, 159, 157, 2440)))
+    private val prayers = OptionSource { listOf(StepOption("5623", "Protect from melee", OptionIcon.Media("prayeron", 14))) }
+    private val form = ReflexForm(foods, portions, types, FakeNames(mapOf(trout to "Trout", lobster to "Lobster", 113 to "Strength potion(4)", 2440 to "Super strength(4)")), OptionSource { emptyList() }, mapOf(113 to listOf(119, 117, 115, 113), 2440 to listOf(161, 159, 157, 2440)), prayers)
     private val steps = listOf(step("fight").copy(id = 4), step("bank").copy(id = 7))
 
     private fun reflex(vararg values: Pair<String, String>) = ReflexSettings(2, mapOf(*values))
@@ -44,7 +46,7 @@ class ReflexFormTest {
                 "When (left): toggle when hitpoints 'Hitpoints' / skill 'Skill'",
                 " (left): toggle when attacked 'Under attack'",
                 "Below (left): typed below 1..99",
-                "Do (right): toggle do eat 'Eat' / drink 'Drink' / stop 'Stop' / jump 'Jump'",
+                "Do (right): toggle do eat 'Eat' / drink 'Drink' / pray 'Pray' / stop 'Stop' / jump 'Jump'",
                 "Food (right): list foods on 4 rows, 'What would you like to eat?'",
             ),
             shown(),
@@ -228,7 +230,7 @@ class ReflexFormTest {
         val search = form.fields(steps).filterIsInstance<StepField.Search>().single { it.target.key == ReflexKeys.SKILL_NAME }
         val rows = search.target.source.options(OptionContext())
 
-        assertEquals(io.luna.game.model.mob.Skill.NAMES.filter { it != "Hitpoints" }, rows.map { it.label })
+        assertEquals(Skill.NAMES.filter { it != "Hitpoints" }, rows.map { it.label })
         assertEquals(OptionIcon.Skill(5), rows.single { it.value == "prayer" }.icon)
     }
 
@@ -286,6 +288,55 @@ class ReflexFormTest {
     @Test
     fun `eating on a skill condition warns about eating at full hitpoints`() {
         assertEquals(listOf(ReflexForm.EATS_ON_SKILL), form.warnings(reflex("when" to "skill", "do" to "eat")))
+    }
+
+    @Test
+    fun `a pray reflex shows its prayer list on the right`() {
+        assertEquals("Prayers (right): list prayers on 4 rows, 'What would you like to pray?'", shown("do" to "pray").last())
+        assertEquals(prayers, form.fields(steps).filterIsInstance<StepField.Items>().single { it.key == ReflexKeys.PRAYERS }.source)
+    }
+
+    @Test
+    fun `pray names its action and pictures the first prayer with its tab icon`() {
+        val pray = reflex("do" to "pray", "prayers" to "5623,5609")
+
+        assertEquals(listOf("Pray", "Keeps its prayers on while its condition holds.", StepIcon.Media("prayeron", 14)), listOf(form.label(pray), form.description(pray), form.icon(pray)))
+    }
+
+    @Test
+    fun `a pray with no prayer shows the Prayer skill and says a prayer`() {
+        val pray = reflex("when" to "attacked", "do" to "pray")
+
+        assertEquals(listOf(StepIcon.Skill(Skill.PRAYER), "Under attack: pray a prayer"), listOf(form.icon(pray), form.sentence(pray, steps)))
+    }
+
+    @Test
+    fun `a pray sentence names its prayers in list order, a key that is no prayer skipped`() {
+        assertEquals("Under attack: pray Protect from melee, Thick skin", form.sentence(reflex("when" to "attacked", "do" to "pray", "prayers" to "5623,1511,5609"), steps))
+    }
+
+    @Test
+    fun `praying needs nothing carried`() {
+        assertNull(form.need(reflex("do" to "pray", "prayers" to "5623")))
+    }
+
+    @Test
+    fun `praying on low Prayer points warns that it drains them`() {
+        assertEquals(listOf(ReflexForm.PRAYS_ON_LOW_POINTS), form.warnings(reflex("when" to "skill", "skillName" to "prayer", "do" to "pray")))
+    }
+
+    @Test
+    fun `praying on another skill, on hitpoints or under attack warns of nothing`() {
+        val pairs = listOf(reflex("when" to "skill", "skillName" to "strength", "do" to "pray"), reflex("when" to "skill", "do" to "pray"), reflex("do" to "pray"), reflex("when" to "attacked", "do" to "pray"))
+
+        assertEquals(List(4) { emptyList<String>() }, pairs.map(form::warnings))
+    }
+
+    @Test
+    fun `the attach search pictures a pray reflex by its first prayer`() {
+        val options = form.attachOptions(listOf(reflex("do" to "pray", "prayers" to "5609")), steps)
+
+        assertEquals(listOf(StepOption("2", "1 Hitpoints below 50%: pray Thick skin", OptionIcon.Media("prayeron", 0), group = 0)), options)
     }
 
 }

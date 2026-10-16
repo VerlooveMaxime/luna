@@ -30,6 +30,26 @@ class OptionFactsTest {
     }
 
     @Test
+    fun `the unboosted levels are the levels unless given`() {
+        assertEquals(30, facts.baseLevel(Skill.WOODCUTTING))
+        assertEquals(1, facts.baseLevel(Skill.PRAYER))
+    }
+
+    @Test
+    fun `an unboosted level reached lacks nothing, whatever the boosted one`() {
+        val boosted = OptionFacts(levels = mapOf(Skill.PRAYER to 1), baseLevels = mapOf(Skill.PRAYER to 43))
+
+        assertNull(boosted.lacksBase(Skill.PRAYER, 43))
+    }
+
+    @Test
+    fun `an unboosted level not reached names the skill and level needed, whatever the boosted one`() {
+        val boosted = OptionFacts(levels = mapOf(Skill.PRAYER to 50), baseLevels = mapOf(Skill.PRAYER to 1))
+
+        assertEquals("needs Prayer 43", boosted.lacksBase(Skill.PRAYER, 43))
+    }
+
+    @Test
     fun `the bank note gives the count`() {
         assertEquals("312 in bank", facts.bankNote(1521))
     }

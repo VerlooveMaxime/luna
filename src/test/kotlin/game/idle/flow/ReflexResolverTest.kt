@@ -1,5 +1,6 @@
 package game.idle.flow
 
+import engine.combat.prayer.CombatPrayer
 import game.idle.flow.FakeStepType.Companion.step
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -107,7 +108,7 @@ class ReflexResolverTest {
 
     @Test
     fun `a reflex does only what reflexes do`() {
-        assertEquals("'pray' is not something a reflex does", problemOf("do" to "pray"))
+        assertEquals("'teleport' is not something a reflex does", problemOf("do" to "teleport"))
     }
 
     @Test
@@ -165,6 +166,26 @@ class ReflexResolverTest {
     @ValueSource(strings = ["1", "99"])
     fun `the endpoints of the skill Below range are accepted`(value: String) {
         assertEquals(null, problemOf("when" to "skill", "skillName" to "prayer", "skillBelow" to value))
+    }
+
+    @Test
+    fun `a pray reflex keeps the prayers it lists by their tab buttons, in list order`() {
+        assertEquals(ReflexAction.Pray(listOf(CombatPrayer.PROTECT_FROM_MELEE, CombatPrayer.THICK_SKIN)), resolvedAlone("do" to "pray", "prayers" to "5623,5609").action)
+    }
+
+    @Test
+    fun `a pray reflex needs a prayer picked`() {
+        assertEquals("Needs a prayer", problemOf("do" to "pray"))
+    }
+
+    @Test
+    fun `a pray reflex refuses a key that is no prayer`() {
+        assertEquals("'1511' is not a prayer", problemOf("do" to "pray", "prayers" to "5609,$logs"))
+    }
+
+    @Test
+    fun `two prayers of one group cannot be on together`() {
+        assertEquals("Thick skin and Rock skin cannot be on together", problemOf("do" to "pray", "prayers" to "5609,5610,5612"))
     }
 
     @Test

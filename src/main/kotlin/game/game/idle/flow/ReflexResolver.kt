@@ -1,5 +1,6 @@
 package game.idle.flow
 
+import engine.combat.prayer.CombatPrayer
 import game.idle.flow.ReflexKeys.ATTACKED
 import game.idle.flow.ReflexKeys.BELOW
 import game.idle.flow.ReflexKeys.BELOW_LABEL
@@ -13,6 +14,8 @@ import game.idle.flow.ReflexKeys.FOODS
 import game.idle.flow.ReflexKeys.HITPOINTS
 import game.idle.flow.ReflexKeys.JUMP
 import game.idle.flow.ReflexKeys.POTIONS
+import game.idle.flow.ReflexKeys.PRAY
+import game.idle.flow.ReflexKeys.PRAYERS
 import game.idle.flow.ReflexKeys.SKILL
 import game.idle.flow.ReflexKeys.SKILL_BELOW
 import game.idle.flow.ReflexKeys.SKILL_NAME
@@ -27,7 +30,8 @@ import io.luna.game.model.mob.Skill
  * Checks a flow's reflexes against its steps (S07c): a jump becomes the index of the step whose id it holds, so it
  * follows that step wherever it moved, and a step that was deleted makes the reflex unable to work. [portions] maps
  * every item id Luna can eat to the ids of its food's every portion, so a reflex picking a cake eats its slices too.
- * [doses] maps each listed potion to its dose ids, lowest dose first.
+ * [doses] maps each listed potion to its dose ids, lowest dose first. A pray reflex keeps Luna's prayers by their tab
+ * buttons ([Prayers]); two of one group cannot be on together, so a list holding both cannot work (Maxime, 2026-10-16).
  */
 class ReflexResolver(private val portions: Map<Int, Set<Int>>, private val doses: Map<Int, List<Int>>) {
 
@@ -91,6 +95,7 @@ class ReflexResolver(private val portions: Map<Int, Set<Int>>, private val doses
         return when (what) {
             EAT -> ReflexAction.Eat(foods(reflex))
             DRINK -> ReflexAction.Drink(potions(reflex))
+            PRAY -> ReflexAction.Pray(prayers(reflex))
             STOP -> ReflexAction.StopFlow
             JUMP -> ReflexAction.JumpTo(jumpTarget(reflex[STEP], steps))
             else -> throw FlowError("'$what' is not something a reflex does")
@@ -103,6 +108,13 @@ class ReflexResolver(private val portions: Map<Int, Set<Int>>, private val doses
     private fun potions(reflex: ReflexSettings): List<Int> =
         StepItems.parse(reflex[POTIONS]).ifEmpty { throw FlowError(Reasons.needs("Potion")) }
             .flatMap { doses[it.id] ?: throw FlowError(Reasons.notA("Potion", it.id.toString())) }
+
+    private fun prayers(reflex: ReflexSettings): List<CombatPrayer> {
+        val prayers = StepItems.parse(reflex[PRAYERS]).ifEmpty { throw FlowError(Reasons.needs("Prayer")) }
+            .map { Prayers.of(it.id) ?: throw FlowError(Reasons.notA("Prayer", it.id.toString())) }
+        Prayers.clash(prayers)?.let { (one, other) -> throw FlowError("${Prayers.named(one)} and ${Prayers.named(other)} cannot be on together") }
+        return prayers
+    }
 
     private fun jumpTarget(step: String?, steps: List<StepSettings>): Int {
         val id = step?.toIntOrNull() ?: throw FlowError(Reasons.needs("Step"))

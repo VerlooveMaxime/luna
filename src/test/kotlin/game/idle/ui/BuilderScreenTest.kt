@@ -1075,7 +1075,7 @@ class BuilderScreenTest {
 
     @Test
     fun `a reflex's Do toggle switches what it does`() {
-        assertEquals(BuilderAnswer.Configure(newReflex.with("do", "stop")), click(player(chop), BuilderWidgets.toggleFace(6, 4, 2), newReflex))
+        assertEquals(BuilderAnswer.Configure(newReflex.with("do", "stop")), click(player(chop), BuilderWidgets.toggleFace(6, 5, 3), newReflex))
     }
 
     @Test
@@ -1406,7 +1406,21 @@ class BuilderScreenTest {
 
     @Test
     fun `the Drink button selects drinking`() {
-        assertEquals(BuilderAnswer.Configure(newReflex.with("do", "drink")), click(player(chop), BuilderWidgets.toggleFace(6, 4, 1), newReflex))
+        assertEquals(BuilderAnswer.Configure(newReflex.with("do", "drink")), click(player(chop), BuilderWidgets.toggleFace(6, 5, 1), newReflex))
+    }
+
+    @Test
+    fun `the Pray button selects praying`() {
+        assertEquals(BuilderAnswer.Configure(newReflex.with("do", "pray")), click(player(chop), BuilderWidgets.toggleFace(6, 5, 2), newReflex))
+    }
+
+    @Test
+    fun `a pray list opens the prayer search that stays open`() {
+        val draft = newReflex.with("do", "pray")
+        val answer = click(player(chop), BuilderWidgets.listAdd(1), draft) as BuilderAnswer.Several
+
+        assertEquals("prayers", answer.field.key)
+        assertEquals("What would you like to pray?", answer.field.title)
     }
 
     @Test

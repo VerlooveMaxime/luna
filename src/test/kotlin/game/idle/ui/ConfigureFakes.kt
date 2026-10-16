@@ -1,5 +1,6 @@
 package game.idle.ui
 
+import game.idle.autopilot.reflex.PrayerOptions
 import game.idle.danger.Aggression
 import game.idle.danger.AggressiveSpawn
 import game.idle.danger.DangerCatalog
@@ -164,6 +165,6 @@ val POTIONS = OptionSource { listOf(StepOption("113", "Strength potion", OptionI
 
 val REFLEXES = ReflexResolver(PORTIONS, POTION_DOSES)
 
-/** Reflex screens over the configured kinds, trout and lobster named. */
-val REFLEX_FORM = ReflexForm(FOODS, PORTIONS, CONFIGURED_TYPES, FakeNames(mapOf(333 to "Trout", 379 to "Lobster")), POTIONS, POTION_DOSES)
+/** Reflex screens over the configured kinds, trout and lobster named; the prayers are Luna's own, which need no world. */
+val REFLEX_FORM = ReflexForm(FOODS, PORTIONS, CONFIGURED_TYPES, FakeNames(mapOf(333 to "Trout", 379 to "Lobster")), POTIONS, POTION_DOSES, PrayerOptions)
 

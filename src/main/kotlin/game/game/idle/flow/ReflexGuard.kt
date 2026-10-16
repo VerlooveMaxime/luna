@@ -1,5 +1,7 @@
 package game.idle.flow
 
+import engine.combat.prayer.CombatPrayer
+
 /** What reflexes see and do for one player (S07c). `LunaReflexBody` is the in-game one. */
 interface ReflexBody {
 
@@ -16,6 +18,18 @@ interface ReflexBody {
     fun foodSlot(foods: Set<Int>): Int?
 
     fun eat(slot: Int)
+
+    /** Whether [prayer] is on for the player, whoever lit it. */
+    fun praying(prayer: CombatPrayer): Boolean
+
+    /** Whether the player could light [prayer] now: the base Prayer level is enough, points are left, prayers are not disabled. */
+    fun canPray(prayer: CombatPrayer): Boolean
+
+    /** Lights [prayer] as the tab's button does; true when it is on afterwards. */
+    fun pray(prayer: CombatPrayer): Boolean
+
+    /** Puts out [prayer]; true when it was on. */
+    fun stopPraying(prayer: CombatPrayer): Boolean
 
     /** Whether anything that can get at the player attacks them. */
     fun underAttack(): Boolean
@@ -53,13 +67,22 @@ sealed interface ReflexOutcome {
  * would fire, so the driver decides after its pause, mid-fight included. Eating and drinking leave the step going, as a 2006 player's
  * consumables did. A stop or a jump owns the step until nothing attacks the player, who runs clear meanwhile, cornered or not,
  * and only then stops the flow or jumps (Maxime, 2026-10-10: never while attacked; S13, Q15: every stop and jump).
+ * Praying lights what is off and can be lit, one act for the whole list, and the flow's [hold] keeps it on across
+ * steps while a reflex whose When holds wants it; each decision first puts out what no reflex wants any more, with
+ * the step going on (S13 part 3, Maxime 2026-10-16). Held prayers stay on while the player runs clear.
  */
-class ReflexGuard(private val step: StepActivity, private val reflexes: List<ResolvedReflex>, private val body: ReflexBody) : StepActivity {
+class ReflexGuard(
+    private val step: StepActivity,
+    private val reflexes: List<ResolvedReflex>,
+    private val body: ReflexBody,
+    private val hold: PrayerHold,
+) : StepActivity {
 
     private var leaving: Firing.Leave? = null
     private var outcome: ReflexOutcome? = null
+    private val changes = mutableListOf<PrayerChange>()
 
-    override fun isBusy(): Boolean = step.isBusy() && leaving == null && firing() == null
+    override fun isBusy(): Boolean = step.isBusy() && leaving == null && firing() == null && !hold.pending(body, ::wanted)
 
     override fun isDone(): Boolean = step.isDone()
 
@@ -82,16 +105,42 @@ class ReflexGuard(private val step: StepActivity, private val reflexes: List<Res
     /** Where a reflex sends the flow once the player is clear; null while the step goes on. */
     fun jump(): ReflexOutcome.Jump? = outcome as? ReflexOutcome.Jump
 
+    /** The prayers reflexes lit or put out since last asked, in order, for the chat lines. */
+    fun prayed(): List<PrayerChange> = changes.toList().also { changes.clear() }
+
     override fun act() {
-        carryOut(leaving ?: firing())
+        val leave = leaving
+        if (leave != null) {
+            leave(leave)
+            return
+        }
+        changes += hold.release(body, ::wanted)
+        val firing = firing()
+        // A release alone was the decision: the step's own action goes on, not clicked again.
+        if (firing == null && step.isBusy()) return
+        carryOut(firing)
     }
 
     private fun carryOut(firing: Firing?) = when (firing) {
         null -> step.act()
         is Firing.Eat -> body.eat(firing.slot)
         is Firing.Drink -> body.drink(firing.slot)
+        is Firing.Pray -> pray(firing)
         is Firing.Leave -> leave(firing)
     }
+
+    /** Lights each prayer in turn, as a 2006 player clicked them one after another; Luna has the last word on each. */
+    private fun pray(firing: Firing.Pray) {
+        for (prayer in firing.prayers) {
+            if (!body.pray(prayer)) continue
+            hold.lit(prayer, firing.number)
+            changes += PrayerChange(firing.number, prayer, on = true)
+        }
+    }
+
+    /** The prayers the pray reflexes whose When holds keep on. */
+    private fun wanted(): Set<CombatPrayer> =
+        reflexes.mapNotNull { reflex -> (reflex.action as? ReflexAction.Pray)?.takeIf { reflex.trigger.fired(body) != null } }.flatMap { it.prayers }.toSet()
 
     /** The outcome gives what the reflex fired at, not what the player was at once clear. */
     private fun leave(firing: Firing.Leave) {
@@ -112,15 +161,27 @@ class ReflexGuard(private val step: StepActivity, private val reflexes: List<Res
         when (val action = reflex.action) {
             is ReflexAction.Eat -> body.foodSlot(action.foods)?.let(Firing::Eat)
             is ReflexAction.Drink -> body.potionSlot(action.doses)?.let(Firing::Drink)
+            is ReflexAction.Pray -> action.prayers.filter(::prayable).takeIf { it.isNotEmpty() }?.let { Firing.Pray(reflex.number, it) }
             ReflexAction.StopFlow -> Firing.Leave(reflex.number, fired, jumpTo = null)
             is ReflexAction.JumpTo -> Firing.Leave(reflex.number, fired, action.index)
         }
+
+    /**
+     * A prayer that is off and can be lit without putting out another: one of its group already on, by the player or
+     * another reflex, is left alone, so no reflex swaps prayers back and forth (Maxime, 2026-10-16).
+     */
+    private fun prayable(prayer: CombatPrayer): Boolean = !body.praying(prayer) && body.canPray(prayer) && groupFree(prayer)
+
+    private fun groupFree(prayer: CombatPrayer): Boolean = prayer.group?.getPrayers()?.none(body::praying) ?: true
 
     private sealed interface Firing {
 
         data class Eat(val slot: Int) : Firing
 
         data class Drink(val slot: Int) : Firing
+
+        /** Reflex [number] lights [prayers], the ones of its list that can be lit. */
+        data class Pray(val number: Int, val prayers: List<CombatPrayer>) : Firing
 
         /** A stop, or a jump to the step at [jumpTo]. */
         data class Leave(val number: Int, val fired: Fired, val jumpTo: Int?) : Firing

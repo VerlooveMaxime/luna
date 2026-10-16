@@ -1,5 +1,6 @@
 package game.idle.flow
 
+import engine.combat.prayer.CombatPrayer
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
@@ -248,7 +249,11 @@ fun described(fields: List<StepField>): List<String> =
         "${field.label} (${field.column.name.lowercase()}): $words"
     }
 
-/** A player's body for reflexes: [bag] maps slots to item ids, each but [INEDIBLE] a food; what it does is kept as text ("eat 3"). */
+/**
+ * A player's body for reflexes: [bag] maps slots to item ids, each but [INEDIBLE] a food; what it does is kept as text
+ * ("eat 3", "pray thick_skin"). Prayers are [lit] as Luna's set would light them (one of a group at a time, none below
+ * [prayerLevel], without [prayerPoints] or while [prayersDisabled]); [refused] is one Luna turns down all the same.
+ */
 class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
 
     val bag = mutableMapOf<Int, Int>()
@@ -256,6 +261,11 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
     var attacked = false
     var dead = false
     val done = mutableListOf<String>()
+    val lit = mutableSetOf<CombatPrayer>()
+    var prayerLevel = 99
+    var prayerPoints = 10
+    var prayersDisabled = false
+    var refused: CombatPrayer? = null
 
     override fun health(): Health = health
 
@@ -272,6 +282,23 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
 
     override fun eat(slot: Int) {
         done += "eat $slot"
+    }
+
+    override fun praying(prayer: CombatPrayer): Boolean = prayer in lit
+
+    override fun canPray(prayer: CombatPrayer): Boolean = prayerLevel >= prayer.level && prayerPoints > 0 && !prayersDisabled
+
+    override fun pray(prayer: CombatPrayer): Boolean {
+        done += "pray ${prayer.name.lowercase()}"
+        if (!canPray(prayer) || prayer == refused) return false
+        lit.removeAll { it.group != null && it.group == prayer.group }
+        lit += prayer
+        return true
+    }
+
+    override fun stopPraying(prayer: CombatPrayer): Boolean {
+        done += "stop ${prayer.name.lowercase()}"
+        return lit.remove(prayer)
     }
 
     override fun underAttack(): Boolean = attacked

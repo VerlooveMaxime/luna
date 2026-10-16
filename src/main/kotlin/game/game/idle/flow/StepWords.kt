@@ -66,6 +66,10 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
         return start + head + chat.fit(item(goal.item), CHAT_ROOM - chat.width(start + head + tail + end)) + tail + end
     }
 
+    /** A reflex lit or put out a prayer (S13 part 3): "Autopilot: reflex 1 prays Protect from melee." / "... stops praying ...". */
+    fun prayed(change: PrayerChange): String =
+        "${PREFIX}reflex ${change.number} ${if (change.on) "prays" else "stops praying"} ${Prayers.named(change.prayer)}."
+
     /** The reflex at [number] [fired] and the flow goes on from step [toStep], the player clear of what attacked them. */
     fun jump(number: Int, fired: Fired, toStep: Int): String = "${PREFIX}reflex $number fired ${fired(fired)}, jumping to step $toStep."
 

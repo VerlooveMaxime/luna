@@ -1,5 +1,7 @@
 package game.idle.flow
 
+import engine.combat.prayer.CombatPrayer
+
 /**
  * A reflex of a flow as the player set it up (S07c): "when X, do Y", kept beside the steps and saved with them, working
  * only while a step it is attached to runs. [id] stays put while the reflexes move, so steps attach it by id (0 until
@@ -33,11 +35,16 @@ object ReflexKeys {
     const val BELOW_WORDS = "1 to 99 percent of hitpoints"
     val BELOW_RULE = Reasons.takes(BELOW_LABEL, BELOW_WORDS)
 
-    /** What it does: [EAT] (the default), [DRINK], [STOP] the flow, or [JUMP] to the step whose id [STEP] holds. */
+    /**
+     * What it does: [EAT] (the default), [DRINK], [PRAY], [STOP] the flow, or [JUMP] to the step whose id [STEP] holds.
+     * [PRAYERS] lists the prayers a pray reflex keeps on, by their tab buttons ([Prayers], as a list of [StepItems]).
+     */
     const val DO = "do"
     const val EAT = "eat"
     const val DRINK = "drink"
     const val POTIONS = "potions"
+    const val PRAY = "pray"
+    const val PRAYERS = "prayers"
     const val STOP = "stop"
     const val JUMP = "jump"
     const val STEP = "step"
@@ -92,12 +99,21 @@ sealed interface ReflexAction {
     /** Drinks the first held id in [doses]: potion list order, then lowest dose first within each potion. */
     data class Drink(val doses: List<Int>) : ReflexAction
 
+    /**
+     * Keeps [prayers] on while the When holds, lighting each that is off and can be lit, and puts out what it lit once
+     * the When stops holding (S13 part 3, Maxime 2026-10-15); never two of one group, which cannot be on together.
+     */
+    data class Pray(val prayers: List<CombatPrayer>) : ReflexAction
+
     /** Stops the flow, running clear first while attacked. */
     data object StopFlow : ReflexAction
 
     /** Goes on from the step at [index], running clear first while attacked; counts no lap. */
     data class JumpTo(val index: Int) : ReflexAction
 }
+
+/** Reflex [number] lit ([on]) or put out [prayer], for the chat line: "Autopilot: reflex 1 prays Protect from melee." */
+data class PrayerChange(val number: Int, val prayer: CombatPrayer, val on: Boolean)
 
 /** The player's hitpoints out of [full], their unboosted level. */
 data class Health(val hitpoints: Int, val full: Int) {

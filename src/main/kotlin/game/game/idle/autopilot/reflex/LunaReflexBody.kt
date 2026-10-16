@@ -3,6 +3,8 @@ package game.idle.autopilot.reflex
 import api.attr.Attr
 import api.attr.getValue
 import api.attr.setValue
+import engine.combat.prayer.CombatPrayer
+import engine.combat.status.StatusEffectType
 import game.idle.autopilot.LunaClicks
 import game.idle.flow.Health
 import game.idle.flow.ReflexBody
@@ -24,7 +26,8 @@ fun healthOf(player: Player): Health = Health(player.health, player.skill(Skill.
 
 /**
  * [ReflexBody] for a logged-in player. Eating and drinking use the same event as the client's click, so Luna's
- * consumables run unchanged (their separate delays included) and the fight in progress goes on.
+ * consumables run unchanged (their separate delays included) and the fight in progress goes on. Praying goes through
+ * Luna's prayer set as the tab's buttons do (varps, sounds, head icon, drain), never to its state directly.
  */
 class LunaReflexBody(private val player: Player) : ReflexBody {
 
@@ -52,6 +55,24 @@ class LunaReflexBody(private val player: Player) : ReflexBody {
         val item = player.inventory[slot] ?: return
         LunaClicks.postClosing(player, ItemFirstClickEvent(player, item.id, slot, LunaClicks.INVENTORY))
     }
+
+    override fun praying(prayer: CombatPrayer): Boolean = player.combat.prayers.isActive(prayer)
+
+    /**
+     * Luna's own checks, read before asking: asking for a prayer that cannot be lit would still put out the one of its
+     * group that is on. A locked player (a teleport, death) takes no clicks, the tab's included.
+     */
+    override fun canPray(prayer: CombatPrayer): Boolean {
+        val skill = player.skill(Skill.PRAYER)
+        return !player.isLocked && skill.staticLevel >= prayer.level && skill.level > 0 && StatusEffectType.DRAGON_SCIMITAR !in player.status
+    }
+
+    override fun pray(prayer: CombatPrayer): Boolean {
+        player.combat.prayers.activateIfOff(prayer)
+        return praying(prayer)
+    }
+
+    override fun stopPraying(prayer: CombatPrayer): Boolean = player.combat.prayers.deactivate(prayer, silent = false)
 
     override fun underAttack(): Boolean = threats().isNotEmpty()
 

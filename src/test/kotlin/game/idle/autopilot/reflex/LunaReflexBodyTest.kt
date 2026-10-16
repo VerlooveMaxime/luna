@@ -1,5 +1,9 @@
 package game.idle.autopilot.reflex
 
+import engine.combat.prayer.CombatPrayer.PROTECT_FROM_MELEE
+import engine.combat.prayer.CombatPrayer.ROCK_SKIN
+import engine.combat.prayer.CombatPrayer.THICK_SKIN
+import engine.combat.status.StatusEffectType
 import game.idle.autopilot.EndlessAction
 import game.idle.flow.Health
 import game.testworld.TestWorld
@@ -9,6 +13,7 @@ import io.luna.game.model.Position
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Npc
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -197,6 +202,99 @@ class LunaReflexBodyTest {
         LunaReflexBody(player).calm()
 
         assertTrue(player.isRunning)
+    }
+
+    /** A player with base Prayer [level] and as many points. */
+    private fun praying(level: Int): Player = login().also { player ->
+        val prayer = player.skill(Skill.PRAYER)
+        prayer.staticLevel = level
+        prayer.level = level
+    }
+
+    @Test
+    fun `a prayer is on once Luna's set has it`() {
+        val player = praying(1)
+        val body = LunaReflexBody(player)
+        val before = body.praying(THICK_SKIN)
+
+        player.combat.prayers.activate(THICK_SKIN)
+
+        assertEquals(listOf(false, true), listOf(before, body.praying(THICK_SKIN)))
+    }
+
+    @Test
+    fun `praying lights the prayer through Luna's set and says it is on`() {
+        val player = praying(1)
+
+        assertTrue(LunaReflexBody(player).pray(THICK_SKIN))
+        assertTrue(player.combat.prayers.isActive(THICK_SKIN))
+    }
+
+    @Test
+    fun `praying a prayer already on leaves it on`() {
+        val player = praying(1)
+        player.combat.prayers.activate(THICK_SKIN)
+
+        assertTrue(LunaReflexBody(player).pray(THICK_SKIN))
+        assertTrue(player.combat.prayers.isActive(THICK_SKIN))
+    }
+
+    @Test
+    fun `a prayer Luna turns down is not on afterwards`() {
+        val player = praying(1)
+
+        assertFalse(LunaReflexBody(player).pray(PROTECT_FROM_MELEE))
+    }
+
+    @Test
+    fun `a prayer can be lit with the base level, points and no disabling`() {
+        assertTrue(LunaReflexBody(praying(43)).canPray(PROTECT_FROM_MELEE))
+    }
+
+    @Test
+    fun `a prayer above the base level cannot be lit, however boosted`() {
+        val player = praying(42)
+        player.skill(Skill.PRAYER).level = 60
+
+        assertFalse(LunaReflexBody(player).canPray(PROTECT_FROM_MELEE))
+    }
+
+    @Test
+    fun `without prayer points no prayer can be lit`() {
+        val player = praying(43)
+        player.skill(Skill.PRAYER).level = 0
+
+        assertFalse(LunaReflexBody(player).canPray(THICK_SKIN))
+    }
+
+    @Test
+    fun `a locked player, teleporting or dying, lights no prayer`() {
+        val player = praying(43)
+        player.lock()
+
+        assertFalse(LunaReflexBody(player).canPray(THICK_SKIN))
+    }
+
+    @Test
+    fun `while a dragon scimitar's hit disables prayers none can be lit`() {
+        val player = praying(43)
+        player.status.add(checkNotNull(StatusEffectType.DRAGON_SCIMITAR.loadFunction(player)))
+
+        assertFalse(LunaReflexBody(player).canPray(THICK_SKIN))
+    }
+
+    @Test
+    fun `putting out a prayer that is on says it was`() {
+        val player = praying(10)
+        player.combat.prayers.activate(ROCK_SKIN)
+
+        assertTrue(LunaReflexBody(player).stopPraying(ROCK_SKIN))
+        assertFalse(player.combat.prayers.isActive(ROCK_SKIN))
+    }
+
+    @Test
+    fun `putting out a prayer that is off says it was not`() {
+        assertFalse(LunaReflexBody(praying(10)).stopPraying(ROCK_SKIN))
     }
 
     @Test

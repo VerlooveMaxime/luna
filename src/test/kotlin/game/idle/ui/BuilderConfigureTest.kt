@@ -5,6 +5,7 @@ import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowResolver
 import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexSettings
+import game.idle.flow.StepIcon
 import game.idle.flow.RunProgress
 import game.idle.flow.StepField
 import game.idle.flow.StepSettings
@@ -397,9 +398,9 @@ class BuilderConfigureTest {
     }
 
     @Test
-    fun `a list's line shows its item's picture and name, without an amount`() {
+    fun `a list's line shows its option's picture and label, without an amount`() {
         assertEquals(
-            listOf<Any>(WidgetPicture.Item(1521), "item 1521", false),
+            listOf<Any>(WidgetPicture.Item(1521), "Oak logs", false),
             listOf(
                 picture(lighting, BuilderWidgets.linePicture(0, 1)),
                 text(lighting, BuilderWidgets.lineName(0, 1)),
@@ -489,8 +490,8 @@ class BuilderConfigureTest {
 
     @Test
     fun `a withdrawal's name is fitted to the room the amount box leaves`() {
-        val long = stocking.copy(settings = StepSettings("stock", mapOf("withdraw" to "1511")))
-        val configure = BuilderConfigure(FlowResolver(CONFIGURED_TYPES), REFLEXES, REFLEX_FORM, FakeNames(mapOf(1511 to "Logs of a very long name")), font, CONFIGURED_DANGERS)
+        val long = stocking.copy(settings = StepSettings("stock", mapOf("withdraw" to "1513")))
+        val configure = BuilderConfigure(FlowResolver(CONFIGURED_TYPES), REFLEXES, REFLEX_FORM, FakeNames(mapOf(1513 to "Logs of a very long name")), font, CONFIGURED_DANGERS)
 
         val name = configure.updates(IdleState(), long, facts).filterIsInstance<WidgetUpdate.Text>().single { it.id == BuilderWidgets.lineName(0, 0) }
 
@@ -581,14 +582,15 @@ class BuilderConfigureTest {
     @Test
     fun `an eat reflex's rows are When and Below on the left, Do and its food list on the right`() {
         assertEquals(
-            listOf<Any>("@whi@Hitpoints", "Skill", "50%", "@whi@Eat", "Stop", "Jump", WidgetUpdate.Placement(1, firstRow = 1, rows = 4, lines = 2), "item 333"),
+            listOf<Any>("@whi@Hitpoints", "Skill", "50%", "@whi@Eat", "Pray", "Stop", "Jump", WidgetUpdate.Placement(1, firstRow = 1, rows = 4, lines = 2), "Trout"),
             listOf(
                 text(eating, BuilderWidgets.toggleText(0, 2, 0), cows),
                 text(eating, BuilderWidgets.toggleText(0, 2, 1), cows),
                 text(eating, BuilderWidgets.rowPlainText(2), cows),
-                text(eating, BuilderWidgets.toggleText(6, 4, 0), cows),
-                text(eating, BuilderWidgets.toggleText(6, 4, 2), cows),
-                text(eating, BuilderWidgets.toggleText(6, 4, 3), cows),
+                text(eating, BuilderWidgets.toggleText(6, 5, 0), cows),
+                text(eating, BuilderWidgets.toggleText(6, 5, 2), cows),
+                text(eating, BuilderWidgets.toggleText(6, 5, 3), cows),
+                text(eating, BuilderWidgets.toggleText(6, 5, 4), cows),
                 updates(eating, cows).getValue(placementKey(1)),
                 text(eating, BuilderWidgets.lineName(1, 0), cows),
             ),
@@ -606,7 +608,7 @@ class BuilderConfigureTest {
     fun `a reflex that jumps shows the step it jumps to under Do`() {
         assertEquals(
             listOf("@whi@Jump", "Step 1: Chop label"),
-            listOf(text(running, BuilderWidgets.toggleText(6, 4, 3), cows), text(running, BuilderWidgets.rowText(7), cows)),
+            listOf(text(running, BuilderWidgets.toggleText(6, 5, 4), cows), text(running, BuilderWidgets.rowText(7), cows)),
         )
     }
 
@@ -831,7 +833,7 @@ class BuilderConfigureTest {
     fun `a skill drink shows its values on the left and potions on the right`() {
         val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("when" to "skill", "skillName" to "strength", "skillBelow" to "25", "do" to "drink", "potions" to "113"))))
 
-        assertEquals(listOf("Strength", "25", "@whi@Drink"), listOf(text(draft, BuilderWidgets.rowText(2)), text(draft, BuilderWidgets.rowPlainText(3)), text(draft, BuilderWidgets.toggleText(6, 4, 1))))
+        assertEquals(listOf("Strength", "25", "@whi@Drink"), listOf(text(draft, BuilderWidgets.rowText(2)), text(draft, BuilderWidgets.rowPlainText(3)), text(draft, BuilderWidgets.toggleText(6, 5, 1))))
         assertEquals(WidgetUpdate.Placement(1, firstRow = 1, rows = 4, lines = 2), updates(draft).getValue(placementKey(1)))
     }
 
@@ -840,6 +842,38 @@ class BuilderConfigureTest {
         val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("do" to "drink"))))
 
         assertEquals("@red@! Needs a potion", text(draft, BuilderWidgets.warning(0)))
+    }
+
+    @Test
+    fun `a pray reflex lights Pray and lists its prayers with their tab icons and names`() {
+        val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("when" to "attacked", "do" to "pray", "prayers" to "5623,5609"))))
+
+        assertEquals(
+            listOf<Any>("@whi@Pray", WidgetPicture.Media("prayeron", 14), "Protect from melee", "Thick skin", WidgetPicture.Media("prayeron", 14)),
+            listOf(text(draft, BuilderWidgets.toggleText(6, 5, 2)), picture(draft, BuilderWidgets.linePicture(1, 0)), text(draft, BuilderWidgets.lineName(1, 0)), text(draft, BuilderWidgets.lineName(1, 1)), picture(draft, BuilderWidgets.HEADER_PICTURE)),
+        )
+    }
+
+    @Test
+    fun `a pray reflex's header names and describes praying`() {
+        val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("do" to "pray", "prayers" to "5609"))))
+
+        assertEquals(listOf("Reflex 1: Pray", "Keeps its prayers on while its condition holds."), listOf(text(draft, BuilderWidgets.HEADER_NAME), text(draft, BuilderWidgets.HEADER_DESCRIPTION)))
+    }
+
+    @Test
+    fun `a pray reflex without prayers shows the red reason and the Prayer skill`() {
+        val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("do" to "pray"))))
+
+        assertEquals("@red@! Needs a prayer", text(draft, BuilderWidgets.warning(0)))
+        assertEquals(WidgetPicture.of(StepIcon.Skill(Skill.PRAYER)), picture(draft, BuilderWidgets.HEADER_PICTURE))
+    }
+
+    @Test
+    fun `a list line whose value the search no longer offers shows the item itself`() {
+        val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("foods" to "1891"))))
+
+        assertEquals(listOf<Any>(WidgetPicture.Item(1891), "item 1891"), listOf(picture(draft, BuilderWidgets.linePicture(1, 0)), text(draft, BuilderWidgets.lineName(1, 0))))
     }
 
 }

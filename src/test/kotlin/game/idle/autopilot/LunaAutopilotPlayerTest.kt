@@ -260,6 +260,8 @@ class LunaAutopilotPlayerTest {
         override fun blocked(): String? = null
 
         override fun waiting(): String? = null
+
+        override fun end() = Unit
     }
 
     @Test

@@ -48,7 +48,8 @@ data class OptionContext(
  * ids in the [bag] and those [worn], which the configure screen's tool warnings read (S07b). [here] is the player's tile,
  * which stands for the work spot when no walk step comes before (the flow then works where Run is pressed). [combat] is
  * the player's combat level, which the danger warnings judge aggressive npcs against (S08); [NEW_COMBAT] is a new
- * character's.
+ * character's. [baseLevels] are the unboosted levels whatever [levels] judge on, for what no boost unlocks (a prayer,
+ * S13 part 3); the same as [levels] unless given.
  */
 data class OptionFacts(
     val levels: Map<Int, Int> = emptyMap(),
@@ -57,15 +58,22 @@ data class OptionFacts(
     val worn: Set<Int> = emptySet(),
     val here: Tile? = null,
     val combat: Int = NEW_COMBAT,
+    val baseLevels: Map<Int, Int> = levels,
 ) {
 
     fun level(skill: Int): Int = levels[skill] ?: 1
 
+    fun baseLevel(skill: Int): Int = baseLevels[skill] ?: 1
+
     fun banked(item: Int): Int = bank[item] ?: 0
 
     /** Why an option needing [level] in [skill] cannot be picked yet, null when it can. */
-    fun lacks(skill: Int, level: Int): String? =
-        if (level(skill) >= level) null else "needs ${Skill.getName(skill)} $level"
+    fun lacks(skill: Int, level: Int): String? = needs(skill, level).takeIf { level(skill) < level }
+
+    /** The same over the unboosted level, for what a boost never unlocks. */
+    fun lacksBase(skill: Int, level: Int): String? = needs(skill, level).takeIf { baseLevel(skill) < level }
+
+    private fun needs(skill: Int, level: Int): String = "needs ${Skill.getName(skill)} $level"
 
     /** What the bank holds of [item], as a row's note says it. */
     fun bankNote(item: Int): String = banked(item).let { if (it == 0) "none in bank" else "$it in bank" }

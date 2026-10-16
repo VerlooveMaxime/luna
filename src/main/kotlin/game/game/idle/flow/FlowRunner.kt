@@ -59,7 +59,8 @@ data class ResolvedFlow(
  * only skipped steps, telling the player once a run for each (S13). While a stop waits for the player to run clear,
  * that is what the flow waits for, as the slot and the overlay show it, and the step's block is no longer shown. The
  * flow [stop]s after a number of laps, after a number of minutes on the [clock] since the run started, or once every
- * goal is met, which is judged before the lap guard.
+ * goal is met, which is judged before the lap guard. The prayers the reflexes light are held for the whole run
+ * ([PrayerHold]) and put out when the flow ends, however it ends (S13 part 3).
  */
 class FlowRunner(
     private val flow: ResolvedFlow,
@@ -94,6 +95,7 @@ class FlowRunner(
     /** Whether the player runs clear of what attacks them before the flow stops. */
     private var fleeing = false
 
+    private val hold = PrayerHold()
 
     /**
      * Busy while the current step is, unless the flow has a reason to stop, the time is up or the step's goal is
@@ -115,6 +117,11 @@ class FlowRunner(
         stopping()?.let(::leave)
     }
 
+    /** The run is over, whatever ended it: the prayers it lit go out, each said. */
+    override fun end() {
+        hold.releaseAll(player.body).forEach { player.tell(words.prayed(it)) }
+    }
+
     private fun step() {
         if (timeUp()) {
             stopReason = words.stoppedAfterMinutes((stop as FlowStop.AfterMinutes).minutes)
@@ -130,6 +137,7 @@ class FlowRunner(
             activity.endTurn()
         }
         activity.act()
+        activity.prayed().forEach { player.tell(words.prayed(it)) }
         activity.said()?.let { player.tell(words.said(index + 1, it)) }
         activity.jump()?.let { jump(activity, it) }
     }
@@ -172,7 +180,7 @@ class FlowRunner(
     private fun startStep(): ReflexGuard {
         val step = steps[index]
         val run = if (step is BankMoves) step.without(leaveOut(step)) else step
-        val started = ReflexGuard(player.activity(run), flow.reflexes[index], player.body)
+        val started = ReflexGuard(player.activity(run), flow.reflexes[index], player.body, hold)
         current = started
         ending = false
         return started

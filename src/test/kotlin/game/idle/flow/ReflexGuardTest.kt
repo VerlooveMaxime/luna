@@ -1,5 +1,11 @@
 package game.idle.flow
 
+import engine.combat.prayer.CombatPrayer
+import engine.combat.prayer.CombatPrayer.BURST_OF_STRENGTH
+import engine.combat.prayer.CombatPrayer.PROTECT_FROM_MELEE
+import engine.combat.prayer.CombatPrayer.RAPID_HEAL
+import engine.combat.prayer.CombatPrayer.ROCK_SKIN
+import engine.combat.prayer.CombatPrayer.THICK_SKIN
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -22,7 +28,11 @@ class ReflexGuardTest {
 
     private fun jump(index: Int, number: Int = 2) = ResolvedReflex(number, below(50), ReflexAction.JumpTo(index))
 
-    private fun guard(vararg reflexes: ResolvedReflex) = ReflexGuard(step, reflexes.toList(), body)
+    private fun guard(vararg reflexes: ResolvedReflex) = ReflexGuard(step, reflexes.toList(), body, hold)
+
+    private val hold = PrayerHold()
+
+    private fun pray(vararg prayers: CombatPrayer, number: Int = 1, trigger: ReflexTrigger = below(50)) = ResolvedReflex(number, trigger, ReflexAction.Pray(prayers.toList()))
 
     private val hurtTo = Health(9, 20)
 
@@ -400,6 +410,284 @@ class ReflexGuardTest {
         guard.act()
 
         assertEquals(listOf("fight:1"), log)
+    }
+
+    @Test
+    fun `a pray reflex lights the prayers of its list that are off, in one act`() {
+        val guard = guard(pray(THICK_SKIN, BURST_OF_STRENGTH))
+        hurt()
+
+        guard.act()
+
+        assertEquals(listOf("pray thick_skin", "pray burst_of_strength"), body.done)
+        assertEquals(setOf(THICK_SKIN, BURST_OF_STRENGTH), body.lit)
+        assertEquals(emptyList<String>(), log)
+    }
+
+    @Test
+    fun `what a reflex lit is said once, by its number`() {
+        val guard = guard(pray(THICK_SKIN, BURST_OF_STRENGTH, number = 2))
+        hurt()
+
+        guard.act()
+
+        assertEquals(listOf(PrayerChange(2, THICK_SKIN, on = true), PrayerChange(2, BURST_OF_STRENGTH, on = true)), guard.prayed())
+        assertEquals(emptyList<PrayerChange>(), guard.prayed())
+    }
+
+    @Test
+    fun `a pray reflex lets the guard act while the step is busy`() {
+        val guard = guard(pray(THICK_SKIN))
+        hurt()
+        step.busy = true
+
+        assertFalse(guard.isBusy())
+    }
+
+    @Test
+    fun `a pray reflex whose prayers are all on lets the next reflex fire`() {
+        val guard = guard(pray(THICK_SKIN), stop())
+        body.lit += THICK_SKIN
+        hurt()
+
+        guard.act()
+
+        assertEquals(StepStop.Reflex(2, atHurt), guard.stopping())
+        assertEquals(emptyList<String>(), body.done.filter { it.startsWith("pray") })
+    }
+
+    @Test
+    fun `a pray reflex with nothing to light lets the step act`() {
+        val guard = guard(pray(THICK_SKIN))
+        body.lit += THICK_SKIN
+        hurt()
+
+        guard.act()
+
+        assertEquals(listOf("fight:1"), log)
+    }
+
+    @Test
+    fun `a pray reflex with nothing to light keeps a busy guard busy`() {
+        val guard = guard(pray(THICK_SKIN))
+        body.lit += THICK_SKIN
+        hurt()
+        step.busy = true
+
+        assertTrue(guard.isBusy())
+    }
+
+    @Test
+    fun `a prayer whose group has one on, by anyone, is left alone`() {
+        val guard = guard(pray(THICK_SKIN, BURST_OF_STRENGTH))
+        body.lit += ROCK_SKIN
+        hurt()
+
+        guard.act()
+
+        assertEquals(listOf("pray burst_of_strength"), body.done)
+        assertEquals(setOf(ROCK_SKIN, BURST_OF_STRENGTH), body.lit)
+    }
+
+    @Test
+    fun `a prayer of no group is lit beside any other`() {
+        val guard = guard(pray(RAPID_HEAL))
+        body.lit += THICK_SKIN
+        hurt()
+
+        guard.act()
+
+        assertEquals(setOf(THICK_SKIN, RAPID_HEAL), body.lit)
+    }
+
+    @Test
+    fun `without prayer points a pray reflex falls through to the next`() {
+        val guard = guard(pray(THICK_SKIN), stop())
+        body.prayerPoints = 0
+        hurt()
+
+        guard.act()
+
+        assertEquals(StepStop.Reflex(2, atHurt), guard.stopping())
+        assertEquals(listOf("calm"), body.done)
+    }
+
+    @Test
+    fun `a prayer above the base level is not asked for`() {
+        val guard = guard(pray(PROTECT_FROM_MELEE))
+        body.prayerLevel = 10
+        hurt()
+
+        guard.act()
+
+        assertEquals(emptyList<String>(), body.done)
+        assertEquals(listOf("fight:1"), log)
+        assertEquals(emptyList<PrayerChange>(), guard.prayed())
+    }
+
+    @Test
+    fun `while prayers are disabled none is asked for`() {
+        val guard = guard(pray(THICK_SKIN))
+        body.prayersDisabled = true
+        hurt()
+
+        guard.act()
+
+        assertEquals(emptyList<String>(), body.done)
+        assertEquals(listOf("fight:1"), log)
+    }
+
+    @Test
+    fun `a prayer Luna turns down is neither held nor said`() {
+        val guard = guard(pray(THICK_SKIN, BURST_OF_STRENGTH))
+        body.refused = THICK_SKIN
+        hurt()
+
+        guard.act()
+        val changes = guard.prayed()
+        body.health = Health(20, 20)
+        guard.act()
+
+        assertEquals(listOf(PrayerChange(1, BURST_OF_STRENGTH, on = true)), changes)
+        assertEquals(listOf("pray thick_skin", "pray burst_of_strength", "stop burst_of_strength"), body.done)
+    }
+
+    @Test
+    fun `once the When stops holding, what the reflex lit goes out, the step going on`() {
+        val guard = guard(pray(THICK_SKIN))
+        hurt()
+        guard.act()
+        guard.prayed()
+        body.health = Health(20, 20)
+
+        guard.act()
+
+        assertEquals(listOf(PrayerChange(1, THICK_SKIN, on = false)), guard.prayed())
+        assertEquals(emptySet<CombatPrayer>(), body.lit)
+        assertEquals(listOf("fight:1"), log)
+    }
+
+    @Test
+    fun `a held prayer to put out lets the guard act while the step is busy`() {
+        val guard = guard(pray(THICK_SKIN))
+        hurt()
+        guard.act()
+        body.health = Health(20, 20)
+        step.busy = true
+
+        assertFalse(guard.isBusy())
+    }
+
+    @Test
+    fun `a release alone leaves a busy step's action going`() {
+        val guard = guard(pray(THICK_SKIN))
+        hurt()
+        guard.act()
+        body.health = Health(20, 20)
+        step.busy = true
+
+        guard.act()
+
+        assertEquals(listOf("pray thick_skin", "stop thick_skin"), body.done)
+        assertEquals(emptyList<String>(), log)
+    }
+
+    @Test
+    fun `a release comes before another reflex's lighting in one act, and is said first`() {
+        val guard = guard(pray(THICK_SKIN), pray(PROTECT_FROM_MELEE, number = 2, trigger = ReflexTrigger.UnderAttack))
+        hurt()
+        guard.act()
+        guard.prayed()
+        body.health = Health(20, 20)
+        body.attacked = true
+
+        guard.act()
+
+        assertEquals(listOf(PrayerChange(1, THICK_SKIN, on = false), PrayerChange(2, PROTECT_FROM_MELEE, on = true)), guard.prayed())
+        assertEquals(setOf(PROTECT_FROM_MELEE), body.lit)
+    }
+
+    @Test
+    fun `a prayer on before the reflex wanted it is the player's and stays on`() {
+        val guard = guard(pray(THICK_SKIN))
+        body.lit += THICK_SKIN
+        hurt()
+        guard.act()
+        body.health = Health(20, 20)
+        step.busy = true
+
+        assertTrue(guard.isBusy())
+        guard.act()
+
+        assertEquals(setOf(THICK_SKIN), body.lit)
+        assertEquals(emptyList<PrayerChange>(), guard.prayed())
+    }
+
+    @Test
+    fun `a held prayer put out by hand while wanted is lit again`() {
+        val guard = guard(pray(THICK_SKIN))
+        hurt()
+        guard.act()
+        body.lit -= THICK_SKIN
+
+        guard.act()
+
+        assertEquals(listOf("pray thick_skin", "pray thick_skin"), body.done)
+    }
+
+    @Test
+    fun `a held prayer that went out elsewhere and is no longer wanted is let go without a word`() {
+        val guard = guard(pray(THICK_SKIN))
+        hurt()
+        guard.act()
+        guard.prayed()
+        body.lit -= THICK_SKIN
+        body.health = Health(20, 20)
+
+        guard.act()
+
+        assertEquals(emptyList<PrayerChange>(), guard.prayed())
+        assertEquals(listOf("pray thick_skin", "stop thick_skin"), body.done)
+    }
+
+    @Test
+    fun `a prayer another reflex whose When holds wants stays on`() {
+        val guard = guard(pray(THICK_SKIN, number = 1), pray(THICK_SKIN, number = 2, trigger = ReflexTrigger.UnderAttack))
+        hurt()
+        body.attacked = true
+        guard.act()
+        body.health = Health(20, 20)
+
+        guard.act()
+
+        assertEquals(setOf(THICK_SKIN), body.lit)
+        assertEquals(listOf(PrayerChange(1, THICK_SKIN, on = true)), guard.prayed())
+    }
+
+    @Test
+    fun `the hold spans the steps' guards, so the next step puts out what no reflex of its wants`() {
+        guard(pray(THICK_SKIN)).also { hurt(); it.act() }
+        val next = guard()
+
+        next.act()
+
+        assertEquals(listOf(PrayerChange(1, THICK_SKIN, on = false)), next.prayed())
+        assertEquals(listOf("pray thick_skin", "stop thick_skin"), body.done)
+    }
+
+    @Test
+    fun `while the player runs clear held prayers stay on, wanted or not`() {
+        val guard = guard(pray(THICK_SKIN), stop(trigger = ReflexTrigger.UnderAttack))
+        hurt()
+        body.attacked = true
+        guard.act()
+        guard.act()
+        body.health = Health(20, 20)
+
+        guard.act()
+
+        assertEquals(listOf("pray thick_skin", "flee", "flee"), body.done)
+        assertEquals(setOf(THICK_SKIN), body.lit)
     }
 
     @Test

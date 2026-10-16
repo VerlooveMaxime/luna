@@ -1,5 +1,6 @@
 package game.idle.flow
 
+import engine.combat.prayer.CombatPrayer
 import game.idle.flow.option.FakeNames
 import game.idle.font.EVEN_FONT
 import io.luna.game.model.mob.Skill
@@ -233,6 +234,16 @@ class StepWordsTest {
     @Test
     fun `a flow stopping on every goal met needs a goal`() {
         assertEquals("Autopilot: no step has an Until goal.", StepWords.NO_GOALS)
+    }
+
+    @Test
+    fun `a reflex that lit a prayer says so by its number and the prayer's name`() {
+        assertEquals("Autopilot: reflex 1 prays Protect from melee.", words.prayed(PrayerChange(1, CombatPrayer.PROTECT_FROM_MELEE, on = true)))
+    }
+
+    @Test
+    fun `a reflex that put out a prayer says so`() {
+        assertEquals("Autopilot: reflex 1 stops praying Protect from melee.", words.prayed(PrayerChange(1, CombatPrayer.PROTECT_FROM_MELEE, on = false)))
     }
 
     @Test

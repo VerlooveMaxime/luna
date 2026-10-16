@@ -3,6 +3,7 @@ package game.idle.flow
 import game.idle.autopilot.IdleSteps
 import game.idle.autopilot.reflex.FoodOptions
 import game.idle.autopilot.reflex.PotionOptions
+import game.idle.autopilot.reflex.PrayerOptions
 import game.idle.danger.DangerCatalog
 import game.idle.danger.LunaDangers
 import game.idle.flow.option.InputSource
@@ -50,7 +51,7 @@ class ReasonsFitTest {
         reflexes = ReflexResolver(FoodOptions.portions(), PotionOptions.doses())
         dangers = LunaDangers(LunaGameNames).catalog()
         warnings = StepWarnings(resolver, LunaGameNames, StepDangers(resolver, dangers, LunaGameNames))
-        form = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames, PotionOptions(LunaGameNames), PotionOptions.doses())
+        form = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames, PotionOptions(LunaGameNames), PotionOptions.doses(), PrayerOptions)
     }
 
     @ParameterizedTest(name = "{0}")
@@ -88,7 +89,7 @@ class ReasonsFitTest {
 
     @Test
     fun `every warning the kinds and reflexes can give is measured`() {
-        assertEquals(18, warned().size)
+        assertEquals(19, warned().size)
     }
 
     @ParameterizedTest(name = "{0}")
@@ -193,7 +194,10 @@ class ReasonsFitTest {
         "a drink reflex without a potion" to ReflexSettings(1, mapOf("do" to "drink")),
         "a drink reflex with no such potion" to ReflexSettings(1, mapOf("do" to "drink", "potions" to "1511")),
         "a reflex below nothing" to ReflexSettings(1, mapOf("below" to "0")),
-        "a reflex doing what no reflex does" to ReflexSettings(1, mapOf("do" to "pray")),
+        "a pray reflex without a prayer" to ReflexSettings(1, mapOf("do" to "pray")),
+        "a pray reflex with no such prayer" to ReflexSettings(1, mapOf("do" to "pray", "prayers" to "1511")),
+        "a pray reflex with two of one group, the longest named" to ReflexSettings(1, mapOf("do" to "pray", "prayers" to "5622,5621")),
+        "a reflex doing what no reflex does" to ReflexSettings(1, mapOf("do" to "teleport")),
         "a reflex eating what is not food" to ReflexSettings(1, mapOf("foods" to "1511")),
         "a reflex firing on what no reflex watches" to ReflexSettings(1, mapOf("when" to "poisoned")),
         "a reflex jumping to no step" to ReflexSettings(1, mapOf("do" to "jump")),
@@ -216,7 +220,7 @@ class ReasonsFitTest {
         val eatAnyFood = requireNotNull(form.need(ReflexSettings(1))) { "an eat reflex needs food" }
         val drink = requireNotNull(form.need(ReflexSettings(1, mapOf("do" to "drink", "potions" to "113"))))
         return listOfNotNull(warnings.supplies(listOf(chop), drink, facts)).map { Arguments.of("reflex: $it", it) } +
-            listOf(ReflexSettings(1, mapOf("when" to "attacked", "do" to "drink")), ReflexSettings(1, mapOf("when" to "skill")))
+            listOf(ReflexSettings(1, mapOf("when" to "attacked", "do" to "drink")), ReflexSettings(1, mapOf("when" to "skill")), ReflexSettings(1, mapOf("when" to "skill", "skillName" to "prayer", "do" to "pray")))
                 .flatMap { form.warnings(it) }.map { Arguments.of("reflex: $it", it) } + flows.flatMap { (flow, index) ->
             warnings.of(flow, index, facts, emptyList()).map { Arguments.of("${flow[index].kind}: $it", it) }
         } + (listOfNotNull(warnings.supplies(listOf(chop), eatAnyFood, facts)) + form.warnings(ReflexSettings(1, mapOf("when" to "attacked"))))
@@ -228,7 +232,7 @@ class ReasonsFitTest {
 
     fun descriptions(): List<Arguments> =
         steps.types.all.map { Arguments.of(it.kind, it.description) } +
-            listOf("eat", "drink", "stop", "jump").map { ReflexSettings(1, mapOf("do" to it)) }.map { Arguments.of(form.label(it), form.description(it)) }
+            listOf("eat", "drink", "pray", "stop", "jump").map { ReflexSettings(1, mapOf("do" to it)) }.map { Arguments.of(form.label(it), form.description(it)) }
 
     private fun longestNamedItem(): Int = ItemDefinition.ALL.stream().filter { it.name != "null" }.toList().maxBy { it.name.length }.id()
 

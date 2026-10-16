@@ -1,5 +1,6 @@
 package game.idle.flow
 
+import engine.combat.prayer.CombatPrayer
 import game.idle.autopilot.firemaking.LightStepType
 import game.idle.autopilot.fishing.FishingMethod
 import game.idle.autopilot.making.LunaRecipes
@@ -77,6 +78,8 @@ class StepWordsFitTest {
                 words.jump(99, Fired.AtHitpoints(Health(999, 999)), 99),
                 words.jump(99, Fired.UnderAttack, 99),
                 words.leftOut(99, Int.MAX_VALUE, longestNamedItem(), 99),
+            ) + CombatPrayer.entries.flatMap { listOf(words.prayed(PrayerChange(99, it, on = true)), words.prayed(PrayerChange(99, it, on = false))) } +
+            listOf(
                 StepWords.cannotWork(99),
                 StepWords.IDLE_LAP,
                 StepWords.ALL_GOALS_MET,

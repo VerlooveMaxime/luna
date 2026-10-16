@@ -9,20 +9,19 @@ import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
 /**
- * Reads a player's [OptionFacts]: unboosted levels unless the player counts boosted ones, the bank's counts, what the
- * bag holds and the player wears, where they stand and their combat level (Luna's, over unboosted levels).
+ * Reads a player's [OptionFacts]: unboosted levels unless the player counts boosted ones (the unboosted ones kept
+ * beside), the bank's counts, what the bag holds and the player wears, where they stand and their combat level (Luna's,
+ * over unboosted levels).
  */
 object LunaOptionFacts {
 
     fun of(player: Player): OptionFacts {
-        val boosted = player.idleState.countBoostedLevels
-        val levels = Skill.NAMES.indices.associateWith { id ->
-            player.skills.getSkill(id).let { if (boosted) it.level else it.staticLevel }
-        }
+        val base = Skill.NAMES.indices.associateWith { player.skills.getSkill(it).staticLevel }
+        val levels = if (player.idleState.countBoostedLevels) Skill.NAMES.indices.associateWith { player.skills.getSkill(it).level } else base
         val bank = player.bank.filterNotNull().groupingBy { it.id }.fold(0) { total, item -> total + item.amount }
         val bag = player.inventory.filterNotNull().map { it.id }.toSet()
         val worn = player.equipment.filterNotNull().map { it.id }.toSet()
-        return OptionFacts(levels, bank, bag, worn, Tile.of(player.position), player.combatLevel)
+        return OptionFacts(levels, bank, bag, worn, Tile.of(player.position), player.combatLevel, baseLevels = base)
     }
 }
 

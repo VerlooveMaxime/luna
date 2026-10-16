@@ -35,7 +35,8 @@ fun interface ScheduledTick {
 /**
  * Starts and stops each player's autopilot from the flow saved in their [IdleState]; at most one runs per player.
  * [newDriver] builds the driver for the saved flow, or gives null when it no longer resolves (a bank removed from
- * the data file); a fresh run starts on the [clock]'s time (S12). Game thread only.
+ * the data file); a fresh run starts on the [clock]'s time (S12). However a run ends, its driver is told so it lets go
+ * of what it holds for the player (S13 part 3). Game thread only.
  */
 class Autopilot<P : AutopilotPlayer>(
     private val scheduler: TickScheduler,
@@ -43,7 +44,16 @@ class Autopilot<P : AutopilotPlayer>(
     private val newDriver: (P) -> AutopilotDriver?,
 ) {
 
-    private val running = mutableMapOf<String, ScheduledTick>()
+    private val running = mutableMapOf<String, Run>()
+
+    /** A player's running autopilot: its tick and the driver it drives. */
+    private class Run(private val tick: ScheduledTick, private val driver: AutopilotDriver) {
+
+        fun end() {
+            tick.cancel()
+            driver.end()
+        }
+    }
 
     /**
      * Reads the state on every login, not only when it says running: Luna's save drops a persistent attribute that
@@ -56,7 +66,7 @@ class Autopilot<P : AutopilotPlayer>(
     }
 
     fun onLogout(player: P) {
-        running.remove(player.username)?.cancel()
+        running.remove(player.username)?.end()
     }
 
     fun isRunning(player: P): Boolean = player.username in running
@@ -74,7 +84,7 @@ class Autopilot<P : AutopilotPlayer>(
             player.idleState = player.idleState.stopped()
             return false
         }
-        running[player.username] = scheduler.everyTick { tick(player, driver) }
+        running[player.username] = Run(scheduler.everyTick { tick(player, driver) }, driver)
         return true
     }
 
@@ -112,9 +122,9 @@ class Autopilot<P : AutopilotPlayer>(
 
     /** Stops the flow; true when one was running. */
     private fun halt(player: P): Boolean {
-        val tick = running.remove(player.username)
-        tick?.cancel()
+        val run = running.remove(player.username)
+        run?.end()
         player.idleState = player.idleState.stopped()
-        return tick != null
+        return run != null
     }
 }

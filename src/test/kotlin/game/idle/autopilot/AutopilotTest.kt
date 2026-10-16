@@ -260,6 +260,44 @@ class AutopilotTest {
     }
 
     @Test
+    fun `stopping ends the activity, so it lets go of what it holds`() {
+        autopilot.start(idle)
+
+        autopilot.stop(idle)
+
+        assertEquals(1, activity.ended)
+    }
+
+    @Test
+    fun `an activity's reason to stop ends it before the player is told`() {
+        autopilot.start(idle)
+        activity.stop = "Autopilot: stopped, you died."
+        activity.onEnd = { idle.tell("Autopilot: reflex 1 stops praying Thick skin.") }
+
+        scheduler.tick()
+
+        assertEquals(listOf("Autopilot: reflex 1 stops praying Thick skin.", "Autopilot: stopped, you died."), idle.told)
+    }
+
+    @Test
+    fun `starting again ends the activity it replaces`() {
+        autopilot.start(idle)
+
+        autopilot.start(idle)
+
+        assertEquals(1, activity.ended)
+    }
+
+    @Test
+    fun `logging out ends the activity`() {
+        autopilot.onLogin(chopping)
+
+        autopilot.onLogout(chopping)
+
+        assertEquals(1, activity.ended)
+    }
+
+    @Test
     fun `stopping a running flow ends the walk it was taking the player on`() {
         autopilot.start(idle)
 

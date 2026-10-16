@@ -946,10 +946,10 @@ class LunaHarnessApiTest {
         agent()
 
         val thrown = assertThrows<HarnessException> {
-            api().replaceFlow("agent_a", listOf(step("drop")), listOf(ReflexSettings(1, mapOf("do" to "pray"))), StopSettings())
+            api().replaceFlow("agent_a", listOf(step("drop")), listOf(ReflexSettings(1, mapOf("do" to "teleport"))), StopSettings())
         }
 
-        assertEquals(400 to "Reflex 1: 'pray' is not something a reflex does", thrown.status to thrown.message)
+        assertEquals(400 to "Reflex 1: 'teleport' is not something a reflex does", thrown.status to thrown.message)
     }
 
     @Test

@@ -16,6 +16,8 @@ import game.idle.flow.StepSettings
 import game.idle.flow.StepWarnings
 import game.idle.flow.capitalised
 import game.idle.flow.option.GameNames
+import game.idle.flow.option.InputSource
+import game.idle.flow.option.OptionContext
 import game.idle.flow.option.OptionFacts
 import game.idle.font.ClientFont
 import io.luna.game.model.mob.Skill
@@ -135,7 +137,7 @@ class BuilderConfigure(
             WidgetUpdate.Text(BuilderWidgets.HEADER_NAME, screen.name),
             WidgetUpdate.Text(BuilderWidgets.HEADER_DESCRIPTION, font.fit(screen.description, BuilderWidgets.DESCRIPTION_ROOM)),
         ) + (0 until BuilderWidgets.ROWS).flatMap { row -> row(row, rows[row], draft, screen.before) } +
-            (0 until BuilderWidgets.LISTS).flatMap { list(it, rows, ConfigureRows.list(fields, it), draft) } +
+            (0 until BuilderWidgets.LISTS).flatMap { list(it, rows, ConfigureRows.list(fields, it), draft, facts) } +
             tabs(draft) + attached(state, draft, reflexPage) + warnings(screen.reason, screen.warnings) + buttons(state, draft)
     }
 
@@ -285,22 +287,26 @@ class BuilderConfigure(
 
     /**
      * Configure list [list]: hidden without a list in its column, else placed on its field's rows with a line to add or
-     * remove, then a line per item: its picture and its name, and for a withdrawal its amount. Lines past the last lie
-     * outside the list (the client sizes it to its lines), so they need no update.
+     * remove, then a line per item: the picture and label of the option its search offers for it (a prayer's tab icon,
+     * a potion without its dose), an item's own picture and name when the search no longer offers it, and for a
+     * withdrawal its amount. Lines past the last lie outside the list (the client sizes it to its lines), so they need
+     * no update.
      */
-    private fun list(list: Int, rows: Map<Int, StepField>, field: StepField.Items?, draft: StepDraft): List<WidgetUpdate> {
+    private fun list(list: Int, rows: Map<Int, StepField>, field: StepField.Items?, draft: StepDraft, facts: OptionFacts): List<WidgetUpdate> {
         if (field == null) return listOf(WidgetUpdate.Visible(BuilderWidgets.list(list), visible = false))
         val firstRow = rows.entries.first { it.value === field }.key % BuilderWidgets.ROWS_PER_COLUMN
         val items = StepItems.read(draft.settings, field.key).take(BuilderWidgets.LIST_LINES)
         val nameRoom = if (field.amounts) BuilderWidgets.LINE_NAME_ROOM_AMOUNT else BuilderWidgets.LINE_NAME_ROOM
+        val options = field.source.options(OptionContext(facts, draft.settings, input = InputSource.BANK)).associateBy { it.value }
         return listOf(
             WidgetUpdate.Visible(BuilderWidgets.list(list), visible = true),
             WidgetUpdate.Placement(list, firstRow, field.rows, lines = items.size + 1),
             WidgetUpdate.Text(BuilderWidgets.listAddText(list), field.empty?.takeIf { items.isEmpty() } ?: field.add),
         ) + items.withIndex().flatMap { (line, item) ->
+            val option = options[item.id.toString()]
             listOf(
-                WidgetUpdate.Picture(BuilderWidgets.linePicture(list, line), WidgetPicture.Item(item.id)),
-                WidgetUpdate.Text(BuilderWidgets.lineName(list, line), font.fit(names.item(item.id), nameRoom)),
+                WidgetUpdate.Picture(BuilderWidgets.linePicture(list, line), option?.icon?.let(WidgetPicture::of) ?: WidgetPicture.Item(item.id)),
+                WidgetUpdate.Text(BuilderWidgets.lineName(list, line), font.fit(option?.label ?: names.item(item.id), nameRoom)),
                 WidgetUpdate.Visible(BuilderWidgets.lineAmount(list, line), visible = field.amounts),
             ) + if (field.amounts) amount(list, line, field.key, item, draft) else emptyList()
         }

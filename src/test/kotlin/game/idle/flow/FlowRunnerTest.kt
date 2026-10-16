@@ -1,5 +1,6 @@
 package game.idle.flow
 
+import engine.combat.prayer.CombatPrayer.THICK_SKIN
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -567,6 +568,72 @@ class FlowRunnerTest {
         runner.act()
 
         assertEquals(null, runner.stopReason())
+    }
+
+    /** A flow of [names] whose steps in [praying] have a reflex that prays Thick skin below half hitpoints. */
+    private fun praying(vararg names: String, praying: Set<Int>): FlowRunner {
+        val pray = ResolvedReflex(1, ReflexTrigger.HitpointsBelow(50), ReflexAction.Pray(listOf(THICK_SKIN)))
+        val steps = names.map { FakeStep(it) }
+        return runner(ResolvedFlow(steps, steps.indices.map { if (it in praying) listOf(pray) else emptyList() }))
+    }
+
+    @Test
+    fun `what a reflex lit is said`() {
+        hurt()
+
+        praying("fight", praying = setOf(0)).act()
+
+        assertEquals(listOf("Autopilot: reflex 1 prays Thick skin."), player.told)
+    }
+
+    @Test
+    fun `a held prayer stays on into a step whose reflex still wants it`() {
+        val runner = praying("fight", "walk", praying = setOf(0, 1))
+        hurt()
+        runner.act()
+        player.started.single().done = true
+        runner.act()
+
+        runner.act()
+
+        assertEquals(listOf("Autopilot: reflex 1 prays Thick skin."), player.told)
+        assertEquals(setOf(THICK_SKIN), body.lit)
+    }
+
+    @Test
+    fun `a held prayer goes out in a step with no reflex wanting it`() {
+        val runner = praying("fight", "walk", praying = setOf(0))
+        hurt()
+        runner.act()
+        player.started.single().done = true
+        runner.act()
+
+        runner.act()
+
+        assertEquals(listOf("Autopilot: reflex 1 prays Thick skin.", "Autopilot: reflex 1 stops praying Thick skin."), player.told)
+        assertEquals(emptySet<Any>(), body.lit)
+    }
+
+    @Test
+    fun `the run's end puts out what its reflexes lit and says so`() {
+        val runner = praying("fight", praying = setOf(0))
+        hurt()
+        runner.act()
+
+        runner.end()
+
+        assertEquals(listOf("Autopilot: reflex 1 prays Thick skin.", "Autopilot: reflex 1 stops praying Thick skin."), player.told)
+        assertEquals(emptySet<Any>(), body.lit)
+    }
+
+    @Test
+    fun `the end of a run that lit nothing says nothing`() {
+        val runner = runner("fight")
+        runner.act()
+
+        runner.end()
+
+        assertEquals(emptyList<String>(), player.told)
     }
 
     @Test

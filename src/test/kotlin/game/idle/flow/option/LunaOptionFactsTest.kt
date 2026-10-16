@@ -41,6 +41,14 @@ class LunaOptionFactsTest {
     }
 
     @Test
+    fun `the unboosted levels are kept beside the boosted ones`() {
+        val player = boostedWoodcutter()
+        player.idleState = IdleState(countBoostedLevels = true)
+
+        assertEquals(28, LunaOptionFacts.of(player).baseLevel(Skill.WOODCUTTING))
+    }
+
+    @Test
     fun `the facts hold every skill`() {
         assertEquals(Skill.NAMES.size, LunaOptionFacts.of(boostedWoodcutter()).levels.size)
     }
