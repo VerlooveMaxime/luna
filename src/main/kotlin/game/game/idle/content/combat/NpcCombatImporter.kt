@@ -35,7 +35,7 @@ object CacheNpcs {
 }
 
 /**
- * The attackable npc kinds `npc_spawns.json` places in [regions], lowest id first. A spawn given by name takes the
+ * The attackable npc kinds `npc_spawns.jsonc` places in [regions], lowest id first. A spawn given by name takes the
  * first id of that name, as Luna's spawn loader does.
  */
 fun spawnedAttackable(spawnsJson: String, npcs: Map<Int, CacheNpc>, regions: Set<Int>): List<NpcIdentity> {
@@ -92,7 +92,7 @@ class NpcCombatImporter(
         const val LOSTCITY_289 = "lostcity-content-289"
         const val OSRS_MONSTERS = "osrsreboxed-db/docs/monsters-complete.json"
         const val COMBAT_FILE = "game/def/npcs/npc_combat.jsonc"
-        const val SPAWNS_FILE = "game/world/npc_spawns.json"
+        const val SPAWNS_FILE = "game/world/npc_spawns.jsonc"
     }
 }
 

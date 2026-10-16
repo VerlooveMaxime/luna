@@ -10,6 +10,7 @@ import io.luna.game.model.Direction
 import io.luna.game.model.Position
 import io.luna.game.model.mob.NpcAggressionProfile.NpcAggressionPolicy
 import io.luna.game.model.mob.movement.wandering.WanderingFrequency
+import io.luna.game.model.path.route.RouteStrategy
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -29,7 +30,7 @@ class LunaDangersTest {
         TestWorld.context
     }
 
-    private fun spawn(id: Int, position: Position = darkWizardAt, wander: Int? = 5) = NpcSpawn(id, position, null, wander, WanderingFrequency.NORMAL, null)
+    private fun spawn(id: Int, position: Position = darkWizardAt, wander: Int? = 5) = NpcSpawn(id, position, null, wander, WanderingFrequency.NORMAL, null, null)
 
     private fun threats(catalog: DangerCatalog, radius: Int = 0): List<Threat> = catalog.threats(Area(Tile.of(darkWizardAt), radius))
 
@@ -115,10 +116,10 @@ class LunaDangersTest {
     }
 
     @Test
-    fun `Luna's parser reads a row by npc name (the first of that name) or id, with its wander, respawn and facing or without`() {
+    fun `Luna's parser reads a row by npc name (the first of that name) or id, with its wander, respawn, facing and route or without`() {
         val firstDarkWizard = 172
-        val named = NpcSpawn(firstDarkWizard, darkWizardAt, 9, 3, WanderingFrequency.NORMAL, Direction.NORTH)
-        val still = NpcSpawn(945, Position(3200, 3200), null, null, null, null)
+        val named = NpcSpawn(firstDarkWizard, darkWizardAt, 9, 3, WanderingFrequency.NORMAL, Direction.NORTH, RouteStrategy.INDOORS)
+        val still = NpcSpawn(945, Position(3200, 3200), null, null, null, null, null)
 
         assertEquals(listOf(named, named.copy(id = darkWizard, wanderRadius = 7, wanderFrequency = WanderingFrequency.SLOW), still), rows())
     }
@@ -133,9 +134,9 @@ class LunaDangersTest {
 
     private fun rows(
         json: String = """[
-          { "name": "Dark wizard", "position": { "x": 3084, "y": 3236, "z": 0 }, "respawn_ticks": 9, "wander": true, "default_direction": "NORTH" },
-          { "id": 174, "position": { "x": 3084, "y": 3236, "z": 0 }, "respawn_ticks": 9, "wander": { "radius": 7, "frequency": "SLOW" }, "default_direction": "NORTH" },
+          { "name": "Dark wizard", "position": { "x": 3084, "y": 3236, "z": 0 }, "respawn_ticks": 9, "wander": true, "default_direction": "NORTH", "route_strategy": "INDOORS" },
+          { "id": 174, "position": { "x": 3084, "y": 3236, "z": 0 }, "respawn_ticks": 9, "wander": { "radius": 7, "frequency": "SLOW" }, "default_direction": "NORTH", "route_strategy": "INDOORS" },
           { "id": 945, "position": { "x": 3200, "y": 3200, "z": 0 } }
         ]""",
-    ): List<NpcSpawn> = NpcSpawnFileParser.readSpawns(Files.writeString(dir.resolve("npc_spawns.json"), json))
+    ): List<NpcSpawn> = NpcSpawnFileParser.readSpawns(Files.writeString(dir.resolve("npc_spawns.jsonc"), json))
 }
