@@ -1079,8 +1079,18 @@ class BuilderScreenTest {
     }
 
     @Test
+    fun `a reflex's When toggle on its second row switches to special energy`() {
+        assertEquals(BuilderAnswer.Configure(newReflex.with("when", "special")), click(player(chop), BuilderWidgets.toggleFace(1, 2, 0), newReflex))
+    }
+
+    @Test
+    fun `a reflex's Do toggle on its second row switches what it does`() {
+        assertEquals(BuilderAnswer.Configure(newReflex.with("do", "special")), click(player(chop), BuilderWidgets.toggleFace(7, 1, 0), newReflex))
+    }
+
+    @Test
     fun `a reflex's When toggle switches what it fires on`() {
-        assertEquals(BuilderAnswer.Configure(newReflex.with("when", "attacked")), click(player(chop), BuilderWidgets.toggleFace(1, 1, 0), newReflex))
+        assertEquals(BuilderAnswer.Configure(newReflex.with("when", "attacked")), click(player(chop), BuilderWidgets.toggleFace(1, 2, 1), newReflex))
     }
 
     @Test
@@ -1106,7 +1116,7 @@ class BuilderScreenTest {
     fun `a jump's step is searched among the flow's steps`() {
         val jumping = reflexDraft(0, ReflexSettings(1, mapOf("do" to "jump")))
 
-        val answer = click(player(chop.copy(id = 4)), BuilderWidgets.rowFace(7), jumping) as BuilderAnswer.Search
+        val answer = click(player(chop.copy(id = 4)), BuilderWidgets.rowFace(8), jumping) as BuilderAnswer.Search
 
         assertEquals(listOf("4"), answer.field.target.source.options(answer.context).map { it.value })
     }

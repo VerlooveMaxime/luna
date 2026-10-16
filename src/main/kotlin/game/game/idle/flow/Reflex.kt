@@ -16,11 +16,12 @@ data class ReflexSettings(val id: Int = 0, val values: Map<String, String> = emp
 /** The settings of a reflex and their values. */
 object ReflexKeys {
 
-    /** When it fires: [HITPOINTS] (the default), [SKILL], or [ATTACKED]. */
+    /** When it fires: [HITPOINTS] (the default), [SKILL], [SPECIAL_ENERGY], or [ATTACKED]. */
     const val WHEN = "when"
     const val HITPOINTS = "hitpoints"
     const val ATTACKED = "attacked"
     const val SKILL = "skill"
+    const val SPECIAL_ENERGY = "special"
     const val SKILL_NAME = "skillName"
     const val SKILL_BELOW = "skillBelow"
     val SKILL_RANGE = 1..99
@@ -36,8 +37,20 @@ object ReflexKeys {
     val BELOW_RULE = Reasons.takes(BELOW_LABEL, BELOW_WORDS)
 
     /**
-     * What it does: [EAT] (the default), [DRINK], [PRAY], [STOP] the flow, or [JUMP] to the step whose id [STEP] holds.
-     * [PRAYERS] lists the prayers a pray reflex keeps on, by their tab buttons ([Prayers], as a list of [StepItems]).
+     * On [SPECIAL_ENERGY]: energy for this many of the worn weapon's specials, [DEFAULT_SPECIAL_FOR] without one (S13
+     * part 4, Maxime 2026-10-16: counted in specials, not percent, so one reflex serves any weapon).
+     */
+    const val SPECIAL_FOR = "specialFor"
+    const val DEFAULT_SPECIAL_FOR = 1
+    val SPECIAL_FOR_RANGE = 1..10
+    const val SPECIAL_FOR_LABEL = "At least"
+    const val SPECIAL_FOR_WORDS = "1 to 10 specials"
+    val SPECIAL_FOR_RULE = Reasons.takes(SPECIAL_FOR_LABEL, SPECIAL_FOR_WORDS)
+
+    /**
+     * What it does: [EAT] (the default), [DRINK], [PRAY], [SPECIAL_ATTACK], [STOP] the flow, or [JUMP] to the step
+     * whose id [STEP] holds. [PRAYERS] lists the prayers a pray reflex keeps on, by their tab buttons ([Prayers], as a
+     * list of [StepItems]).
      */
     const val DO = "do"
     const val EAT = "eat"
@@ -45,6 +58,7 @@ object ReflexKeys {
     const val POTIONS = "potions"
     const val PRAY = "pray"
     const val PRAYERS = "prayers"
+    const val SPECIAL_ATTACK = "special"
     const val STOP = "stop"
     const val JUMP = "jump"
     const val STEP = "step"
@@ -78,9 +92,21 @@ sealed interface ReflexTrigger {
 
         override fun fired(body: ReflexBody): Fired? = Fired.UnderAttack.takeIf { body.underAttack() }
     }
+
+    /**
+     * The bar holds energy for [specials] of the worn weapon's special attack (S13 part 4, Maxime 2026-10-16): one
+     * reflex serves any weapon; without a worn weapon whose special Luna knows it never holds.
+     */
+    data class SpecialEnergyFor(val specials: Int) : ReflexTrigger {
+
+        override fun fired(body: ReflexBody): Fired? {
+            val worn = body.special() ?: return null
+            return body.specialEnergy().takeIf { it >= specials * worn.drain }?.let(Fired::AtSpecialEnergy)
+        }
+    }
 }
 
-/** What a reflex fired at, as the chat line says it: "fired at 11/20 hitpoints", "fired under attack". */
+/** What a reflex fired at, as the chat line says it: "fired at 11/20 hitpoints", "fired under attack", "fired at 70% special energy". */
 sealed interface Fired {
 
     data class AtHitpoints(val health: Health) : Fired
@@ -88,7 +114,15 @@ sealed interface Fired {
     data class AtSkill(val skill: Int, val level: Int) : Fired
 
     data object UnderAttack : Fired
+
+    data class AtSpecialEnergy(val percent: Int) : Fired
 }
+
+/**
+ * The worn weapon's special attack as Luna's scripts register it: what one use [drain]s of the bar's 100, and whether
+ * it is an [attack], landing with the next hit, rather than a boost that fires by itself (Excalibur, the dragon axes).
+ */
+data class WornSpecial(val drain: Int, val attack: Boolean)
 
 /** What a reflex does, the player's Do. */
 sealed interface ReflexAction {
@@ -104,6 +138,12 @@ sealed interface ReflexAction {
      * the When stops holding (S13 part 3, Maxime 2026-10-15); never two of one group, which cannot be on together.
      */
     data class Pray(val prayers: List<CombatPrayer>) : ReflexAction
+
+    /**
+     * Lights the worn weapon's special attack bar, as its button does (S13 part 4): the next hit is the special, or
+     * the boost fires by itself. One shot: the bar is never lit twice.
+     */
+    data object SpecialAttack : ReflexAction
 
     /** Stops the flow, running clear first while attacked. */
     data object StopFlow : ReflexAction

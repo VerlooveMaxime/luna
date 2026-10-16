@@ -31,6 +31,27 @@ interface ReflexBody {
     /** Puts out [prayer]; true when it was on. */
     fun stopPraying(prayer: CombatPrayer): Boolean
 
+    /** The special attack bar's energy, 0 to 100. */
+    fun specialEnergy(): Int
+
+    /**
+     * The worn weapon's special attack, null without a worn weapon whose special Luna's scripts register (the bar of
+     * any other lights nothing). A fact about the weapon alone, so a When on it holds whatever the player is doing.
+     */
+    fun special(): WornSpecial?
+
+    /**
+     * Whether the bar could be lit now: not lit already (the next hit takes it, or the boost is about to fire), not
+     * locked by a special under way, and the player not locked (a teleport, death), when no click lands.
+     */
+    fun specialBarFree(): Boolean
+
+    /** Whether the player fights something now. */
+    fun fighting(): Boolean
+
+    /** Lights the special attack bar as its button does; true when it is lit afterwards. */
+    fun useSpecial(): Boolean
+
     /** Whether anything that can get at the player attacks them. */
     fun underAttack(): Boolean
 
@@ -69,7 +90,9 @@ sealed interface ReflexOutcome {
  * and only then stops the flow or jumps (Maxime, 2026-10-10: never while attacked; S13, Q15: every stop and jump).
  * Praying lights what is off and can be lit, one act for the whole list, and the flow's [hold] keeps it on across
  * steps while a reflex whose When holds wants it; each decision first puts out what no reflex wants any more, with
- * the step going on (S13 part 3, Maxime 2026-10-16). Held prayers stay on while the player runs clear.
+ * the step going on (S13 part 3, Maxime 2026-10-16). Held prayers stay on while the player runs clear. A special
+ * attack lights the bar once, with energy for one and only in a fight for a special that lands with the next hit
+ * (S13 part 4, Maxime 2026-10-16); the lit bar is Luna's to use and keeps the reflex from lighting it again.
  */
 class ReflexGuard(
     private val step: StepActivity,
@@ -81,6 +104,7 @@ class ReflexGuard(
     private var leaving: Firing.Leave? = null
     private var outcome: ReflexOutcome? = null
     private val changes = mutableListOf<PrayerChange>()
+    private val used = mutableListOf<Int>()
 
     override fun isBusy(): Boolean = step.isBusy() && leaving == null && firing() == null && !hold.pending(body, ::wanted)
 
@@ -108,6 +132,9 @@ class ReflexGuard(
     /** The prayers reflexes lit or put out since last asked, in order, for the chat lines. */
     fun prayed(): List<PrayerChange> = changes.toList().also { changes.clear() }
 
+    /** The reflexes that lit the special attack bar since last asked, by number, for the chat lines. */
+    fun used(): List<Int> = used.toList().also { used.clear() }
+
     override fun act() {
         val leave = leaving
         if (leave != null) {
@@ -126,7 +153,13 @@ class ReflexGuard(
         is Firing.Eat -> body.eat(firing.slot)
         is Firing.Drink -> body.drink(firing.slot)
         is Firing.Pray -> pray(firing)
+        is Firing.Special -> special(firing)
         is Firing.Leave -> leave(firing)
+    }
+
+    /** Luna has the last word: a bar it leaves off (locked, the energy gone since) is not said. */
+    private fun special(firing: Firing.Special) {
+        if (body.useSpecial()) used += firing.number
     }
 
     /** Lights each prayer in turn, as a 2006 player clicked them one after another; Luna has the last word on each. */
@@ -162,6 +195,7 @@ class ReflexGuard(
             is ReflexAction.Eat -> body.foodSlot(action.foods)?.let(Firing::Eat)
             is ReflexAction.Drink -> body.potionSlot(action.doses)?.let(Firing::Drink)
             is ReflexAction.Pray -> action.prayers.filter(::prayable).takeIf { it.isNotEmpty() }?.let { Firing.Pray(reflex.number, it) }
+            ReflexAction.SpecialAttack -> Firing.Special(reflex.number).takeIf { canSpecial() }
             ReflexAction.StopFlow -> Firing.Leave(reflex.number, fired, jumpTo = null)
             is ReflexAction.JumpTo -> Firing.Leave(reflex.number, fired, action.index)
         }
@@ -174,6 +208,16 @@ class ReflexGuard(
 
     private fun groupFree(prayer: CombatPrayer): Boolean = prayer.group?.getPrayers()?.none(body::praying) ?: true
 
+    /**
+     * The bar is free and holds energy for one; a special that lands with the next hit waits for a fight, so the bar
+     * is never lit outside one and left waiting (Maxime, 2026-10-16), while a boost fires by itself. A bar Luna would
+     * not light is never asked for: asking in vain would hold the step and every reflex after this one.
+     */
+    private fun canSpecial(): Boolean {
+        val worn = body.special() ?: return false
+        return body.specialBarFree() && body.specialEnergy() >= worn.drain && (!worn.attack || body.fighting())
+    }
+
     private sealed interface Firing {
 
         data class Eat(val slot: Int) : Firing
@@ -182,6 +226,9 @@ class ReflexGuard(
 
         /** Reflex [number] lights [prayers], the ones of its list that can be lit. */
         data class Pray(val number: Int, val prayers: List<CombatPrayer>) : Firing
+
+        /** Reflex [number] lights the special attack bar. */
+        data class Special(val number: Int) : Firing
 
         /** A stop, or a jump to the step at [jumpTo]. */
         data class Leave(val number: Int, val fired: Fired, val jumpTo: Int?) : Firing

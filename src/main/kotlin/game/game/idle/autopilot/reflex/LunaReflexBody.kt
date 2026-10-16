@@ -3,11 +3,13 @@ package game.idle.autopilot.reflex
 import api.attr.Attr
 import api.attr.getValue
 import api.attr.setValue
+import api.combat.specialAttack.SpecialAttackHandler
 import engine.combat.prayer.CombatPrayer
 import engine.combat.status.StatusEffectType
 import game.idle.autopilot.LunaClicks
 import game.idle.flow.Health
 import game.idle.flow.ReflexBody
+import game.idle.flow.WornSpecial
 import game.idle.movement.FleePlanner
 import game.player.item.consume.food.Food
 import io.luna.game.event.impl.ItemClickEvent.ItemFirstClickEvent
@@ -27,7 +29,8 @@ fun healthOf(player: Player): Health = Health(player.health, player.skill(Skill.
 /**
  * [ReflexBody] for a logged-in player. Eating and drinking use the same event as the client's click, so Luna's
  * consumables run unchanged (their separate delays included) and the fight in progress goes on. Praying goes through
- * Luna's prayer set as the tab's buttons do (varps, sounds, head icon, drain), never to its state directly.
+ * Luna's prayer set as the tab's buttons do (varps, sounds, head icon, drain), never to its state directly, and the
+ * special attack through the bar as its button does (the varp, the drain, the special on the next hit).
  */
 class LunaReflexBody(private val player: Player) : ReflexBody {
 
@@ -73,6 +76,27 @@ class LunaReflexBody(private val player: Player) : ReflexBody {
     }
 
     override fun stopPraying(prayer: CombatPrayer): Boolean = player.combat.prayers.deactivate(prayer, silent = false)
+
+    override fun specialEnergy(): Int = player.combat.specialBar.energy
+
+    /** Only a special Luna's scripts register counts: the bar of any other weapon lights nothing when clicked. */
+    override fun special(): WornSpecial? {
+        val type = player.combat.weapon.specialAttackType ?: return null
+        return SpecialAttackHandler.of(type)?.let { WornSpecial(it.drain, attack = !it.activationOnly) }
+    }
+
+    /** Luna's own refusals, read before asking: `toggleOn` does nothing on a lit or locked bar. */
+    override fun specialBarFree(): Boolean {
+        val bar = player.combat.specialBar
+        return !player.isLocked && !bar.isActivated && !bar.isLocked
+    }
+
+    override fun fighting(): Boolean = player.combat.target != null
+
+    override fun useSpecial(): Boolean {
+        player.combat.specialBar.toggleOn()
+        return player.combat.specialBar.isActivated
+    }
 
     override fun underAttack(): Boolean = threats().isNotEmpty()
 

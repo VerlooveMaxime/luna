@@ -3,6 +3,7 @@ package game.idle.flow
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.OptionContext
+import game.idle.flow.option.OptionFacts
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
 import game.idle.flow.option.StepOption
@@ -21,7 +22,10 @@ class ReflexFormTest {
     private val portions = mapOf(trout to setOf(trout), lobster to setOf(lobster), cake to setOf(cake, slice))
     private val types = StepTypes(listOf(FakeStepType("fight"), FakeStepType("bank")))
     private val prayers = OptionSource { listOf(StepOption("5623", "Protect from melee", OptionIcon.Media("prayeron", 14))) }
-    private val form = ReflexForm(foods, portions, types, FakeNames(mapOf(trout to "Trout", lobster to "Lobster", 113 to "Strength potion(4)", 2440 to "Super strength(4)")), OptionSource { emptyList() }, mapOf(113 to listOf(119, 117, 115, 113), 2440 to listOf(161, 159, 157, 2440)), prayers)
+    private val darklight = 6746
+    private val shortbow = 861
+    private val noFacts = OptionFacts()
+    private val form = ReflexForm(foods, portions, types, FakeNames(mapOf(trout to "Trout", lobster to "Lobster", 113 to "Strength potion(4)", 2440 to "Super strength(4)", darklight to "Darklight", shortbow to "Magic shortbow")), OptionSource { emptyList() }, mapOf(113 to listOf(119, 117, 115, 113), 2440 to listOf(161, 159, 157, 2440)), prayers) { mapOf(darklight to 50, shortbow to 55) }
     private val steps = listOf(step("fight").copy(id = 4), step("bank").copy(id = 7))
 
     private fun reflex(vararg values: Pair<String, String>) = ReflexSettings(2, mapOf(*values))
@@ -44,9 +48,10 @@ class ReflexFormTest {
         assertEquals(
             listOf(
                 "When (left): toggle when hitpoints 'Hitpoints' / skill 'Skill'",
-                " (left): toggle when attacked 'Under attack'",
+                " (left): toggle when special 'Special energy' / attacked 'Under attack'",
                 "Below (left): typed below 1..99",
                 "Do (right): toggle do eat 'Eat' / drink 'Drink' / pray 'Pray' / stop 'Stop' / jump 'Jump'",
+                " (right): toggle do special 'Special attack'",
                 "Food (right): list foods on 4 rows, 'What would you like to eat?'",
             ),
             shown(),
@@ -55,12 +60,12 @@ class ReflexFormTest {
 
     @Test
     fun `an under attack reflex has no Below`() {
-        assertEquals(listOf("When", "", "Do", "Food"), shown("when" to "attacked").map { it.substringBefore(" (") })
+        assertEquals(listOf("When", "", "Do", "", "Food"), shown("when" to "attacked").map { it.substringBefore(" (") })
     }
 
     @Test
     fun `a stop reflex shows When and Do alone`() {
-        assertEquals(listOf("When", "", "Below", "Do"), shown("do" to "stop").map { it.substringBefore(" (") })
+        assertEquals(listOf("When", "", "Below", "Do", ""), shown("do" to "stop").map { it.substringBefore(" (") })
     }
 
     @Test
@@ -72,7 +77,7 @@ class ReflexFormTest {
     fun `the toggles light hitpoints and eat by default`() {
         val toggles = form.fields(steps).filterIsInstance<StepField.Toggle>()
 
-        assertEquals(listOf("hitpoints", "hitpoints", "eat"), toggles.map { it.current(StepSettings(), FlowContext()) })
+        assertEquals(listOf("hitpoints", "hitpoints", "eat", "eat"), toggles.map { it.current(StepSettings(), FlowContext()) })
     }
 
     @Test
@@ -80,7 +85,7 @@ class ReflexFormTest {
         val toggles = form.fields(steps).filterIsInstance<StepField.Toggle>()
         val settings = form.settings(reflex("when" to "attacked", "do" to "jump"))
 
-        assertEquals(listOf("attacked", "attacked", "jump"), toggles.map { it.current(settings, FlowContext()) })
+        assertEquals(listOf("attacked", "attacked", "jump", "jump"), toggles.map { it.current(settings, FlowContext()) })
     }
 
     @Test
@@ -199,12 +204,12 @@ class ReflexFormTest {
 
     @Test
     fun `eating under attack warns that it eats at full hitpoints`() {
-        assertEquals(listOf(ReflexForm.EATS_AT_FULL), form.warnings(reflex("when" to "attacked")))
+        assertEquals(listOf(ReflexForm.EATS_AT_FULL), form.warnings(reflex("when" to "attacked"), noFacts))
     }
 
     @Test
     fun `eating on hitpoints and stopping under attack waste nothing`() {
-        assertEquals(listOf(emptyList<String>(), emptyList()), listOf(form.warnings(reflex()), form.warnings(reflex("when" to "attacked", "do" to "stop"))))
+        assertEquals(listOf(emptyList<String>(), emptyList()), listOf(form.warnings(reflex(), noFacts), form.warnings(reflex("when" to "attacked", "do" to "stop"), noFacts)))
     }
 
     @Test
@@ -222,7 +227,7 @@ class ReflexFormTest {
 
     @Test
     fun `a skill condition has its search and its own Below level`() {
-        assertEquals(listOf("When", "", "Skill", "Below", "Do", "Potions"), shown("when" to "skill", "do" to "drink").map { it.substringBefore(" (") })
+        assertEquals(listOf("When", "", "Skill", "Below", "Do", "", "Potions"), shown("when" to "skill", "do" to "drink").map { it.substringBefore(" (") })
     }
 
     @Test
@@ -282,12 +287,12 @@ class ReflexFormTest {
 
     @Test
     fun `drinking under attack warns about spending a dose each time`() {
-        assertEquals(listOf(ReflexForm.DRINKS_WHILE_ATTACKED), form.warnings(reflex("when" to "attacked", "do" to "drink")))
+        assertEquals(listOf(ReflexForm.DRINKS_WHILE_ATTACKED), form.warnings(reflex("when" to "attacked", "do" to "drink"), noFacts))
     }
 
     @Test
     fun `eating on a skill condition warns about eating at full hitpoints`() {
-        assertEquals(listOf(ReflexForm.EATS_ON_SKILL), form.warnings(reflex("when" to "skill", "do" to "eat")))
+        assertEquals(listOf(ReflexForm.EATS_ON_SKILL), form.warnings(reflex("when" to "skill", "do" to "eat"), noFacts))
     }
 
     @Test
@@ -322,14 +327,14 @@ class ReflexFormTest {
 
     @Test
     fun `praying on low Prayer points warns that it drains them`() {
-        assertEquals(listOf(ReflexForm.PRAYS_ON_LOW_POINTS), form.warnings(reflex("when" to "skill", "skillName" to "prayer", "do" to "pray")))
+        assertEquals(listOf(ReflexForm.PRAYS_ON_LOW_POINTS), form.warnings(reflex("when" to "skill", "skillName" to "prayer", "do" to "pray"), noFacts))
     }
 
     @Test
     fun `praying on another skill, on hitpoints or under attack warns of nothing`() {
         val pairs = listOf(reflex("when" to "skill", "skillName" to "strength", "do" to "pray"), reflex("when" to "skill", "do" to "pray"), reflex("do" to "pray"), reflex("when" to "attacked", "do" to "pray"))
 
-        assertEquals(List(4) { emptyList<String>() }, pairs.map(form::warnings))
+        assertEquals(List(4) { emptyList<String>() }, pairs.map { form.warnings(it, noFacts) })
     }
 
     @Test
@@ -339,4 +344,109 @@ class ReflexFormTest {
         assertEquals(listOf(StepOption("2", "1 Hitpoints below 50%: pray Thick skin", OptionIcon.Media("prayeron", 0), group = 0)), options)
     }
 
+    @Test
+    fun `a special energy condition has its At least count on the left`() {
+        assertEquals(listOf("When", "", "At least", "Do", ""), shown("when" to "special", "do" to "stop").map { it.substringBefore(" (") })
+    }
+
+    @Test
+    fun `At least is typed, 1 to 10`() {
+        assertEquals("At least (left): typed specialFor 1..10", shown("when" to "special")[2])
+    }
+
+    @Test
+    fun `a special attack reflex shows nothing under its Do`() {
+        assertEquals(listOf("When", "", "Below", "Do", ""), shown("do" to "special").map { it.substringBefore(" (") })
+    }
+
+    @Test
+    fun `the toggles light special energy and special attack`() {
+        val settings = form.settings(reflex("when" to "special", "do" to "special"))
+        val toggles = form.fields(steps).filterIsInstance<StepField.Toggle>()
+
+        assertEquals(listOf("special", "special", "special", "special"), toggles.map { it.current(settings, FlowContext()) })
+    }
+
+    @Test
+    fun `At least shows the count of specials, one without a count`() {
+        val typed = form.fields(steps).filterIsInstance<StepField.Typed>().single { it.key == ReflexKeys.SPECIAL_FOR }
+
+        assertEquals(listOf("1 special", "1 special", "2 specials"), listOf(typed.shown(null), typed.shown("1"), typed.shown("2")))
+    }
+
+    @Test
+    fun `a special attack reflex is named, described and pictured by the Attack skill`() {
+        val special = reflex("do" to "special")
+
+        assertEquals(
+            listOf<Any>("Special attack", "Uses the worn weapon's special attack.", StepIcon.Skill(Skill.ATTACK)),
+            listOf(form.label(special), form.description(special), form.icon(special)),
+        )
+    }
+
+    @Test
+    fun `a special energy reflex reads as the specials it waits for`() {
+        assertEquals(
+            listOf("Special energy for 1 special: special attack", "Special energy for 2 specials: stop the flow"),
+            listOf(form.sentence(reflex("when" to "special", "do" to "special"), steps), form.sentence(reflex("when" to "special", "specialFor" to "2", "do" to "stop"), steps)),
+        )
+    }
+
+    @Test
+    fun `a special attack reflex needs nothing carried`() {
+        assertNull(form.need(reflex("do" to "special")))
+    }
+
+    @Test
+    fun `a special attack with no special weapon worn warns that none is wielded`() {
+        val worn = OptionFacts(worn = setOf(trout))
+
+        assertEquals(listOf(ReflexForm.NO_SPECIAL_WEAPON), form.warnings(reflex("do" to "special"), worn))
+    }
+
+    @Test
+    fun `a special energy condition with no special weapon worn warns the same, whatever it does`() {
+        assertEquals(listOf(ReflexForm.NO_SPECIAL_WEAPON), form.warnings(reflex("when" to "special", "do" to "stop"), noFacts))
+    }
+
+    @Test
+    fun `a special weapon worn quiets the warning`() {
+        val worn = OptionFacts(worn = setOf(darklight))
+
+        assertEquals(emptyList<String>(), form.warnings(reflex("when" to "special", "specialFor" to "2", "do" to "special"), worn))
+    }
+
+    @Test
+    fun `a count of specials the worn weapon's bar cannot hold warns with its drain`() {
+        val worn = OptionFacts(worn = setOf(darklight))
+
+        assertEquals(listOf("Darklight's special costs 50%, at most 2 fit the bar"), form.warnings(reflex("when" to "special", "specialFor" to "3"), worn))
+    }
+
+    @Test
+    fun `a weapon whose special takes more than half the bar fits one`() {
+        val worn = OptionFacts(worn = setOf(shortbow))
+
+        assertEquals(listOf("Magic shortbow's special costs 55%, at most 1 fits the bar"), form.warnings(reflex("when" to "special", "specialFor" to "2"), worn))
+    }
+
+    @Test
+    fun `a special attack Do alone never minds the count`() {
+        val worn = OptionFacts(worn = setOf(shortbow))
+
+        assertEquals(emptyList<String>(), form.warnings(reflex("specialFor" to "9", "do" to "special"), worn))
+    }
+
+    @Test
+    fun `a reflex without special energy or attack minds no weapon`() {
+        assertEquals(emptyList<String>(), form.warnings(reflex("when" to "attacked", "do" to "stop"), noFacts))
+    }
+
+    @Test
+    fun `every pair with special attack wastes nothing`() {
+        val worn = OptionFacts(worn = setOf(darklight))
+        val pairs = listOf(reflex("do" to "special"), reflex("when" to "attacked", "do" to "special"), reflex("when" to "skill", "skillName" to "prayer", "do" to "special"))
+
+        assertEquals(List(3) { emptyList<String>() }, pairs.map { form.warnings(it, worn) })
+    }
 }

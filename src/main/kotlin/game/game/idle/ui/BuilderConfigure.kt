@@ -223,7 +223,7 @@ class BuilderConfigure(
             fields = form.fields(state.steps),
             before = FlowContext(),
             reason = reflexes.problems(state.steps, inFlow)[index],
-            warnings = listOfNotNull(form.need(reflex)?.let { stepWarnings.supplies(state.steps, it, facts) }) + form.warnings(reflex),
+            warnings = listOfNotNull(form.need(reflex)?.let { stepWarnings.supplies(state.steps, it, facts) }) + form.warnings(reflex, facts),
         )
     }
 

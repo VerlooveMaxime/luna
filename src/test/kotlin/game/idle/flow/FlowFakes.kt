@@ -266,6 +266,12 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
     var prayerPoints = 10
     var prayersDisabled = false
     var refused: CombatPrayer? = null
+    var specialEnergy = 100
+    var special: WornSpecial? = null
+    var specialLit = false
+    var specialLocked = false
+    var fighting = false
+    var specialRefused = false
 
     override fun health(): Health = health
 
@@ -299,6 +305,21 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
     override fun stopPraying(prayer: CombatPrayer): Boolean {
         done += "stop ${prayer.name.lowercase()}"
         return lit.remove(prayer)
+    }
+
+    override fun specialEnergy(): Int = specialEnergy
+
+    override fun special(): WornSpecial? = special
+
+    override fun specialBarFree(): Boolean = !specialLit && !specialLocked
+
+    override fun fighting(): Boolean = fighting
+
+    override fun useSpecial(): Boolean {
+        done += "special"
+        if (specialRefused) return false
+        specialLit = true
+        return true
     }
 
     override fun underAttack(): Boolean = attacked

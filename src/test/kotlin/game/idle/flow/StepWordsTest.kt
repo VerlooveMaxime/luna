@@ -247,6 +247,21 @@ class StepWordsTest {
     }
 
     @Test
+    fun `a reflex that lit the special attack bar says it used it`() {
+        assertEquals("Autopilot: reflex 3 used the special attack.", words.usedSpecial(3))
+    }
+
+    @Test
+    fun `a special energy reflex that stops the flow says the energy it fired at`() {
+        assertEquals("Autopilot: stopped, reflex 2 fired at 70% special energy.", words.stop(1, StepStop.Reflex(2, Fired.AtSpecialEnergy(70))))
+    }
+
+    @Test
+    fun `a special energy reflex that jumps says the energy it fired at`() {
+        assertEquals("Autopilot: reflex 2 fired at 70% special energy, jumping to step 3.", words.jump(2, Fired.AtSpecialEnergy(70), 3))
+    }
+
+    @Test
     fun `a skill reflex says the current skill level when it stops or jumps`() {
         val fired = Fired.AtSkill(Skill.STRENGTH, 24)
 

@@ -203,4 +203,30 @@ class ReflexResolverTest {
         assertEquals("'1511' is not a potion", problemOf("do" to "drink", "potions" to "1511"))
     }
 
+    @Test
+    fun `a reflex fires on special energy for one special when told so`() {
+        assertEquals(ReflexTrigger.SpecialEnergyFor(1), resolvedAlone("when" to "special").trigger)
+    }
+
+    @Test
+    fun `a special energy reflex counts the specials it holds`() {
+        assertEquals(ReflexTrigger.SpecialEnergyFor(2), resolvedAlone("when" to "special", "specialFor" to "2").trigger)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["0", "11", "two"])
+    fun `At least takes 1 to 10 specials`(value: String) {
+        assertEquals("At least takes 1 to 10 specials, not '$value'", problemOf("when" to "special", "specialFor" to value))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["1", "10"])
+    fun `the endpoints of the At least range are accepted`(value: String) {
+        assertEquals(ReflexTrigger.SpecialEnergyFor(value.toInt()), resolvedAlone("when" to "special", "specialFor" to value).trigger)
+    }
+
+    @Test
+    fun `a special attack reflex uses the special attack`() {
+        assertEquals(ReflexAction.SpecialAttack, resolvedAlone("do" to "special").action)
+    }
 }

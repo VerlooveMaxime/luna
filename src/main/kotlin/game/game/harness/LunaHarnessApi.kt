@@ -274,6 +274,7 @@ class LunaHarnessApi(
             harness = player.isHeadless,
             position = position(player.position),
             runEnergy = player.runEnergy,
+            specialEnergy = player.combat.specialBar.energy,
             running = player.isRunning,
             walking = !player.walking.isEmpty,
             combatLevel = player.combatLevel,

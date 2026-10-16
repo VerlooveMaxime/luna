@@ -582,7 +582,7 @@ class BuilderConfigureTest {
     @Test
     fun `an eat reflex's rows are When and Below on the left, Do and its food list on the right`() {
         assertEquals(
-            listOf<Any>("@whi@Hitpoints", "Skill", "50%", "@whi@Eat", "Pray", "Stop", "Jump", WidgetUpdate.Placement(1, firstRow = 1, rows = 4, lines = 2), "Trout"),
+            listOf<Any>("@whi@Hitpoints", "Skill", "50%", "@whi@Eat", "Pray", "Stop", "Jump", WidgetUpdate.Placement(1, firstRow = 2, rows = 4, lines = 2), "Trout"),
             listOf(
                 text(eating, BuilderWidgets.toggleText(0, 2, 0), cows),
                 text(eating, BuilderWidgets.toggleText(0, 2, 1), cows),
@@ -608,7 +608,7 @@ class BuilderConfigureTest {
     fun `a reflex that jumps shows the step it jumps to under Do`() {
         assertEquals(
             listOf("@whi@Jump", "Step 1: Chop label"),
-            listOf(text(running, BuilderWidgets.toggleText(6, 5, 4), cows), text(running, BuilderWidgets.rowText(7), cows)),
+            listOf(text(running, BuilderWidgets.toggleText(6, 5, 4), cows), text(running, BuilderWidgets.rowText(8), cows)),
         )
     }
 
@@ -619,7 +619,7 @@ class BuilderConfigureTest {
 
     @Test
     fun `a jump to a deleted step says so in its field`() {
-        assertEquals("Deleted step", text(running, BuilderWidgets.rowText(7), IdleState(reflexes = listOf(troutReflex))))
+        assertEquals("Deleted step", text(running, BuilderWidgets.rowText(8), IdleState(reflexes = listOf(troutReflex))))
     }
 
     @Test
@@ -825,8 +825,53 @@ class BuilderConfigureTest {
     fun `the second When row keeps Under attack visible and only the chosen toggle lit`() {
         val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("when" to "attacked"))))
 
-        assertEquals(listOf("Hitpoints", "Skill", "@whi@Under attack"), listOf(text(draft, BuilderWidgets.toggleText(0, 2, 0)), text(draft, BuilderWidgets.toggleText(0, 2, 1)), text(draft, BuilderWidgets.toggleText(1, 1, 0))))
+        assertEquals(listOf("Hitpoints", "Skill", "Special energy", "@whi@Under attack"), listOf(text(draft, BuilderWidgets.toggleText(0, 2, 0)), text(draft, BuilderWidgets.toggleText(0, 2, 1)), text(draft, BuilderWidgets.toggleText(1, 2, 0)), text(draft, BuilderWidgets.toggleText(1, 2, 1))))
         assertFalse(visible(draft, BuilderWidgets.row(2)))
+    }
+
+    @Test
+    fun `a special energy reflex lights Special energy and shows its At least count under it`() {
+        val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("when" to "special", "specialFor" to "2"))))
+
+        assertEquals(
+            listOf("@whi@Special energy", "Under attack", "At least", "2 specials"),
+            listOf(text(draft, BuilderWidgets.toggleText(1, 2, 0)), text(draft, BuilderWidgets.toggleText(1, 2, 1)), text(draft, BuilderWidgets.rowLabel(2)), text(draft, BuilderWidgets.rowPlainText(2))),
+        )
+    }
+
+    @Test
+    fun `a special attack reflex lights Special attack on the Do's second row, nothing under it`() {
+        val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("do" to "special"))))
+
+        assertEquals(
+            listOf<Any>("Eat", "@whi@Special attack", false, false),
+            listOf(text(draft, BuilderWidgets.toggleText(6, 5, 0)), text(draft, BuilderWidgets.toggleText(7, 1, 0)), visible(draft, BuilderWidgets.row(8)), visible(draft, BuilderWidgets.list(1))),
+        )
+    }
+
+    @Test
+    fun `a special attack reflex's header names it, describes it and shows the Attack skill`() {
+        val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("do" to "special"))))
+
+        assertEquals(
+            listOf<Any>("Reflex 1: Special attack", "Uses the worn weapon's special attack.", WidgetPicture.of(StepIcon.Skill(Skill.ATTACK))),
+            listOf(text(draft, BuilderWidgets.HEADER_NAME), text(draft, BuilderWidgets.HEADER_DESCRIPTION), picture(draft, BuilderWidgets.HEADER_PICTURE)),
+        )
+    }
+
+    @Test
+    fun `a special attack reflex with no special weapon worn warns in yellow`() {
+        val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("do" to "special"))))
+
+        assertEquals("@yel@! You wield no weapon with a special attack", text(draft, BuilderWidgets.warning(0)))
+    }
+
+    @Test
+    fun `a count of specials the worn weapon's bar cannot hold warns in yellow`() {
+        val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("when" to "special", "specialFor" to "3", "do" to "special"))))
+        val sent = configure.updates(cows, draft, facts.copy(worn = setOf(DARKLIGHT))).filterIsInstance<WidgetUpdate.Text>()
+
+        assertEquals("@yel@! Darklight's special costs 50%, at most 2 fit the bar", sent.single { it.id == BuilderWidgets.warning(0) }.text)
     }
 
     @Test
@@ -834,7 +879,7 @@ class BuilderConfigureTest {
         val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("when" to "skill", "skillName" to "strength", "skillBelow" to "25", "do" to "drink", "potions" to "113"))))
 
         assertEquals(listOf("Strength", "25", "@whi@Drink"), listOf(text(draft, BuilderWidgets.rowText(2)), text(draft, BuilderWidgets.rowPlainText(3)), text(draft, BuilderWidgets.toggleText(6, 5, 1))))
-        assertEquals(WidgetUpdate.Placement(1, firstRow = 1, rows = 4, lines = 2), updates(draft).getValue(placementKey(1)))
+        assertEquals(WidgetUpdate.Placement(1, firstRow = 2, rows = 4, lines = 2), updates(draft).getValue(placementKey(1)))
     }
 
     @Test

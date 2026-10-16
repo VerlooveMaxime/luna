@@ -166,5 +166,9 @@ val POTIONS = OptionSource { listOf(StepOption("113", "Strength potion", OptionI
 val REFLEXES = ReflexResolver(PORTIONS, POTION_DOSES)
 
 /** Reflex screens over the configured kinds, trout and lobster named; the prayers are Luna's own, which need no world. */
-val REFLEX_FORM = ReflexForm(FOODS, PORTIONS, CONFIGURED_TYPES, FakeNames(mapOf(333 to "Trout", 379 to "Lobster")), POTIONS, POTION_DOSES, PrayerOptions)
+/** A weapon with a special attack, draining half the bar. */
+const val DARKLIGHT = 6746
+
+/** The fake reflex form; the one weapon with a special it knows is Darklight, draining half the bar. */
+val REFLEX_FORM = ReflexForm(FOODS, PORTIONS, CONFIGURED_TYPES, FakeNames(mapOf(333 to "Trout", 379 to "Lobster", DARKLIGHT to "Darklight")), POTIONS, POTION_DOSES, PrayerOptions) { mapOf(DARKLIGHT to 50) }
 

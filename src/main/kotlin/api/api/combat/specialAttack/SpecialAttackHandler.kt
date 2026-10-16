@@ -155,6 +155,14 @@ object SpecialAttackHandler {
     }
 
     /**
+     * Gets the registered special attack data for the specified [SpecialAttackType], if any.
+     *
+     * @param type The weapon special attack type to look up.
+     * @return The registered [SpecialAttackDataReceiver], or `null` if no special attack is registered for [type].
+     */
+    fun of(type: SpecialAttackType): SpecialAttackDataReceiver? = specialAttacks[type]
+
+    /**
      * Gets the registered special attack data for this combat context's current weapon.
      *
      * @return The registered [SpecialAttackDataReceiver] for the current weapon.

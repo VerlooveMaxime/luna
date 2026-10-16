@@ -60,7 +60,8 @@ data class ResolvedFlow(
  * that is what the flow waits for, as the slot and the overlay show it, and the step's block is no longer shown. The
  * flow [stop]s after a number of laps, after a number of minutes on the [clock] since the run started, or once every
  * goal is met, which is judged before the lap guard. The prayers the reflexes light are held for the whole run
- * ([PrayerHold]) and put out when the flow ends, however it ends (S13 part 3).
+ * ([PrayerHold]) and put out when the flow ends, however it ends (S13 part 3); a special attack lit is told once, the
+ * bar then Luna's (S13 part 4).
  */
 class FlowRunner(
     private val flow: ResolvedFlow,
@@ -138,6 +139,7 @@ class FlowRunner(
         }
         activity.act()
         activity.prayed().forEach { player.tell(words.prayed(it)) }
+        activity.used().forEach { player.tell(words.usedSpecial(it)) }
         activity.said()?.let { player.tell(words.said(index + 1, it)) }
         activity.jump()?.let { jump(activity, it) }
     }

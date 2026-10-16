@@ -77,6 +77,9 @@ class StepWordsFitTest {
                 words.cutShort(99),
                 words.jump(99, Fired.AtHitpoints(Health(999, 999)), 99),
                 words.jump(99, Fired.UnderAttack, 99),
+                words.stop(99, StepStop.Reflex(99, Fired.AtSpecialEnergy(100))),
+                words.jump(99, Fired.AtSpecialEnergy(100), 99),
+                words.usedSpecial(99),
                 words.leftOut(99, Int.MAX_VALUE, longestNamedItem(), 99),
             ) + CombatPrayer.entries.flatMap { listOf(words.prayed(PrayerChange(99, it, on = true)), words.prayed(PrayerChange(99, it, on = false))) } +
             listOf(

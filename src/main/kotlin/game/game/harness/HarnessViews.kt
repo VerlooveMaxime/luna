@@ -37,6 +37,7 @@ data class PlayerView(
     val harness: Boolean,
     val position: PositionView,
     val runEnergy: Double,
+    val specialEnergy: Int,
     val running: Boolean,
     val walking: Boolean,
     val combatLevel: Int,

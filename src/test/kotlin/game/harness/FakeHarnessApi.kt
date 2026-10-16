@@ -88,6 +88,7 @@ class FakeHarnessApi : HarnessApi {
             harness = true,
             position = PositionView(3200, 3200, 0),
             runEnergy = 100.0,
+            specialEnergy = 100,
             running = false,
             walking = false,
             combatLevel = 3,

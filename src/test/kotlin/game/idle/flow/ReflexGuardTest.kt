@@ -700,4 +700,165 @@ class ReflexGuardTest {
         assertEquals(StepStop.Reflex(2, Fired.AtSkill(5, 0)), guard.stopping())
     }
 
+    private fun special(number: Int = 1, trigger: ReflexTrigger = below(50)) = ResolvedReflex(number, trigger, ReflexAction.SpecialAttack)
+
+    private val darklight = WornSpecial(50, attack = true)
+
+    private val excalibur = WornSpecial(100, attack = false)
+
+    /** The player wields a weapon with [worn]'s special, [energy] in the bar, [fighting] or not. */
+    private fun armed(worn: WornSpecial = darklight, energy: Int = 100, fighting: Boolean = true) {
+        body.special = worn
+        body.specialEnergy = energy
+        body.fighting = fighting
+    }
+
+    @Test
+    fun `a special reflex lights the bar in a fight with energy for one`() {
+        armed()
+        hurt()
+
+        guard(special()).act()
+
+        assertEquals(listOf("special"), body.done)
+    }
+
+    @Test
+    fun `what lit the bar is said once, by its number`() {
+        armed()
+        hurt()
+        val guard = guard(special(number = 3))
+
+        guard.act()
+
+        assertEquals(listOf(listOf(3), emptyList()), listOf(guard.used(), guard.used()))
+    }
+
+    @Test
+    fun `a lit bar is not lit again, the step acting`() {
+        armed()
+        body.specialLit = true
+        hurt()
+
+        guard(special()).act()
+
+        assertEquals(listOf("fight:1") to emptyList<String>(), log to body.done)
+    }
+
+    @Test
+    fun `a locked bar is not asked for, the step acting`() {
+        armed()
+        body.specialLocked = true
+        hurt()
+
+        guard(special()).act()
+
+        assertEquals(listOf("fight:1") to emptyList<String>(), log to body.done)
+    }
+
+    @Test
+    fun `energy of exactly one drain is enough`() {
+        armed(energy = 50)
+        hurt()
+
+        guard(special()).act()
+
+        assertEquals(listOf("special"), body.done)
+    }
+
+    @Test
+    fun `without a weapon with a special the next reflex fires`() {
+        armed()
+        body.special = null
+        hurt()
+        val guard = guard(special(), stop())
+
+        guard.act()
+
+        assertEquals(StepStop.Reflex(2, atHurt), guard.stopping())
+    }
+
+    @Test
+    fun `with energy short of one special the next reflex fires`() {
+        armed(energy = 49)
+        hurt()
+        val guard = guard(special(), stop())
+
+        guard.act()
+
+        assertEquals(StepStop.Reflex(2, atHurt), guard.stopping())
+    }
+
+    @Test
+    fun `a special that lands with a hit waits for a fight, the step acting`() {
+        armed(fighting = false)
+        hurt()
+
+        guard(special()).act()
+
+        assertEquals(listOf("fight:1") to emptyList<String>(), log to body.done)
+    }
+
+    @Test
+    fun `a boost special fires outside a fight`() {
+        armed(excalibur, fighting = false)
+        hurt()
+
+        guard(special()).act()
+
+        assertEquals(listOf("special"), body.done)
+    }
+
+    @Test
+    fun `a special Luna leaves off is not said`() {
+        armed()
+        body.specialRefused = true
+        hurt()
+        val guard = guard(special())
+
+        guard.act()
+
+        assertEquals(listOf("special") to emptyList<Int>(), body.done to guard.used())
+    }
+
+    @Test
+    fun `a special reflex that would fire lets the guard act mid-fight`() {
+        armed()
+        hurt()
+        step.busy = true
+
+        assertFalse(guard(special()).isBusy())
+    }
+
+    @Test
+    fun `special energy for a count holds at that many times the worn weapon's drain, with the energy`() {
+        armed(energy = 100)
+
+        assertEquals(Fired.AtSpecialEnergy(100), ReflexTrigger.SpecialEnergyFor(2).fired(body))
+    }
+
+    @Test
+    fun `special energy for a count does not hold short of that many drains`() {
+        armed(energy = 100)
+
+        assertNull(ReflexTrigger.SpecialEnergyFor(3).fired(body))
+    }
+
+    @Test
+    fun `special energy for a count never holds without a weapon with a special`() {
+        armed(energy = 100)
+        body.special = null
+
+        assertNull(ReflexTrigger.SpecialEnergyFor(1).fired(body))
+    }
+
+    @Test
+    fun `a stop on special energy records the energy the reflex fired at`() {
+        armed(energy = 70)
+        val guard = guard(stop(trigger = ReflexTrigger.SpecialEnergyFor(1)))
+
+        guard.act()
+
+        assertEquals(StepStop.Reflex(2, Fired.AtSpecialEnergy(70)), guard.stopping())
+    }
 }

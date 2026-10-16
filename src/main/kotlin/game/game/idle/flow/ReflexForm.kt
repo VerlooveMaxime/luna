@@ -7,6 +7,7 @@ import game.idle.flow.ReflexKeys.BELOW_LABEL
 import game.idle.flow.ReflexKeys.BELOW_RANGE
 import game.idle.flow.ReflexKeys.BELOW_RULE
 import game.idle.flow.ReflexKeys.DEFAULT_BELOW
+import game.idle.flow.ReflexKeys.DEFAULT_SPECIAL_FOR
 import game.idle.flow.ReflexKeys.DO
 import game.idle.flow.ReflexKeys.DRINK
 import game.idle.flow.ReflexKeys.EAT
@@ -21,11 +22,18 @@ import game.idle.flow.ReflexKeys.SKILL_BELOW
 import game.idle.flow.ReflexKeys.SKILL_NAME
 import game.idle.flow.ReflexKeys.SKILL_RANGE
 import game.idle.flow.ReflexKeys.SKILL_RULE
+import game.idle.flow.ReflexKeys.SPECIAL_ATTACK
+import game.idle.flow.ReflexKeys.SPECIAL_ENERGY
+import game.idle.flow.ReflexKeys.SPECIAL_FOR
+import game.idle.flow.ReflexKeys.SPECIAL_FOR_LABEL
+import game.idle.flow.ReflexKeys.SPECIAL_FOR_RANGE
+import game.idle.flow.ReflexKeys.SPECIAL_FOR_RULE
 import game.idle.flow.ReflexKeys.STEP
 import game.idle.flow.ReflexKeys.STOP
 import game.idle.flow.ReflexKeys.WHEN
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.JumpTargetOptions
+import game.idle.flow.option.OptionFacts
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
 import game.idle.flow.option.SkillOptions
@@ -39,7 +47,9 @@ import io.luna.game.model.mob.Skill
  * fields, lists and searches work on it unchanged: When on the left with its value under it, Do on the right with what
  * it needs under it (S13, Maxime 2026-10-15). An eat reflex picks from [foods]; [portions] gives every portion of the
  * food each edible id belongs to. Drink picks from [potions], with every dose in [doses]; Pray from [prayers] (S13 part
- * 3); a jump picks one of the flow's steps, worded with [types]; items are named with [names].
+ * 3); a jump picks one of the flow's steps, worded with [types]; items are named with [names]. Special attack picks
+ * nothing: [drains] gives, for every weapon whose special Luna's scripts register, what one use drains of the bar,
+ * read when asked since those scripts may load after this form (S13 part 4).
  */
 class ReflexForm(
     private val foods: OptionSource,
@@ -49,6 +59,7 @@ class ReflexForm(
     private val potions: OptionSource,
     private val doses: Map<Int, List<Int>>,
     private val prayers: OptionSource,
+    private val drains: () -> Map<Int, Int>,
 ) {
 
     /** [reflex] as the settings its screen edits. */
@@ -65,7 +76,7 @@ class ReflexForm(
                 current = { settings, _ -> settings[WHEN] ?: HITPOINTS },
             ),
             StepField.Toggle(
-                WHEN, "", listOf(Choice(ATTACKED, "Under attack")),
+                WHEN, "", listOf(Choice(SPECIAL_ENERGY, "Special energy"), Choice(ATTACKED, "Under attack")),
                 current = { settings, _ -> settings[WHEN] ?: HITPOINTS },
             ),
             StepField.Search(
@@ -77,8 +88,16 @@ class ReflexForm(
                 visible = { it[WHEN] == SKILL },
             ),
             StepField.Typed(BELOW, BELOW_LABEL, BELOW_RANGE, BELOW_RULE, shown = { "${it ?: DEFAULT_BELOW}%" }, visible = { (it[WHEN] ?: HITPOINTS) == HITPOINTS }),
+            StepField.Typed(
+                SPECIAL_FOR, SPECIAL_FOR_LABEL, SPECIAL_FOR_RANGE, SPECIAL_FOR_RULE, shown = { specialsWord(it) },
+                visible = { it[WHEN] == SPECIAL_ENERGY },
+            ),
             StepField.Toggle(
                 DO, "Do", listOf(Choice(EAT, "Eat"), Choice(DRINK, "Drink"), Choice(PRAY, "Pray"), Choice(STOP, "Stop"), Choice(JUMP, "Jump")),
+                current = { settings, _ -> doing(settings[DO]) }, column = FieldColumn.RIGHT,
+            ),
+            StepField.Toggle(
+                DO, "", listOf(Choice(SPECIAL_ATTACK, "Special attack")),
                 current = { settings, _ -> doing(settings[DO]) }, column = FieldColumn.RIGHT,
             ),
             StepField.Items(
@@ -99,12 +118,16 @@ class ReflexForm(
             ),
         )
 
-    /** What the reflex does, as its screen's header names it: "Eat", "Drink", "Pray", "Stop the flow", "Jump to a step". */
+    /**
+     * What the reflex does, as its screen's header names it: "Eat", "Drink", "Pray", "Special attack", "Stop the flow",
+     * "Jump to a step".
+     */
     fun label(reflex: ReflexSettings): String =
         when (doing(reflex[DO])) {
             EAT -> "Eat"
             DRINK -> "Drink"
             PRAY -> "Pray"
+            SPECIAL_ATTACK -> "Special attack"
             JUMP -> "Jump to a step"
             else -> "Stop the flow"
         }
@@ -114,32 +137,37 @@ class ReflexForm(
             EAT -> "Eats the first of its foods the bag holds."
             DRINK -> "Drinks a dose of the first of its potions the bag holds."
             PRAY -> "Keeps its prayers on while its condition holds."
+            SPECIAL_ATTACK -> "Uses the worn weapon's special attack."
             JUMP -> "Goes on from another step, running clear first while attacked."
             else -> "Stops the flow, running clear first while attacked."
         }
 
     /**
      * The first food, potion or prayer; shrimps for any food, an empty vial for no potion, the Prayer skill's icon for
-     * no prayer; the cross to stop and arrow to jump.
+     * no prayer; the Attack skill's icon for the special attack, which picks nothing; the cross to stop and arrow to
+     * jump.
      */
     fun icon(reflex: ReflexSettings): StepIcon =
         when (doing(reflex[DO])) {
             EAT -> StepIcon.Item(foodIds(reflex).firstOrNull() ?: SHRIMPS)
             DRINK -> StepIcon.Item(potionIds(reflex).firstOrNull() ?: VIAL)
             PRAY -> prayerList(reflex).firstOrNull()?.let(Prayers::picture) ?: StepIcon.Skill(Skill.PRAYER)
+            SPECIAL_ATTACK -> SPECIAL_ICON
             JUMP -> JUMP_ICON
             else -> STOP_ICON
         }
 
     /**
      * The reflex in a sentence, its jump numbered as the step stands in [steps]: "Hitpoints below 50%: eat trout,
-     * lobster", "Under attack: pray Protect from melee", "Under attack: jump to step 2".
+     * lobster", "Under attack: pray Protect from melee", "Special energy for 2 specials: special attack", "Under
+     * attack: jump to step 2".
      */
     fun sentence(reflex: ReflexSettings, steps: List<StepSettings>): String {
         val what = when (doing(reflex[DO])) {
             EAT -> "eat ${eats(reflex)}"
             DRINK -> "drink ${drinks(reflex)}"
             PRAY -> "pray ${prays(reflex)}"
+            SPECIAL_ATTACK -> "special attack"
             JUMP -> jumps(reflex, steps)
             else -> "stop the flow"
         }
@@ -171,21 +199,40 @@ class ReflexForm(
 
     /**
      * What its pair of When and Do wastes, in yellow on its screen: it acts all the same. Praying on low Prayer points
-     * drains the points watched; every other pair with Pray has its use (Maxime, 2026-10-16).
+     * drains the points watched; every other pair with Pray has its use (Maxime, 2026-10-16), as does every pair with
+     * Special attack. Then what the special attack's [facts] about the worn weapon say (S13 part 4).
      */
-    fun warnings(reflex: ReflexSettings): List<String> =
+    fun warnings(reflex: ReflexSettings, facts: OptionFacts): List<String> =
         when ((reflex[WHEN] ?: HITPOINTS) to doing(reflex[DO])) {
             ATTACKED to EAT -> listOf(EATS_AT_FULL)
             ATTACKED to DRINK -> listOf(DRINKS_WHILE_ATTACKED)
             SKILL to EAT -> listOf(EATS_ON_SKILL)
             SKILL to PRAY -> listOfNotNull(PRAYS_ON_LOW_POINTS.takeIf { reflex[SKILL_NAME].equals("prayer", ignoreCase = true) })
             else -> emptyList()
-        }
+        } + specialWarnings(reflex, facts)
+
+    /**
+     * A special energy When or a special attack Do with no worn weapon whose special Luna knows never holds or is never
+     * done; a count of specials the bar cannot hold at the worn weapon's drain never holds either (Maxime, 2026-10-16).
+     * Said in yellow, not red: the weapon changes without the flow.
+     */
+    private fun specialWarnings(reflex: ReflexSettings, facts: OptionFacts): List<String> {
+        val onEnergy = (reflex[WHEN] ?: HITPOINTS) == SPECIAL_ENERGY
+        if (!onEnergy && doing(reflex[DO]) != SPECIAL_ATTACK) return emptyList()
+        val known = drains()
+        val weapon = facts.worn.firstOrNull { it in known } ?: return listOf(NO_SPECIAL_WEAPON)
+        val drain = known.getValue(weapon)
+        val fit = 100 / drain
+        val wanted = reflex[SPECIAL_FOR]?.toIntOrNull() ?: DEFAULT_SPECIAL_FOR
+        if (!onEnergy || wanted <= fit) return emptyList()
+        return listOf("${names.item(weapon)}'s special costs $drain%, at most $fit ${if (fit == 1) "fits" else "fit"} the bar")
+    }
 
     private fun whenWords(reflex: ReflexSettings): String {
         val whenValue = reflex[WHEN] ?: HITPOINTS
         return when (whenValue) {
             ATTACKED -> "Under attack"
+            SPECIAL_ENERGY -> "Special energy for ${specialsWord(reflex[SPECIAL_FOR])}"
             SKILL -> {
                 val name = reflex[SKILL_NAME]
                 val skill = Skill.NAMES.firstOrNull { it.equals(name, ignoreCase = true) } ?: name ?: "Skill"
@@ -202,6 +249,12 @@ class ReflexForm(
         potionIds(reflex).joinToString(", ") { names.item(it).removeSuffix("(4)").trimEnd().lowercase() }.ifEmpty { "a potion" }
 
     private fun prays(reflex: ReflexSettings): String = prayerList(reflex).joinToString(", ", transform = Prayers::named).ifEmpty { "a prayer" }
+
+    /** The At least count as the row and the sentence word it: "1 special", "2 specials", one without a count. */
+    private fun specialsWord(count: String?): String {
+        val text = count ?: DEFAULT_SPECIAL_FOR.toString()
+        return "$text ${if (text == "1") "special" else "specials"}"
+    }
 
     private fun jumps(reflex: ReflexSettings, steps: List<StepSettings>): String {
         val id = reflex[STEP]?.toIntOrNull() ?: return "jump to a step"
@@ -232,6 +285,11 @@ class ReflexForm(
 
         /** The yellow arrow that points at what a hint is about (Maxime, 2026-10-15). */
         val JUMP_ICON = StepIcon.Media("headicons_hint", 0)
+
+        /** The special attack picks nothing, so the Attack skill stands for it (Maxime, 2026-10-16). */
+        val SPECIAL_ICON = StepIcon.Skill(Skill.ATTACK)
+
+        const val NO_SPECIAL_WEAPON = "You wield no weapon with a special attack"
 
         const val DRINKS_WHILE_ATTACKED = "Drinks while attacked, a dose each time"
         const val EATS_ON_SKILL = "Eats when the skill is low, even at full hitpoints"

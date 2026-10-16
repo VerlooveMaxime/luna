@@ -225,6 +225,13 @@ class LunaHarnessApiTest {
     }
 
     @Test
+    fun `the player view reads the special attack bar's energy`() {
+        agent().combat.specialBar.setEnergy(40)
+
+        assertEquals(40, api().player("agent_a").specialEnergy)
+    }
+
+    @Test
     fun `the player view says when the player is walking`() {
         agent().walking.addStep(Direction.EAST)
 

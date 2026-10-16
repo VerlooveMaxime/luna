@@ -151,6 +151,13 @@ object BuilderWidgets {
     /** Room for a line of a slot, as the client lays it out. */
     const val LINE_ROOM = 108
 
+    /** Room for a row's toggle buttons and the gap between them, as the client lays them out. */
+    const val TOGGLE_ROOM = 180
+    const val TOGGLE_GAP = 4
+
+    /** The width of each of a row's [count] toggle buttons, as the client computes it. */
+    fun toggleWidth(count: Int): Int = (TOGGLE_ROOM - (count - 1) * TOGGLE_GAP) / count
+
     /** Frame colours: the tile's edge, the running step, a step that cannot work, a free slot (no edge). */
     const val EDGE = 0x5c5243
     const val RUNNING = 0x00ff00

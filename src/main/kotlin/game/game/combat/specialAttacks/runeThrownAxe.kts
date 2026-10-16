@@ -135,6 +135,9 @@ attack(type = RUNE_THROWN_AXE,
         if (attacksLeft > 0 && targets.hasNext()) {
             // Use recursion to handle chain hits.
             handleChainHit(attacker, victim, targets, ChainHitCombatAttack(source), attacksLeft)
+        } else {
+            // No chain hit follows, so unlock the special bar here instead of in the chain.
+            attacker.combat.specialBar.isLocked = false
         }
     }
 }

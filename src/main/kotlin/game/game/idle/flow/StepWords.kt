@@ -70,6 +70,9 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
     fun prayed(change: PrayerChange): String =
         "${PREFIX}reflex ${change.number} ${if (change.on) "prays" else "stops praying"} ${Prayers.named(change.prayer)}."
 
+    /** Reflex [number] lit the special attack bar (S13 part 4): "Autopilot: reflex 3 used the special attack." */
+    fun usedSpecial(number: Int): String = "${PREFIX}reflex $number used the special attack."
+
     /** The reflex at [number] [fired] and the flow goes on from step [toStep], the player clear of what attacked them. */
     fun jump(number: Int, fired: Fired, toStep: Int): String = "${PREFIX}reflex $number fired ${fired(fired)}, jumping to step $toStep."
 
@@ -83,12 +86,13 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
         return start + chat.fit(item(withdrawn), CHAT_ROOM - chat.width(start + end)) + end
     }
 
-    /** What a reflex fired at: "at 11/20 hitpoints", "under attack". */
+    /** What a reflex fired at: "at 11/20 hitpoints", "under attack", "at 70% special energy". */
     private fun fired(fired: Fired): String =
         when (fired) {
             is Fired.AtHitpoints -> "at ${fired.health.text()} hitpoints"
             is Fired.AtSkill -> "at ${Skill.getName(fired.skill)} ${fired.level}"
             Fired.UnderAttack -> "under attack"
+            is Fired.AtSpecialEnergy -> "at ${fired.percent}% special energy"
         }
 
     /** [start] then the reason as a cause and a period, the whole line fitting the chat box. */

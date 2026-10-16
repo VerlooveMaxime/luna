@@ -4,6 +4,7 @@ import game.idle.autopilot.IdleSteps
 import game.idle.autopilot.reflex.FoodOptions
 import game.idle.autopilot.reflex.PotionOptions
 import game.idle.autopilot.reflex.PrayerOptions
+import game.idle.autopilot.reflex.SpecialOptions
 import game.idle.danger.DangerCatalog
 import game.idle.danger.LunaDangers
 import game.idle.flow.option.InputSource
@@ -14,6 +15,7 @@ import game.idle.location.Tile
 import game.idle.ui.BuilderWidgets
 import game.testworld.TestWorld
 import io.luna.game.model.def.ItemDefinition
+import io.luna.game.model.mob.combat.SpecialAttackType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -51,7 +53,7 @@ class ReasonsFitTest {
         reflexes = ReflexResolver(FoodOptions.portions(), PotionOptions.doses())
         dangers = LunaDangers(LunaGameNames).catalog()
         warnings = StepWarnings(resolver, LunaGameNames, StepDangers(resolver, dangers, LunaGameNames))
-        form = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames, PotionOptions(LunaGameNames), PotionOptions.doses(), PrayerOptions)
+        form = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames, PotionOptions(LunaGameNames), PotionOptions.doses(), PrayerOptions, SpecialOptions::drains)
     }
 
     @ParameterizedTest(name = "{0}")
@@ -89,7 +91,17 @@ class ReasonsFitTest {
 
     @Test
     fun `every warning the kinds and reflexes can give is measured`() {
-        assertEquals(19, warned().size)
+        assertEquals(22, warned().size)
+    }
+
+    @Test
+    fun `every toggle word of the reflex screen fits its button in the small font`() {
+        val toggles = form.fields(emptyList()).filterIsInstance<StepField.Toggle>()
+
+        val tooWide = toggles.flatMap { toggle -> toggle.choices.map { it.word to BuilderWidgets.toggleWidth(toggle.choices.size) } }
+            .filter { (word, width) -> small.width(word) > width - toggleMargin }
+
+        assertEquals(emptyList<Pair<String, Int>>(), tooWide)
     }
 
     @ParameterizedTest(name = "{0}")
@@ -134,6 +146,9 @@ class ReasonsFitTest {
     }
 
     private val walk = StepSettings("walk", mapOf("tile" to "3101 3509"))
+
+    /** A toggle's word is centred on its button: this much of the button stays clear around it. */
+    private val toggleMargin = 4
 
     private fun step(kind: String, vararg values: Pair<String, String>) = StepSettings(kind, mapOf(*values))
 
@@ -200,6 +215,8 @@ class ReasonsFitTest {
         "a reflex doing what no reflex does" to ReflexSettings(1, mapOf("do" to "teleport")),
         "a reflex eating what is not food" to ReflexSettings(1, mapOf("foods" to "1511")),
         "a reflex firing on what no reflex watches" to ReflexSettings(1, mapOf("when" to "poisoned")),
+        "a special reflex with a count of nothing" to ReflexSettings(1, mapOf("when" to "special", "specialFor" to "0")),
+        "a special reflex with a count past the bar" to ReflexSettings(1, mapOf("when" to "special", "specialFor" to "11")),
         "a reflex jumping to no step" to ReflexSettings(1, mapOf("do" to "jump")),
         "a reflex jumping to a deleted step" to ReflexSettings(1, mapOf("do" to "jump", "step" to "99")),
     ).map { (name, reflex) -> Arguments.of(name, reflex) }
@@ -221,11 +238,28 @@ class ReasonsFitTest {
         val drink = requireNotNull(form.need(ReflexSettings(1, mapOf("do" to "drink", "potions" to "113"))))
         return listOfNotNull(warnings.supplies(listOf(chop), drink, facts)).map { Arguments.of("reflex: $it", it) } +
             listOf(ReflexSettings(1, mapOf("when" to "attacked", "do" to "drink")), ReflexSettings(1, mapOf("when" to "skill")), ReflexSettings(1, mapOf("when" to "skill", "skillName" to "prayer", "do" to "pray")))
-                .flatMap { form.warnings(it) }.map { Arguments.of("reflex: $it", it) } + flows.flatMap { (flow, index) ->
+                .flatMap { form.warnings(it, facts) }.map { Arguments.of("reflex: $it", it) } + flows.flatMap { (flow, index) ->
             warnings.of(flow, index, facts, emptyList()).map { Arguments.of("${flow[index].kind}: $it", it) }
-        } + (listOfNotNull(warnings.supplies(listOf(chop), eatAnyFood, facts)) + form.warnings(ReflexSettings(1, mapOf("when" to "attacked"))))
-            .map { Arguments.of("reflex: $it", it) }
+        } + (listOfNotNull(warnings.supplies(listOf(chop), eatAnyFood, facts)) + form.warnings(ReflexSettings(1, mapOf("when" to "attacked")), facts))
+            .map { Arguments.of("reflex: $it", it) } + specialWarnings().map { Arguments.of("reflex: $it", it) }
     }
+
+    /**
+     * The special attack's three warnings: no weapon worn, and a count the bar cannot hold with the longest-named
+     * weapon that has a special, one where one special fits the bar and one where several do.
+     */
+    private fun specialWarnings(): List<String> {
+        val weapon = SpecialAttackType.entries.flatMap { it.ids }.maxBy { LunaGameNames.item(it).length }
+        val twoSpecials = ReflexSettings(1, mapOf("when" to "special", "specialFor" to "2"))
+        val tenSpecials = ReflexSettings(1, mapOf("when" to "special", "specialFor" to "10"))
+        val worn = OptionFacts(worn = setOf(weapon))
+        return form.warnings(ReflexSettings(1, mapOf("do" to "special")), OptionFacts()) +
+            longestNamedForm { mapOf(weapon to 100) }.warnings(twoSpecials, worn) +
+            longestNamedForm { mapOf(weapon to 34) }.warnings(tenSpecials, worn)
+    }
+
+    private fun longestNamedForm(specials: () -> Map<Int, Int>) =
+        ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames, PotionOptions(LunaGameNames), PotionOptions.doses(), PrayerOptions, specials)
 
     /** Every kind of aggressive npc Luna spawns: its band line and its slot line. */
     fun threats(): List<Arguments> = dangers.all.map { Arguments.of("${it.name} ${it.level}", it.line, it.short) }

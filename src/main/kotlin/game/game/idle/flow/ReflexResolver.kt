@@ -7,6 +7,7 @@ import game.idle.flow.ReflexKeys.BELOW_LABEL
 import game.idle.flow.ReflexKeys.BELOW_RANGE
 import game.idle.flow.ReflexKeys.BELOW_WORDS
 import game.idle.flow.ReflexKeys.DEFAULT_BELOW
+import game.idle.flow.ReflexKeys.DEFAULT_SPECIAL_FOR
 import game.idle.flow.ReflexKeys.DO
 import game.idle.flow.ReflexKeys.DRINK
 import game.idle.flow.ReflexKeys.EAT
@@ -21,6 +22,12 @@ import game.idle.flow.ReflexKeys.SKILL_BELOW
 import game.idle.flow.ReflexKeys.SKILL_NAME
 import game.idle.flow.ReflexKeys.SKILL_RANGE
 import game.idle.flow.ReflexKeys.SKILL_WORDS
+import game.idle.flow.ReflexKeys.SPECIAL_ATTACK
+import game.idle.flow.ReflexKeys.SPECIAL_ENERGY
+import game.idle.flow.ReflexKeys.SPECIAL_FOR
+import game.idle.flow.ReflexKeys.SPECIAL_FOR_LABEL
+import game.idle.flow.ReflexKeys.SPECIAL_FOR_RANGE
+import game.idle.flow.ReflexKeys.SPECIAL_FOR_WORDS
 import game.idle.flow.ReflexKeys.STEP
 import game.idle.flow.ReflexKeys.STOP
 import game.idle.flow.ReflexKeys.WHEN
@@ -32,6 +39,7 @@ import io.luna.game.model.mob.Skill
  * every item id Luna can eat to the ids of its food's every portion, so a reflex picking a cake eats its slices too.
  * [doses] maps each listed potion to its dose ids, lowest dose first. A pray reflex keeps Luna's prayers by their tab
  * buttons ([Prayers]); two of one group cannot be on together, so a list holding both cannot work (Maxime, 2026-10-16).
+ * A special energy When counts specials of whatever weapon is worn, so it needs nothing of the flow (S13 part 4).
  */
 class ReflexResolver(private val portions: Map<Int, Set<Int>>, private val doses: Map<Int, List<Int>>) {
 
@@ -67,6 +75,7 @@ class ReflexResolver(private val portions: Map<Int, Set<Int>>, private val doses
         return when (type) {
             HITPOINTS -> ReflexTrigger.HitpointsBelow(below(reflex[BELOW]))
             SKILL -> ReflexTrigger.SkillBelow(skill(reflex[SKILL_NAME]), skillBelow(reflex[SKILL_BELOW]))
+            SPECIAL_ENERGY -> ReflexTrigger.SpecialEnergyFor(specialFor(reflex[SPECIAL_FOR]))
             ATTACKED -> ReflexTrigger.UnderAttack
             else -> throw FlowError("'$type' is not a choice for When")
         }
@@ -90,12 +99,18 @@ class ReflexResolver(private val portions: Map<Int, Set<Int>>, private val doses
         return text.toIntOrNull()?.takeIf { it in BELOW_RANGE } ?: throw FlowError(Reasons.takes(BELOW_LABEL, BELOW_WORDS, text))
     }
 
+    private fun specialFor(text: String?): Int {
+        if (text == null) return DEFAULT_SPECIAL_FOR
+        return text.toIntOrNull()?.takeIf { it in SPECIAL_FOR_RANGE } ?: throw FlowError(Reasons.takes(SPECIAL_FOR_LABEL, SPECIAL_FOR_WORDS, text))
+    }
+
     private fun action(reflex: ReflexSettings, steps: List<StepSettings>): ReflexAction {
         val what = reflex[DO] ?: EAT
         return when (what) {
             EAT -> ReflexAction.Eat(foods(reflex))
             DRINK -> ReflexAction.Drink(potions(reflex))
             PRAY -> ReflexAction.Pray(prayers(reflex))
+            SPECIAL_ATTACK -> ReflexAction.SpecialAttack
             STOP -> ReflexAction.StopFlow
             JUMP -> ReflexAction.JumpTo(jumpTarget(reflex[STEP], steps))
             else -> throw FlowError("'$what' is not something a reflex does")

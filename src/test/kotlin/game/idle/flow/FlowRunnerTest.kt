@@ -578,6 +578,18 @@ class FlowRunnerTest {
     }
 
     @Test
+    fun `a special attack lit is said`() {
+        body.special = WornSpecial(100, attack = false)
+        hurt()
+        val special = ResolvedReflex(1, ReflexTrigger.HitpointsBelow(50), ReflexAction.SpecialAttack)
+        val steps = listOf(FakeStep("fight"))
+
+        runner(ResolvedFlow(steps, listOf(listOf(special)))).act()
+
+        assertEquals(listOf("Autopilot: reflex 1 used the special attack."), player.told)
+    }
+
+    @Test
     fun `what a reflex lit is said`() {
         hurt()
 

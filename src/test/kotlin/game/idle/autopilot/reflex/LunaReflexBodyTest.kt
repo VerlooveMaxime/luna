@@ -1,19 +1,23 @@
 package game.idle.autopilot.reflex
 
+import api.combat.specialAttack.SpecialAttackHandler
 import engine.combat.prayer.CombatPrayer.PROTECT_FROM_MELEE
 import engine.combat.prayer.CombatPrayer.ROCK_SKIN
 import engine.combat.prayer.CombatPrayer.THICK_SKIN
 import engine.combat.status.StatusEffectType
 import game.idle.autopilot.EndlessAction
 import game.idle.flow.Health
+import game.idle.flow.WornSpecial
 import game.testworld.TestWorld
 import io.luna.game.event.impl.ItemClickEvent.ItemFirstClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
+import io.luna.game.model.item.Equipment
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Npc
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
+import io.luna.game.model.mob.combat.SpecialAttackType
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -387,4 +391,133 @@ class LunaReflexBodyTest {
         assertEquals(emptyList<Pair<Int, Int>>(), clicked)
     }
 
+    private val darklight = 6746
+    private val excalibur = 35
+
+    /** The dragon halberd: no test registers its special, as `TestWorld` loads no plugin. */
+    private val unregisteredHalberd = 3204
+
+    /** A player wielding [weapon], the combat weapon refreshed as the equipment plugin does on a real server. */
+    private fun wielding(weapon: Int): Player = login().also { player ->
+        player.equipment.set(Equipment.WEAPON, Item(weapon))
+        player.combat.weapon.refreshWeapon(player.combat.weapon.styleDef.stance)
+    }
+
+    /** Darklight's and Excalibur's specials as their scripts register them, since `TestWorld` loads no plugin. */
+    private fun registerSpecials() {
+        SpecialAttackHandler.attack(SpecialAttackType.DARKLIGHT, drain = 50) {}
+        SpecialAttackHandler.activation(SpecialAttackType.EXCALIBUR, drain = 100) {}
+    }
+
+    @Test
+    fun `special energy is the bar's`() {
+        val player = login()
+        player.combat.specialBar.setEnergy(40)
+
+        assertEquals(40, LunaReflexBody(player).specialEnergy())
+    }
+
+    @Test
+    fun `without a weapon there is no special`() {
+        assertNull(LunaReflexBody(login()).special())
+    }
+
+    @Test
+    fun `a weapon whose special is not registered has none`() {
+        assertNull(LunaReflexBody(wielding(unregisteredHalberd)).special())
+    }
+
+    @Test
+    fun `a worn weapon's registered special says its drain and that it lands with a hit`() {
+        registerSpecials()
+
+        assertEquals(WornSpecial(50, attack = true), LunaReflexBody(wielding(darklight)).special())
+    }
+
+    @Test
+    fun `a boost special fires by itself`() {
+        registerSpecials()
+
+        assertEquals(WornSpecial(100, attack = false), LunaReflexBody(wielding(excalibur)).special())
+    }
+
+    @Test
+    fun `a locked player, teleporting or dying, keeps the weapon's special as a fact`() {
+        registerSpecials()
+        val player = wielding(darklight)
+        player.lock()
+
+        assertEquals(WornSpecial(50, attack = true), LunaReflexBody(player).special())
+    }
+
+    @Test
+    fun `the bar is free until Luna lights it`() {
+        registerSpecials()
+        val player = wielding(darklight)
+        val body = LunaReflexBody(player)
+        val before = body.specialBarFree()
+
+        player.combat.specialBar.toggleOn()
+
+        assertEquals(listOf(true, false), listOf(before, body.specialBarFree()))
+    }
+
+    @Test
+    fun `a bar locked by a special under way is not free`() {
+        val player = login()
+        player.combat.specialBar.isLocked = true
+
+        assertFalse(LunaReflexBody(player).specialBarFree())
+    }
+
+    @Test
+    fun `a locked player, teleporting or dying, has no free bar`() {
+        val player = login()
+        player.lock()
+
+        assertFalse(LunaReflexBody(player).specialBarFree())
+    }
+
+    @Test
+    fun `fighting means a combat target`() {
+        val player = login()
+        val body = LunaReflexBody(player)
+        val before = body.fighting()
+
+        player.combat.target = TestWorld.spawnNpc(chicken, here.translate(1, 0))
+
+        assertEquals(listOf(false, true), listOf(before, body.fighting()))
+    }
+
+    @Test
+    fun `using the special lights the bar through Luna and says it is lit`() {
+        registerSpecials()
+        val player = wielding(darklight)
+
+        assertTrue(LunaReflexBody(player).useSpecial())
+        assertTrue(player.combat.specialBar.isActivated)
+    }
+
+    @Test
+    fun `a special Luna turns down is not lit afterwards`() {
+        assertFalse(LunaReflexBody(wielding(unregisteredHalberd)).useSpecial())
+    }
+
+    @Test
+    fun `a locked bar is not lit however it is asked`() {
+        registerSpecials()
+        val player = wielding(darklight)
+        player.combat.specialBar.isLocked = true
+
+        assertFalse(LunaReflexBody(player).useSpecial())
+    }
+
+    @Test
+    fun `with energy short of the drain Luna leaves the bar off`() {
+        registerSpecials()
+        val player = wielding(darklight)
+        player.combat.specialBar.setEnergy(40)
+
+        assertFalse(LunaReflexBody(player).useSpecial())
+    }
 }
