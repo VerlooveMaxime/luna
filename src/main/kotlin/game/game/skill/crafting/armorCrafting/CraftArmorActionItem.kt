@@ -65,7 +65,6 @@ class CraftArmorActionItem(private val plr: Player,
         plr.crafting.addExperience(armor.exp)
         mob.animation(ANIM)
         mob.sendMessage("You make ${articleItemName(armor.armorItem.id)}.")
-        mob.crafting.addExperience(armor.exp)
         // Counted once the item is made, so a batch that runs out of hides uses no thread.
         mob.threadUsed = (mob.threadUsed + 1) % THREAD_USES
         if (mob.threadUsed == 0) {
