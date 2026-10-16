@@ -4,6 +4,7 @@ import game.idle.flow.FlowContext
 import game.idle.flow.StepSettings
 import game.idle.location.Tile
 import io.luna.game.model.mob.Skill
+import io.luna.game.model.mob.Spellbook
 
 /** The options of one setting that picks from a list, unordered ([OptionOrder] orders them). */
 fun interface OptionSource {
@@ -49,7 +50,8 @@ data class OptionContext(
  * which stands for the work spot when no walk step comes before (the flow then works where Run is pressed). [combat] is
  * the player's combat level, which the danger warnings judge aggressive npcs against (S08); [NEW_COMBAT] is a new
  * character's. [baseLevels] are the unboosted levels whatever [levels] judge on, for what no boost unlocks (a prayer,
- * S13 part 3); the same as [levels] unless given.
+ * S13 part 3); the same as [levels] unless given. [spellbook] is the one the player's magic tab shows, which a
+ * teleport spell must belong to (S13 part 5).
  */
 data class OptionFacts(
     val levels: Map<Int, Int> = emptyMap(),
@@ -59,6 +61,7 @@ data class OptionFacts(
     val here: Tile? = null,
     val combat: Int = NEW_COMBAT,
     val baseLevels: Map<Int, Int> = levels,
+    val spellbook: Spellbook = Spellbook.REGULAR,
 ) {
 
     fun level(skill: Int): Int = levels[skill] ?: 1

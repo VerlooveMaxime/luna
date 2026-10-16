@@ -8,9 +8,12 @@ import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
 import game.idle.flow.option.StepOption
 import io.luna.game.model.mob.Skill
+import io.luna.game.model.mob.Spellbook
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 class ReflexFormTest {
 
@@ -25,7 +28,10 @@ class ReflexFormTest {
     private val darklight = 6746
     private val shortbow = 861
     private val noFacts = OptionFacts()
-    private val form = ReflexForm(foods, portions, types, FakeNames(mapOf(trout to "Trout", lobster to "Lobster", 113 to "Strength potion(4)", 2440 to "Super strength(4)", darklight to "Darklight", shortbow to "Magic shortbow")), OptionSource { emptyList() }, mapOf(113 to listOf(119, 117, 115, 113), 2440 to listOf(161, 159, 157, 2440)), prayers) { mapOf(darklight to 50, shortbow to 55) }
+    private val glory = 1712
+    private val staffOfAir = 1381
+    private val teleports = OptionSource { listOf(StepOption("varrock", "Varrock", OptionIcon.Media("magicon", 12))) }
+    private val form = ReflexForm(foods, portions, types, FakeNames(mapOf(trout to "Trout", lobster to "Lobster", 113 to "Strength potion(4)", 2440 to "Super strength(4)", darklight to "Darklight", shortbow to "Magic shortbow", glory to "Amulet of glory(4)")), OptionSource { emptyList() }, mapOf(113 to listOf(119, 117, 115, 113), 2440 to listOf(161, 159, 157, 2440)), prayers, { mapOf(darklight to 50, shortbow to 55) }, teleports)
     private val steps = listOf(step("fight").copy(id = 4), step("bank").copy(id = 7))
 
     private fun reflex(vararg values: Pair<String, String>) = ReflexSettings(2, mapOf(*values))
@@ -51,7 +57,7 @@ class ReflexFormTest {
                 " (left): toggle when special 'Special energy' / attacked 'Under attack'",
                 "Below (left): typed below 1..99",
                 "Do (right): toggle do eat 'Eat' / drink 'Drink' / pray 'Pray' / stop 'Stop' / jump 'Jump'",
-                " (right): toggle do special 'Special attack'",
+                " (right): toggle do special 'Special attack' / teleport 'Teleport'",
                 "Food (right): list foods on 4 rows, 'What would you like to eat?'",
             ),
             shown(),
@@ -77,7 +83,7 @@ class ReflexFormTest {
     fun `the toggles light hitpoints and eat by default`() {
         val toggles = form.fields(steps).filterIsInstance<StepField.Toggle>()
 
-        assertEquals(listOf("hitpoints", "hitpoints", "eat", "eat"), toggles.map { it.current(StepSettings(), FlowContext()) })
+        assertEquals(listOf("hitpoints", "hitpoints", "eat", "eat", "stop"), toggles.map { it.current(StepSettings(), FlowContext()) })
     }
 
     @Test
@@ -85,7 +91,7 @@ class ReflexFormTest {
         val toggles = form.fields(steps).filterIsInstance<StepField.Toggle>()
         val settings = form.settings(reflex("when" to "attacked", "do" to "jump"))
 
-        assertEquals(listOf("attacked", "attacked", "jump", "jump"), toggles.map { it.current(settings, FlowContext()) })
+        assertEquals(listOf("attacked", "attacked", "jump", "jump", "stop"), toggles.map { it.current(settings, FlowContext()) })
     }
 
     @Test
@@ -184,22 +190,22 @@ class ReflexFormTest {
 
     @Test
     fun `an eat reflex needs one of its foods, any portion of it`() {
-        assertEquals(ToolNeed("food", mapOf(cake to 0, slice to 0), countable = false), form.need(reflex("foods" to "$cake")))
+        assertEquals(listOf(ToolNeed("food", mapOf(cake to 0, slice to 0), countable = false)), form.needs(reflex("foods" to "$cake"), noFacts))
     }
 
     @Test
     fun `an eat reflex of any food needs any food`() {
-        assertEquals(setOf(trout, lobster, cake), form.need(reflex())?.items?.keys)
+        assertEquals(setOf(trout, lobster, cake), form.needs(reflex(), noFacts).single().items.keys)
     }
 
     @Test
     fun `a food Luna cannot eat counts as none picked`() {
-        assertEquals(setOf(trout, lobster, cake), form.need(reflex("foods" to "1511"))?.items?.keys)
+        assertEquals(setOf(trout, lobster, cake), form.needs(reflex("foods" to "1511"), noFacts).single().items.keys)
     }
 
     @Test
     fun `a stop reflex needs nothing`() {
-        assertNull(form.need(reflex("do" to "stop")))
+        assertEquals(emptyList<ToolNeed>(), form.needs(reflex("do" to "stop"), noFacts))
     }
 
     @Test
@@ -277,12 +283,12 @@ class ReflexFormTest {
 
     @Test
     fun `drinking needs any dose of its selected potions`() {
-        assertEquals(ToolNeed("potion", mapOf(119 to 0, 117 to 0, 115 to 0, 113 to 0)), form.need(reflex("do" to "drink", "potions" to "113")))
+        assertEquals(listOf(ToolNeed("potion", mapOf(119 to 0, 117 to 0, 115 to 0, 113 to 0))), form.needs(reflex("do" to "drink", "potions" to "113"), noFacts))
     }
 
     @Test
     fun `an empty or invalid potion list never falls back to any potion`() {
-        assertEquals(listOf(emptySet<Int>(), emptySet()), listOf(form.need(reflex("do" to "drink"))?.items?.keys, form.need(reflex("do" to "drink", "potions" to "1511"))?.items?.keys))
+        assertEquals(listOf(emptySet<Int>(), emptySet()), listOf(form.needs(reflex("do" to "drink"), noFacts).single().items.keys, form.needs(reflex("do" to "drink", "potions" to "1511"), noFacts).single().items.keys))
     }
 
     @Test
@@ -322,7 +328,7 @@ class ReflexFormTest {
 
     @Test
     fun `praying needs nothing carried`() {
-        assertNull(form.need(reflex("do" to "pray", "prayers" to "5623")))
+        assertEquals(emptyList<ToolNeed>(), form.needs(reflex("do" to "pray", "prayers" to "5623"), noFacts))
     }
 
     @Test
@@ -364,7 +370,7 @@ class ReflexFormTest {
         val settings = form.settings(reflex("when" to "special", "do" to "special"))
         val toggles = form.fields(steps).filterIsInstance<StepField.Toggle>()
 
-        assertEquals(listOf("special", "special", "special", "special"), toggles.map { it.current(settings, FlowContext()) })
+        assertEquals(listOf("special", "special", "special", "special", "stop"), toggles.map { it.current(settings, FlowContext()) })
     }
 
     @Test
@@ -394,7 +400,7 @@ class ReflexFormTest {
 
     @Test
     fun `a special attack reflex needs nothing carried`() {
-        assertNull(form.need(reflex("do" to "special")))
+        assertEquals(emptyList<ToolNeed>(), form.needs(reflex("do" to "special"), noFacts))
     }
 
     @Test
@@ -448,5 +454,133 @@ class ReflexFormTest {
         val pairs = listOf(reflex("do" to "special"), reflex("when" to "attacked", "do" to "special"), reflex("when" to "skill", "skillName" to "prayer", "do" to "special"))
 
         assertEquals(List(3) { emptyList<String>() }, pairs.map { form.warnings(it, worn) })
+    }
+
+    private fun teleport(vararg values: Pair<String, String>) = reflex("do" to "teleport", *values)
+
+    @Test
+    fun `a teleport reflex shows its destination and Then under Do`() {
+        assertEquals(
+            listOf(
+                " (right): toggle do special 'Special attack' / teleport 'Teleport'",
+                "Teleport (right): search destination, 'Where would you like to teleport?'",
+                "Then (right): toggle then stop 'Stop' / jump 'Jump'",
+            ),
+            shown("do" to "teleport").drop(4),
+        )
+    }
+
+    @Test
+    fun `a teleport whose Then jumps shows the step it goes on from`() {
+        assertEquals("Step (right): search step, 'Which step should it jump to?'", shown("do" to "teleport", "then" to "jump").last())
+    }
+
+    @Test
+    fun `a teleport whose Then stops shows no step`() {
+        assertEquals("Then", shown("do" to "teleport", "then" to "stop").last().substringBefore(" ("))
+    }
+
+    @Test
+    fun `the destination search offers the teleports`() {
+        val search = form.fields(steps).filterIsInstance<StepField.Search>().single { it.target.key == ReflexKeys.DESTINATION }
+
+        assertEquals(listOf("varrock"), search.target.source.options(OptionContext()).map { it.value })
+    }
+
+    @Test
+    fun `the toggles light teleport and its Then`() {
+        val toggles = form.fields(steps).filterIsInstance<StepField.Toggle>()
+        val settings = form.settings(teleport("then" to "jump"))
+
+        assertEquals(listOf("hitpoints", "hitpoints", "teleport", "teleport", "jump"), toggles.map { it.current(settings, FlowContext()) })
+    }
+
+    @Test
+    fun `a teleport reflex is named, described and pictured by its spell's icon`() {
+        val varrock = teleport("destination" to "varrock")
+
+        assertEquals(
+            listOf("Teleport", "Teleports away, then stops the flow or goes on from another step.", StepIcon.Media("magicon", 12)),
+            listOf(form.label(varrock), form.description(varrock), form.icon(varrock)),
+        )
+    }
+
+    @Test
+    fun `a teleport by jewellery is pictured by the jewellery`() {
+        assertEquals(StepIcon.Item(glory), form.icon(teleport("destination" to "amulet_of_glory:edgeville")))
+    }
+
+    @Test
+    fun `a teleport with no destination, or one no teleport offers, shows the Magic skill`() {
+        assertEquals(listOf(ReflexForm.TELEPORT_ICON, ReflexForm.TELEPORT_ICON), listOf(form.icon(teleport()), form.icon(teleport("destination" to "dareeyak"))))
+    }
+
+    @Test
+    fun `a teleport reads as its destination and its Then`() {
+        assertEquals("Hitpoints below 50%: teleport Varrock, then stop the flow", form.sentence(teleport("destination" to "varrock"), steps))
+    }
+
+    @Test
+    fun `a place Luna names with an article keeps it mid-sentence`() {
+        assertEquals("Hitpoints below 50%: teleport the Watchtower, then stop the flow", form.sentence(teleport("destination" to "watchtower"), steps))
+    }
+
+    @Test
+    fun `a teleport by jewellery that jumps reads as the place, the jewellery and the step`() {
+        assertEquals(
+            "Under attack: teleport Edgeville (amulet of glory), then jump to step 2",
+            form.sentence(teleport("when" to "attacked", "destination" to "amulet_of_glory:edgeville", "then" to "jump", "step" to "7"), steps),
+        )
+    }
+
+    @Test
+    fun `a teleport with nothing picked says what remains to set`() {
+        assertEquals("Hitpoints below 50%: teleport somewhere, then jump to a step", form.sentence(teleport("then" to "jump"), steps))
+    }
+
+    @Test
+    fun `a teleport spell needs its runes carried`() {
+        assertEquals(listOf("air rune", "fire rune", "law rune"), form.needs(teleport("destination" to "varrock"), noFacts).map { it.word })
+    }
+
+    @Test
+    fun `a worn staff spares its rune`() {
+        assertEquals(listOf("fire rune", "law rune"), form.needs(teleport("destination" to "varrock"), OptionFacts(worn = setOf(staffOfAir))).map { it.word })
+    }
+
+    @Test
+    fun `a teleport by jewellery needs a charged piece`() {
+        assertEquals(listOf("amulet of glory"), form.needs(teleport("destination" to "amulet_of_glory:edgeville"), noFacts).map { it.word })
+    }
+
+    @Test
+    fun `a teleport with no destination needs nothing yet`() {
+        assertEquals(emptyList<ToolNeed>(), form.needs(teleport(), noFacts))
+    }
+
+    @Test
+    fun `an ancient spell on the regular spellbook warns that it needs the Ancient one`() {
+        assertEquals(listOf("Paddewwa needs the Ancient spellbook"), form.warnings(teleport("destination" to "paddewwa"), noFacts))
+    }
+
+    @Test
+    fun `a regular spell on the Ancient spellbook warns the other way, the place in sentence case`() {
+        assertEquals(listOf("The Watchtower needs the regular spellbook"), form.warnings(teleport("destination" to "watchtower"), OptionFacts(spellbook = Spellbook.ANCIENT)))
+    }
+
+    @Test
+    fun `a spell of the player's spellbook, jewellery or no destination warns of nothing`() {
+        assertEquals(
+            listOf(emptyList<String>(), emptyList(), emptyList()),
+            listOf(form.warnings(teleport("destination" to "varrock"), noFacts), form.warnings(teleport("destination" to "amulet_of_glory:edgeville"), noFacts), form.warnings(teleport(), noFacts)),
+        )
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["hitpoints", "skill", "special", "attacked"])
+    fun `every pair with teleport wastes nothing`(condition: String) {
+        val armed = OptionFacts(worn = setOf(darklight))
+
+        assertEquals(emptyList<String>(), form.warnings(teleport("when" to condition, "destination" to "varrock"), armed))
     }
 }

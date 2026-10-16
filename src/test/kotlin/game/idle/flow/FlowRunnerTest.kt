@@ -1,6 +1,7 @@
 package game.idle.flow
 
 import engine.combat.prayer.CombatPrayer.THICK_SKIN
+import game.skill.magic.teleportSpells.TeleportSpell
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -28,6 +29,15 @@ class FlowRunnerTest {
         val jump = ResolvedReflex(1, ReflexTrigger.HitpointsBelow(50), ReflexAction.JumpTo(to))
         val steps = names.map { FakeStep(it) }
         return runner(ResolvedFlow(steps, listOf(listOf(jump)) + steps.drop(1).map { emptyList() }))
+    }
+
+    /** A flow of [names] whose first step has a reflex that teleports to Varrock, then stops or jumps to the step at [to]. */
+    private fun teleporting(vararg names: String, to: Int? = null): FlowRunner {
+        val varrock = TeleportDestination.Spell(TeleportSpell.VARROCK)
+        body.teleportable += varrock
+        val teleport = ResolvedReflex(1, ReflexTrigger.HitpointsBelow(50), ReflexAction.Teleport(varrock, to))
+        val steps = names.map { FakeStep(it) }
+        return runner(ResolvedFlow(steps, listOf(listOf(teleport)) + steps.drop(1).map { emptyList() }))
     }
 
     /** The first step's reflex fires on the next act. */
@@ -478,6 +488,42 @@ class FlowRunnerTest {
 
         assertEquals(listOf("bank:1"), player.log)
         assertEquals(listOf(2), player.savedSteps)
+    }
+
+    @Test
+    fun `a teleport's stop follows the landing, worded as any reflex stop`() {
+        hurt()
+        val runner = teleporting("fight")
+        runner.act()
+        runner.act()
+        body.teleporting = false
+
+        runner.act()
+
+        assertEquals(listOf<Any?>("Autopilot: stopped, reflex 1 fired at 4/20 hitpoints.", listOf("teleport varrock", "calm", "calm")), listOf(runner.stopReason(), body.done))
+    }
+
+    @Test
+    fun `mid-flight the flow neither stops nor moves on`() {
+        hurt()
+        val runner = teleporting("fight", "bank")
+        runner.act()
+
+        runner.act()
+
+        assertEquals(listOf<Any?>(null, emptyList<Int>(), listOf("teleport varrock")), listOf(runner.stopReason(), player.savedSteps, body.done))
+    }
+
+    @Test
+    fun `a teleport's jump goes on from its step once landed, saved and said`() {
+        hurt()
+        val runner = teleporting("fight", "bank", to = 1)
+        runner.act()
+        body.teleporting = false
+
+        runner.act()
+
+        assertEquals(listOf<Any>(listOf("Autopilot: reflex 1 fired at 4/20 hitpoints, jumping to step 2."), listOf(1)), listOf(player.told, player.savedSteps))
     }
 
     @Test

@@ -110,8 +110,8 @@ object ConfigureRows {
  * greyed when they cannot be used. A step's screen has two tabs (S07c2b): Settings, those rows, and Reflexes, the
  * reflexes attached to it as numbered sentences, red when they cannot work, with the line that attaches or detaches
  * them and Attach all; the warnings band and buttons stay under both. A reflex's screen (S07c) is the same screen over
- * [reflexes], without tabs: its picture, number and what it does, its rows, the reason it cannot work and its food
- * warning.
+ * [reflexes], without tabs: its picture, number and what it does, its rows, the reason it cannot work and its supplies
+ * warnings.
  */
 class BuilderConfigure(
     private val resolver: FlowResolver,
@@ -223,7 +223,7 @@ class BuilderConfigure(
             fields = form.fields(state.steps),
             before = FlowContext(),
             reason = reflexes.problems(state.steps, inFlow)[index],
-            warnings = listOfNotNull(form.need(reflex)?.let { stepWarnings.supplies(state.steps, it, facts) }) + form.warnings(reflex, facts),
+            warnings = form.needs(reflex, facts).mapNotNull { stepWarnings.supplies(state.steps, it, facts) } + form.warnings(reflex, facts),
         )
     }
 

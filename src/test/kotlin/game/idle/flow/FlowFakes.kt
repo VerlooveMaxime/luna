@@ -252,7 +252,9 @@ fun described(fields: List<StepField>): List<String> =
 /**
  * A player's body for reflexes: [bag] maps slots to item ids, each but [INEDIBLE] a food; what it does is kept as text
  * ("eat 3", "pray thick_skin"). Prayers are [lit] as Luna's set would light them (one of a group at a time, none below
- * [prayerLevel], without [prayerPoints] or while [prayersDisabled]); [refused] is one Luna turns down all the same.
+ * [prayerLevel], without [prayerPoints] or while [prayersDisabled]); [refused] is one Luna turns down all the same. A
+ * teleport to one of [teleportable] can be done; Luna takes it unless [teleportRefused], the player then [teleporting]
+ * until a test lands them.
  */
 class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
 
@@ -272,6 +274,9 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
     var specialLocked = false
     var fighting = false
     var specialRefused = false
+    val teleportable = mutableSetOf<TeleportDestination>()
+    var teleportRefused = false
+    var teleporting = false
 
     override fun health(): Health = health
 
@@ -321,6 +326,17 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
         specialLit = true
         return true
     }
+
+    override fun canTeleport(destination: TeleportDestination): Boolean = destination in teleportable
+
+    override fun teleport(destination: TeleportDestination): Boolean {
+        done += "teleport ${Teleports.key(destination)}"
+        if (teleportRefused) return false
+        teleporting = true
+        return true
+    }
+
+    override fun teleporting(): Boolean = teleporting
 
     override fun underAttack(): Boolean = attacked
 

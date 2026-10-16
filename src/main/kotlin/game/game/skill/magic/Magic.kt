@@ -61,12 +61,35 @@ object Magic {
     fun checkRequirements(plr: Player,
                           level: Int,
                           requirements: List<SpellRequirement>,
-                          autocast: Boolean = false): List<Item>? {
+                          autocast: Boolean = false): List<Item>? =
+        requirementsCost(plr, level, requirements, autocast, plr::sendMessage)
+
+    /**
+     * Checks whether [plr] could cast a spell right now, without telling them what is missing. Same rules as
+     * [checkRequirements].
+     *
+     * @param plr The player who would cast the spell.
+     * @param level The minimum Magic level required.
+     * @param requirements The spell requirements to validate.
+     * @return `true` if casting would be allowed.
+     */
+    fun canCast(plr: Player, level: Int, requirements: List<SpellRequirement>): Boolean =
+        requirementsCost(plr, level, requirements, autocast = false) {} != null
+
+    /**
+     * The rules behind [checkRequirements]: the items to remove when casting is allowed, or `null` when it is not,
+     * [report] receiving the message that says what is missing.
+     */
+    private fun requirementsCost(plr: Player,
+                                 level: Int,
+                                 requirements: List<SpellRequirement>,
+                                 autocast: Boolean,
+                                 report: (String) -> Unit): List<Item>? {
         if (Luna.settings().game().betaMode() || plr.rights >= PlayerRights.ADMINISTRATOR) {
             return emptyList()
         }
         if (plr.magic.level < level) {
-            plr.sendMessage("Your Magic level is not high enough for this spell.")
+            report("Your Magic level is not high enough for this spell.")
             return null
         }
 
@@ -80,14 +103,14 @@ object Magic {
                 val item = Item(req.id, req.amount)
                 if (!plr.inventory.contains(item)) {
                     val pluralName = StringUtils.addPlural(itemName(req.id))
-                    plr.sendMessage("You do not have enough $pluralName to cast this spell.")
+                    report("You do not have enough $pluralName to cast this spell.")
                     return null
                 }
                 removeItems += item
             } else if (req is EquipmentRequirement) {
                 if (!plr.equipment.contains(req.id)) {
                     val articleName = addArticle(itemName(req.id))
-                    plr.sendMessage("You need $articleName equipped to cast this spell.")
+                    report("You need $articleName equipped to cast this spell.")
                     return null
                 }
             }
@@ -147,7 +170,7 @@ object Magic {
         // Runes were leftover, meaning we didn't satisfy the requirements.
         for (rune in runesNeeded.elementSet()) {
             val runeName = if (autocast) "rune" else itemName(rune.id)
-            plr.sendMessage("You do not have enough ${runeName}s to cast this spell.")
+            report("You do not have enough ${runeName}s to cast this spell.")
             return null
         }
         return removeItems

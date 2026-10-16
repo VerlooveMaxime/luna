@@ -8,6 +8,8 @@ import game.idle.flow.ReflexKeys.BELOW_RANGE
 import game.idle.flow.ReflexKeys.BELOW_RULE
 import game.idle.flow.ReflexKeys.DEFAULT_BELOW
 import game.idle.flow.ReflexKeys.DEFAULT_SPECIAL_FOR
+import game.idle.flow.ReflexKeys.DESTINATION
+import game.idle.flow.ReflexKeys.DESTINATION_LABEL
 import game.idle.flow.ReflexKeys.DO
 import game.idle.flow.ReflexKeys.DRINK
 import game.idle.flow.ReflexKeys.EAT
@@ -30,6 +32,8 @@ import game.idle.flow.ReflexKeys.SPECIAL_FOR_RANGE
 import game.idle.flow.ReflexKeys.SPECIAL_FOR_RULE
 import game.idle.flow.ReflexKeys.STEP
 import game.idle.flow.ReflexKeys.STOP
+import game.idle.flow.ReflexKeys.TELEPORT
+import game.idle.flow.ReflexKeys.THEN
 import game.idle.flow.ReflexKeys.WHEN
 import game.idle.flow.option.GameNames
 import game.idle.flow.option.JumpTargetOptions
@@ -49,7 +53,8 @@ import io.luna.game.model.mob.Skill
  * food each edible id belongs to. Drink picks from [potions], with every dose in [doses]; Pray from [prayers] (S13 part
  * 3); a jump picks one of the flow's steps, worded with [types]; items are named with [names]. Special attack picks
  * nothing: [drains] gives, for every weapon whose special Luna's scripts register, what one use drains of the bar,
- * read when asked since those scripts may load after this form (S13 part 4).
+ * read when asked since those scripts may load after this form (S13 part 4). Teleport picks a destination from
+ * [teleports], one of [Teleports]', and then stops or jumps (S13 part 5).
  */
 class ReflexForm(
     private val foods: OptionSource,
@@ -60,6 +65,7 @@ class ReflexForm(
     private val doses: Map<Int, List<Int>>,
     private val prayers: OptionSource,
     private val drains: () -> Map<Int, Int>,
+    private val teleports: OptionSource,
 ) {
 
     /** [reflex] as the settings its screen edits. */
@@ -68,7 +74,7 @@ class ReflexForm(
     /** The reflex [settings] hold. */
     fun reflex(settings: StepSettings): ReflexSettings = ReflexSettings(settings.id, settings.values)
 
-    /** When and its values on the left; Do and its food, potions, prayers or jump target on the right. */
+    /** When and its values on the left; Do and its food, potions, prayers, teleport or jump target on the right. */
     fun fields(steps: List<StepSettings>): List<StepField> =
         listOf(
             StepField.Toggle(
@@ -97,7 +103,7 @@ class ReflexForm(
                 current = { settings, _ -> doing(settings[DO]) }, column = FieldColumn.RIGHT,
             ),
             StepField.Toggle(
-                DO, "", listOf(Choice(SPECIAL_ATTACK, "Special attack")),
+                DO, "", listOf(Choice(SPECIAL_ATTACK, "Special attack"), Choice(TELEPORT, "Teleport")),
                 current = { settings, _ -> doing(settings[DO]) }, column = FieldColumn.RIGHT,
             ),
             StepField.Items(
@@ -113,14 +119,26 @@ class ReflexForm(
                 column = FieldColumn.RIGHT, visible = { doing(it[DO]) == PRAY },
             ),
             StepField.Search(
+                DESTINATION_LABEL, StepTarget(DESTINATION, teleports), "Where would you like to teleport?",
+                visible = { doing(it[DO]) == TELEPORT }, column = FieldColumn.RIGHT,
+            ),
+            StepField.Toggle(
+                THEN, "Then", listOf(Choice(STOP, "Stop"), Choice(JUMP, "Jump")),
+                current = { settings, _ -> then(settings[THEN]) }, column = FieldColumn.RIGHT, visible = { doing(it[DO]) == TELEPORT },
+            ),
+            StepField.Search(
                 "Step", StepTarget(STEP, JumpTargetOptions(steps, types, names)), "Which step should it jump to?",
-                visible = { doing(it[DO]) == JUMP }, missing = "Deleted step", column = FieldColumn.RIGHT,
+                visible = { jumping(it) }, missing = "Deleted step", column = FieldColumn.RIGHT,
             ),
         )
 
+    /** Whether the reflex names a step to go on from: a jump, or a teleport whose Then jumps. */
+    private fun jumping(settings: StepSettings): Boolean =
+        doing(settings[DO]) == JUMP || doing(settings[DO]) == TELEPORT && then(settings[THEN]) == JUMP
+
     /**
-     * What the reflex does, as its screen's header names it: "Eat", "Drink", "Pray", "Special attack", "Stop the flow",
-     * "Jump to a step".
+     * What the reflex does, as its screen's header names it: "Eat", "Drink", "Pray", "Special attack", "Teleport",
+     * "Stop the flow", "Jump to a step".
      */
     fun label(reflex: ReflexSettings): String =
         when (doing(reflex[DO])) {
@@ -128,6 +146,7 @@ class ReflexForm(
             DRINK -> "Drink"
             PRAY -> "Pray"
             SPECIAL_ATTACK -> "Special attack"
+            TELEPORT -> "Teleport"
             JUMP -> "Jump to a step"
             else -> "Stop the flow"
         }
@@ -138,14 +157,15 @@ class ReflexForm(
             DRINK -> "Drinks a dose of the first of its potions the bag holds."
             PRAY -> "Keeps its prayers on while its condition holds."
             SPECIAL_ATTACK -> "Uses the worn weapon's special attack."
+            TELEPORT -> "Teleports away, then stops the flow or goes on from another step."
             JUMP -> "Goes on from another step, running clear first while attacked."
             else -> "Stops the flow, running clear first while attacked."
         }
 
     /**
      * The first food, potion or prayer; shrimps for any food, an empty vial for no potion, the Prayer skill's icon for
-     * no prayer; the Attack skill's icon for the special attack, which picks nothing; the cross to stop and arrow to
-     * jump.
+     * no prayer; the Attack skill's icon for the special attack, which picks nothing; the destination's spell icon or
+     * jewellery, the Magic skill's icon while none is picked; the cross to stop and arrow to jump.
      */
     fun icon(reflex: ReflexSettings): StepIcon =
         when (doing(reflex[DO])) {
@@ -153,14 +173,15 @@ class ReflexForm(
             DRINK -> StepIcon.Item(potionIds(reflex).firstOrNull() ?: VIAL)
             PRAY -> prayerList(reflex).firstOrNull()?.let(Prayers::picture) ?: StepIcon.Skill(Skill.PRAYER)
             SPECIAL_ATTACK -> SPECIAL_ICON
+            TELEPORT -> destination(reflex)?.let(Teleports::picture) ?: TELEPORT_ICON
             JUMP -> JUMP_ICON
             else -> STOP_ICON
         }
 
     /**
      * The reflex in a sentence, its jump numbered as the step stands in [steps]: "Hitpoints below 50%: eat trout,
-     * lobster", "Under attack: pray Protect from melee", "Special energy for 2 specials: special attack", "Under
-     * attack: jump to step 2".
+     * lobster", "Under attack: pray Protect from melee", "Special energy for 2 specials: special attack", "Hitpoints
+     * below 20%: teleport Varrock, then stop the flow", "Under attack: jump to step 2".
      */
     fun sentence(reflex: ReflexSettings, steps: List<StepSettings>): String {
         val what = when (doing(reflex[DO])) {
@@ -168,6 +189,7 @@ class ReflexForm(
             DRINK -> "drink ${drinks(reflex)}"
             PRAY -> "pray ${prays(reflex)}"
             SPECIAL_ATTACK -> "special attack"
+            TELEPORT -> "teleport ${teleports(reflex)}, then ${if (then(reflex[THEN]) == JUMP) jumps(reflex, steps) else "stop the flow"}"
             JUMP -> jumps(reflex, steps)
             else -> "stop the flow"
         }
@@ -183,24 +205,29 @@ class ReflexForm(
             StepOption(reflex.id.toString(), "${index + 1} ${sentence(reflex, steps)}", OptionIcon.of(icon(reflex)), group = index)
         }
 
-    /** What an eat or drink reflex needs carried or withdrawn, including every portion or dose. */
-    fun need(reflex: ReflexSettings): ToolNeed? =
+    /**
+     * What the reflex needs carried or withdrawn: an eat's foods with every portion, a drink's potions with every
+     * dose, a teleport's runes (each a worn staff among [facts] does not stand for) or jewellery.
+     */
+    fun needs(reflex: ReflexSettings, facts: OptionFacts): List<ToolNeed> =
         when (doing(reflex[DO])) {
             EAT -> {
                 val ids = foodIds(reflex).flatMap { portions[it].orEmpty() }.ifEmpty { portions.keys }
-                ToolNeed("food", ids.associateWith { 0 }, countable = false)
+                listOf(ToolNeed("food", ids.associateWith { 0 }, countable = false))
             }
             DRINK -> {
                 val ids = potionIds(reflex).flatMap { doses[it].orEmpty() }
-                ToolNeed("potion", ids.associateWith { 0 })
+                listOf(ToolNeed("potion", ids.associateWith { 0 }))
             }
-            else -> null
+            TELEPORT -> destination(reflex)?.let { Teleports.needs(it, facts.worn, names) }.orEmpty()
+            else -> emptyList()
         }
 
     /**
      * What its pair of When and Do wastes, in yellow on its screen: it acts all the same. Praying on low Prayer points
      * drains the points watched; every other pair with Pray has its use (Maxime, 2026-10-16), as does every pair with
-     * Special attack. Then what the special attack's [facts] about the worn weapon say (S13 part 4).
+     * Special attack or Teleport. Then what the special attack's [facts] about the worn weapon say (S13 part 4), and
+     * whether a teleport spell's book is the player's (S13 part 5).
      */
     fun warnings(reflex: ReflexSettings, facts: OptionFacts): List<String> =
         when ((reflex[WHEN] ?: HITPOINTS) to doing(reflex[DO])) {
@@ -209,7 +236,19 @@ class ReflexForm(
             SKILL to EAT -> listOf(EATS_ON_SKILL)
             SKILL to PRAY -> listOfNotNull(PRAYS_ON_LOW_POINTS.takeIf { reflex[SKILL_NAME].equals("prayer", ignoreCase = true) })
             else -> emptyList()
-        } + specialWarnings(reflex, facts)
+        } + specialWarnings(reflex, facts) + spellbookWarnings(reflex, facts)
+
+    /**
+     * A spell of the other spellbook is never cast: said in yellow, not red, since the book changes at an altar without
+     * the flow (Maxime, 2026-10-16): "Paddewwa needs the Ancient spellbook".
+     */
+    private fun spellbookWarnings(reflex: ReflexSettings, facts: OptionFacts): List<String> {
+        if (doing(reflex[DO]) != TELEPORT) return emptyList()
+        val destination = destination(reflex) as? TeleportDestination.Spell ?: return emptyList()
+        val book = destination.spell.style.spellbook
+        if (book == facts.spellbook) return emptyList()
+        return listOf("${capitalised(Teleports.named(destination))} needs the ${Teleports.bookName(book)} spellbook")
+    }
 
     /**
      * A special energy When or a special attack Do with no worn weapon whose special Luna knows never holds or is never
@@ -250,6 +289,12 @@ class ReflexForm(
 
     private fun prays(reflex: ReflexSettings): String = prayerList(reflex).joinToString(", ", transform = Prayers::named).ifEmpty { "a prayer" }
 
+    /** "Varrock", "the Watchtower", "Edgeville (amulet of glory)", "somewhere" while none is picked. */
+    private fun teleports(reflex: ReflexSettings): String = destination(reflex)?.let { Teleports.inSentence(it, names) } ?: "somewhere"
+
+    /** The destination the reflex holds, null while none is picked or the key names none offered (its screen says so). */
+    private fun destination(reflex: ReflexSettings): TeleportDestination? = reflex[DESTINATION]?.let(Teleports::of)
+
     /** The At least count as the row and the sentence word it: "1 special", "2 specials", one without a count. */
     private fun specialsWord(count: String?): String {
         val text = count ?: DEFAULT_SPECIAL_FOR.toString()
@@ -272,6 +317,9 @@ class ReflexForm(
     /** A reflex without a Do eats; one with a Do no reflex has shows as stopping, its screen saying what is wrong. */
     private fun doing(value: String?): String = value ?: EAT
 
+    /** A teleport without a Then stops the flow. */
+    private fun then(value: String?): String = value ?: STOP
+
     companion object {
         /** The kind a reflex's settings carry on its screen, which no step has. */
         const val KIND = "reflex"
@@ -288,6 +336,9 @@ class ReflexForm(
 
         /** The special attack picks nothing, so the Attack skill stands for it (Maxime, 2026-10-16). */
         val SPECIAL_ICON = StepIcon.Skill(Skill.ATTACK)
+
+        /** A teleport with no destination picked yet (Maxime, 2026-10-16). */
+        val TELEPORT_ICON = StepIcon.Skill(Skill.MAGIC)
 
         const val NO_SPECIAL_WEAPON = "You wield no weapon with a special attack"
 

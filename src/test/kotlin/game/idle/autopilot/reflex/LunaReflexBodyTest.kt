@@ -5,10 +5,19 @@ import engine.combat.prayer.CombatPrayer.PROTECT_FROM_MELEE
 import engine.combat.prayer.CombatPrayer.ROCK_SKIN
 import engine.combat.prayer.CombatPrayer.THICK_SKIN
 import engine.combat.status.StatusEffectType
+import engine.controllers.WildernessController
+import engine.controllers.WildernessLocatableController.wildernessLevel
 import game.idle.autopilot.EndlessAction
 import game.idle.flow.Health
+import game.idle.flow.TeleportDestination
 import game.idle.flow.WornSpecial
+import game.item.degradable.jewellery.TeleportJewellery
+import game.skill.magic.teleportSpells.TeleportAction
+import game.skill.magic.teleportSpells.TeleportAction.Companion.teleportDelay
+import game.skill.magic.teleportSpells.TeleportSpell
 import game.testworld.TestWorld
+import io.luna.Luna
+import io.luna.LunaSettings
 import io.luna.game.event.impl.ItemClickEvent.ItemFirstClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
@@ -16,7 +25,9 @@ import io.luna.game.model.item.Equipment
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Npc
 import io.luna.game.model.mob.Player
+import io.luna.game.model.mob.PlayerRights
 import io.luna.game.model.mob.Skill
+import io.luna.game.model.mob.Spellbook
 import io.luna.game.model.mob.combat.SpecialAttackType
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -24,6 +35,11 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.CALLS_REAL_METHODS
+import org.mockito.Mockito.RETURNS_DEEP_STUBS
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.mockStatic
+import org.mockito.Mockito.`when`
 
 class LunaReflexBodyTest {
 
@@ -519,5 +535,258 @@ class LunaReflexBodyTest {
         player.combat.specialBar.setEnergy(40)
 
         assertFalse(LunaReflexBody(player).useSpecial())
+    }
+
+    private val varrock = TeleportDestination.Spell(TeleportSpell.VARROCK)
+    private val paddewwa = TeleportDestination.Spell(TeleportSpell.PADDEWWA)
+    private val edgeville = TeleportDestination.Jewellery(TeleportJewellery.AMULET_OF_GLORY, 0)
+    private val airRune = 556
+    private val fireRune = 554
+    private val lawRune = 563
+    private val glory = 1712
+
+    /** A plain player (development mode logs everyone in as a developer, whom Luna lets cast anything) with Magic 25 and the runes for a Varrock teleport. */
+    private fun mage(): Player {
+        val player = login()
+        player.rights = PlayerRights.PLAYER
+        val magic = player.skill(Skill.MAGIC)
+        magic.staticLevel = 25
+        magic.level = 25
+        player.inventory.add(Item(airRune, 3))
+        player.inventory.add(Item(fireRune))
+        player.inventory.add(Item(lawRune))
+        return player
+    }
+
+    /**
+     * Luna's development mode (our `luna.jsonc`) waives levels and runes, so the rules are read with it off, or on
+     * whatever the local config says; the settings are the one boundary mocked here.
+     */
+    private fun <T> withoutDevelopmentMode(block: () -> T): T = inDevelopmentMode(on = false, block)
+
+    private fun <T> inDevelopmentMode(on: Boolean, block: () -> T): T {
+        val settings = mock(LunaSettings::class.java, RETURNS_DEEP_STUBS)
+        `when`(settings.game().betaMode()).thenReturn(on)
+        return mockStatic(Luna::class.java, CALLS_REAL_METHODS).use { luna ->
+            luna.`when`<LunaSettings> { Luna.settings() }.thenReturn(settings)
+            block()
+        }
+    }
+
+    @Test
+    fun `a spell can be cast with the level, the runes and its spellbook`() {
+        val body = LunaReflexBody(mage())
+
+        assertTrue(withoutDevelopmentMode { body.canTeleport(varrock) })
+    }
+
+    @Test
+    fun `a spell cannot be cast without its runes`() {
+        val player = mage()
+        player.inventory.clear()
+        val body = LunaReflexBody(player)
+
+        assertFalse(withoutDevelopmentMode { body.canTeleport(varrock) })
+    }
+
+    @Test
+    fun `a spell cannot be cast below its level`() {
+        val player = mage()
+        player.skill(Skill.MAGIC).staticLevel = 24
+        player.skill(Skill.MAGIC).level = 24
+        val body = LunaReflexBody(player)
+
+        assertFalse(withoutDevelopmentMode { body.canTeleport(varrock) })
+    }
+
+    @Test
+    fun `in development mode Luna waives the level and the runes, and so does the reflex`() {
+        val player = login()
+        player.rights = PlayerRights.PLAYER
+        player.inventory.clear()
+        val body = LunaReflexBody(player)
+
+        assertTrue(inDevelopmentMode(on = true) { body.canTeleport(varrock) })
+    }
+
+    @Test
+    fun `a spell of the other spellbook cannot be cast`() {
+        assertFalse(LunaReflexBody(mage()).canTeleport(paddewwa))
+    }
+
+    @Test
+    fun `a spell of the player's spellbook can, the Ancient one included`() {
+        val player = mage()
+        player.spellbook = Spellbook.ANCIENT
+
+        assertTrue(LunaReflexBody(player).canTeleport(paddewwa))
+    }
+
+    @Test
+    fun `a locked player, teleporting or dying, cannot teleport`() {
+        val player = mage()
+        player.lock()
+
+        assertFalse(LunaReflexBody(player).canTeleport(varrock))
+    }
+
+    @Test
+    fun `a tele-blocked player cannot teleport`() {
+        val player = mage()
+        player.status.add(checkNotNull(StatusEffectType.TELEBLOCK.loadFunction(player)))
+
+        assertFalse(LunaReflexBody(player).canTeleport(varrock))
+    }
+
+    @Test
+    fun `deeper in the wilderness than a spell works from, it cannot be cast`() {
+        val player = mage()
+        player.wildernessLevel = 21
+
+        assertFalse(LunaReflexBody(player).canTeleport(varrock))
+    }
+
+    @Test
+    fun `at the deepest level a spell works from it can`() {
+        val player = mage()
+        player.wildernessLevel = 20
+
+        assertTrue(LunaReflexBody(player).canTeleport(varrock))
+    }
+
+    @Test
+    fun `jewellery works from deeper than a spell`() {
+        val player = login()
+        player.inventory.add(Item(glory))
+        player.wildernessLevel = 30
+
+        assertTrue(LunaReflexBody(player).canTeleport(edgeville))
+    }
+
+    @Test
+    fun `within two ticks of a click the spellbook's throttle holds the next`() {
+        val player = mage()
+        player.teleportDelay.ready(TeleportAction.CLICK_THROTTLE)
+        TestWorld.tick()
+
+        assertFalse(LunaReflexBody(player).canTeleport(varrock))
+    }
+
+    @Test
+    fun `two ticks after a click the throttle has passed`() {
+        val player = mage()
+        player.teleportDelay.ready(TeleportAction.CLICK_THROTTLE)
+        TestWorld.tick(2)
+
+        assertTrue(LunaReflexBody(player).canTeleport(varrock))
+    }
+
+    @Test
+    fun `once landed the spell can be cast again`() {
+        val player = mage()
+        val body = LunaReflexBody(player)
+        body.teleport(varrock)
+        TestWorld.tick(6)
+
+        assertTrue(body.canTeleport(varrock))
+    }
+
+    @Test
+    fun `a cast within the throttle is dropped, as the button drops it`() {
+        val player = mage()
+        player.teleportDelay.ready(TeleportAction.CLICK_THROTTLE)
+
+        val taken = LunaReflexBody(player).teleport(varrock)
+
+        assertEquals(listOf(false, false), listOf(taken, player.isLocked))
+    }
+
+    @Test
+    fun `casting a spell locks the player and says Luna took it`() {
+        val player = mage()
+
+        val taken = LunaReflexBody(player).teleport(varrock)
+
+        assertEquals(listOf(true, true), listOf(taken, player.isLocked))
+    }
+
+    @Test
+    fun `a cast spell lands the player at its destination, Luna's line said`() {
+        val player = mage()
+        LunaReflexBody(player).teleport(varrock)
+
+        TestWorld.tick(6)
+
+        assertEquals(listOf<Any>(TeleportSpell.VARROCK.destination, false), listOf(player.position, player.isLocked))
+        assertTrue("You teleport to Varrock." in TestWorld.chatbox(player))
+    }
+
+    @Test
+    fun `a spell Luna turns down leaves the player where they are, unlocked`() {
+        val player = mage()
+        player.controllers.register(WildernessController(player))
+        player.wildernessLevel = 21
+
+        val taken = LunaReflexBody(player).teleport(varrock)
+
+        assertEquals(listOf<Any>(false, false, here), listOf(taken, player.isLocked, player.position))
+    }
+
+    @Test
+    fun `the teleport holds the player until they land`() {
+        val player = mage()
+        val body = LunaReflexBody(player)
+        body.teleport(varrock)
+        val during = body.teleporting()
+
+        TestWorld.tick(6)
+
+        assertEquals(listOf(true, false), listOf(during, body.teleporting()))
+    }
+
+    @Test
+    fun `jewellery can be used with a charged piece in the bag, whatever its charge`() {
+        val player = login()
+        player.inventory.add(Item(1706))
+
+        assertTrue(LunaReflexBody(player).canTeleport(edgeville))
+    }
+
+    @Test
+    fun `jewellery cannot be used without a charged piece, an uncharged one being none`() {
+        val player = login()
+        player.inventory.add(Item(1704))
+
+        assertFalse(LunaReflexBody(player).canTeleport(edgeville))
+    }
+
+    @Test
+    fun `rubbing jewellery lands the player near its destination and uses a charge`() {
+        val player = login()
+        player.inventory.set(3, Item(glory))
+        val body = LunaReflexBody(player)
+
+        val taken = body.teleport(edgeville)
+        TestWorld.tick(6)
+
+        assertEquals(listOf<Any?>(true, TeleportJewellery.AMULET_OF_GLORY.destinations[0].centre, 1710), listOf(taken, player.position, player.inventory[3]?.id))
+    }
+
+    @Test
+    fun `rubbing jewellery says Luna's lines`() {
+        val player = login()
+        player.inventory.add(Item(glory))
+        LunaReflexBody(player).teleport(edgeville)
+
+        TestWorld.tick(6)
+
+        assertEquals(listOf("You rub the amulet...", "Your amulet has three charges left."), TestWorld.chatbox(player).filter { "amulet" in it })
+    }
+
+    @Test
+    fun `jewellery the bag no longer holds teleports nobody`() {
+        val player = login()
+
+        assertFalse(LunaReflexBody(player).teleport(edgeville))
     }
 }

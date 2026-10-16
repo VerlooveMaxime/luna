@@ -6,6 +6,7 @@ import engine.combat.prayer.CombatPrayer.PROTECT_FROM_MELEE
 import engine.combat.prayer.CombatPrayer.RAPID_HEAL
 import engine.combat.prayer.CombatPrayer.ROCK_SKIN
 import engine.combat.prayer.CombatPrayer.THICK_SKIN
+import game.skill.magic.teleportSpells.TeleportSpell
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -29,6 +30,18 @@ class ReflexGuardTest {
     private fun jump(index: Int, number: Int = 2) = ResolvedReflex(number, below(50), ReflexAction.JumpTo(index))
 
     private fun guard(vararg reflexes: ResolvedReflex) = ReflexGuard(step, reflexes.toList(), body, hold)
+
+    private val varrock = TeleportDestination.Spell(TeleportSpell.VARROCK)
+
+    private fun teleport(jumpTo: Int? = null, number: Int = 2, trigger: ReflexTrigger = below(50)) =
+        ResolvedReflex(number, trigger, ReflexAction.Teleport(varrock, jumpTo))
+
+    /** The player can teleport to Varrock, and the reflex fires at the hitpoints. */
+    private fun ready(): ReflexGuard {
+        body.teleportable += varrock
+        hurt()
+        return guard(teleport())
+    }
 
     private val hold = PrayerHold()
 
@@ -860,5 +873,206 @@ class ReflexGuardTest {
         guard.act()
 
         assertEquals(StepStop.Reflex(2, Fired.AtSpecialEnergy(70)), guard.stopping())
+    }
+
+    @Test
+    fun `a teleport reflex starts the teleport Luna takes`() {
+        val guard = ready()
+
+        guard.act()
+
+        assertEquals(listOf("teleport varrock"), body.done)
+    }
+
+    @Test
+    fun `while the teleport holds the player nothing follows yet`() {
+        val guard = ready()
+
+        guard.act()
+        guard.act()
+
+        assertEquals(listOf<Any?>(null, null, listOf("teleport varrock"), emptyList<String>()), listOf(guard.stopping(), guard.jump(), body.done, log))
+    }
+
+    @Test
+    fun `a teleport under way is its own sight, the step's wait and block no longer holding`() {
+        val guard = ready()
+        step.waiting = Reason.NoneInReach(Target.NPC)
+        step.blocked = Reason.BagFull(emptyList())
+
+        guard.act()
+
+        assertEquals(listOf<Any?>(null, null), listOf(guard.waiting(), guard.blocked()))
+    }
+
+    @Test
+    fun `in flight the guard acts at each decision`() {
+        val guard = ready()
+        step.busy = true
+
+        guard.act()
+
+        assertFalse(guard.isBusy())
+    }
+
+    @Test
+    fun `once landed with nothing attacking the stop follows at once`() {
+        val guard = ready()
+        body.attacked = true
+        guard.act()
+        body.attacked = false
+        body.teleporting = false
+
+        guard.act()
+
+        assertEquals(listOf<Any>(StepStop.Reflex(2, atHurt), listOf("teleport varrock", "calm")), listOf(guard.stopping(), body.done))
+    }
+
+    @Test
+    fun `a hostile landing runs clear before the stop, as every stop does`() {
+        val guard = ready()
+        guard.act()
+        body.teleporting = false
+        body.attacked = true
+
+        guard.act()
+
+        assertEquals(listOf<Any?>(listOf("teleport varrock", "flee"), Reason.RunningClear(null), null), listOf(body.done, guard.waiting(), guard.stopping()))
+    }
+
+    @Test
+    fun `mid-flight no other reflex fires, however its When holds`() {
+        body.teleportable += varrock
+        body.bag[0] = trout
+        hurt()
+        val guard = guard(teleport(number = 1), eat(number = 2))
+        guard.act()
+
+        guard.act()
+
+        assertEquals(listOf("teleport varrock"), body.done)
+    }
+
+    @Test
+    fun `mid-flight held prayers stay on, wanted or not`() {
+        body.teleportable += varrock
+        body.attacked = true
+        hurt()
+        val guard = guard(pray(THICK_SKIN, trigger = ReflexTrigger.UnderAttack), teleport())
+        guard.act()
+        guard.act()
+        body.attacked = false
+
+        guard.act()
+
+        assertEquals(
+            listOf<Any>(listOf(PrayerChange(1, THICK_SKIN, on = true)), setOf(THICK_SKIN), listOf("pray thick_skin", "teleport varrock")),
+            listOf(guard.prayed(), body.lit, body.done),
+        )
+    }
+
+    @Test
+    fun `a turn the step ends mid-flight does not pass the flow on`() {
+        val guard = ready()
+        guard.act()
+        step.done = true
+
+        assertFalse(guard.isDone())
+    }
+
+    @Test
+    fun `a turn the step ends while running clear does not pass the flow on either`() {
+        val guard = guard(stop())
+        body.attacked = true
+        hurt()
+        guard.act()
+        step.done = true
+
+        assertFalse(guard.isDone())
+    }
+
+    @Test
+    fun `once the leave is over the step's end is the guard's again`() {
+        val guard = ready()
+        guard.act()
+        step.done = true
+        body.teleporting = false
+        guard.act()
+
+        assertTrue(guard.isDone())
+    }
+
+    @Test
+    fun `once landed a teleport's jump goes on from its step`() {
+        body.teleportable += varrock
+        hurt()
+        val guard = guard(teleport(jumpTo = 3))
+        guard.act()
+        body.teleporting = false
+
+        guard.act()
+
+        assertEquals(ReflexOutcome.Jump(3, 2, atHurt), guard.jump())
+    }
+
+    @Test
+    fun `a teleport Luna turns down runs clear as a plain stop while attacked`() {
+        val guard = ready()
+        body.teleportRefused = true
+        body.attacked = true
+
+        guard.act()
+
+        assertEquals(listOf<Any?>(listOf("teleport varrock", "flee"), Reason.RunningClear(null), null), listOf(body.done, guard.waiting(), guard.stopping()))
+    }
+
+    @Test
+    fun `a teleport Luna turns down with nothing attacking stops at once`() {
+        val guard = ready()
+        body.teleportRefused = true
+
+        guard.act()
+
+        assertEquals(StepStop.Reflex(2, atHurt), guard.stopping())
+    }
+
+    @Test
+    fun `a refused teleport is not asked for again while running clear`() {
+        val guard = ready()
+        body.teleportRefused = true
+        body.attacked = true
+        guard.act()
+        body.teleportRefused = false
+
+        guard.act()
+
+        assertEquals(listOf("teleport varrock", "flee", "flee"), body.done)
+    }
+
+    @Test
+    fun `a teleport that cannot be done falls through to the next reflex`() {
+        hurt()
+        val guard = guard(teleport(number = 1), stop(number = 2))
+
+        guard.act()
+
+        assertEquals(listOf<Any>(StepStop.Reflex(2, atHurt), listOf("calm")), listOf(guard.stopping(), body.done))
+    }
+
+    @Test
+    fun `a teleport reflex that would fire lets the guard act mid-fight`() {
+        val guard = ready()
+        step.busy = true
+
+        assertFalse(guard.isBusy())
+    }
+
+    @Test
+    fun `a teleport reflex that cannot be done keeps a busy guard busy`() {
+        hurt()
+        val guard = guard(teleport())
+        step.busy = true
+
+        assertTrue(guard.isBusy())
     }
 }

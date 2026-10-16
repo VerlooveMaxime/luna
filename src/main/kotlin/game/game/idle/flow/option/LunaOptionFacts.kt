@@ -10,8 +10,8 @@ import io.luna.game.model.mob.Skill
 
 /**
  * Reads a player's [OptionFacts]: unboosted levels unless the player counts boosted ones (the unboosted ones kept
- * beside), the bank's counts, what the bag holds and the player wears, where they stand and their combat level (Luna's,
- * over unboosted levels).
+ * beside), the bank's counts, what the bag holds and the player wears, where they stand, their combat level (Luna's,
+ * over unboosted levels) and their spellbook.
  */
 object LunaOptionFacts {
 
@@ -21,7 +21,7 @@ object LunaOptionFacts {
         val bank = player.bank.filterNotNull().groupingBy { it.id }.fold(0) { total, item -> total + item.amount }
         val bag = player.inventory.filterNotNull().map { it.id }.toSet()
         val worn = player.equipment.filterNotNull().map { it.id }.toSet()
-        return OptionFacts(levels, bank, bag, worn, Tile.of(player.position), player.combatLevel, baseLevels = base)
+        return OptionFacts(levels, bank, bag, worn, Tile.of(player.position), player.combatLevel, baseLevels = base, spellbook = player.spellbook)
     }
 }
 

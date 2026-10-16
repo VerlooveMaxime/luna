@@ -5,6 +5,7 @@ import game.idle.autopilot.reflex.FoodOptions
 import game.idle.autopilot.reflex.PotionOptions
 import game.idle.autopilot.reflex.PrayerOptions
 import game.idle.autopilot.reflex.SpecialOptions
+import game.idle.autopilot.reflex.TeleportOptions
 import game.idle.danger.DangerCatalog
 import game.idle.danger.LunaDangers
 import game.idle.flow.option.InputSource
@@ -15,6 +16,7 @@ import game.idle.location.Tile
 import game.idle.ui.BuilderWidgets
 import game.testworld.TestWorld
 import io.luna.game.model.def.ItemDefinition
+import io.luna.game.model.mob.Spellbook
 import io.luna.game.model.mob.combat.SpecialAttackType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -53,7 +55,7 @@ class ReasonsFitTest {
         reflexes = ReflexResolver(FoodOptions.portions(), PotionOptions.doses())
         dangers = LunaDangers(LunaGameNames).catalog()
         warnings = StepWarnings(resolver, LunaGameNames, StepDangers(resolver, dangers, LunaGameNames))
-        form = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames, PotionOptions(LunaGameNames), PotionOptions.doses(), PrayerOptions, SpecialOptions::drains)
+        form = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames, PotionOptions(LunaGameNames), PotionOptions.doses(), PrayerOptions, SpecialOptions::drains, TeleportOptions(LunaGameNames))
     }
 
     @ParameterizedTest(name = "{0}")
@@ -91,7 +93,7 @@ class ReasonsFitTest {
 
     @Test
     fun `every warning the kinds and reflexes can give is measured`() {
-        assertEquals(22, warned().size)
+        assertEquals(35, warned().size)
     }
 
     @Test
@@ -212,7 +214,11 @@ class ReasonsFitTest {
         "a pray reflex without a prayer" to ReflexSettings(1, mapOf("do" to "pray")),
         "a pray reflex with no such prayer" to ReflexSettings(1, mapOf("do" to "pray", "prayers" to "1511")),
         "a pray reflex with two of one group, the longest named" to ReflexSettings(1, mapOf("do" to "pray", "prayers" to "5622,5621")),
-        "a reflex doing what no reflex does" to ReflexSettings(1, mapOf("do" to "teleport")),
+        "a reflex doing what no reflex does" to ReflexSettings(1, mapOf("do" to "dance")),
+        "a teleport reflex without a destination" to ReflexSettings(1, mapOf("do" to "teleport")),
+        "a teleport reflex to a place no teleport offers, the longest wilderness spell" to ReflexSettings(1, mapOf("do" to "teleport", "destination" to "carrallanger")),
+        "a teleport reflex with a Then that is no choice" to ReflexSettings(1, mapOf("do" to "teleport", "destination" to "varrock", "then" to "elsewhere")),
+        "a teleport reflex whose Then jumps to no step" to ReflexSettings(1, mapOf("do" to "teleport", "destination" to "varrock", "then" to "jump")),
         "a reflex eating what is not food" to ReflexSettings(1, mapOf("foods" to "1511")),
         "a reflex firing on what no reflex watches" to ReflexSettings(1, mapOf("when" to "poisoned")),
         "a special reflex with a count of nothing" to ReflexSettings(1, mapOf("when" to "special", "specialFor" to "0")),
@@ -234,14 +240,27 @@ class ReasonsFitTest {
             listOf(step("chop", "tree" to "willow", "spot" to DRAYNOR_WILLOWS.text())) to 0,
         )
         val facts = OptionFacts(bag = setOf(BRONZE_AXE))
-        val eatAnyFood = requireNotNull(form.need(ReflexSettings(1))) { "an eat reflex needs food" }
-        val drink = requireNotNull(form.need(ReflexSettings(1, mapOf("do" to "drink", "potions" to "113"))))
+        val eatAnyFood = form.needs(ReflexSettings(1), facts).single()
+        val drink = form.needs(ReflexSettings(1, mapOf("do" to "drink", "potions" to "113")), facts).single()
         return listOfNotNull(warnings.supplies(listOf(chop), drink, facts)).map { Arguments.of("reflex: $it", it) } +
             listOf(ReflexSettings(1, mapOf("when" to "attacked", "do" to "drink")), ReflexSettings(1, mapOf("when" to "skill")), ReflexSettings(1, mapOf("when" to "skill", "skillName" to "prayer", "do" to "pray")))
                 .flatMap { form.warnings(it, facts) }.map { Arguments.of("reflex: $it", it) } + flows.flatMap { (flow, index) ->
             warnings.of(flow, index, facts, emptyList()).map { Arguments.of("${flow[index].kind}: $it", it) }
         } + (listOfNotNull(warnings.supplies(listOf(chop), eatAnyFood, facts)) + form.warnings(ReflexSettings(1, mapOf("when" to "attacked")), facts))
-            .map { Arguments.of("reflex: $it", it) } + specialWarnings().map { Arguments.of("reflex: $it", it) }
+            .map { Arguments.of("reflex: $it", it) } + (specialWarnings() + teleportWarnings()).map { Arguments.of("reflex: $it", it) }
+    }
+
+    /**
+     * The teleports' warnings: every rune and item a spell needs and every jewellery, from the flow that carries none,
+     * and each spellbook's warning with its longest-named spell.
+     */
+    private fun teleportWarnings(): List<String> {
+        val chop = step("chop", "tree" to "normal")
+        val supplies = Teleports.all.map { ReflexSettings(1, mapOf("do" to "teleport", "destination" to Teleports.key(it))) }
+            .flatMap { form.needs(it, OptionFacts()) }.distinct().mapNotNull { warnings.supplies(listOf(chop), it, OptionFacts()) }
+        val spells = Teleports.all.filterIsInstance<TeleportDestination.Spell>()
+        val books = Spellbook.entries.map { book -> spells.filter { it.spell.style.spellbook != book }.maxBy { Teleports.named(it).length } to book }
+        return supplies + books.flatMap { (spell, book) -> form.warnings(ReflexSettings(1, mapOf("do" to "teleport", "destination" to Teleports.key(spell))), OptionFacts(spellbook = book)) }
     }
 
     /**
@@ -259,14 +278,14 @@ class ReasonsFitTest {
     }
 
     private fun longestNamedForm(specials: () -> Map<Int, Int>) =
-        ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames, PotionOptions(LunaGameNames), PotionOptions.doses(), PrayerOptions, specials)
+        ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames, PotionOptions(LunaGameNames), PotionOptions.doses(), PrayerOptions, specials, TeleportOptions(LunaGameNames))
 
     /** Every kind of aggressive npc Luna spawns: its band line and its slot line. */
     fun threats(): List<Arguments> = dangers.all.map { Arguments.of("${it.name} ${it.level}", it.line, it.short) }
 
     fun descriptions(): List<Arguments> =
         steps.types.all.map { Arguments.of(it.kind, it.description) } +
-            listOf("eat", "drink", "pray", "stop", "jump").map { ReflexSettings(1, mapOf("do" to it)) }.map { Arguments.of(form.label(it), form.description(it)) }
+            listOf("eat", "drink", "pray", "special", "teleport", "stop", "jump").map { ReflexSettings(1, mapOf("do" to it)) }.map { Arguments.of(form.label(it), form.description(it)) }
 
     private fun longestNamedItem(): Int = ItemDefinition.ALL.stream().filter { it.name != "null" }.toList().maxBy { it.name.length }.id()
 

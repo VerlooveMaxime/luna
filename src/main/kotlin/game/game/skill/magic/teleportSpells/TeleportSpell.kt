@@ -128,7 +128,7 @@ enum class TeleportSpell(val level: Int,
     KHARYRLL(level = 66,
              xp = 76.0,
              button = 13053,
-             displayName = "Kharyll",
+             displayName = "Kharyrll",
              destination = Position(3494, 3473),
              style = TeleportStyle.ANCIENT,
              requirements = listOf(

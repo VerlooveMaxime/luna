@@ -52,6 +52,22 @@ interface ReflexBody {
     /** Lights the special attack bar as its button does; true when it is lit afterwards. */
     fun useSpecial(): Boolean
 
+    /**
+     * Whether Luna would teleport the player to [destination] now (S13 part 5): not locked, not tele-blocked, not
+     * deeper in the wilderness than the teleport works from; a spell on the player's spellbook, its level and runes as
+     * Luna counts them, the spellbook's click throttle passed; a jewellery with a charged piece in the bag.
+     */
+    fun canTeleport(destination: TeleportDestination): Boolean
+
+    /**
+     * Starts the teleport to [destination] as the spellbook's button or the jewellery's menu would; true when Luna
+     * took it, the player then held until they land.
+     */
+    fun teleport(destination: TeleportDestination): Boolean
+
+    /** Whether a teleport under way still holds the player. */
+    fun teleporting(): Boolean
+
     /** Whether anything that can get at the player attacks them. */
     fun underAttack(): Boolean
 
@@ -92,7 +108,11 @@ sealed interface ReflexOutcome {
  * steps while a reflex whose When holds wants it; each decision first puts out what no reflex wants any more, with
  * the step going on (S13 part 3, Maxime 2026-10-16). Held prayers stay on while the player runs clear. A special
  * attack lights the bar once, with energy for one and only in a fight for a special that lands with the next hit
- * (S13 part 4, Maxime 2026-10-16); the lit bar is Luna's to use and keeps the reflex from lighting it again.
+ * (S13 part 4, Maxime 2026-10-16); the lit bar is Luna's to use and keeps the reflex from lighting it again. A
+ * teleport is a stop or a jump whose flight is the teleport itself (S13 part 5, Maxime 2026-10-16): once Luna takes it
+ * the step waits for the landing, then the outcome follows at once, unless something attacks the player where they
+ * land, which Q15's rule meets by running clear first; a teleport Luna turns down after all goes on as a plain stop or
+ * jump.
  */
 class ReflexGuard(
     private val step: StepActivity,
@@ -101,14 +121,15 @@ class ReflexGuard(
     private val hold: PrayerHold,
 ) : StepActivity {
 
-    private var leaving: Firing.Leave? = null
+    private var leaving: Leaving? = null
     private var outcome: ReflexOutcome? = null
     private val changes = mutableListOf<PrayerChange>()
     private val used = mutableListOf<Int>()
 
     override fun isBusy(): Boolean = step.isBusy() && leaving == null && firing() == null && !hold.pending(body, ::wanted)
 
-    override fun isDone(): Boolean = step.isDone()
+    /** A stop or a jump under way owns the step: a turn the step ends meanwhile never passes the flow on without it. */
+    override fun isDone(): Boolean = leaving == null && step.isDone()
 
     /** None while the player runs clear before a stop or a jump: the step no longer works, so its block is stale. */
     override fun blocked(): Reason? = if (leaving != null) null else step.blocked()
@@ -117,8 +138,16 @@ class ReflexGuard(
 
     override fun said(): Said? = step.said()
 
-    /** Running clear before a stop or a jump is what the step waits for, as the slot and the overlay show it. */
-    override fun waiting(): Reason? = leaving?.let { Reason.RunningClear(it.jumpTo?.plus(1)) } ?: step.waiting()
+    /**
+     * Running clear before a stop or a jump is what the step waits for, as the slot and the overlay show it; a teleport
+     * under way is its own sight, and the step's wait no longer holds.
+     */
+    override fun waiting(): Reason? =
+        when (val state = leaving) {
+            null -> step.waiting()
+            is Leaving.RunningClear -> Reason.RunningClear(state.firing.jumpTo?.plus(1))
+            is Leaving.InFlight -> null
+        }
 
     override fun amountDone(): Int = step.amountDone()
 
@@ -136,9 +165,9 @@ class ReflexGuard(
     fun used(): List<Int> = used.toList().also { used.clear() }
 
     override fun act() {
-        val leave = leaving
-        if (leave != null) {
-            leave(leave)
+        val state = leaving
+        if (state != null) {
+            carryOn(state)
             return
         }
         changes += hold.release(body, ::wanted)
@@ -175,15 +204,41 @@ class ReflexGuard(
     private fun wanted(): Set<CombatPrayer> =
         reflexes.mapNotNull { reflex -> (reflex.action as? ReflexAction.Pray)?.takeIf { reflex.trigger.fired(body) != null } }.flatMap { it.prayers }.toSet()
 
-    /** The outcome gives what the reflex fired at, not what the player was at once clear. */
+    /** The leave under way takes the decision: another step clear, or the landing's outcome. */
+    private fun carryOn(state: Leaving) =
+        when (state) {
+            is Leaving.RunningClear -> runClear(state.firing)
+            is Leaving.InFlight -> land(state.firing)
+        }
+
+    /** The flight is over once Luna lets go of the player; the outcome follows, running clear first if the landing is hostile. */
+    private fun land(firing: Firing.Leave) {
+        if (!body.teleporting()) runClear(firing)
+    }
+
+    /** A teleport Luna takes is the flight; one it turns down, or no teleport at all, runs clear. */
     private fun leave(firing: Firing.Leave) {
+        val destination = firing.teleport
+        if (destination != null && body.teleport(destination)) {
+            leaving = Leaving.InFlight(firing)
+            return
+        }
+        runClear(firing)
+    }
+
+    private fun runClear(firing: Firing.Leave) {
         if (body.underAttack()) {
-            leaving = firing
+            leaving = Leaving.RunningClear(firing)
             body.flee()
             return
         }
-        leaving = null
         body.calm()
+        arrive(firing)
+    }
+
+    /** The outcome gives what the reflex fired at, not what the player was at once clear or landed. */
+    private fun arrive(firing: Firing.Leave) {
+        leaving = null
         outcome = firing.jumpTo?.let { ReflexOutcome.Jump(it, firing.number, firing.fired) } ?: ReflexOutcome.Stop(firing.number, firing.fired)
     }
 
@@ -196,6 +251,7 @@ class ReflexGuard(
             is ReflexAction.Drink -> body.potionSlot(action.doses)?.let(Firing::Drink)
             is ReflexAction.Pray -> action.prayers.filter(::prayable).takeIf { it.isNotEmpty() }?.let { Firing.Pray(reflex.number, it) }
             ReflexAction.SpecialAttack -> Firing.Special(reflex.number).takeIf { canSpecial() }
+            is ReflexAction.Teleport -> Firing.Leave(reflex.number, fired, action.jumpTo, action.destination).takeIf { body.canTeleport(action.destination) }
             ReflexAction.StopFlow -> Firing.Leave(reflex.number, fired, jumpTo = null)
             is ReflexAction.JumpTo -> Firing.Leave(reflex.number, fired, action.index)
         }
@@ -230,7 +286,17 @@ class ReflexGuard(
         /** Reflex [number] lights the special attack bar. */
         data class Special(val number: Int) : Firing
 
-        /** A stop, or a jump to the step at [jumpTo]. */
-        data class Leave(val number: Int, val fired: Fired, val jumpTo: Int?) : Firing
+        /** A stop, or a jump to the step at [jumpTo], by [teleport] when the reflex teleports first. */
+        data class Leave(val number: Int, val fired: Fired, val jumpTo: Int?, val teleport: TeleportDestination? = null) : Firing
+    }
+
+    /** How a stop or a jump leaves: the player runs clear of what attacks them, or a teleport flies them out. */
+    private sealed interface Leaving {
+
+        val firing: Firing.Leave
+
+        data class RunningClear(override val firing: Firing.Leave) : Leaving
+
+        data class InFlight(override val firing: Firing.Leave) : Leaving
     }
 }

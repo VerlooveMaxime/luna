@@ -1,6 +1,7 @@
 package game.idle.ui
 
 import game.idle.autopilot.reflex.PrayerOptions
+import game.idle.autopilot.reflex.TeleportOptions
 import game.idle.danger.Aggression
 import game.idle.danger.AggressiveSpawn
 import game.idle.danger.DangerCatalog
@@ -169,6 +170,9 @@ val REFLEXES = ReflexResolver(PORTIONS, POTION_DOSES)
 /** A weapon with a special attack, draining half the bar. */
 const val DARKLIGHT = 6746
 
-/** The fake reflex form; the one weapon with a special it knows is Darklight, draining half the bar. */
-val REFLEX_FORM = ReflexForm(FOODS, PORTIONS, CONFIGURED_TYPES, FakeNames(mapOf(333 to "Trout", 379 to "Lobster", DARKLIGHT to "Darklight")), POTIONS, POTION_DOSES, PrayerOptions) { mapOf(DARKLIGHT to 50) }
+/** The names the reflex screens use: foods, Darklight and the teleport jewellery. */
+val REFLEX_NAMES = FakeNames(mapOf(333 to "Trout", 379 to "Lobster", DARKLIGHT to "Darklight", 1712 to "Amulet of glory(4)", 2552 to "Ring of dueling(8)", 3853 to "Games necklace(8)", 1963 to "Banana"))
+
+/** The fake reflex form; the one weapon with a special it knows is Darklight, draining half the bar; the teleports are Luna's own. */
+val REFLEX_FORM = ReflexForm(FOODS, PORTIONS, CONFIGURED_TYPES, REFLEX_NAMES, POTIONS, POTION_DOSES, PrayerOptions, { mapOf(DARKLIGHT to 50) }, TeleportOptions(REFLEX_NAMES))
 

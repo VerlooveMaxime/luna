@@ -845,7 +845,7 @@ class BuilderConfigureTest {
 
         assertEquals(
             listOf<Any>("Eat", "@whi@Special attack", false, false),
-            listOf(text(draft, BuilderWidgets.toggleText(6, 5, 0)), text(draft, BuilderWidgets.toggleText(7, 1, 0)), visible(draft, BuilderWidgets.row(8)), visible(draft, BuilderWidgets.list(1))),
+            listOf(text(draft, BuilderWidgets.toggleText(6, 5, 0)), text(draft, BuilderWidgets.toggleText(7, 2, 0)), visible(draft, BuilderWidgets.row(8)), visible(draft, BuilderWidgets.list(1))),
         )
     }
 
@@ -921,4 +921,68 @@ class BuilderConfigureTest {
         assertEquals(listOf<Any>(WidgetPicture.Item(1891), "item 1891"), listOf(picture(draft, BuilderWidgets.linePicture(1, 0)), text(draft, BuilderWidgets.lineName(1, 0))))
     }
 
+    private fun teleporting(vararg values: Pair<String, String>) = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("do" to "teleport", *values))))
+
+    @Test
+    fun `a teleport reflex lights Teleport beside Special attack and shows its destination and Then under them`() {
+        val draft = teleporting()
+
+        assertEquals(
+            listOf<Any>("Special attack", "@whi@Teleport", "Teleport", "@gry@Search...", "Then", "@whi@Stop", "Jump", false),
+            listOf(
+                text(draft, BuilderWidgets.toggleText(7, 2, 0)), text(draft, BuilderWidgets.toggleText(7, 2, 1)), text(draft, BuilderWidgets.rowLabel(8)), text(draft, BuilderWidgets.rowText(8)),
+                text(draft, BuilderWidgets.rowLabel(9)), text(draft, BuilderWidgets.toggleText(9, 2, 0)), text(draft, BuilderWidgets.toggleText(9, 2, 1)), visible(draft, BuilderWidgets.row(10)),
+            ),
+        )
+    }
+
+    @Test
+    fun `a teleport whose Then jumps shows the step under Then`() {
+        val draft = teleporting("destination" to "varrock", "then" to "jump", "step" to "5")
+
+        assertEquals(listOf("Varrock", "@whi@Jump", "Step", "Step 1: Chop label"), listOf(text(draft, BuilderWidgets.rowText(8), cows), text(draft, BuilderWidgets.toggleText(9, 2, 1), cows), text(draft, BuilderWidgets.rowLabel(10), cows), text(draft, BuilderWidgets.rowText(10), cows)))
+    }
+
+    @Test
+    fun `a teleport reflex's header names it, describes it and shows its spell's icon`() {
+        val draft = teleporting("destination" to "varrock")
+
+        assertEquals(
+            listOf<Any>("Reflex 1: Teleport", "Teleports away, then stops the flow or goes on from another step.", WidgetPicture.Media("magicon", 12)),
+            listOf(text(draft, BuilderWidgets.HEADER_NAME), text(draft, BuilderWidgets.HEADER_DESCRIPTION), picture(draft, BuilderWidgets.HEADER_PICTURE)),
+        )
+    }
+
+    @Test
+    fun `a teleport reflex with no destination shows the red reason and the Magic skill`() {
+        val draft = teleporting()
+
+        assertEquals(listOf<Any>("@red@! Needs a teleport", WidgetPicture.of(StepIcon.Skill(Skill.MAGIC))), listOf(text(draft, BuilderWidgets.warning(0)), picture(draft, BuilderWidgets.HEADER_PICTURE)))
+    }
+
+    @Test
+    fun `a teleport spell whose runes are neither carried nor withdrawn warns about each in yellow`() {
+        val draft = teleporting("destination" to "varrock")
+
+        assertEquals(
+            listOf("@yel@! You carry no air rune and no bank step withdraws any", "@yel@! You carry no fire rune and no bank step withdraws any", "@yel@! You carry no law rune and no bank step withdraws any"),
+            (0 until 3).map { text(draft, BuilderWidgets.warning(it)) },
+        )
+    }
+
+    @Test
+    fun `a teleport spell of the other spellbook warns after the runes`() {
+        val draft = teleporting("destination" to "paddewwa")
+        val sent = configure.updates(cows, draft, facts.copy(bag = setOf(556, 554, 563))).filterIsInstance<WidgetUpdate.Text>()
+
+        assertEquals("@yel@! Paddewwa needs the Ancient spellbook", sent.single { it.id == BuilderWidgets.warning(0) }.text)
+    }
+
+    @Test
+    fun `a teleport by jewellery carried has no warning`() {
+        val draft = teleporting("destination" to "amulet_of_glory:edgeville")
+        val sent = configure.updates(cows, draft, facts.copy(bag = setOf(1710))).filterIsInstance<WidgetUpdate.Text>()
+
+        assertEquals("@gre@No warnings.", sent.single { it.id == BuilderWidgets.warning(0) }.text)
+    }
 }

@@ -2,6 +2,8 @@ package game.idle.flow
 
 import engine.combat.prayer.CombatPrayer
 import game.idle.flow.FakeStepType.Companion.step
+import game.item.degradable.jewellery.TeleportJewellery
+import game.skill.magic.teleportSpells.TeleportSpell
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -108,7 +110,7 @@ class ReflexResolverTest {
 
     @Test
     fun `a reflex does only what reflexes do`() {
-        assertEquals("'teleport' is not something a reflex does", problemOf("do" to "teleport"))
+        assertEquals("'dance' is not something a reflex does", problemOf("do" to "dance"))
     }
 
     @Test
@@ -228,5 +230,53 @@ class ReflexResolverTest {
     @Test
     fun `a special attack reflex uses the special attack`() {
         assertEquals(ReflexAction.SpecialAttack, resolvedAlone("do" to "special").action)
+    }
+
+    @Test
+    fun `a teleport reflex teleports by its spell and then stops`() {
+        assertEquals(ReflexAction.Teleport(TeleportDestination.Spell(TeleportSpell.VARROCK), jumpTo = null), resolvedAlone("do" to "teleport", "destination" to "varrock").action)
+    }
+
+    @Test
+    fun `a teleport reflex teleports by its jewellery`() {
+        assertEquals(
+            ReflexAction.Teleport(TeleportDestination.Jewellery(TeleportJewellery.AMULET_OF_GLORY, 0), jumpTo = null),
+            resolvedAlone("do" to "teleport", "destination" to "amulet_of_glory:edgeville").action,
+        )
+    }
+
+    @Test
+    fun `a teleport whose Then jumps follows its step`() {
+        assertEquals(ReflexAction.Teleport(TeleportDestination.Spell(TeleportSpell.VARROCK), jumpTo = 1), resolvedAlone("do" to "teleport", "destination" to "varrock", "then" to "jump", "step" to "3").action)
+    }
+
+    @Test
+    fun `a teleport whose Then stops says so`() {
+        assertEquals(ReflexAction.Teleport(TeleportDestination.Spell(TeleportSpell.VARROCK), jumpTo = null), resolvedAlone("do" to "teleport", "destination" to "varrock", "then" to "stop").action)
+    }
+
+    @Test
+    fun `a teleport reflex needs a destination picked`() {
+        assertEquals("Needs a teleport", problemOf("do" to "teleport"))
+    }
+
+    @Test
+    fun `a teleport to a place no teleport offers is refused, the wilderness spells among them`() {
+        assertEquals("'dareeyak' is not a teleport", problemOf("do" to "teleport", "destination" to "dareeyak"))
+    }
+
+    @Test
+    fun `a teleport's Then is a stop or a jump`() {
+        assertEquals("'wait' is not a choice for Then", problemOf("do" to "teleport", "destination" to "varrock", "then" to "wait"))
+    }
+
+    @Test
+    fun `a teleport whose Then jumps needs its step picked`() {
+        assertEquals("Needs a step", problemOf("do" to "teleport", "destination" to "varrock", "then" to "jump"))
+    }
+
+    @Test
+    fun `a teleport whose Then jumps to a deleted step cannot work`() {
+        assertEquals("Jumps to a step that was deleted", problemOf("do" to "teleport", "destination" to "varrock", "then" to "jump", "step" to "99"))
     }
 }

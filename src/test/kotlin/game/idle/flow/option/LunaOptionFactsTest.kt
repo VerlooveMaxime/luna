@@ -9,6 +9,7 @@ import io.luna.game.model.item.Equipment
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
+import io.luna.game.model.mob.Spellbook
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -92,6 +93,14 @@ class LunaOptionFactsTest {
         player.skills.resetCombatLevel()
 
         assertEquals(6, LunaOptionFacts.of(player).combat)
+    }
+
+    @Test
+    fun `the facts hold the player's spellbook`() {
+        val player = boostedWoodcutter()
+        player.spellbook = Spellbook.ANCIENT
+
+        assertEquals(Spellbook.ANCIENT, LunaOptionFacts.of(player).spellbook)
     }
 
     @Test

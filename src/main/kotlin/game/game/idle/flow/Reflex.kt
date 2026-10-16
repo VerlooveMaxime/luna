@@ -48,9 +48,10 @@ object ReflexKeys {
     val SPECIAL_FOR_RULE = Reasons.takes(SPECIAL_FOR_LABEL, SPECIAL_FOR_WORDS)
 
     /**
-     * What it does: [EAT] (the default), [DRINK], [PRAY], [SPECIAL_ATTACK], [STOP] the flow, or [JUMP] to the step
-     * whose id [STEP] holds. [PRAYERS] lists the prayers a pray reflex keeps on, by their tab buttons ([Prayers], as a
-     * list of [StepItems]).
+     * What it does: [EAT] (the default), [DRINK], [PRAY], [SPECIAL_ATTACK], [TELEPORT], [STOP] the flow, or [JUMP] to
+     * the step whose id [STEP] holds. [PRAYERS] lists the prayers a pray reflex keeps on, by their tab buttons
+     * ([Prayers], as a list of [StepItems]). A teleport goes to [DESTINATION] (a key of [Teleports]) and [THEN] either
+     * stops the flow ([STOP], the default) or jumps to [STEP] ([JUMP]) (S13 part 5, Maxime 2026-10-16).
      */
     const val DO = "do"
     const val EAT = "eat"
@@ -59,6 +60,10 @@ object ReflexKeys {
     const val PRAY = "pray"
     const val PRAYERS = "prayers"
     const val SPECIAL_ATTACK = "special"
+    const val TELEPORT = "teleport"
+    const val DESTINATION = "destination"
+    const val DESTINATION_LABEL = "Teleport"
+    const val THEN = "then"
     const val STOP = "stop"
     const val JUMP = "jump"
     const val STEP = "step"
@@ -144,6 +149,12 @@ sealed interface ReflexAction {
      * the boost fires by itself. One shot: the bar is never lit twice.
      */
     data object SpecialAttack : ReflexAction
+
+    /**
+     * Teleports to [destination], the teleport being the flight (S13 part 5, Maxime 2026-10-16), then stops the flow,
+     * or goes on from the step at [jumpTo]. A teleport Luna turns down after all goes on as a plain stop or jump.
+     */
+    data class Teleport(val destination: TeleportDestination, val jumpTo: Int?) : ReflexAction
 
     /** Stops the flow, running clear first while attacked. */
     data object StopFlow : ReflexAction

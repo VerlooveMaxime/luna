@@ -5,6 +5,7 @@ import game.idle.autopilot.reflex.FoodOptions
 import game.idle.autopilot.reflex.PotionOptions
 import game.idle.autopilot.reflex.PrayerOptions
 import game.idle.autopilot.reflex.SpecialOptions
+import game.idle.autopilot.reflex.TeleportOptions
 import game.idle.danger.LunaDangers
 import game.idle.flow.Clock
 import game.idle.flow.FlowError
@@ -43,7 +44,7 @@ val config = AutopilotConfig.load(AutopilotConfig.PATH)
 val steps = IdleSteps.load()
 val resolver = FlowResolver(steps.types)
 val reflexResolver = ReflexResolver(FoodOptions.portions(), PotionOptions.doses())
-val reflexForm = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames, PotionOptions(LunaGameNames), PotionOptions.doses(), PrayerOptions, SpecialOptions::drains)
+val reflexForm = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames, PotionOptions(LunaGameNames), PotionOptions.doses(), PrayerOptions, SpecialOptions::drains, TeleportOptions(LunaGameNames))
 val font = ClientFont.fromCache(ctx.cache)
 val plainFont = ClientFont.fromCache(ctx.cache, ClientFont.PLAIN)
 val words = StepWords(LunaGameNames, plainFont)

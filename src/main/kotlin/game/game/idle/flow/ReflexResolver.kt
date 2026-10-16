@@ -8,6 +8,8 @@ import game.idle.flow.ReflexKeys.BELOW_RANGE
 import game.idle.flow.ReflexKeys.BELOW_WORDS
 import game.idle.flow.ReflexKeys.DEFAULT_BELOW
 import game.idle.flow.ReflexKeys.DEFAULT_SPECIAL_FOR
+import game.idle.flow.ReflexKeys.DESTINATION
+import game.idle.flow.ReflexKeys.DESTINATION_LABEL
 import game.idle.flow.ReflexKeys.DO
 import game.idle.flow.ReflexKeys.DRINK
 import game.idle.flow.ReflexKeys.EAT
@@ -30,6 +32,8 @@ import game.idle.flow.ReflexKeys.SPECIAL_FOR_RANGE
 import game.idle.flow.ReflexKeys.SPECIAL_FOR_WORDS
 import game.idle.flow.ReflexKeys.STEP
 import game.idle.flow.ReflexKeys.STOP
+import game.idle.flow.ReflexKeys.TELEPORT
+import game.idle.flow.ReflexKeys.THEN
 import game.idle.flow.ReflexKeys.WHEN
 import io.luna.game.model.mob.Skill
 
@@ -39,7 +43,8 @@ import io.luna.game.model.mob.Skill
  * every item id Luna can eat to the ids of its food's every portion, so a reflex picking a cake eats its slices too.
  * [doses] maps each listed potion to its dose ids, lowest dose first. A pray reflex keeps Luna's prayers by their tab
  * buttons ([Prayers]); two of one group cannot be on together, so a list holding both cannot work (Maxime, 2026-10-16).
- * A special energy When counts specials of whatever weapon is worn, so it needs nothing of the flow (S13 part 4).
+ * A special energy When counts specials of whatever weapon is worn, so it needs nothing of the flow (S13 part 4). A
+ * teleport goes to one of [Teleports]' destinations and then stops or jumps as a stop or jump does (S13 part 5).
  */
 class ReflexResolver(private val portions: Map<Int, Set<Int>>, private val doses: Map<Int, List<Int>>) {
 
@@ -111,6 +116,7 @@ class ReflexResolver(private val portions: Map<Int, Set<Int>>, private val doses
             DRINK -> ReflexAction.Drink(potions(reflex))
             PRAY -> ReflexAction.Pray(prayers(reflex))
             SPECIAL_ATTACK -> ReflexAction.SpecialAttack
+            TELEPORT -> ReflexAction.Teleport(destination(reflex[DESTINATION]), then(reflex, steps))
             STOP -> ReflexAction.StopFlow
             JUMP -> ReflexAction.JumpTo(jumpTarget(reflex[STEP], steps))
             else -> throw FlowError("'$what' is not something a reflex does")
@@ -129,6 +135,21 @@ class ReflexResolver(private val portions: Map<Int, Set<Int>>, private val doses
             .map { Prayers.of(it.id) ?: throw FlowError(Reasons.notA("Prayer", it.id.toString())) }
         Prayers.clash(prayers)?.let { (one, other) -> throw FlowError("${Prayers.named(one)} and ${Prayers.named(other)} cannot be on together") }
         return prayers
+    }
+
+    private fun destination(key: String?): TeleportDestination {
+        if (key == null) throw FlowError(Reasons.needs(DESTINATION_LABEL))
+        return Teleports.of(key) ?: throw FlowError(Reasons.notA(DESTINATION_LABEL, key))
+    }
+
+    /** Where a teleport's Then sends the flow: nowhere for a stop, the step's index for a jump. */
+    private fun then(reflex: ReflexSettings, steps: List<StepSettings>): Int? {
+        val then = reflex[THEN] ?: STOP
+        return when (then) {
+            STOP -> null
+            JUMP -> jumpTarget(reflex[STEP], steps)
+            else -> throw FlowError("'$then' is not a choice for Then")
+        }
     }
 
     private fun jumpTarget(step: String?, steps: List<StepSettings>): Int {
