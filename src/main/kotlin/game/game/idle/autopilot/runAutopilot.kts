@@ -1,21 +1,24 @@
 package game.idle.autopilot
 
 import api.predef.*
+import game.idle.autopilot.reflex.FoodOptions
+import game.idle.autopilot.reflex.PotionOptions
 import game.idle.danger.LunaDangers
 import game.idle.flow.Clock
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
 import game.idle.flow.FlowRunner
 import game.idle.flow.FlowStops
+import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexResolver
 import game.idle.flow.ResolvedFlow
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepDangers
 import game.idle.flow.StepLines
 import game.idle.flow.StepWords
+import game.idle.flow.option.LunaGameNames
 import game.idle.font.ClientFont
 import game.idle.idleState
-import game.idle.flow.option.LunaGameNames
 import game.idle.ui.AutopilotStatus
 import game.idle.ui.BuilderConfigure
 import game.idle.ui.BuilderOverview
@@ -27,8 +30,6 @@ import game.idle.ui.IdleTab
 import game.idle.ui.IdleUi
 import game.idle.ui.LunaBuilderUi
 import game.idle.ui.MapPickEvent
-import game.idle.autopilot.reflex.FoodOptions
-import game.idle.flow.ReflexForm
 import io.luna.game.event.impl.ArrangeItemEvent
 import io.luna.game.event.impl.ButtonClickEvent
 import io.luna.game.event.impl.LoginEvent
@@ -39,8 +40,8 @@ val config = AutopilotConfig.load(AutopilotConfig.PATH)
 // Loaded at boot so a typo in a data file stops the server instead of surfacing at the first step that uses it.
 val steps = IdleSteps.load()
 val resolver = FlowResolver(steps.types)
-val reflexResolver = ReflexResolver(FoodOptions.portions())
-val reflexForm = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames)
+val reflexResolver = ReflexResolver(FoodOptions.portions(), PotionOptions.doses())
+val reflexForm = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames, PotionOptions(LunaGameNames), PotionOptions.doses())
 val font = ClientFont.fromCache(ctx.cache)
 val plainFont = ClientFont.fromCache(ctx.cache, ClientFont.PLAIN)
 val words = StepWords(LunaGameNames, plainFont)

@@ -335,7 +335,7 @@ class BuilderWidgetsTest {
 
     @Test
     fun `a toggle shows two, three or five buttons`() {
-        assertEquals(listOf(2, 3, 5), BuilderWidgets.TOGGLE_SIZES)
+        assertEquals(listOf(1, 2, 3, 4, 5), BuilderWidgets.TOGGLE_SIZES)
     }
 
     @Test
@@ -360,4 +360,11 @@ class BuilderWidgetsTest {
         assertNull(BuilderWidgets.stopOf(BuilderWidgets.stopFrame(3)))
         assertNull(BuilderWidgets.stopOf(BuilderWidgets.STOPS_AFTER_FACE))
     }
+
+    @Test
+    fun `one and four button sets have separate ids and their clicks map to rows`() {
+        assertEquals(listOf(42300, 42344, 42400, 42543, 42555), listOf(BuilderWidgets.toggles(0, 1), BuilderWidgets.toggles(11, 1), BuilderWidgets.toggles(0, 4), BuilderWidgets.toggles(11, 4), BuilderWidgets.toggleText(11, 4, 3)))
+        assertEquals(listOf(1 to 0, 6 to 3), listOf(BuilderWidgets.toggleOf(BuilderWidgets.toggleFace(1, 1, 0)), BuilderWidgets.toggleOf(BuilderWidgets.toggleFace(6, 4, 3))))
+    }
+
 }

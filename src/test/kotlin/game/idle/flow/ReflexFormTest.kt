@@ -19,7 +19,7 @@ class ReflexFormTest {
     private val foods = OptionSource { listOf(StepOption("$trout", "Trout", OptionIcon.Item(trout))) }
     private val portions = mapOf(trout to setOf(trout), lobster to setOf(lobster), cake to setOf(cake, slice))
     private val types = StepTypes(listOf(FakeStepType("fight"), FakeStepType("bank")))
-    private val form = ReflexForm(foods, portions, types, FakeNames(mapOf(trout to "Trout", lobster to "Lobster")))
+    private val form = ReflexForm(foods, portions, types, FakeNames(mapOf(trout to "Trout", lobster to "Lobster", 113 to "Strength potion(4)", 2440 to "Super strength(4)")), OptionSource { emptyList() }, mapOf(113 to listOf(119, 117, 115, 113), 2440 to listOf(161, 159, 157, 2440)))
     private val steps = listOf(step("fight").copy(id = 4), step("bank").copy(id = 7))
 
     private fun reflex(vararg values: Pair<String, String>) = ReflexSettings(2, mapOf(*values))
@@ -41,9 +41,10 @@ class ReflexFormTest {
     fun `an eat reflex's screen shows When and Below on the left, Do and its food list on the right`() {
         assertEquals(
             listOf(
-                "When (left): toggle when hitpoints 'Hitpoints' / attacked 'Under attack'",
+                "When (left): toggle when hitpoints 'Hitpoints' / skill 'Skill'",
+                " (left): toggle when attacked 'Under attack'",
                 "Below (left): typed below 1..99",
-                "Do (right): toggle do eat 'Eat' / stop 'Stop' / jump 'Jump'",
+                "Do (right): toggle do eat 'Eat' / drink 'Drink' / stop 'Stop' / jump 'Jump'",
                 "Food (right): list foods on 4 rows, 'What would you like to eat?'",
             ),
             shown(),
@@ -52,12 +53,12 @@ class ReflexFormTest {
 
     @Test
     fun `an under attack reflex has no Below`() {
-        assertEquals(listOf("When", "Do", "Food"), shown("when" to "attacked").map { it.substringBefore(" (") })
+        assertEquals(listOf("When", "", "Do", "Food"), shown("when" to "attacked").map { it.substringBefore(" (") })
     }
 
     @Test
     fun `a stop reflex shows When and Do alone`() {
-        assertEquals(listOf("When", "Below", "Do"), shown("do" to "stop").map { it.substringBefore(" (") })
+        assertEquals(listOf("When", "", "Below", "Do"), shown("do" to "stop").map { it.substringBefore(" (") })
     }
 
     @Test
@@ -69,7 +70,7 @@ class ReflexFormTest {
     fun `the toggles light hitpoints and eat by default`() {
         val toggles = form.fields(steps).filterIsInstance<StepField.Toggle>()
 
-        assertEquals(listOf("hitpoints", "eat"), toggles.map { it.current(StepSettings(), FlowContext()) })
+        assertEquals(listOf("hitpoints", "hitpoints", "eat"), toggles.map { it.current(StepSettings(), FlowContext()) })
     }
 
     @Test
@@ -77,26 +78,26 @@ class ReflexFormTest {
         val toggles = form.fields(steps).filterIsInstance<StepField.Toggle>()
         val settings = form.settings(reflex("when" to "attacked", "do" to "jump"))
 
-        assertEquals(listOf("attacked", "jump"), toggles.map { it.current(settings, FlowContext()) })
+        assertEquals(listOf("attacked", "attacked", "jump"), toggles.map { it.current(settings, FlowContext()) })
     }
 
     @Test
     fun `Below shows the share of hitpoints, half without one`() {
-        val typed = form.fields(steps).filterIsInstance<StepField.Typed>().single()
+        val typed = form.fields(steps).filterIsInstance<StepField.Typed>().single { it.key == ReflexKeys.BELOW }
 
         assertEquals(listOf("30%", "50%"), listOf(typed.shown("30"), typed.shown(null)))
     }
 
     @Test
     fun `an empty food list offers any food until some is picked`() {
-        val list = form.fields(steps).filterIsInstance<StepField.Items>().single()
+        val list = form.fields(steps).filterIsInstance<StepField.Items>().single { it.key == ReflexKeys.FOODS }
 
         assertEquals(listOf("+ Any food: pick some...", "+ Add or remove food..."), listOf(list.empty, list.add))
     }
 
     @Test
     fun `the step search offers the flow's steps`() {
-        val search = form.fields(steps).filterIsInstance<StepField.Search>().single()
+        val search = form.fields(steps).filterIsInstance<StepField.Search>().single { it.target.key == ReflexKeys.STEP }
 
         assertEquals(listOf("4", "7"), search.target.source.options(OptionContext()).map { it.value })
     }
@@ -216,4 +217,75 @@ class ReflexFormTest {
             options,
         )
     }
+
+    @Test
+    fun `a skill condition has its search and its own Below level`() {
+        assertEquals(listOf("When", "", "Skill", "Below", "Do", "Potions"), shown("when" to "skill", "do" to "drink").map { it.substringBefore(" (") })
+    }
+
+    @Test
+    fun `the skill search offers every skill except hitpoints with its icon`() {
+        val search = form.fields(steps).filterIsInstance<StepField.Search>().single { it.target.key == ReflexKeys.SKILL_NAME }
+        val rows = search.target.source.options(OptionContext())
+
+        assertEquals(io.luna.game.model.mob.Skill.NAMES.filter { it != "Hitpoints" }, rows.map { it.label })
+        assertEquals(OptionIcon.Skill(5), rows.single { it.value == "prayer" }.icon)
+    }
+
+    @Test
+    fun `the skill Below shows the typed level or that none is set`() {
+        val field = form.fields(steps).filterIsInstance<StepField.Typed>().single { it.key == ReflexKeys.SKILL_BELOW }
+
+        assertEquals(listOf("25", "@gry@not set yet"), listOf(field.shown("25"), field.shown(null)))
+    }
+
+    @Test
+    fun `drink names its action and pictures the first potion`() {
+        val drink = reflex("do" to "drink", "potions" to "2440,113")
+
+        assertEquals(listOf("Drink", "Drinks a dose of the first of its potions the bag holds.", StepIcon.Item(2440)), listOf(form.label(drink), form.description(drink), form.icon(drink)))
+    }
+
+    @Test
+    fun `a drink with no potion has an empty vial and says a potion`() {
+        val drink = reflex("do" to "drink")
+
+        assertEquals(listOf(StepIcon.Item(229), "Hitpoints below 50%: drink a potion"), listOf(form.icon(drink), form.sentence(drink, steps)))
+    }
+
+    @Test
+    fun `a skill drink sentence names the skill and potion kinds without dose suffixes`() {
+        assertEquals("Strength below 25: drink super strength, strength potion", form.sentence(reflex("when" to "skill", "skillName" to "strength", "skillBelow" to "25", "do" to "drink", "potions" to "2440,113"), steps))
+    }
+
+    @Test
+    fun `a skill condition with unset values says what remains to set`() {
+        assertEquals("Skill below not set yet: eat any food", form.sentence(reflex("when" to "skill"), steps))
+    }
+
+    @Test
+    fun `an unknown skill stays visible so the bad value can be corrected`() {
+        assertEquals("flying below 20: eat any food", form.sentence(reflex("when" to "skill", "skillName" to "flying", "skillBelow" to "20"), steps))
+    }
+
+    @Test
+    fun `drinking needs any dose of its selected potions`() {
+        assertEquals(ToolNeed("potion", mapOf(119 to 0, 117 to 0, 115 to 0, 113 to 0)), form.need(reflex("do" to "drink", "potions" to "113")))
+    }
+
+    @Test
+    fun `an empty or invalid potion list never falls back to any potion`() {
+        assertEquals(listOf(emptySet<Int>(), emptySet()), listOf(form.need(reflex("do" to "drink"))?.items?.keys, form.need(reflex("do" to "drink", "potions" to "1511"))?.items?.keys))
+    }
+
+    @Test
+    fun `drinking under attack warns about spending a dose each time`() {
+        assertEquals(listOf(ReflexForm.DRINKS_WHILE_ATTACKED), form.warnings(reflex("when" to "attacked", "do" to "drink")))
+    }
+
+    @Test
+    fun `eating on a skill condition warns about eating at full hitpoints`() {
+        assertEquals(listOf(ReflexForm.EATS_ON_SKILL), form.warnings(reflex("when" to "skill", "do" to "eat")))
+    }
+
 }

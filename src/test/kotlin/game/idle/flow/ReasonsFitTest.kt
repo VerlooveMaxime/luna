@@ -2,6 +2,7 @@ package game.idle.flow
 
 import game.idle.autopilot.IdleSteps
 import game.idle.autopilot.reflex.FoodOptions
+import game.idle.autopilot.reflex.PotionOptions
 import game.idle.danger.DangerCatalog
 import game.idle.danger.LunaDangers
 import game.idle.flow.option.InputSource
@@ -46,10 +47,10 @@ class ReasonsFitTest {
         small = ClientFont.fromCache(TestWorld.context.cache)
         steps = IdleSteps.load()
         resolver = FlowResolver(steps.types)
-        reflexes = ReflexResolver(FoodOptions.portions())
+        reflexes = ReflexResolver(FoodOptions.portions(), PotionOptions.doses())
         dangers = LunaDangers(LunaGameNames).catalog()
         warnings = StepWarnings(resolver, LunaGameNames, StepDangers(resolver, dangers, LunaGameNames))
-        form = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames)
+        form = ReflexForm(FoodOptions(LunaGameNames), FoodOptions.portions(), steps.types, LunaGameNames, PotionOptions(LunaGameNames), PotionOptions.doses())
     }
 
     @ParameterizedTest(name = "{0}")
@@ -87,7 +88,7 @@ class ReasonsFitTest {
 
     @Test
     fun `every warning the kinds and reflexes can give is measured`() {
-        assertEquals(15, warned().size)
+        assertEquals(18, warned().size)
     }
 
     @ParameterizedTest(name = "{0}")
@@ -184,6 +185,13 @@ class ReasonsFitTest {
     ).map { (name, flow) -> Arguments.of(name, flow) }
 
     fun brokenReflexes(): List<Arguments> = listOf(
+        "a skill reflex without a skill" to ReflexSettings(1, mapOf("when" to "skill")),
+        "a skill reflex without a level" to ReflexSettings(1, mapOf("when" to "skill", "skillName" to "strength")),
+        "a skill reflex with a bad level" to ReflexSettings(1, mapOf("when" to "skill", "skillName" to "strength", "skillBelow" to "100")),
+        "a skill reflex with an unknown skill" to ReflexSettings(1, mapOf("when" to "skill", "skillName" to "flying")),
+        "a skill reflex with hitpoints" to ReflexSettings(1, mapOf("when" to "skill", "skillName" to "hitpoints")),
+        "a drink reflex without a potion" to ReflexSettings(1, mapOf("do" to "drink")),
+        "a drink reflex with no such potion" to ReflexSettings(1, mapOf("do" to "drink", "potions" to "1511")),
         "a reflex below nothing" to ReflexSettings(1, mapOf("below" to "0")),
         "a reflex doing what no reflex does" to ReflexSettings(1, mapOf("do" to "pray")),
         "a reflex eating what is not food" to ReflexSettings(1, mapOf("foods" to "1511")),
@@ -206,7 +214,10 @@ class ReasonsFitTest {
         )
         val facts = OptionFacts(bag = setOf(BRONZE_AXE))
         val eatAnyFood = requireNotNull(form.need(ReflexSettings(1))) { "an eat reflex needs food" }
-        return flows.flatMap { (flow, index) ->
+        val drink = requireNotNull(form.need(ReflexSettings(1, mapOf("do" to "drink", "potions" to "113"))))
+        return listOfNotNull(warnings.supplies(listOf(chop), drink, facts)).map { Arguments.of("reflex: $it", it) } +
+            listOf(ReflexSettings(1, mapOf("when" to "attacked", "do" to "drink")), ReflexSettings(1, mapOf("when" to "skill")))
+                .flatMap { form.warnings(it) }.map { Arguments.of("reflex: $it", it) } + flows.flatMap { (flow, index) ->
             warnings.of(flow, index, facts, emptyList()).map { Arguments.of("${flow[index].kind}: $it", it) }
         } + (listOfNotNull(warnings.supplies(listOf(chop), eatAnyFood, facts)) + form.warnings(ReflexSettings(1, mapOf("when" to "attacked"))))
             .map { Arguments.of("reflex: $it", it) }
@@ -217,7 +228,7 @@ class ReasonsFitTest {
 
     fun descriptions(): List<Arguments> =
         steps.types.all.map { Arguments.of(it.kind, it.description) } +
-            listOf("eat", "stop", "jump").map { ReflexSettings(1, mapOf("do" to it)) }.map { Arguments.of(form.label(it), form.description(it)) }
+            listOf("eat", "drink", "stop", "jump").map { ReflexSettings(1, mapOf("do" to it)) }.map { Arguments.of(form.label(it), form.description(it)) }
 
     private fun longestNamedItem(): Int = ItemDefinition.ALL.stream().filter { it.name != "null" }.toList().maxBy { it.name.length }.id()
 

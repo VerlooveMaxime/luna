@@ -5,6 +5,13 @@ interface ReflexBody {
 
     fun health(): Health
 
+    fun level(skill: Int): Int
+
+    /** The bag slot of the first held id in [doses], or null when none is held. */
+    fun potionSlot(doses: List<Int>): Int?
+
+    fun drink(slot: Int)
+
     /** The bag slot of the first of [foods] the bag holds, in bag order, or of any food when [foods] is empty; null for none. */
     fun foodSlot(foods: Set<Int>): Int?
 
@@ -43,8 +50,8 @@ sealed interface ReflexOutcome {
 /**
  * The running [step]'s activity with the [reflexes] attached to it, in its order (S07c). At each decision the first
  * reflex whose When holds and whose Do can be done fires, else the step acts as usual; the step is not busy while one
- * would fire, so the driver decides after its pause, mid-fight included. Eating leaves the step going, as a 2006 player's
- * meal did. A stop or a jump owns the step until nothing attacks the player, who runs clear meanwhile, cornered or not,
+ * would fire, so the driver decides after its pause, mid-fight included. Eating and drinking leave the step going, as a 2006 player's
+ * consumables did. A stop or a jump owns the step until nothing attacks the player, who runs clear meanwhile, cornered or not,
  * and only then stops the flow or jumps (Maxime, 2026-10-10: never while attacked; S13, Q15: every stop and jump).
  */
 class ReflexGuard(private val step: StepActivity, private val reflexes: List<ResolvedReflex>, private val body: ReflexBody) : StepActivity {
@@ -82,6 +89,7 @@ class ReflexGuard(private val step: StepActivity, private val reflexes: List<Res
     private fun carryOut(firing: Firing?) = when (firing) {
         null -> step.act()
         is Firing.Eat -> body.eat(firing.slot)
+        is Firing.Drink -> body.drink(firing.slot)
         is Firing.Leave -> leave(firing)
     }
 
@@ -103,6 +111,7 @@ class ReflexGuard(private val step: StepActivity, private val reflexes: List<Res
     private fun firing(reflex: ResolvedReflex, fired: Fired): Firing? =
         when (val action = reflex.action) {
             is ReflexAction.Eat -> body.foodSlot(action.foods)?.let(Firing::Eat)
+            is ReflexAction.Drink -> body.potionSlot(action.doses)?.let(Firing::Drink)
             ReflexAction.StopFlow -> Firing.Leave(reflex.number, fired, jumpTo = null)
             is ReflexAction.JumpTo -> Firing.Leave(reflex.number, fired, action.index)
         }
@@ -110,6 +119,8 @@ class ReflexGuard(private val step: StepActivity, private val reflexes: List<Res
     private sealed interface Firing {
 
         data class Eat(val slot: Int) : Firing
+
+        data class Drink(val slot: Int) : Firing
 
         /** A stop, or a jump to the step at [jumpTo]. */
         data class Leave(val number: Int, val fired: Fired, val jumpTo: Int?) : Firing

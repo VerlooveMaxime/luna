@@ -7,10 +7,17 @@ import game.idle.flow.ReflexKeys.BELOW_RANGE
 import game.idle.flow.ReflexKeys.BELOW_RULE
 import game.idle.flow.ReflexKeys.DEFAULT_BELOW
 import game.idle.flow.ReflexKeys.DO
+import game.idle.flow.ReflexKeys.DRINK
 import game.idle.flow.ReflexKeys.EAT
 import game.idle.flow.ReflexKeys.FOODS
 import game.idle.flow.ReflexKeys.HITPOINTS
 import game.idle.flow.ReflexKeys.JUMP
+import game.idle.flow.ReflexKeys.POTIONS
+import game.idle.flow.ReflexKeys.SKILL
+import game.idle.flow.ReflexKeys.SKILL_BELOW
+import game.idle.flow.ReflexKeys.SKILL_NAME
+import game.idle.flow.ReflexKeys.SKILL_RANGE
+import game.idle.flow.ReflexKeys.SKILL_RULE
 import game.idle.flow.ReflexKeys.STEP
 import game.idle.flow.ReflexKeys.STOP
 import game.idle.flow.ReflexKeys.WHEN
@@ -18,21 +25,26 @@ import game.idle.flow.option.GameNames
 import game.idle.flow.option.JumpTargetOptions
 import game.idle.flow.option.OptionIcon
 import game.idle.flow.option.OptionSource
+import game.idle.flow.option.SkillOptions
 import game.idle.flow.option.StepOption
 import game.idle.flow.option.StepTarget
+import io.luna.game.model.mob.Skill
 
 /**
  * A reflex as the builder shows it (S07c): its screen's fields, header and warnings, and the sentence and picture its
  * row shows. Its screen edits it as settings like a step's ([settings]), so the configure screen's toggles, typed
  * fields, lists and searches work on it unchanged: When on the left with its value under it, Do on the right with what
  * it needs under it (S13, Maxime 2026-10-15). An eat reflex picks from [foods]; [portions] gives every portion of the
- * food each edible id belongs to; a jump picks one of the flow's steps, worded with [types]; items are named with [names].
+ * food each edible id belongs to. Drink picks from [potions], with every dose in [doses]; a jump picks one of the
+ * flow's steps, worded with [types]; items are named with [names].
  */
 class ReflexForm(
     private val foods: OptionSource,
     private val portions: Map<Int, Set<Int>>,
     private val types: StepTypes,
     private val names: GameNames,
+    private val potions: OptionSource,
+    private val doses: Map<Int, List<Int>>,
 ) {
 
     /** [reflex] as the settings its screen edits. */
@@ -41,21 +53,37 @@ class ReflexForm(
     /** The reflex [settings] hold. */
     fun reflex(settings: StepSettings): ReflexSettings = ReflexSettings(settings.id, settings.values)
 
-    /** The screen's rows: When and Below on the left; Do, then the Food list on Eat or the step on Jump, picked among [steps]. */
+    /** When and its values on the left; Do and its food, potions or jump target on the right. */
     fun fields(steps: List<StepSettings>): List<StepField> =
         listOf(
             StepField.Toggle(
-                WHEN, "When", listOf(Choice(HITPOINTS, "Hitpoints"), Choice(ATTACKED, "Under attack")),
+                WHEN, "When", listOf(Choice(HITPOINTS, "Hitpoints"), Choice(SKILL, "Skill")),
                 current = { settings, _ -> settings[WHEN] ?: HITPOINTS },
             ),
-            StepField.Typed(BELOW, BELOW_LABEL, BELOW_RANGE, BELOW_RULE, shown = { "${it ?: DEFAULT_BELOW}%" }, visible = { !attacked(it[WHEN]) }),
             StepField.Toggle(
-                DO, "Do", listOf(Choice(EAT, "Eat"), Choice(STOP, "Stop"), Choice(JUMP, "Jump")),
+                WHEN, "", listOf(Choice(ATTACKED, "Under attack")),
+                current = { settings, _ -> settings[WHEN] ?: HITPOINTS },
+            ),
+            StepField.Search(
+                "Skill", StepTarget(SKILL_NAME, OptionSource { context -> SkillOptions.options(context).filter { it.value != "hitpoints" } }),
+                "Which skill?", visible = { it[WHEN] == SKILL },
+            ),
+            StepField.Typed(
+                SKILL_BELOW, BELOW_LABEL, SKILL_RANGE, SKILL_RULE, shown = { it ?: "@gry@not set yet" },
+                visible = { it[WHEN] == SKILL },
+            ),
+            StepField.Typed(BELOW, BELOW_LABEL, BELOW_RANGE, BELOW_RULE, shown = { "${it ?: DEFAULT_BELOW}%" }, visible = { (it[WHEN] ?: HITPOINTS) == HITPOINTS }),
+            StepField.Toggle(
+                DO, "Do", listOf(Choice(EAT, "Eat"), Choice(DRINK, "Drink"), Choice(STOP, "Stop"), Choice(JUMP, "Jump")),
                 current = { settings, _ -> doing(settings[DO]) }, column = FieldColumn.RIGHT,
             ),
             StepField.Items(
                 FOODS, "Food", foods, "What would you like to eat?", "+ Add or remove food...", rows = FOOD_ROWS,
                 column = FieldColumn.RIGHT, visible = { doing(it[DO]) == EAT }, empty = "+ Any food: pick some...",
+            ),
+            StepField.Items(
+                POTIONS, "Potions", potions, "What would you like to drink?", "+ Add or remove potions...", rows = FOOD_ROWS,
+                column = FieldColumn.RIGHT, visible = { doing(it[DO]) == DRINK },
             ),
             StepField.Search(
                 "Step", StepTarget(STEP, JumpTargetOptions(steps, types, names)), "Which step should it jump to?",
@@ -63,10 +91,11 @@ class ReflexForm(
             ),
         )
 
-    /** What the reflex does, as its screen's header names it: "Eat", "Stop the flow", "Jump to a step". */
+    /** What the reflex does, as its screen's header names it: "Eat", "Drink", "Stop the flow", "Jump to a step". */
     fun label(reflex: ReflexSettings): String =
         when (doing(reflex[DO])) {
             EAT -> "Eat"
+            DRINK -> "Drink"
             JUMP -> "Jump to a step"
             else -> "Stop the flow"
         }
@@ -74,14 +103,16 @@ class ReflexForm(
     fun description(reflex: ReflexSettings): String =
         when (doing(reflex[DO])) {
             EAT -> "Eats the first of its foods the bag holds."
+            DRINK -> "Drinks a dose of the first of its potions the bag holds."
             JUMP -> "Goes on from another step, running clear first while attacked."
             else -> "Stops the flow, running clear first while attacked."
         }
 
-    /** The first food it eats, shrimps when it eats any; the red click cross to stop; the hint arrow to jump. */
+    /** The first food or potion, shrimps for any food and an empty vial for no potion; the cross to stop and arrow to jump. */
     fun icon(reflex: ReflexSettings): StepIcon =
         when (doing(reflex[DO])) {
             EAT -> StepIcon.Item(foodIds(reflex).firstOrNull() ?: SHRIMPS)
+            DRINK -> StepIcon.Item(potionIds(reflex).firstOrNull() ?: VIAL)
             JUMP -> JUMP_ICON
             else -> STOP_ICON
         }
@@ -93,6 +124,7 @@ class ReflexForm(
     fun sentence(reflex: ReflexSettings, steps: List<StepSettings>): String {
         val what = when (doing(reflex[DO])) {
             EAT -> "eat ${eats(reflex)}"
+            DRINK -> "drink ${drinks(reflex)}"
             JUMP -> jumps(reflex, steps)
             else -> "stop the flow"
         }
@@ -108,22 +140,47 @@ class ReflexForm(
             StepOption(reflex.id.toString(), "${index + 1} ${sentence(reflex, steps)}", OptionIcon.of(icon(reflex)), group = index)
         }
 
-    /** What an eat reflex needs carried or withdrawn: one of its foods, any food when it lists none; null for the others. */
-    fun need(reflex: ReflexSettings): ToolNeed? {
-        if (doing(reflex[DO]) != EAT) return null
-        val ids = foodIds(reflex).flatMap { portions[it].orEmpty() }.ifEmpty { portions.keys }
-        return ToolNeed("food", ids.associateWith { 0 }, countable = false)
-    }
+    /** What an eat or drink reflex needs carried or withdrawn, including every portion or dose. */
+    fun need(reflex: ReflexSettings): ToolNeed? =
+        when (doing(reflex[DO])) {
+            EAT -> {
+                val ids = foodIds(reflex).flatMap { portions[it].orEmpty() }.ifEmpty { portions.keys }
+                ToolNeed("food", ids.associateWith { 0 }, countable = false)
+            }
+            DRINK -> {
+                val ids = potionIds(reflex).flatMap { doses[it].orEmpty() }
+                ToolNeed("potion", ids.associateWith { 0 })
+            }
+            else -> null
+        }
 
-    /** What its pair of When and Do wastes, in yellow on its screen (Maxime, 2026-10-15): it acts all the same. */
+    /** What its pair of When and Do wastes, in yellow on its screen: it acts all the same. */
     fun warnings(reflex: ReflexSettings): List<String> =
-        listOfNotNull(EATS_AT_FULL.takeIf { attacked(reflex[WHEN]) && doing(reflex[DO]) == EAT })
+        when ((reflex[WHEN] ?: HITPOINTS) to doing(reflex[DO])) {
+            ATTACKED to EAT -> listOf(EATS_AT_FULL)
+            ATTACKED to DRINK -> listOf(DRINKS_WHILE_ATTACKED)
+            SKILL to EAT -> listOf(EATS_ON_SKILL)
+            else -> emptyList()
+        }
 
-    private fun whenWords(reflex: ReflexSettings): String =
-        if (attacked(reflex[WHEN])) "Under attack" else "Hitpoints below ${reflex[BELOW] ?: DEFAULT_BELOW}%"
+    private fun whenWords(reflex: ReflexSettings): String {
+        val whenValue = reflex[WHEN] ?: HITPOINTS
+        return when (whenValue) {
+            ATTACKED -> "Under attack"
+            SKILL -> {
+                val name = reflex[SKILL_NAME]
+                val skill = Skill.NAMES.firstOrNull { it.equals(name, ignoreCase = true) } ?: name ?: "Skill"
+                "$skill below ${reflex[SKILL_BELOW] ?: "not set yet"}"
+            }
+            else -> "Hitpoints below ${reflex[BELOW] ?: DEFAULT_BELOW}%"
+        }
+    }
 
     private fun eats(reflex: ReflexSettings): String =
         foodIds(reflex).joinToString(", ") { names.item(it).lowercase() }.ifEmpty { "any food" }
+
+    private fun drinks(reflex: ReflexSettings): String =
+        potionIds(reflex).joinToString(", ") { names.item(it).removeSuffix("(4)").trimEnd().lowercase() }.ifEmpty { "a potion" }
 
     private fun jumps(reflex: ReflexSettings, steps: List<StepSettings>): String {
         val id = reflex[STEP]?.toIntOrNull() ?: return "jump to a step"
@@ -133,7 +190,7 @@ class ReflexForm(
 
     private fun foodIds(reflex: ReflexSettings): List<Int> = StepItems.parse(reflex[FOODS]).map { it.id }
 
-    private fun attacked(value: String?): Boolean = value == ATTACKED
+    private fun potionIds(reflex: ReflexSettings): List<Int> = StepItems.parse(reflex[POTIONS]).map { it.id }
 
     /** A reflex without a Do eats; one with a Do no reflex has shows as stopping, its screen saying what is wrong. */
     private fun doing(value: String?): String = value ?: EAT
@@ -144,12 +201,16 @@ class ReflexForm(
 
         const val FOOD_ROWS = 4
         const val SHRIMPS = 315
+        const val VIAL = 229
 
         /** The red cross a click leaves on the ground (Maxime, 2026-10-15). */
         val STOP_ICON = StepIcon.Media("cross", 5)
 
         /** The yellow arrow that points at what a hint is about (Maxime, 2026-10-15). */
         val JUMP_ICON = StepIcon.Media("headicons_hint", 0)
+
+        const val DRINKS_WHILE_ATTACKED = "Drinks while attacked, a dose each time"
+        const val EATS_ON_SKILL = "Eats when the skill is low, even at full hitpoints"
 
         const val EATS_AT_FULL = "Eats while attacked, even at full hitpoints"
     }

@@ -234,4 +234,13 @@ class StepWordsTest {
     fun `a flow stopping on every goal met needs a goal`() {
         assertEquals("Autopilot: no step has an Until goal.", StepWords.NO_GOALS)
     }
+
+    @Test
+    fun `a skill reflex says the current skill level when it stops or jumps`() {
+        val fired = Fired.AtSkill(Skill.STRENGTH, 24)
+
+        assertEquals("Autopilot: stopped, reflex 2 fired at Strength 24.", words.stop(1, StepStop.Reflex(2, fired)))
+        assertEquals("Autopilot: reflex 2 fired at Strength 24, jumping to step 3.", words.jump(2, fired, 3))
+    }
+
 }

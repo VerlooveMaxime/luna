@@ -4,6 +4,8 @@ import game.idle.flow.FakeStepType.Companion.step
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 class ReflexResolverTest {
 
@@ -12,7 +14,7 @@ class ReflexResolverTest {
     private val logs = 1511
     private val cake = 1891
     private val twoThirdsCake = 1893
-    private val resolver = ReflexResolver(portions = mapOf(trout to setOf(trout), lobster to setOf(lobster), cake to setOf(cake, twoThirdsCake)))
+    private val resolver = ReflexResolver(portions = mapOf(trout to setOf(trout), lobster to setOf(lobster), cake to setOf(cake, twoThirdsCake)), doses = mapOf(113 to listOf(119, 117, 115, 113), 2440 to listOf(161, 159, 157, 2440)))
     private val fight = step("fight").copy(id = 7, reflexes = listOf(2, 1))
     private val bank = step("bank").copy(id = 3)
 
@@ -127,4 +129,57 @@ class ReflexResolverTest {
     fun `a reflex reads its settings by key`() {
         assertEquals(listOf("stop", null), listOf(reflex(1, "do" to "stop")["do"], ReflexSettings()["do"]))
     }
+
+    @Test
+    fun `a skill reflex reads a named skill and a level separate from hitpoints`() {
+        assertEquals(ReflexTrigger.SkillBelow(2, 25), resolvedAlone("when" to "skill", "skillName" to "STRENGTH", "skillBelow" to "25", "below" to "0").trigger)
+    }
+
+    @Test
+    fun `a skill reflex needs a skill picked`() {
+        assertEquals("Needs a skill", problemOf("when" to "skill"))
+    }
+
+    @Test
+    fun `an unknown skill is refused`() {
+        assertEquals("'flying' is not a skill", problemOf("when" to "skill", "skillName" to "flying"))
+    }
+
+    @Test
+    fun `hitpoints stays in its own percentage condition`() {
+        assertEquals("Use When Hitpoints for hitpoints", problemOf("when" to "skill", "skillName" to "hitpoints"))
+    }
+
+    @Test
+    fun `a skill condition needs its Below level`() {
+        assertEquals("Needs a Below level", problemOf("when" to "skill", "skillName" to "prayer"))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["0", "100", "low"])
+    fun `a skill Below value is a level from 1 to 99`(value: String) {
+        assertEquals("Below takes a level from 1 to 99, not '$value'", problemOf("when" to "skill", "skillName" to "prayer", "skillBelow" to value))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["1", "99"])
+    fun `the endpoints of the skill Below range are accepted`(value: String) {
+        assertEquals(null, problemOf("when" to "skill", "skillName" to "prayer", "skillBelow" to value))
+    }
+
+    @Test
+    fun `a drink reflex resolves every dose in potion list order and lowest dose first`() {
+        assertEquals(ReflexAction.Drink(listOf(161, 159, 157, 2440, 119, 117, 115, 113)), resolvedAlone("do" to "drink", "potions" to "2440,113").action)
+    }
+
+    @Test
+    fun `a drink reflex needs a potion picked`() {
+        assertEquals("Needs a potion", problemOf("do" to "drink"))
+    }
+
+    @Test
+    fun `a drink reflex refuses items outside the potion list`() {
+        assertEquals("'1511' is not a potion", problemOf("do" to "drink", "potions" to "1511"))
+    }
+
 }

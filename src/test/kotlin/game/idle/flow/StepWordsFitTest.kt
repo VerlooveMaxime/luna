@@ -69,7 +69,7 @@ class StepWordsFitTest {
     /** Every end, skip and stop a step can say, the bag-full one with two of the longest-named item left lying. */
     fun chatLines(): List<String> {
         val stuck = listOf(Reason.BagFull(emptyList()), Reason.BagFull(List(2) { longestNamedItem() }), Reason.NoneLeftInBank(longestNamedItem()), Reason.BankFull)
-        return stuck.flatMap { listOf(words.said(99, Said.Ended(it)), words.said(99, Said.Skipped(it)), words.stop(99, StepStop.Stuck(it))) } +
+        return Skill.NAMES.indices.flatMap { listOf(words.stop(99, StepStop.Reflex(99, Fired.AtSkill(it, 99))), words.jump(99, Fired.AtSkill(it, 99), 99)) } + stuck.flatMap { listOf(words.said(99, Said.Ended(it)), words.said(99, Said.Skipped(it)), words.stop(99, StepStop.Stuck(it))) } +
             listOf(
                 words.stop(99, StepStop.Reflex(99, Fired.AtHitpoints(Health(999, 999)))),
                 words.stop(99, StepStop.Reflex(99, Fired.UnderAttack)),

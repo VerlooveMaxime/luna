@@ -74,7 +74,7 @@ class LunaHarnessApiTest {
     /** A light that takes oak logs in, and a bank that withdraws them, for the withdrawals left out (S12). */
     private val light = FakeStepType("light", resolved = { FakeStep("light", needs = listOf(StepNeeds(inputs = listOf(1521)))) })
     private val bank = FakeStepType("bank", resolved = { FakeBankStep(setOf(1521, 1511)) })
-    private val flows = FlowCheck(FlowResolver(StepTypes(listOf(chop, FakeStepType("drop"), light, bank))), ReflexResolver(mapOf(333 to setOf(333))), maxSteps = 2, maxReflexes = 2)
+    private val flows = FlowCheck(FlowResolver(StepTypes(listOf(chop, FakeStepType("drop"), light, bank))), ReflexResolver(mapOf(333 to setOf(333)), emptyMap()), maxSteps = 2, maxReflexes = 2)
 
     private fun api() = LunaHarnessApi(
         TestWorld.world,

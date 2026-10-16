@@ -19,9 +19,9 @@ import game.idle.flow.StepDangers
 import game.idle.flow.StepField
 import game.idle.flow.StepItems
 import game.idle.flow.StepNeeds
+import game.idle.flow.StepOutcome
 import game.idle.flow.StepRadius
 import game.idle.flow.StepSettings
-import game.idle.flow.StepOutcome
 import game.idle.flow.StepSpot
 import game.idle.flow.StepTypes
 import game.idle.flow.StepWork
@@ -159,8 +159,11 @@ val FOODS = OptionSource {
 /** Trout, lobster and a cake with its slices, as Luna's eat table gives every portion of each food. */
 val PORTIONS: Map<Int, Set<Int>> = mapOf(333 to setOf(333), 379 to setOf(379), 1891 to setOf(1891, 1893), 1893 to setOf(1891, 1893))
 
-val REFLEXES = ReflexResolver(PORTIONS)
+val POTION_DOSES = mapOf(113 to listOf(119, 117, 115, 113))
+val POTIONS = OptionSource { listOf(StepOption("113", "Strength potion", OptionIcon.Item(113), note = "0 doses in bank")) }
+
+val REFLEXES = ReflexResolver(PORTIONS, POTION_DOSES)
 
 /** Reflex screens over the configured kinds, trout and lobster named. */
-val REFLEX_FORM = ReflexForm(FOODS, PORTIONS, CONFIGURED_TYPES, FakeNames(mapOf(333 to "Trout", 379 to "Lobster")))
+val REFLEX_FORM = ReflexForm(FOODS, PORTIONS, CONFIGURED_TYPES, FakeNames(mapOf(333 to "Trout", 379 to "Lobster")), POTIONS, POTION_DOSES)
 

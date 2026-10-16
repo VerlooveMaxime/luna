@@ -223,4 +223,70 @@ class LunaReflexBodyTest {
 
         assertTrue(LunaReflexBody(player).dead())
     }
+
+    @Test
+    fun `skill levels include a boost and depleted prayer points`() {
+        val player = login()
+        player.skill(2).level = 4
+        player.skill(5).level = 0
+        val body = LunaReflexBody(player)
+
+        assertEquals(listOf(4, 0), listOf(body.level(2), body.level(5)))
+    }
+
+    @Test
+    fun `potions follow list order before bag order`() {
+        val player = login()
+        player.inventory.set(0, Item(113))
+        player.inventory.set(3, Item(2440))
+
+        assertEquals(3, LunaReflexBody(player).potionSlot(listOf(161, 159, 157, 2440, 119, 117, 115, 113)))
+    }
+
+    @Test
+    fun `the lowest held dose is drunk before a full vial`() {
+        val player = login()
+        player.inventory.set(0, Item(113))
+        player.inventory.set(3, Item(117))
+        player.inventory.set(5, Item(119))
+
+        assertEquals(5, LunaReflexBody(player).potionSlot(listOf(119, 117, 115, 113)))
+    }
+
+    @Test
+    fun `an absent first potion falls through to the next kind`() {
+        val player = login()
+        player.inventory.set(2, Item(113))
+
+        assertEquals(2, LunaReflexBody(player).potionSlot(listOf(161, 159, 157, 2440, 119, 117, 115, 113)))
+    }
+
+    @Test
+    fun `no matching potion means drinking cannot be done`() {
+        val player = login()
+        player.inventory.set(0, Item(229))
+
+        assertNull(LunaReflexBody(player).potionSlot(listOf(119, 117, 115, 113)))
+    }
+
+    @Test
+    fun `drinking clicks the potion like the client`() {
+        val player = login()
+        player.inventory.set(4, Item(113))
+        val clicked = eats()
+
+        LunaReflexBody(player).drink(4)
+
+        assertEquals(listOf(113 to 4), clicked)
+    }
+
+    @Test
+    fun `a potion slot emptied before drinking is ignored`() {
+        val clicked = eats()
+
+        LunaReflexBody(login()).drink(4)
+
+        assertEquals(emptyList<Pair<Int, Int>>(), clicked)
+    }
+
 }

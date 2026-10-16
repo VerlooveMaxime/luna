@@ -84,10 +84,11 @@ object BuilderWidgets {
     private const val TWO_BUTTONS = 13
     private const val THREE_BUTTONS = 20
 
-    /**
-     * A row's set of five buttons (S12's Until), in a block of its own past the Reflexes page's lines at the most
-     * reflexes, since the row's ids are full.
-     */
+    /** Extra toggle sets live past the Reflexes page and Flow stops: the original rows' ids are full. */
+    private const val SINGLE_TOGGLES = 42300
+    private const val FOUR_TOGGLES = 42400
+    private const val SINGLE_TOGGLE_STRIDE = 4
+    private const val FOUR_TOGGLE_STRIDE = 13
     private const val WIDE_TOGGLES = 42000
     private const val WIDE_TOGGLE_STRIDE = 16
 
@@ -256,9 +257,11 @@ object BuilderWidgets {
 
     fun rowNote(row: Int): Int = row(row) + 11
 
-    /** The layer of row [row]'s toggle buttons when it has [count] of them: two, three, or five in the wide block. */
+    /** The layer of row [row]'s toggle buttons when it has [count] of them: one to five; the extra sets have their own id blocks. */
     fun toggles(row: Int, count: Int): Int =
         when (count) {
+            1 -> SINGLE_TOGGLES + row * SINGLE_TOGGLE_STRIDE
+            4 -> FOUR_TOGGLES + row * FOUR_TOGGLE_STRIDE
             2 -> row(row) + TWO_BUTTONS
             3 -> row(row) + THREE_BUTTONS
             else -> WIDE_TOGGLES + row * WIDE_TOGGLE_STRIDE
@@ -337,8 +340,8 @@ object BuilderWidgets {
     /** The configure row whose button face [widgetId] is, or null. */
     fun buttonOf(widgetId: Int): Int? = (0 until ROWS).firstOrNull { rowButtonFace(it) == widgetId }
 
-    /** A toggle shows two, three or five buttons (S12). */
-    val TOGGLE_SIZES = listOf(2, 3, 5)
+    /** A toggle shows one to five buttons. */
+    val TOGGLE_SIZES = listOf(1, 2, 3, 4, 5)
 
     /** The fixed ids run up to the slots, so every id from [FIRST_ID] on is the builder's. */
     fun owns(widgetId: Int): Boolean = widgetId >= FIRST_ID

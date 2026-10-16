@@ -252,11 +252,20 @@ fun described(fields: List<StepField>): List<String> =
 class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
 
     val bag = mutableMapOf<Int, Int>()
+    val levels = mutableMapOf<Int, Int>()
     var attacked = false
     var dead = false
     val done = mutableListOf<String>()
 
     override fun health(): Health = health
+
+    override fun level(skill: Int): Int = levels.getValue(skill)
+
+    override fun potionSlot(doses: List<Int>): Int? = doses.firstNotNullOfOrNull { id -> bag.entries.firstOrNull { it.value == id }?.key }
+
+    override fun drink(slot: Int) {
+        done += "drink $slot"
+    }
 
     override fun foodSlot(foods: Set<Int>): Int? =
         bag.entries.sortedBy { it.key }.firstOrNull { (_, id) -> if (foods.isEmpty()) id != INEDIBLE else id in foods }?.key

@@ -14,10 +14,16 @@ data class ReflexSettings(val id: Int = 0, val values: Map<String, String> = emp
 /** The settings of a reflex and their values. */
 object ReflexKeys {
 
-    /** When it fires: [HITPOINTS] (the default) or [ATTACKED] (S13). */
+    /** When it fires: [HITPOINTS] (the default), [SKILL], or [ATTACKED]. */
     const val WHEN = "when"
     const val HITPOINTS = "hitpoints"
     const val ATTACKED = "attacked"
+    const val SKILL = "skill"
+    const val SKILL_NAME = "skillName"
+    const val SKILL_BELOW = "skillBelow"
+    val SKILL_RANGE = 1..99
+    const val SKILL_WORDS = "a level from 1 to 99"
+    val SKILL_RULE = Reasons.takes("Below", SKILL_WORDS)
 
     /** On [HITPOINTS]: below this share of full, [DEFAULT_BELOW] without one. */
     const val BELOW = "below"
@@ -27,9 +33,11 @@ object ReflexKeys {
     const val BELOW_WORDS = "1 to 99 percent of hitpoints"
     val BELOW_RULE = Reasons.takes(BELOW_LABEL, BELOW_WORDS)
 
-    /** What it does: [EAT] (the default), [STOP] the flow, or [JUMP] to the step whose id [STEP] holds (S13). */
+    /** What it does: [EAT] (the default), [DRINK], [STOP] the flow, or [JUMP] to the step whose id [STEP] holds. */
     const val DO = "do"
     const val EAT = "eat"
+    const val DRINK = "drink"
+    const val POTIONS = "potions"
     const val STOP = "stop"
     const val JUMP = "jump"
     const val STEP = "step"
@@ -52,6 +60,12 @@ sealed interface ReflexTrigger {
         override fun fired(body: ReflexBody): Fired? = body.health().takeIf { it.below(percent) }?.let(Fired::AtHitpoints)
     }
 
+    /** The current level, including boosts and drains; Prayer uses its remaining points. */
+    data class SkillBelow(val skill: Int, val level: Int) : ReflexTrigger {
+
+        override fun fired(body: ReflexBody): Fired? = body.level(skill).takeIf { it < level }?.let { Fired.AtSkill(skill, it) }
+    }
+
     /** Anything that can get at the player attacks them (S13). */
     data object UnderAttack : ReflexTrigger {
 
@@ -64,6 +78,8 @@ sealed interface Fired {
 
     data class AtHitpoints(val health: Health) : Fired
 
+    data class AtSkill(val skill: Int, val level: Int) : Fired
+
     data object UnderAttack : Fired
 }
 
@@ -72,6 +88,9 @@ sealed interface ReflexAction {
 
     /** Eats the first of [foods] the bag holds, in bag order; any food when [foods] is empty. */
     data class Eat(val foods: Set<Int>) : ReflexAction
+
+    /** Drinks the first held id in [doses]: potion list order, then lowest dose first within each potion. */
+    data class Drink(val doses: List<Int>) : ReflexAction
 
     /** Stops the flow, running clear first while attacked. */
     data object StopFlow : ReflexAction

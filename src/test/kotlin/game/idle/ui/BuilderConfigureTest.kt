@@ -1,11 +1,11 @@
 package game.idle.ui
 
-import game.idle.flow.RunProgress
 import game.idle.IdleState
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowResolver
 import game.idle.flow.ReflexForm
 import game.idle.flow.ReflexSettings
+import game.idle.flow.RunProgress
 import game.idle.flow.StepField
 import game.idle.flow.StepSettings
 import game.idle.flow.option.FakeNames
@@ -581,14 +581,14 @@ class BuilderConfigureTest {
     @Test
     fun `an eat reflex's rows are When and Below on the left, Do and its food list on the right`() {
         assertEquals(
-            listOf<Any>("@whi@Hitpoints", "Under attack", "50%", "@whi@Eat", "Stop", "Jump", WidgetUpdate.Placement(1, firstRow = 1, rows = 4, lines = 2), "item 333"),
+            listOf<Any>("@whi@Hitpoints", "Skill", "50%", "@whi@Eat", "Stop", "Jump", WidgetUpdate.Placement(1, firstRow = 1, rows = 4, lines = 2), "item 333"),
             listOf(
                 text(eating, BuilderWidgets.toggleText(0, 2, 0), cows),
                 text(eating, BuilderWidgets.toggleText(0, 2, 1), cows),
-                text(eating, BuilderWidgets.rowPlainText(1), cows),
-                text(eating, BuilderWidgets.toggleText(6, 3, 0), cows),
-                text(eating, BuilderWidgets.toggleText(6, 3, 1), cows),
-                text(eating, BuilderWidgets.toggleText(6, 3, 2), cows),
+                text(eating, BuilderWidgets.rowPlainText(2), cows),
+                text(eating, BuilderWidgets.toggleText(6, 4, 0), cows),
+                text(eating, BuilderWidgets.toggleText(6, 4, 2), cows),
+                text(eating, BuilderWidgets.toggleText(6, 4, 3), cows),
                 updates(eating, cows).getValue(placementKey(1)),
                 text(eating, BuilderWidgets.lineName(1, 0), cows),
             ),
@@ -606,7 +606,7 @@ class BuilderConfigureTest {
     fun `a reflex that jumps shows the step it jumps to under Do`() {
         assertEquals(
             listOf("@whi@Jump", "Step 1: Chop label"),
-            listOf(text(running, BuilderWidgets.toggleText(6, 3, 2), cows), text(running, BuilderWidgets.rowText(7), cows)),
+            listOf(text(running, BuilderWidgets.toggleText(6, 4, 3), cows), text(running, BuilderWidgets.rowText(7), cows)),
         )
     }
 
@@ -818,4 +818,28 @@ class BuilderConfigureTest {
             listOf(text(draft, BuilderWidgets.rowLabel(7)), text(draft, BuilderWidgets.rowText(7)), text(draft, BuilderWidgets.rowLabel(8)), text(draft, BuilderWidgets.rowPlainText(8))),
         )
     }
+
+    @Test
+    fun `the second When row keeps Under attack visible and only the chosen toggle lit`() {
+        val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("when" to "attacked"))))
+
+        assertEquals(listOf("Hitpoints", "Skill", "@whi@Under attack"), listOf(text(draft, BuilderWidgets.toggleText(0, 2, 0)), text(draft, BuilderWidgets.toggleText(0, 2, 1)), text(draft, BuilderWidgets.toggleText(1, 1, 0))))
+        assertFalse(visible(draft, BuilderWidgets.row(2)))
+    }
+
+    @Test
+    fun `a skill drink shows its values on the left and potions on the right`() {
+        val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("when" to "skill", "skillName" to "strength", "skillBelow" to "25", "do" to "drink", "potions" to "113"))))
+
+        assertEquals(listOf("Strength", "25", "@whi@Drink"), listOf(text(draft, BuilderWidgets.rowText(2)), text(draft, BuilderWidgets.rowPlainText(3)), text(draft, BuilderWidgets.toggleText(6, 4, 1))))
+        assertEquals(WidgetUpdate.Placement(1, firstRow = 1, rows = 4, lines = 2), updates(draft).getValue(placementKey(1)))
+    }
+
+    @Test
+    fun `a drink reflex without potions shows the red reason`() {
+        val draft = eating.copy(settings = REFLEX_FORM.settings(ReflexSettings(1, mapOf("do" to "drink"))))
+
+        assertEquals("@red@! Needs a potion", text(draft, BuilderWidgets.warning(0)))
+    }
+
 }

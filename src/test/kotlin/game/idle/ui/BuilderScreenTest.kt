@@ -1,15 +1,13 @@
 package game.idle.ui
 
-import game.idle.flow.StopSettings
-import game.idle.flow.StepWords
 import game.idle.IdleState
-import game.idle.flow.FakeClock
 import game.idle.SavedFlow
 import game.idle.autopilot.Autopilot
 import game.idle.autopilot.AutopilotDriver
 import game.idle.autopilot.FakeActivity
 import game.idle.autopilot.FakeAutopilotPlayer
 import game.idle.autopilot.FakeTickScheduler
+import game.idle.flow.FakeClock
 import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowIds
@@ -17,6 +15,8 @@ import game.idle.flow.FlowResolver
 import game.idle.flow.ReflexSettings
 import game.idle.flow.SavedFlows
 import game.idle.flow.StepSettings
+import game.idle.flow.StepWords
+import game.idle.flow.StopSettings
 import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionContext
@@ -1075,17 +1075,17 @@ class BuilderScreenTest {
 
     @Test
     fun `a reflex's Do toggle switches what it does`() {
-        assertEquals(BuilderAnswer.Configure(newReflex.with("do", "stop")), click(player(chop), BuilderWidgets.toggleFace(6, 3, 1), newReflex))
+        assertEquals(BuilderAnswer.Configure(newReflex.with("do", "stop")), click(player(chop), BuilderWidgets.toggleFace(6, 4, 2), newReflex))
     }
 
     @Test
     fun `a reflex's When toggle switches what it fires on`() {
-        assertEquals(BuilderAnswer.Configure(newReflex.with("when", "attacked")), click(player(chop), BuilderWidgets.toggleFace(0, 2, 1), newReflex))
+        assertEquals(BuilderAnswer.Configure(newReflex.with("when", "attacked")), click(player(chop), BuilderWidgets.toggleFace(1, 1, 0), newReflex))
     }
 
     @Test
     fun `a reflex's Below is typed`() {
-        assertEquals(BuilderAnswer.Amount(newReflex.copy(typing = Typing("below"))), click(player(chop), BuilderWidgets.rowFace(1), newReflex))
+        assertEquals(BuilderAnswer.Amount(newReflex.copy(typing = Typing("below"))), click(player(chop), BuilderWidgets.rowFace(2), newReflex))
     }
 
     @Test
@@ -1398,4 +1398,31 @@ class BuilderScreenTest {
 
         assertEquals(BuilderAnswer.Configure(mining), click(player(chop, mine), BuilderWidgets.toggleFace(6, 5, 0), goaled))
     }
+
+    @Test
+    fun `the Skill button selects the skill condition`() {
+        assertEquals(BuilderAnswer.Configure(newReflex.with("when", "skill")), click(player(chop), BuilderWidgets.toggleFace(0, 2, 1), newReflex))
+    }
+
+    @Test
+    fun `the Drink button selects drinking`() {
+        assertEquals(BuilderAnswer.Configure(newReflex.with("do", "drink")), click(player(chop), BuilderWidgets.toggleFace(6, 4, 1), newReflex))
+    }
+
+    @Test
+    fun `a skill condition types its Below level separately from the hitpoints share`() {
+        val draft = newReflex.with("when", "skill")
+
+        assertEquals(BuilderAnswer.Amount(draft.copy(typing = Typing("skillBelow"))), click(player(chop), BuilderWidgets.rowFace(3), draft))
+    }
+
+    @Test
+    fun `a drink list opens the potion search that stays open`() {
+        val draft = newReflex.with("do", "drink")
+        val answer = click(player(chop), BuilderWidgets.listAdd(1), draft) as BuilderAnswer.Several
+
+        assertEquals("potions", answer.field.key)
+        assertEquals("What would you like to drink?", answer.field.title)
+    }
+
 }

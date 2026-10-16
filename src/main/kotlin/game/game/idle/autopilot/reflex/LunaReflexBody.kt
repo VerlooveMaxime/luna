@@ -23,8 +23,8 @@ private var Player.runToggleBeforeFlight by Attr.nullableObj(Boolean::class)
 fun healthOf(player: Player): Health = Health(player.health, player.skill(Skill.HITPOINTS).staticLevel)
 
 /**
- * [ReflexBody] for a logged-in player. A meal goes through the same event as the client's click, so Luna's eating runs
- * unchanged (its own delay between meals included) and the fight in progress goes on.
+ * [ReflexBody] for a logged-in player. Eating and drinking use the same event as the client's click, so Luna's
+ * consumables run unchanged (their separate delays included) and the fight in progress goes on.
  */
 class LunaReflexBody(private val player: Player) : ReflexBody {
 
@@ -32,14 +32,25 @@ class LunaReflexBody(private val player: Player) : ReflexBody {
 
     override fun health(): Health = healthOf(player)
 
+    override fun level(skill: Int): Int = player.skill(skill).level
+
+    override fun potionSlot(doses: List<Int>): Int? =
+        doses.firstNotNullOfOrNull { id ->
+            (0 until player.inventory.capacity()).firstOrNull { player.inventory[it]?.id == id }
+        }
+
+    override fun drink(slot: Int) = click(slot)
+
     override fun foodSlot(foods: Set<Int>): Int? {
         val wanted = foods.ifEmpty { Food.ID_TO_FOOD.keys }
         return (0 until player.inventory.capacity()).firstOrNull { player.inventory[it]?.id in wanted }
     }
 
-    override fun eat(slot: Int) {
-        val food = player.inventory[slot] ?: return
-        LunaClicks.postClosing(player, ItemFirstClickEvent(player, food.id, slot, LunaClicks.INVENTORY))
+    override fun eat(slot: Int) = click(slot)
+
+    private fun click(slot: Int) {
+        val item = player.inventory[slot] ?: return
+        LunaClicks.postClosing(player, ItemFirstClickEvent(player, item.id, slot, LunaClicks.INVENTORY))
     }
 
     override fun underAttack(): Boolean = threats().isNotEmpty()

@@ -83,6 +83,7 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
     private fun fired(fired: Fired): String =
         when (fired) {
             is Fired.AtHitpoints -> "at ${fired.health.text()} hitpoints"
+            is Fired.AtSkill -> "at ${Skill.getName(fired.skill)} ${fired.level}"
             Fired.UnderAttack -> "under attack"
         }
 

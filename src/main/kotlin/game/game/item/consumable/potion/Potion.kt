@@ -216,9 +216,12 @@ enum class Potion(val fourDose: Int,
          * Invoked when a Saradomin brew is sipped.
          */
         private fun Player.onSaradominBrew() {
-            val removeHp = 2 + (0.15 * hitpoints.staticLevel).toInt()
+            val restoreHp = 2 + (0.15 * hitpoints.staticLevel).toInt()
             defence.boost(2 + (0.20 * defence.staticLevel).toInt())
-            damage(removeHp)
+            val maximumHp = hitpoints.staticLevel + restoreHp
+            if (health < maximumHp) {
+                health = (health + restoreHp).coerceAtMost(maximumHp)
+            }
             attack.weaken((0.10 * attack.staticLevel).toInt())
             strength.weaken((0.10 * strength.staticLevel).toInt())
             magic.weaken((0.10 * magic.staticLevel).toInt())

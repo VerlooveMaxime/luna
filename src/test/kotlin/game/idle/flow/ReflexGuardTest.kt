@@ -352,4 +352,64 @@ class ReflexGuardTest {
         assertTrue(Health(7, 10).below(75))
         assertFalse(Health(5, 10).below(50))
     }
+
+    @Test
+    fun `a skill condition observes the current level and fires again after the boost wears off`() {
+        val trigger = ReflexTrigger.SkillBelow(2, 25)
+        body.levels[2] = 24
+        val first = trigger.fired(body)
+        body.levels[2] = 28
+        val boosted = trigger.fired(body)
+        body.levels[2] = 25
+        val equal = trigger.fired(body)
+        body.levels[2] = 24
+
+        assertEquals(listOf(Fired.AtSkill(2, 24), null, null, Fired.AtSkill(2, 24)), listOf(first, boosted, equal, trigger.fired(body)))
+    }
+
+    @Test
+    fun `drinking interrupts a busy step without ending it`() {
+        val guard = guard(ResolvedReflex(1, below(50), ReflexAction.Drink(listOf(119, 117, 115, 113))))
+        body.bag[3] = 113
+        hurt()
+        step.busy = true
+
+        assertFalse(guard.isBusy())
+        guard.act()
+
+        assertEquals(listOf("drink 3"), body.done)
+        assertEquals(emptyList<String>(), log)
+        assertNull(guard.stopping())
+    }
+
+    @Test
+    fun `an exhausted potion list lets the next reflex fire`() {
+        val guard = guard(ResolvedReflex(1, below(50), ReflexAction.Drink(listOf(113))), stop())
+        hurt()
+
+        guard.act()
+
+        assertEquals(StepStop.Reflex(2, atHurt), guard.stopping())
+    }
+
+    @Test
+    fun `an exhausted potion list leaves the step running when no other reflex fires`() {
+        val guard = guard(ResolvedReflex(1, below(50), ReflexAction.Drink(listOf(113))))
+        hurt()
+
+        guard.act()
+
+        assertEquals(listOf("fight:1"), log)
+    }
+
+    @Test
+    fun `a stop records the skill level at firing`() {
+        body.levels[5] = 0
+        val guard = guard(stop(trigger = ReflexTrigger.SkillBelow(5, 1)))
+
+        guard.act()
+
+        assertEquals(StepStop.Reflex(2, Fired.AtSkill(5, 0)), guard.stopping())
+    }
+
 }
