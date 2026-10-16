@@ -16,6 +16,7 @@ import io.luna.game.model.mob.Npc
 import io.luna.game.model.mob.bot.Bot
 import java.util.*
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Bot script for Fishing.
@@ -105,7 +106,15 @@ class FishBotScript(
             return
         }
 
+        // TODO Only withdraw percentage amount based on intelligence.
         handler.banking.withdrawAll(baitId)
+    }
+
+    override suspend fun onExecuteSkilling(searching: Boolean) {
+       val bait = selectedTool.bait
+        if(bait != null && bait !in bot.inventory) {
+            forceBanking = true
+        }
     }
 
     override suspend fun find(searchBase: Position, searchRadius: Int): MutableCollection<Npc> {
@@ -113,6 +122,8 @@ class FishBotScript(
             it.id in fishingSpotIds.value
         }
     }
+
+    override val targetSearchTimeout: Duration = 180.seconds
 
     override fun tools(): SortedSet<SkillingTool> {
         return sortedSetOf(SkillingTool(selectedTool.id, selectedTool.level))
@@ -142,7 +153,7 @@ class FishBotScript(
         return data
     }
 
-    override suspend fun finish() {
+    override suspend fun completed() {
         // Chance to queue a fletching script.
         if (rand(bot.personality.intelligence) || bot.personality.isDextrous) {
             val script = CookingScriptFactory.getScript(bot, bot.cooking.staticLevel, mutableListOf(), randBoolean())

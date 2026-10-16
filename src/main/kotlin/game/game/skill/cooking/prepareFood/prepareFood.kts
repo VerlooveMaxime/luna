@@ -36,7 +36,7 @@ fun openOther(plr: Player, food: IncompleteFood, removeIds: MutableSet<Int>) {
     })
 }
 
-// Loop through all incomplete foods and register listeners. Not ALL's values: two stews share a product id.
+// Register each ingredient recipe; multiple recipes may produce the same item.
 IncompleteFood.entries.forEach {
     for (id in it.otherIngredients) {
         useItem(it.baseIngredient).onItem(id) {

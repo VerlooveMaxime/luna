@@ -8,6 +8,7 @@ import api.bot.zone.SubZone
 import api.predef.*
 import engine.bot.coordinator.skill.MiningScriptFactory
 import engine.bot.coordinator.skill.SmithingScriptFactory
+import engine.bot.gear.BotItemTracker.Companion.itemTracker
 import engine.bot.gear.BotGearLocator
 import engine.bot.gear.BotGearPurpose
 import engine.bot.gear.BotGearSelector
@@ -94,17 +95,23 @@ class SmeltOreBotScript(
             .buildLocator()
     }
 
+    override fun bankWithdraw(): List<Item> = withdraw()
+
     override fun withdraw(): List<Item> {
         smelting = selectedBar ?: BAR_TYPES_DESCENDING.firstOrNull { bar ->
-            bot.smithing.staticLevel >= bar.level && bot.bank.containsAll(bar.oreList)
+            bot.smithing.staticLevel >= bar.level && bar.oreList.all { bot.itemTracker.count(it.id) >= it.amount }
         }
 
         val bar = smelting
-        if (bar != null) {
+        if (bar != null && bot.smithing.staticLevel >= bar.level &&
+            bar.oreList.all { bot.itemTracker.count(it.id) >= it.amount }) {
             bot.log("Smelting bar: $bar")
 
             val totalRequired = bar.oreList.sumOf { it.amount }
-            val combinations = bot.inventory.capacity() / totalRequired
+            val combinations = minOf(
+                bot.inventory.capacity() / totalRequired,
+                bar.oreList.minOf { bot.itemTracker.count(it.id) / it.amount }
+            )
 
             return bar.oreList.map { ore ->
                 Item(ore.id, combinations * ore.amount)
@@ -172,6 +179,10 @@ class SmeltOreBotScript(
         return true
     }
 
+    override suspend fun onInventoryBankRequested(): Boolean {
+        return forceBanking || !(smelting?.let { bot.inventory.containsAll(it.oreList) } == true)
+    }
+
     override fun snapshot(): BotScriptData {
         val data = ZonedBotScriptData()
         data.duration = duration
@@ -179,7 +190,7 @@ class SmeltOreBotScript(
         return data
     }
 
-    override suspend fun finish() {
+    override suspend fun completed() {
         // Chance to queue a smithing script.
         if (rand(bot.personality.intelligence) || bot.personality.isDextrous) {
             val script = SmithingScriptFactory.getSmithingScript(bot, bot.smithing.staticLevel)

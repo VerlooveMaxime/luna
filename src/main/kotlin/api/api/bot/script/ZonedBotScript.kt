@@ -2,6 +2,7 @@ package api.bot.script
 
 import api.bot.Suspendable.naturalDelay
 import api.bot.Suspendable.naturalMicroDelay
+import api.bot.Suspendable.waitFor
 import api.bot.zone.SubZone
 import api.predef.*
 import com.google.gson.JsonObject
@@ -12,8 +13,10 @@ import io.luna.game.model.Entity
 import io.luna.game.model.LocatableDistanceComparator
 import io.luna.game.model.mob.bot.Bot
 import io.luna.util.GsonUtils
+import kotlinx.coroutines.future.await
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Provides the shared lifecycle for bot scripts that operate inside one selected [SubZone] at a time.
@@ -120,10 +123,7 @@ abstract class ZonedBotScript(bot: Bot, var duration: Duration, val zones: Mutab
      * only called once the bot is close enough to the zone.
      */
     protected var activeZone: SubZone? = null
-        private set(value) {
-            onNewActiveZone(field)
-            field = value
-        }
+        private set
 
     /**
      * The original candidate-zone list used for one retry pass after travel-based selection failures.
@@ -261,7 +261,7 @@ abstract class ZonedBotScript(bot: Bot, var duration: Duration, val zones: Mutab
      *
      * @return `true` if initialization succeeded, otherwise `false`.
      */
-    open fun onInit(resumed: Boolean): Boolean {
+    open suspend fun onInit(resumed: Boolean): Boolean {
         return true
     }
 
@@ -305,7 +305,7 @@ abstract class ZonedBotScript(bot: Bot, var duration: Duration, val zones: Mutab
 
     }
 
-    open fun onNewActiveZone(lastZone: SubZone?) {
+    open suspend fun onNewActiveZone(lastZone: SubZone?) {
 
     }
 
@@ -380,15 +380,19 @@ abstract class ZonedBotScript(bot: Bot, var duration: Duration, val zones: Mutab
 
             bot.log("Trying candidate zone. zone=$newZone, remainingCandidates=${zones.size}")
 
-            if (bot.subZone == newZone) {
+            if (newZone in bot.subZones) {
+                val lastZone = activeZone
                 activeZone = newZone
+                onNewActiveZone(lastZone)
                 cachedBank = null
                 bot.log("Selected active zone because bot is already inside it. zone=$newZone")
                 return true
             }
 
             if (handler.travelTo(newZone)) {
+                val lastZone = activeZone
                 activeZone = newZone
+                onNewActiveZone(lastZone)
                 cachedBank = null
                 bot.log("Selected active zone after successful travel request. zone=$newZone")
                 return true
@@ -453,6 +457,22 @@ abstract class ZonedBotScript(bot: Bot, var duration: Duration, val zones: Mutab
 
         val parent = activeZone.parent(bot)
 
+        val bank = cachedBank
+        if (bank != null && !bot.bank.isOpen) {
+            val origin = bot.position
+            val targetPosition = bank.position
+            val reachable = bot.navigator.canReachForInteraction(bank).await()
+            // An async result belongs to its original positions. Retry rather than route on a stale result.
+            if (bot.position != origin || bank.position != targetPosition) {
+                forceBanking = true
+                return
+            }
+            if (!reachable) {
+                bot.log("No complete walking route confirmed to cached bank. Resolving parent/home route. cachedBank=$bank")
+                cachedBank = null
+            }
+        }
+
         if (cachedBank == null) {
             bot.log("Resolving bank for parent zone. parent=$parent, bankCount=${parent.banks.size}")
 
@@ -466,7 +486,7 @@ abstract class ZonedBotScript(bot: Bot, var duration: Duration, val zones: Mutab
 
                 for (bank in sortedBanks) {
                     val option: Int = bank.def().actions.filter { it != "null" }.size
-                    if (handler.interactions.interact(option, bank)) {
+                    if (handler.interactions.interact(option, bank) && waitFor(5.seconds) { bot.bank.isOpen }) {
                         cachedBank = bank
                         bot.log("Cached bank selected. parent=$parent, bank=$bank, option=$option")
                         break
@@ -482,7 +502,7 @@ abstract class ZonedBotScript(bot: Bot, var duration: Duration, val zones: Mutab
                 if (npc != null) {
                     bot.log("Banking NPC ${npc.id} found!")
                     val option: Int = npc.def().actions.filter { it != "null" }.size
-                    if (handler.interactions.interact(option, npc)) {
+                    if (handler.interactions.interact(option, npc) && waitFor(5.seconds) { bot.bank.isOpen }) {
                         cachedBank = npc
                     }
                 }
@@ -505,11 +525,21 @@ abstract class ZonedBotScript(bot: Bot, var duration: Duration, val zones: Mutab
         }
 
         bot.log("Preparing to interact with bank. cachedBank=$cachedBank, bankOpen=${bot.bank.isOpen}")
-        if (!bot.bank.isOpen && !handler.interactions.interact(2, cachedBank)) {
-            bot.log("Banking aborted because cached bank interaction failed. Clearing cached bank. cachedBank=$cachedBank")
-            cachedBank = null
-            forceBanking = true
-            return
+        if (!bot.bank.isOpen) {
+            if (!handler.interactions.interact(2, cachedBank)) {
+                bot.log("Banking aborted because cached bank interaction failed. Clearing cached bank. cachedBank=$cachedBank")
+                cachedBank = null
+                forceBanking = true
+                return
+            }
+
+            // The bank interface opens a tick or so after the bank is clicked.
+            if (!waitFor(5.seconds) { bot.bank.isOpen }) {
+                bot.log("Banking aborted because the bank never opened. Clearing cached bank. cachedBank=$cachedBank")
+                cachedBank = null
+                forceBanking = true
+                return
+            }
         }
 
         if (depositInventoryWhenBanking && !handler.banking.depositInventory()) {

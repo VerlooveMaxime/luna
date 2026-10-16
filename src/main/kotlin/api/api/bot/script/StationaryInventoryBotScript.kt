@@ -61,10 +61,13 @@ abstract class StationaryInventoryBotScript(
      * @param resumed `true` if this script is being resumed from a saved snapshot.
      * @return `true` if all required items are available, or `false` if the script cannot start yet.
      */
-    final override fun onInit(resumed: Boolean): Boolean {
+    final override suspend fun onInit(resumed: Boolean): Boolean {
         depositInventoryWhenBanking = false
         withdraw = withdraw()
         tools = tools()
+        if (isTerminated()) {
+            return false
+        }
         if (!bot.bank.containsAll(withdraw)) {
             bot.log("Bot does not have required withdraw items. Adding to wanted list.")
             withdraw.forEach { bot.preferences.addWantedItem(it.id, 2000) }

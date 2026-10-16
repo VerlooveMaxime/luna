@@ -75,7 +75,7 @@ class SkillingCoordinator(private val training: Boolean) : BotCoordinator {
         /**
          * Attribute representing if this coordinator was last in profit or training mode.
          */
-        private var Bot.profitMode by Attr.boolean { false }
+        var Bot.profitMode by Attr.boolean { false }
     }
 
     /**
@@ -85,22 +85,18 @@ class SkillingCoordinator(private val training: Boolean) : BotCoordinator {
         MiningScriptFactory,
         ThievingScriptFactory,
         WoodcuttingScriptFactory,
+        FiremakingScriptFactory,
         FletchingScriptFactory,
         CraftingScriptFactory,
+        HerbloreScriptFactory,
         SmithingScriptFactory,
         CookingScriptFactory,
         FishingScriptFactory,
-        RunecraftingScriptFactory
+        MagicScriptFactory,
+        RunecraftingScriptFactory,
+        PrayerScriptFactory
     ).associateBy { it.skillId }
 
-    /**
-     * Selects and starts a skilling script for [bot].
-     *
-     * The selected skill is chosen using weighted odds. If the selected skill does not have a supported factory, a
-     * random supported factory is used as a fallback.
-     *
-     * @param bot The bot that will perform the skilling activity.
-     */
     override fun accept(bot: Bot) {
         val weights = HashMap<Int, Double>()
 
@@ -115,16 +111,16 @@ class SkillingCoordinator(private val training: Boolean) : BotCoordinator {
         }
 
         val selectedSkill = RandomUtils.weightedRoll(weights)
-        val level = bot.skill(selectedSkill).staticLevel
         val zones = ArrayList<SubZone>()
 
         bot.profitMode = !training
 
         bot.scriptStack.push(run {
-            var script = factories[selectedSkill]?.getScript(bot, level, zones, training)
+            var script = factories[selectedSkill]?.getScript(bot, bot.skill(selectedSkill).staticLevel, zones, training)
 
             if (script == null) {
-                script = factories.values.random().getScript(bot, level, zones, training)
+                val factory = factories.values.random()
+                script = factory.getScript(bot, bot.skill(factory.skillId).staticLevel, zones, training)
             }
 
             script

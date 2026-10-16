@@ -62,6 +62,7 @@ class CraftArmorActionItem(private val plr: Player,
         }
 
     override fun execute() {
+        plr.crafting.addExperience(armor.exp)
         mob.animation(ANIM)
         mob.sendMessage("You make ${articleItemName(armor.armorItem.id)}.")
         mob.crafting.addExperience(armor.exp)

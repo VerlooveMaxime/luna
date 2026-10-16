@@ -8,13 +8,14 @@ import api.bot.zone.SubZone
 import api.predef.*
 import com.google.gson.JsonObject
 import engine.bot.coordinator.skill.SkillingScriptFactory
-import game.bot.scripts.skills.SpinFlaxBotScript
+import game.bot.scripts.skills.SpinTextileBotScript
 import game.obj.resource.harvestable.CabbageResource
 import game.obj.resource.harvestable.FlaxResource
 import game.obj.resource.harvestable.HarvestableResource
 import game.obj.resource.harvestable.OnionResource
 import game.obj.resource.harvestable.PotatoResource
 import game.obj.resource.harvestable.WheatResource
+import game.skill.crafting.textileCrafting.Textile
 import io.luna.game.model.Position
 import io.luna.game.model.`object`.GameObject
 import kotlin.time.Duration
@@ -111,7 +112,31 @@ class HarvestBotScript(
      */
     constructor(bot: Bot, data: HarvestData) : this(bot, data.harvestable!!, data.duration, data.zones)
 
-    override suspend fun interactionOption(target: GameObject): Int = 2
+    /**
+     * Whether this bot spins each inventory of flax at the Seers' Village wheel before banking it.
+     */
+    private var spinFlax = false
+
+    override suspend fun onInit(resumed: Boolean): Boolean {
+        if (harvestable == Harvestable.FLAX) {
+            SpinTextileBotScript.leaveSeersWheel(bot)
+            if (!resumed) {
+                spinFlax = bot.crafting.staticLevel >= Textile.BOWSTRING.level && rand(bot.personality.intelligence)
+            }
+        }
+        return true
+    }
+
+    override suspend fun onBankRequestedTargeting(initial: Boolean): Boolean {
+        if (!initial && spinFlax && activeZone == SubZone.SOUTH_SEERS_VILLAGE_FLAX &&
+            SpinTextileBotScript.FLAX in bot.inventory) {
+            spinFlax = SpinTextileBotScript.spinAtSeers(bot)
+        }
+        return true
+    }
+
+    // Don't start another plant with a full inventory. Its click would cancel the walk to the bank.
+    override suspend fun interactionOption(target: GameObject): Int? = if (bot.inventory.isFull) null else 2
 
     override suspend fun find(searchBase: Position, searchRadius: Int): MutableCollection<GameObject> {
         return world.locator.findObjects(searchBase, searchRadius, true) { harvestable.resource.isResource(it.def()) }
@@ -125,10 +150,11 @@ class HarvestBotScript(
         return data
     }
 
-    override suspend fun finish() {
-        // Chance to queue a flax spinning script.
-        if (harvestable == Harvestable.FLAX && (rand(bot.personality.intelligence) || bot.personality.isDextrous)) {
-            val script = SpinFlaxBotScript(bot, SkillingScriptFactory.getDuration(bot))
+    override suspend fun completed() {
+        // Chance to queue a flax spinning script, unless this bot spins its own flax.
+        if (harvestable == Harvestable.FLAX && !spinFlax &&
+            (rand(bot.personality.intelligence) || bot.personality.isDextrous)) {
+            val script = SpinTextileBotScript(bot, SkillingScriptFactory.getDuration(bot))
             bot.scriptStack.pushTail(script, 2)
         }
     }

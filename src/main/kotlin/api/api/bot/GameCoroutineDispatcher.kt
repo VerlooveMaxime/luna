@@ -1,9 +1,10 @@
 package api.bot
 
 import api.predef.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Runnable
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.cancel
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -14,9 +15,17 @@ import kotlin.coroutines.CoroutineContext
 object GameCoroutineDispatcher : CoroutineDispatcher() {
 
     override fun dispatch(context: CoroutineContext, block: Runnable) {
-        // Dispatch back to the game thread to run safely.
-        if (context.isActive) {
-            gameService.gameExecutor.execute(block)
+        // Dispatch cancellation cleanup to the game thread too.
+        val wrapped = {
+            try {
+                block.run()
+            } catch (e: CancellationException) {
+                context.cancel(e)
+                logger.catching(e)
+            } catch (e: Throwable) {
+                logger.catching(e)
+            }
         }
+        gameService.gameExecutor.execute(wrapped)
     }
 }
