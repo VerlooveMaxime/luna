@@ -1,7 +1,7 @@
 package game.idle.flow
 
-import engine.controllers.WildernessLocatableController
 import game.idle.flow.option.GameNames
+import game.idle.movement.inWilderness
 import game.item.degradable.jewellery.TeleportJewellery
 import game.item.degradable.jewellery.TeleportJewellery.JewelleryDestination
 import game.skill.magic.CombinationRune
@@ -144,9 +144,6 @@ object Teleports {
             Spellbook.REGULAR -> "regular"
             Spellbook.ANCIENT -> "Ancient"
         }
-
-    /** Whether [position] lies in Luna's wilderness, surface or dungeons. */
-    fun inWilderness(position: Position): Boolean = WildernessLocatableController.computeLocatables().any { it.contains(position) }
 
     /** The charges after a jewellery's name: "(4)". */
     private val CHARGES = Regex("""\(\d+\)$""")

@@ -1,7 +1,7 @@
 package api.bot.webwalk.plan
 
 import game.content.sailing.ShipSearch
-import io.luna.game.model.mob.bot.Bot
+import io.luna.game.model.mob.Player
 
 /**
  * Conditions that a bot meets or not, as flags that requirements can ask for. The
@@ -24,9 +24,9 @@ object BotConditions {
     /**
      * The conditions, keyed by the name of their flag.
      */
-    private val conditions: Map<String, (Bot) -> Boolean> =
+    private val conditions: Map<String, (Player) -> Boolean> =
         ShipSearch.entries.mapNotNull { search ->
-            shipSearchFlag(search)?.let { flag -> flag to { bot: Bot -> !search.turnsAway(bot) } }
+            shipSearchFlag(search)?.let { flag -> flag to { bot: Player -> !search.turnsAway(bot) } }
         }.toMap()
 
     /**
@@ -48,5 +48,5 @@ object BotConditions {
      * @param bot The bot.
      * @return The flags.
      */
-    fun met(bot: Bot): Set<String> = conditions.filterValues { it(bot) }.keys
+    fun met(bot: Player): Set<String> = conditions.filterValues { it(bot) }.keys
 }

@@ -4,7 +4,7 @@ import api.bot.webwalk.model.TeleportDefinition
 import engine.controllers.WildernessLocatableController.wildernessLevel
 import io.luna.game.model.item.ItemContainer
 import io.luna.game.model.mob.Skill
-import io.luna.game.model.mob.bot.Bot
+import io.luna.game.model.mob.Player
 
 /**
  * Copies what a bot can do into a [CapabilitySnapshot].
@@ -19,7 +19,7 @@ object BotCapabilities {
      * The items are those in the inventory and equipment of the bot. Its bank is left out, because a trip can't use what
      * a bot has to go and get first.
      *
-     * @param bot The bot.
+     * @param bot The bot, or a player who is not one, whose trips are planned the same way.
      * The flags are the unlocks that are given, and the [BotConditions] that the bot meets. The charges of its teleport
      * jewellery, and what each teleport that it can use would use up, are counted too, see [TeleportAvailability].
      *
@@ -27,7 +27,7 @@ object BotCapabilities {
      * @param flags The unlocks of the bot.
      * @return The snapshot.
      */
-    fun snapshot(bot: Bot, teleports: List<TeleportDefinition> = emptyList(), flags: Set<String> = emptySet()):
+    fun snapshot(bot: Player, teleports: List<TeleportDefinition> = emptyList(), flags: Set<String> = emptySet()):
             CapabilitySnapshot {
         val skills = Skill.IDS.associateWith { bot.skills.getSkill(it).staticLevel }
         val items = HashMap<Int, Int>()

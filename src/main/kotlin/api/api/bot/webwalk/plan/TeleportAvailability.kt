@@ -8,7 +8,7 @@ import game.item.degradable.jewellery.TeleportJewellery
 import game.skill.magic.Magic
 import game.skill.magic.SpellCost
 import game.skill.magic.teleportSpells.TeleportSpell
-import io.luna.game.model.mob.bot.Bot
+import io.luna.game.model.mob.Player
 
 /**
  * Finds the teleports that a bot can use right now.
@@ -36,7 +36,7 @@ object TeleportAvailability {
      * @param teleports The teleports to choose from.
      * @return The ids of the ones the bot can use.
      */
-    fun usable(bot: Bot, teleports: List<TeleportDefinition>): Set<String> {
+    fun usable(bot: Player, teleports: List<TeleportDefinition>): Set<String> {
         if (teleports.isEmpty() || bot.status.isTeleBlocked()) {
             return emptySet()
         }
@@ -58,7 +58,7 @@ object TeleportAvailability {
     /**
      * Determines if a bot can cast a teleport spell.
      */
-    private fun canCast(bot: Bot, key: String?): Boolean {
+    private fun canCast(bot: Player, key: String?): Boolean {
         val spell = TeleportSpell.named(key) ?: return false
         return bot.spellbook == spell.style.spellbook && cost(bot, spell) is SpellCost.Castable
     }
@@ -67,7 +67,7 @@ object TeleportAvailability {
      * Works out what casting a teleport spell takes from a bot, with the game's own rules but without telling it anything
      * and without the free casting of beta mode.
      */
-    private fun cost(bot: Bot, spell: TeleportSpell): SpellCost = Magic.spellCost(bot, spell.level, spell.requirements)
+    private fun cost(bot: Player, spell: TeleportSpell): SpellCost = Magic.spellCost(bot, spell.level, spell.requirements)
 
     /**
      * Finds what using a teleport uses up for a bot. Must be called on the game thread, because it reads the bot as it is.
@@ -80,7 +80,7 @@ object TeleportAvailability {
      * @param teleport The teleport.
      * @return What it uses up, which is nothing for a spell that the bot can't cast.
      */
-    fun spend(bot: Bot, teleport: TeleportDefinition): Spend = when (teleport.kind) {
+    fun spend(bot: Player, teleport: TeleportDefinition): Spend = when (teleport.kind) {
         TeleportKind.SPELL -> {
             val spell = TeleportSpell.named(teleport.key)
             val cost = spell?.let { cost(bot, it) } as? SpellCost.Castable
@@ -103,7 +103,7 @@ object TeleportAvailability {
      * @param bot The bot.
      * @return The charges, keyed by the name of the jewellery, for the jewellery that has any.
      */
-    fun charges(bot: Bot): Map<String, Int> {
+    fun charges(bot: Player): Map<String, Int> {
         val charges = HashMap<String, Int>()
         for (jewellery in TeleportJewellery.entries) {
             val total = jewellery.items.sumOf { id ->

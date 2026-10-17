@@ -11,9 +11,7 @@ import game.skill.magic.teleportSpells.TeleportSpell
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Spellbook
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class TeleportsTest {
@@ -187,16 +185,6 @@ class TeleportsTest {
     }
 
     @Test
-    fun `the wilderness is Luna's surface area`() {
-        assertTrue(Teleports.inWilderness(Position(3288, 3888)))
-    }
-
-    @Test
-    fun `the wilderness dungeons count as the wilderness too`() {
-        assertTrue(Teleports.inWilderness(Position(3000, 10000)))
-    }
-
-    @Test
     fun `a teleport lands at its spell's destination or around its jewellery's centre`() {
         assertEquals(listOf(Position(3212, 3423), Position(3087, 3496)), listOf(varrock, edgeville).map(Teleports::lands))
     }
@@ -209,10 +197,5 @@ class TeleportsTest {
     @Test
     fun `Kharyrll is spelt as the place is`() {
         assertEquals("Kharyrll", Teleports.named(TeleportDestination.Spell(TeleportSpell.KHARYRLL)))
-    }
-
-    @Test
-    fun `a town is not the wilderness`() {
-        assertFalse(Teleports.inWilderness(Position(3212, 3423)))
     }
 }
