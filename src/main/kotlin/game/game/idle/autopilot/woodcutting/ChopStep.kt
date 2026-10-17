@@ -1,5 +1,6 @@
 package game.idle.autopilot.woodcutting
 
+import game.idle.autopilot.travel.walkUpsFor
 import game.idle.flow.Counts
 import game.idle.flow.Gathers
 import game.idle.flow.FlowContext
@@ -96,6 +97,8 @@ data class ChopStep(
     override fun needs(): List<StepNeeds> =
         listOf(StepNeeds(tools = listOf(ChopStepType.AXE), level = LevelNeed(Skill.WOODCUTTING, tree.level)))
 
-    override fun work(player: Player, runTile: Tile): StepWork =
-        WoodcuttingWork(LunaWoodcutter(player, tree, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
+    override fun work(player: Player, runTile: Tile): StepWork {
+        val area = Area(workSpot.tile(runTile), radius)
+        return WoodcuttingWork(LunaWoodcutter(player, tree, area, TravelWebs.SERVER.doorwaysOf(player.world)), walkUpsFor(player))
+    }
 }

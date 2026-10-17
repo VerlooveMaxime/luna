@@ -15,10 +15,10 @@ sealed interface Step {
 }
 
 /**
- * A step through [doorway] from the tile [from], [shut] when the walk opens it first: a shut one costs [SHUT_COST] steps
- * more (Maxime, 2026-10-17: what a trip counts a door, upstream's 3 ticks at a run).
+ * A step through [doorway] from the tile [from] to [to], [shut] when the walk opens it first: a shut one costs
+ * [SHUT_COST] steps more (Maxime, 2026-10-17: what a trip counts a door, upstream's 3 ticks at a run).
  */
-data class DoorStep(val doorway: Doorway, val from: Position, val shut: Boolean) : Step {
+data class DoorStep(val doorway: Doorway, val from: Position, val to: Position, val shut: Boolean) : Step {
 
     override val cost: Int get() = if (shut) 1 + SHUT_COST else 1
 
@@ -43,9 +43,9 @@ class ReachSteps(
         val to = from.translate(1, direction)
         return when {
             !inWilderness(from) && inWilderness(to) -> null
-            traversable(from, direction) -> doorways.crossedBy(from, to)?.let { DoorStep(it, from, shut = false) } ?: Step.Plain
+            traversable(from, direction) -> doorways.crossedBy(from, to)?.let { DoorStep(it, from, to, shut = false) } ?: Step.Plain
             // A diagonal step never goes through a shut door: the walk opens it from straight in front.
-            else -> doorways.between(from, to)?.let { DoorStep(it, from, shut = true) }
+            else -> doorways.between(from, to)?.let { DoorStep(it, from, to, shut = true) }
         }
     }
 }

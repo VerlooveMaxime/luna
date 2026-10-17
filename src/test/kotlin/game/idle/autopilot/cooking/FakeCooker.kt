@@ -23,10 +23,6 @@ class FakeCooker(var view: CookingView, private val anchor: Tile = Tile(3200, 32
         steps += "cook all"
     }
 
-    override fun walkTo(place: Candidate) {
-        steps += "walk to ${place.position.x},${place.position.y}"
-    }
-
     override fun anchor(): Tile = anchor
 
     override fun raw(): Int = raw

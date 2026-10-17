@@ -5,10 +5,12 @@ import game.idle.autopilot.pickup.PickUpDecision.Settled
 import game.idle.autopilot.pickup.PickUpDecision.Take
 import game.idle.autopilot.pickup.PickUpDecision.WalkTo
 import game.idle.autopilot.pickup.PickUpDecision.WalkToLocation
+import game.idle.autopilot.travel.WalkUps
 import game.idle.flow.Aim
 import game.idle.flow.Aimed
 import game.idle.flow.Meter
 import game.idle.flow.RetrySkip
+import game.idle.flow.Said
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
 
@@ -22,9 +24,6 @@ interface Picker {
 
     /** Takes [item] from the tile the player stands on. */
     fun take(item: Candidate)
-
-    /** Walks onto [item]'s tile. */
-    fun walkTo(item: Candidate)
 
     fun walkToLocation()
 
@@ -84,28 +83,35 @@ object PickUpPlanner {
  * twice in a row with nothing picked up in between (out of reach after all, taken by someone else) is set aside for the
  * rest of the turn. Away from the area it walks there once, then ends; it is never walked back (Maxime, 2026-10-11).
  */
-class PickUpWork(private val picker: Picker) : StepWork {
+class PickUpWork(private val picker: Picker, private val walkUps: WalkUps) : StepWork {
 
-    private val retry = RetrySkip.forTheTurn(picker::pickedUp)
+    private val retry = RetrySkip.forTheTurn(picker::pickedUp, walkUps::setAside)
     private var walkedToLocation = false
 
     override val meter: Meter = Meter.Rises(picker::pickedUp)
 
-    override fun isBusy(): Boolean = picker.isBusy()
+    override fun isBusy(): Boolean = walkUps.isBusy(picker.isBusy())
 
     override fun finishing(): Boolean = false
 
-    override fun interrupt() = picker.interrupt()
+    override fun interrupt() {
+        walkUps.stop()
+        picker.interrupt()
+    }
+
+    override fun said(): Said? = walkUps.said()
 
     override fun act(left: Int?): StepOutcome {
         val view = picker.look()
-        return carryOut(retry.decide { skipped -> PickUpPlanner.decide(view, skipped) })
+        val decision = retry.decide { skipped -> PickUpPlanner.decide(view, skipped) }
+        if (decision !is WalkTo) walkUps.stop()
+        return carryOut(decision)
     }
 
     private fun carryOut(decision: PickUpDecision): StepOutcome =
         when (decision) {
             is Take -> take(decision.item)
-            is WalkTo -> walkTo(decision.item)
+            is WalkTo -> walkUps.walkTo(decision.item)
             WalkToLocation -> walkToLocationOnce()
             is Settled -> decision.outcome
         }
@@ -113,11 +119,6 @@ class PickUpWork(private val picker: Picker) : StepWork {
     private fun take(item: Candidate): StepOutcome {
         picker.take(item)
         return StepOutcome.Worked
-    }
-
-    private fun walkTo(item: Candidate): StepOutcome {
-        picker.walkTo(item)
-        return item.approached
     }
 
     /** Still away after its one walk to the area, the step is over. */

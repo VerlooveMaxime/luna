@@ -67,7 +67,7 @@ class LunaPickerTest {
 
         val items = picker(login(), doorways).look().items
 
-        assertEquals(listOf(Candidate(bones, Position(3207, 3200), 13, false, Position(3207, 3200), door = WalledDoor.shut)), items)
+        assertEquals(listOf(Candidate(bones, Position(3207, 3200), 13, false, Position(3207, 3200), doors = listOf(WalledDoor.shut))), items)
     }
 
     @Test
@@ -314,17 +314,6 @@ class LunaPickerTest {
         TestWorld.tick()
 
         assertEquals(0, picker.pickedUp())
-    }
-
-    @Test
-    fun `walking to an item heads onto its tile`() {
-        val player = login()
-        TestWorld.dropItem(cowhide, 1, Position(3204, 3200))
-        val picker = picker(player)
-
-        picker.walkTo(picker.look().items.single())
-
-        assertEquals(Position(3204, 3200), player.navigator.currentTarget)
     }
 
     @Test

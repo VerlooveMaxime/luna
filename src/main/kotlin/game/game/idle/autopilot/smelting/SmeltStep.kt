@@ -1,5 +1,6 @@
 package game.idle.autopilot.smelting
 
+import game.idle.autopilot.travel.walkUpsFor
 import game.idle.flow.Counts
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
@@ -111,6 +112,8 @@ data class SmeltStep(
         return listOf(StepNeeds(inputs = ores, level = LevelNeed(Skill.SMITHING, bar.level)))
     }
 
-    override fun work(player: Player, runTile: Tile): StepWork =
-        SmeltingWork(LunaSmelter(player, bar, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
+    override fun work(player: Player, runTile: Tile): StepWork {
+        val area = Area(workSpot.tile(runTile), radius)
+        return SmeltingWork(LunaSmelter(player, bar, area, TravelWebs.SERVER.doorwaysOf(player.world)), walkUpsFor(player))
+    }
 }

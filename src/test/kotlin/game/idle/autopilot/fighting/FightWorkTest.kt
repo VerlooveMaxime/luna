@@ -3,6 +3,8 @@ package game.idle.autopilot.fighting
 import game.idle.autopilot.Candidate
 import game.idle.autopilot.fighting.FightDecision.Settled
 import game.idle.autopilot.fighting.FightDecision.WalkTo
+import game.idle.autopilot.travel.FakeTraveller
+import game.idle.autopilot.travel.WalkUps
 import game.idle.flow.Meter
 import game.idle.flow.Reason
 import game.idle.flow.StepOutcome
@@ -27,7 +29,9 @@ class FightWorkTest {
     private fun view(atLocation: Boolean = true, targets: List<Candidate> = listOf(near, far)) = FightView(atLocation, targets)
 
     private val fighter = FakeFighter(view(), anchor)
-    private val work = FightWork(fighter)
+    /** Stands away from every target, so a walk up walks; its walks join the adapter's steps. */
+    private val traveller = FakeTraveller(Position(3000, 3000), fighter.steps)
+    private val work = FightWork(fighter, WalkUps(traveller))
 
     @Test
     fun `the meter reads the kills`() {
@@ -75,7 +79,7 @@ class FightWorkTest {
     fun `with no npc in reach the nearest is walked up to, which approaches it`() {
         val outcome = work.act(left = null)
 
-        assertEquals(StepOutcome.Approached to listOf("walk to 3100,9510"), outcome to fighter.steps)
+        assertEquals(StepOutcome.Approached to listOf("walk to 3100,9511"), outcome to fighter.steps)
     }
 
     @Test
@@ -84,7 +88,7 @@ class FightWorkTest {
 
         work.act(left = null)
 
-        assertEquals(listOf("walk to 3104,9510"), fighter.steps)
+        assertEquals(listOf("walk to 3104,9511"), fighter.steps)
     }
 
     @Test
@@ -145,7 +149,7 @@ class FightWorkTest {
 
         work.act(left = null)
 
-        assertEquals(listOf("attack 3100,9510", "walk to 3104,9510"), fighter.steps)
+        assertEquals(listOf("attack 3100,9510", "walk to 3104,9511"), fighter.steps)
     }
 
     @Test
@@ -154,7 +158,7 @@ class FightWorkTest {
 
         work.act(left = null)
 
-        assertEquals(listOf("walk to 3100,9510", "walk to 3104,9510"), fighter.steps)
+        assertEquals(listOf("walk to 3100,9511", "walk to 3104,9511"), fighter.steps)
     }
 
     @Test
@@ -165,7 +169,7 @@ class FightWorkTest {
 
         work.act(left = null)
 
-        assertEquals(listOf("walk to 3100,9510", "walk to 3104,9510", "walk to 3104,9510"), fighter.steps)
+        assertEquals(listOf("walk to 3100,9511", "walk to 3104,9511", "walk to 3104,9511"), fighter.steps)
     }
 
     @Test
@@ -187,7 +191,7 @@ class FightWorkTest {
 
         work.act(left = null)
 
-        assertEquals(listOf("walk to 3100,9510", "walk to 3100,9511"), fighter.steps)
+        assertEquals(listOf("walk to 3100,9511", "walk to 3100,9511"), fighter.steps)
     }
 
     @Test
@@ -207,7 +211,7 @@ class FightWorkTest {
 
         work.act(left = null)
 
-        assertEquals(listOf("walk to 3100,9510", "attack 3100,9510"), fighter.steps)
+        assertEquals(listOf("walk to 3100,9511", "attack 3100,9510"), fighter.steps)
     }
 
     @Test

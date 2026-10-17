@@ -1,6 +1,7 @@
 package game.idle.flow
 
 import api.bot.webwalk.model.EdgeType
+import game.idle.location.Tile
 import game.idle.movement.DoorStep
 import game.idle.movement.Doorway
 import io.luna.game.model.Position
@@ -448,7 +449,8 @@ class StepTurnContractTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("approachKinds")
     fun `a walk up to a target behind a shut door says it opens the door`(kind: ApproachFixture) {
-        kind.targetFarOff(DOOR_ON_THE_WAY.copy(shut = true))
+        kind.traveller.standing += SHUT_DOOR
+        kind.targetFarOff(listOf(DOOR_ON_THE_WAY))
         val turn = kind.turn()
 
         turn.act()
@@ -459,7 +461,7 @@ class StepTurnContractTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("approachKinds")
     fun `a walk up to a target through an open door says it goes through the door`(kind: ApproachFixture) {
-        kind.targetFarOff(DOOR_ON_THE_WAY.copy(shut = false))
+        kind.targetFarOff(listOf(DOOR_ON_THE_WAY.copy(shut = false)))
         val turn = kind.turn()
 
         turn.act()
@@ -469,19 +471,48 @@ class StepTurnContractTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("approachKinds")
-    fun `a walk up to a target with no door on the way says nothing under way`(kind: ApproachFixture) {
-        kind.targetFarOff(door = null)
+    fun `a walk up to a target with no door on the way walks to the tile it is used from, saying nothing under way`(kind: ApproachFixture) {
+        kind.targetFarOff(emptyList())
         val turn = kind.turn()
 
         turn.act()
 
-        assertEquals(true to null, kind.done.last().startsWith("walk to") to turn.underWay())
+        assertEquals(Position(3205, 3200) to null, kind.traveller.walks.last() to turn.underWay())
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("approachKinds")
+    fun `a walk up under way is busy by the kind's own rule, not by every action the player has queued`(kind: ApproachFixture) {
+        kind.targetFarOff(emptyList())
+        val turn = kind.turn()
+        turn.act()
+
+        kind.traveller.busy = true
+
+        assertFalse(turn.isBusy())
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("approachKinds")
+    fun `a target set aside at a door that stayed shut says so`(kind: ApproachFixture) {
+        kind.traveller.standing += SHUT_DOOR
+        kind.targetFarOff(listOf(DOOR_ON_THE_WAY))
+        val turn = kind.turn()
+        turn.act()
+
+        turn.act()
+
+        assertEquals(Said.DoorShut(Passage.DOOR, Tile(3203, 3200)), turn.said())
     }
 
     companion object {
 
+        /** A door two tiles east of every kind's anchor, crossed from 3202 to 3203. */
         private val DOOR_ON_THE_WAY =
-            DoorStep(Doorway(1530, Position(3203, 3200), EdgeType.DOOR), from = Position(3202, 3200), shut = true)
+            DoorStep(Doorway(1530, Position(3203, 3200), EdgeType.DOOR), from = Position(3202, 3200), to = Position(3203, 3200), shut = true)
+
+        /** That door standing shut, as the traveller sees it. */
+        private val SHUT_DOOR = 1530 to Position(3203, 3200)
 
 
         @JvmStatic

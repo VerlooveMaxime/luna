@@ -25,12 +25,12 @@ class ReachStepsTest {
 
     @Test
     fun `a step through an open doorway names it, open`() {
-        assertEquals(DoorStep(door, outside, shut = false), steps(open = true).step(outside, Direction.EAST))
+        assertEquals(DoorStep(door, outside, inside, shut = false), steps(open = true).step(outside, Direction.EAST))
     }
 
     @Test
     fun `a step a shut doorway blocks goes through it, shut`() {
-        assertEquals(DoorStep(door, inside, shut = true), steps(open = false).step(inside, Direction.WEST))
+        assertEquals(DoorStep(door, inside, outside, shut = true), steps(open = false).step(inside, Direction.WEST))
     }
 
     @Test
@@ -50,11 +50,11 @@ class ReachStepsTest {
 
     @Test
     fun `a step out of the wilderness is taken`() {
-        assertEquals(DoorStep(door, inside, shut = false), steps(open = true, wild = true).step(inside, Direction.WEST))
+        assertEquals(DoorStep(door, inside, outside, shut = false), steps(open = true, wild = true).step(inside, Direction.WEST))
     }
 
     @Test
     fun `a shut door costs six steps more than an open one`() {
-        assertEquals(listOf(7, 1, 1), listOf(DoorStep(door, outside, shut = true).cost, DoorStep(door, outside, shut = false).cost, Step.Plain.cost))
+        assertEquals(listOf(7, 1, 1), listOf(DoorStep(door, outside, inside, shut = true).cost, DoorStep(door, outside, inside, shut = false).cost, Step.Plain.cost))
     }
 }

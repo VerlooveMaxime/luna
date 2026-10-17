@@ -19,10 +19,6 @@ class FakeSmelter(var view: SmeltingView, private val anchor: Tile = Tile(3200, 
         steps += "smelt $slot on ${furnace.position.x},${furnace.position.y}"
     }
 
-    override fun walkTo(furnace: Candidate) {
-        steps += "walk to ${furnace.position.x},${furnace.position.y}"
-    }
-
     override fun anchor(): Tile = anchor
 
     override fun bars(): Int = bars

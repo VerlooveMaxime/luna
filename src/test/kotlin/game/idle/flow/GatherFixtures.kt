@@ -11,6 +11,7 @@ import game.idle.autopilot.mining.FakeMiner
 import game.idle.autopilot.mining.MineStep
 import game.idle.autopilot.mining.MiningView
 import game.idle.autopilot.mining.MiningWork
+import game.idle.autopilot.travel.WalkUps
 import game.idle.autopilot.woodcutting.ChopStep
 import game.idle.autopilot.woodcutting.FakeWoodcutter
 import game.idle.autopilot.woodcutting.WoodcuttingView
@@ -49,7 +50,7 @@ class ChopFixture : SpotFixture("chop", LevelNeed(Skill.WOODCUTTING, 15), bag = 
     override val done: List<String> get() = woodcutter.steps
 
     override fun turn(amount: Int?): StepTurn =
-        turnOf(WoodcuttingWork(woodcutter), amount, step.needs(), carried, fillsBag = true, traveller)
+        turnOf(WoodcuttingWork(woodcutter, WalkUps(traveller)), amount, step.needs(), carried, fillsBag = true, traveller)
 
     override fun gain(units: Int) {
         woodcutter.logs += units
@@ -67,8 +68,8 @@ class ChopFixture : SpotFixture("chop", LevelNeed(Skill.WOODCUTTING, 15), bag = 
         woodcutter.view = woodcutter.view.copy(trees = listOf(tree))
     }
 
-    override fun targetFarOff(door: DoorStep?) {
-        woodcutter.view = woodcutter.view.copy(trees = listOf(farOff(tree, door)))
+    override fun targetFarOff(doors: List<DoorStep>) {
+        woodcutter.view = woodcutter.view.copy(trees = listOf(farOff(tree, doors)))
     }
 
     override fun standInArea(inside: Boolean) {
@@ -91,7 +92,7 @@ class MineFixture : SpotFixture("mine", LevelNeed(Skill.MINING, 15), bag = setOf
 
     override val done: List<String> get() = miner.steps
 
-    override fun turn(amount: Int?): StepTurn = turnOf(MiningWork(miner), amount, step.needs(), carried, fillsBag = true, traveller)
+    override fun turn(amount: Int?): StepTurn = turnOf(MiningWork(miner, WalkUps(traveller)), amount, step.needs(), carried, fillsBag = true, traveller)
 
     override fun gain(units: Int) {
         miner.ores += units
@@ -109,8 +110,8 @@ class MineFixture : SpotFixture("mine", LevelNeed(Skill.MINING, 15), bag = setOf
         miner.view = miner.view.copy(rocks = listOf(rock))
     }
 
-    override fun targetFarOff(door: DoorStep?) {
-        miner.view = miner.view.copy(rocks = listOf(farOff(rock, door)))
+    override fun targetFarOff(doors: List<DoorStep>) {
+        miner.view = miner.view.copy(rocks = listOf(farOff(rock, doors)))
     }
 
     override fun standInArea(inside: Boolean) {
@@ -134,7 +135,7 @@ class FishFixture : SpotFixture("fish", LevelNeed(Skill.FISHING, 20), bag = setO
 
     override val done: List<String> get() = fisher.steps
 
-    override fun turn(amount: Int?): StepTurn = turnOf(FishingWork(fisher), amount, step.needs(), carried, fillsBag = true, traveller)
+    override fun turn(amount: Int?): StepTurn = turnOf(FishingWork(fisher, WalkUps(traveller)), amount, step.needs(), carried, fillsBag = true, traveller)
 
     override fun gain(units: Int) {
         fisher.catches += units
@@ -153,8 +154,8 @@ class FishFixture : SpotFixture("fish", LevelNeed(Skill.FISHING, 20), bag = setO
         fisher.view = fisher.view.copy(spots = listOf(spot))
     }
 
-    override fun targetFarOff(door: DoorStep?) {
-        fisher.view = fisher.view.copy(spots = listOf(farOff(spot, door)))
+    override fun targetFarOff(doors: List<DoorStep>) {
+        fisher.view = fisher.view.copy(spots = listOf(farOff(spot, doors)))
     }
 
     override fun standInArea(inside: Boolean) {

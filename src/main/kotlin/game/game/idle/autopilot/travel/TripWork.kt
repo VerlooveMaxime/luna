@@ -51,7 +51,8 @@ interface Traveller {
 /**
  * A trip to [target] on the web-walker's plan, one decision at a time (web-walker movement Part 2): walks, doors, gates and
  * curtains opened when shut, ladders and stairs climbed, trapdoors opened and climbed down, each leg as a player's clicks.
- * The trip is done standing on the target or next to it, as a walk is. It starts on [plan] when one was made already (the
+ * The trip is done within [arriveWithin] tiles of the target, next to it as a walk is unless told otherwise (a walk up
+ * to a step's target ends on the tile it is used from). It starts on [plan] when one was made already (the
  * bank step's, which picked the bank by it), and plans again when the player is off the plan (a reflex teleported them,
  * say) or through it without arriving; a plan made at once is taken in the same decision. The same move on the same leg
  * from the same tile twice found no way on, so it blocks, saying which [place] or which passage, and tries again once the
@@ -63,6 +64,7 @@ class TripWork(
     private val target: Tile,
     private val place: Place,
     plan: WebWalkPlan? = null,
+    private val arriveWithin: Int = 1,
 ) : StepWork {
 
     private enum class Move { PLAN, WALK, OPEN, PASS, CLIMB, CHOOSE }
@@ -83,7 +85,10 @@ class TripWork(
      * [LEAD] tiles when a leg follows, and at a door once it is open, until the walk through it is clicked: that walk's
      * path lands a tick later, and a decision before then would find the player still on the same tile.
      */
-    override fun isBusy(): Boolean = pending?.isDone == false || (traveller.isBusy() && !clickingAhead())
+    override fun isBusy(): Boolean = busyWhile(traveller.isBusy())
+
+    /** [isBusy] with [playerBusy] for the player's own busy rule: a step's walk up keeps its kind's (fight's ignores combat's lingering action). */
+    fun busyWhile(playerBusy: Boolean): Boolean = pending?.isDone == false || (playerBusy && !clickingAhead())
 
     private fun clickingAhead(): Boolean {
         val trip = legs ?: return false
@@ -118,7 +123,7 @@ class TripWork(
         return if (leg == null || offPlan(leg, here)) plan(here) else take(leg, here)
     }
 
-    private fun arrived(here: Position): Boolean = here.z == target.z && here.computeLongestDistance(target.toPosition()) <= 1
+    private fun arrived(here: Position): Boolean = near(here, target.toPosition(), arriveWithin)
 
     private fun plan(here: Position): StepOutcome =
         move(Attempt(NO_LEG, here, Move.PLAN), Reason.NoWay(place)) {
@@ -129,7 +134,7 @@ class TripWork(
     /** A walk with a leg after it is done [LEAD] tiles short, so the next leg is clicked on the way. */
     private fun done(leg: PlanLeg, here: Position, last: Boolean): Boolean =
         when (leg.type) {
-            EdgeType.WALK -> near(here, leg.to, if (last) 1 else LEAD)
+            EdgeType.WALK -> near(here, leg.to, if (last) arriveWithin else LEAD)
             EdgeType.LADDER, EdgeType.STAIR, EdgeType.TRAPDOOR -> near(here, leg.to, LegContext.LANDING_SLACK)
             else -> here == leg.to
         }

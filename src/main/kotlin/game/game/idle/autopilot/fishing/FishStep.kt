@@ -1,5 +1,6 @@
 package game.idle.autopilot.fishing
 
+import game.idle.autopilot.travel.walkUpsFor
 import game.idle.flow.Counts
 import game.idle.flow.Gathers
 import game.idle.flow.FlowContext
@@ -154,6 +155,8 @@ data class FishStep(
     override fun needs(): List<StepNeeds> =
         listOf(StepNeeds(tools = listOfNotNull(catch.method.toolNeed, catch.method.baitNeed), level = LevelNeed(Skill.FISHING, catch.fish.level)))
 
-    override fun work(player: Player, runTile: Tile): StepWork =
-        FishingWork(LunaFisher(player, catch, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
+    override fun work(player: Player, runTile: Tile): StepWork {
+        val area = Area(workSpot.tile(runTile), radius)
+        return FishingWork(LunaFisher(player, catch, area, TravelWebs.SERVER.doorwaysOf(player.world)), walkUpsFor(player))
+    }
 }

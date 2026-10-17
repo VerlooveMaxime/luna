@@ -6,11 +6,13 @@ import game.idle.autopilot.smithing.SmithingDecision.Settled
 import game.idle.autopilot.smithing.SmithingDecision.UseOn
 import game.idle.autopilot.smithing.SmithingDecision.WalkTo
 import game.idle.autopilot.smithing.SmithingDecision.WalkToLocation
+import game.idle.autopilot.travel.WalkUps
 import game.idle.flow.Aim
 import game.idle.flow.Aimed
 import game.idle.flow.Meter
 import game.idle.flow.Reason
 import game.idle.flow.RetrySkip
+import game.idle.flow.Said
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
 import game.idle.flow.Target
@@ -28,8 +30,6 @@ interface Smither {
 
     /** Picks the step's item in the open smithing window, [times] of it (1, 5 or 10, the window's options). */
     fun choose(times: Int)
-
-    fun walkTo(anvil: Candidate)
 
     /** The anchor of the step's area, where a walk back goes. */
     fun anchor(): Tile
@@ -100,27 +100,34 @@ object SmithingPlanner {
 }
 
 /** The smith step's work: carries out [SmithingPlanner] decisions, the items made the count. */
-class SmithingWork(private val smither: Smither) : StepWork {
+class SmithingWork(private val smither: Smither, private val walkUps: WalkUps) : StepWork {
 
-    private val retry = RetrySkip.forTheTurn(smither::made)
+    private val retry = RetrySkip.forTheTurn(smither::made, walkUps::setAside)
 
     override val meter: Meter = Meter.Rises(smither::made)
 
-    override fun isBusy(): Boolean = smither.isBusy()
+    override fun isBusy(): Boolean = walkUps.isBusy(smither.isBusy())
 
     override fun finishing(): Boolean = false
 
-    override fun interrupt() = smither.interrupt()
+    override fun interrupt() {
+        walkUps.stop()
+        smither.interrupt()
+    }
+
+    override fun said(): Said? = walkUps.said()
 
     override fun act(left: Int?): StepOutcome {
         val view = smither.look()
-        return carryOut(retry.decide { skipped -> SmithingPlanner.decide(view, skipped, left) })
+        val decision = retry.decide { skipped -> SmithingPlanner.decide(view, skipped, left) }
+        if (decision !is WalkTo) walkUps.stop()
+        return carryOut(decision)
     }
 
     private fun carryOut(decision: SmithingDecision): StepOutcome =
         when (decision) {
             is UseOn -> useOn(decision.anvil, decision.slot)
-            is WalkTo -> walkTo(decision.anvil)
+            is WalkTo -> walkUps.walkTo(decision.anvil)
             is Choose -> choose(decision.times)
             WalkToLocation -> StepOutcome.Away(smither.anchor())
             is Settled -> decision.outcome
@@ -129,11 +136,6 @@ class SmithingWork(private val smither: Smither) : StepWork {
     private fun useOn(anvil: Candidate, slot: Int): StepOutcome {
         smither.useOn(anvil, slot)
         return StepOutcome.Worked
-    }
-
-    private fun walkTo(anvil: Candidate): StepOutcome {
-        smither.walkTo(anvil)
-        return anvil.approached
     }
 
     private fun choose(times: Int): StepOutcome {

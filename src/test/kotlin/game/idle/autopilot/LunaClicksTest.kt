@@ -79,12 +79,6 @@ class LunaClicksTest {
         return clicked
     }
 
-    /** A tree east of [beside], behind the door there when [door] is given. */
-    private fun treeBehind(door: DoorStep?) =
-        Candidate(1276, Position(3203, 3200), distance = 9, usableFromHere = false, approach = Position(3202, 3200), door = door)
-
-    private fun doorOnTheWay(shut: Boolean) = DoorStep(Doorway(door, beside, EdgeType.DOOR), from = here, shut)
-
     private fun openWindow(player: Player) = player.overlays.open(StandardInterface(5292))
 
     /** Dead trees on [tile] and every tile around it. */
@@ -397,7 +391,7 @@ class LunaClicksTest {
         val doorway = Doorway(door, doorTile, EdgeType.DOOR)
         val steps = LunaClicks.reachSteps(TestWorld.world, Doorways(mapOf((Position(3210, 3210) to doorTile) to doorway)))
 
-        assertEquals(DoorStep(doorway, Position(3210, 3210), shut = true), steps.step(Position(3210, 3210), Direction.EAST))
+        assertEquals(DoorStep(doorway, Position(3210, 3210), doorTile, shut = true), steps.step(Position(3210, 3210), Direction.EAST))
     }
 
     @Test
@@ -442,7 +436,7 @@ class LunaClicksTest {
         TestWorld.place(door, beside)
         val clicked = clicks()
         LunaClicks.use(player, door, beside, option = null, from = here)
-        TestWorld.tick(8)
+        TestWorld.tick(12)
         assertEquals(here to listOf(ObjectFirstClickEvent::class.java), player.position to clicked.map { it.javaClass })
     }
 
@@ -565,46 +559,6 @@ class LunaClicksTest {
         LunaClicks.use(player, door, beside, option = null, from = here)
 
         assertTrue(LunaClicks.interacting(player))
-    }
-
-    @Test
-    fun `approaching a target with no door on the way walks to the tile it is used from`() {
-        val player = login()
-
-        LunaClicks.approach(player, treeBehind(door = null))
-
-        assertEquals(Position(3202, 3200), player.navigator.currentTarget)
-    }
-
-    @Test
-    fun `approaching through a shut door opens the door first`() {
-        val player = login()
-        TestWorld.place(door, beside)
-        val clicked = clicks()
-
-        LunaClicks.approach(player, treeBehind(doorOnTheWay(shut = true)))
-        TestWorld.tick()
-
-        assertEquals(listOf(door), clicked.map { it.gameObject.id })
-    }
-
-    @Test
-    fun `approaching through a shut door out of reach walks up to the door first`() {
-        val player = TestWorld.login("traveller", Position(3195, 3200))
-        TestWorld.place(door, beside)
-
-        LunaClicks.approach(player, treeBehind(doorOnTheWay(shut = true)))
-
-        assertEquals(here, player.navigator.currentTarget)
-    }
-
-    @Test
-    fun `approaching through an open door walks on to the tile the target is used from`() {
-        val player = login()
-
-        LunaClicks.approach(player, treeBehind(doorOnTheWay(shut = false)))
-
-        assertEquals(Position(3202, 3200), player.navigator.currentTarget)
     }
 
     @Test

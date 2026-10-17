@@ -29,7 +29,7 @@ interface KindFixture {
     /** A fresh turn of the kind, [amount] for one that counts. */
     fun turn(amount: Int? = null): StepTurn
 
-    /** What the kind's adapter was told, in order: "chop 3171,3444", "walk to 3171,3444", "drop", "interrupt". */
+    /** What the kind's adapter was told, in order: "chop 3171,3444", "drop", "interrupt"; its walks up are the traveller's. */
     val done: List<String>
 
     /**
@@ -84,10 +84,13 @@ interface AreaFixture : KindFixture {
 }
 
 /** A kind that walks up to the targets it finds around a spot: chop, mine, fish; cook, smelt, smith; fight, pick up. */
-interface ApproachFixture : KindFixture {
+interface ApproachFixture : AmountFixture {
 
-    /** The one target stands out of reach now, walked up to through [door] when one is given. */
-    fun targetFarOff(door: DoorStep?)
+    /** The traveller the turn's walks up use; where it stands is where the player is, which a door's state is part of. */
+    val traveller: FakeTraveller
+
+    /** The one target stands out of reach now, walked up to through [doors]. */
+    fun targetFarOff(doors: List<DoorStep>)
 }
 
 /** A kind that gathers around a work spot and fills the bag with what it gets: chop, mine, fish. */
@@ -130,9 +133,9 @@ abstract class SpotFixture(final override val name: String, final override val l
 
     protected abstract fun standInArea(inside: Boolean)
 
-    /** [target] out of reach, a walk of twelve steps through [door] when one is given. */
-    protected fun farOff(target: Candidate, door: DoorStep?): Candidate =
-        target.copy(distance = 12, usableFromHere = false, approach = Position(anchor.x + 5, anchor.y), door = door)
+    /** [target] out of reach, a walk of twelve steps through [doors] to the tile five east of the anchor. */
+    protected fun farOff(target: Candidate, doors: List<DoorStep>): Candidate =
+        target.copy(distance = 12, usableFromHere = false, approach = Position(anchor.x + 5, anchor.y), doors = doors)
 
     override fun leaveArea() {
         standInArea(inside = false)

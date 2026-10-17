@@ -99,15 +99,6 @@ class LunaMinerTest {
     }
 
     @Test
-    fun `walking to a rock heads for its approach tile`() {
-        val player = login()
-
-        miner(player).walkTo(rockHere)
-
-        assertEquals(besideRock, player.navigator.currentTarget)
-    }
-
-    @Test
     fun `a walk back goes to the area's anchor`() {
         assertEquals(Tile(3200, 3200), miner(login(Position(3220, 3200))).anchor())
     }

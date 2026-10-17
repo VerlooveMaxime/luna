@@ -29,8 +29,6 @@ class LunaWoodcutter(private val player: Player, private val kind: Tree, private
         LunaClicks.interact(player, ObjectFirstClickEvent(player, target), target, ObjectFirstClickEvent::class.java)
     }
 
-    override fun walkTo(tree: Candidate) = LunaClicks.approach(player, tree)
-
     override fun anchor(): Tile = area.anchor
 
     override fun logs(): Int = player.inventory.computeAmountForId(kind.logId)

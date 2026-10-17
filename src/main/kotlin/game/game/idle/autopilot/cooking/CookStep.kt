@@ -1,5 +1,6 @@
 package game.idle.autopilot.cooking
 
+import game.idle.autopilot.travel.walkUpsFor
 import game.idle.flow.Counts
 import game.idle.flow.FlowContext
 import game.idle.flow.LevelNeed
@@ -104,6 +105,8 @@ data class CookStep(
             StepNeeds(inputs = listOf(food.raw), level = LevelNeed(Skill.COOKING, food.lvl))
         }
 
-    override fun work(player: Player, runTile: Tile): StepWork =
-        CookingWork(LunaCooker(player, rawIds, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
+    override fun work(player: Player, runTile: Tile): StepWork {
+        val area = Area(workSpot.tile(runTile), radius)
+        return CookingWork(LunaCooker(player, rawIds, area, TravelWebs.SERVER.doorwaysOf(player.world)), walkUpsFor(player))
+    }
 }

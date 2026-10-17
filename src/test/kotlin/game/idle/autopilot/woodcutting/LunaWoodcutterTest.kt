@@ -102,15 +102,6 @@ class LunaWoodcutterTest {
     }
 
     @Test
-    fun `walking to a tree heads for its approach tile`() {
-        val player = login()
-
-        woodcutter(player).walkTo(normalTreeHere)
-
-        assertEquals(besideTree, player.navigator.currentTarget)
-    }
-
-    @Test
     fun `a walk back goes to the area's anchor`() {
         assertEquals(Tile(3200, 3200), woodcutter(login(Position(3220, 3200))).anchor())
     }

@@ -19,10 +19,6 @@ class FakeFighter(var view: FightView, private val anchor: Tile = Tile(3200, 320
         steps += "attack ${npc.position.x},${npc.position.y}"
     }
 
-    override fun walkTo(npc: Candidate) {
-        steps += "walk to ${npc.position.x},${npc.position.y}"
-    }
-
     override fun anchor(): Tile = anchor
 
     override fun kills(): Int = kills

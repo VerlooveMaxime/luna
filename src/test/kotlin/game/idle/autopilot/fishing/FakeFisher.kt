@@ -19,10 +19,6 @@ class FakeFisher(var view: FishingView, private val anchor: Tile = Tile(3200, 32
         steps += "fish ${spot.position.x},${spot.position.y}"
     }
 
-    override fun walkTo(spot: Candidate) {
-        steps += "walk to ${spot.position.x},${spot.position.y}"
-    }
-
     override fun anchor(): Tile = anchor
 
     override fun catches(): Int = catches

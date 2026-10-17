@@ -1,10 +1,13 @@
 package game.idle.autopilot.mining
 
+import game.idle.autopilot.travel.FakeTraveller
+import game.idle.autopilot.travel.WalkUps
 import game.idle.flow.Meter
 import game.idle.flow.Reason
 import game.idle.flow.StepOutcome
 import game.idle.flow.Target
 import game.idle.location.Tile
+import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -18,7 +21,9 @@ class MiningWorkTest {
     private val anchor = Tile(3203, 3203)
 
     private val miner = FakeMiner(miningView(listOf(inReach)), anchor)
-    private val work = MiningWork(miner)
+    /** Stands away from every target, so a walk up walks; its walks join the adapter's steps. */
+    private val traveller = FakeTraveller(Position(3000, 3000), miner.steps)
+    private val work = MiningWork(miner, WalkUps(traveller))
 
     @Test
     fun `the meter reads the ores carried`() {
@@ -59,7 +64,7 @@ class MiningWorkTest {
 
         val outcome = work.act(left = null)
 
-        assertEquals(StepOutcome.Approached to listOf("walk to 3201,3200"), outcome to miner.steps)
+        assertEquals(StepOutcome.Approached to listOf("walk to 3200,3200"), outcome to miner.steps)
     }
 
     @Test

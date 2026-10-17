@@ -179,16 +179,6 @@ class LunaFighterTest {
     }
 
     @Test
-    fun `walking up to an npc heads for the tile it can be hit from`() {
-        val player = login()
-        TestWorld.spawnNpc(chicken, Position(3205, 3200))
-
-        fighter(player).walkTo(fighter(player).look().targets.single())
-
-        assertEquals(Position(3204, 3200), player.navigator.currentTarget)
-    }
-
-    @Test
     fun `an npc gone since the look is not attacked`() {
         val player = login()
         val npc = TestWorld.spawnNpc(chicken, Position(3201, 3200))

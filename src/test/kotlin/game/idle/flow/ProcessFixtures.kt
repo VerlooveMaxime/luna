@@ -24,6 +24,7 @@ import game.idle.autopilot.smithing.SmithStep
 import game.idle.autopilot.smithing.SmithingWork
 import game.idle.autopilot.smithing.SmithingView
 import game.idle.autopilot.travel.FakeTraveller
+import game.idle.autopilot.travel.WalkUps
 import game.idle.location.Tile
 import game.idle.movement.DoorStep
 import game.skill.smithing.BarType
@@ -116,7 +117,7 @@ class CookFixture : SpotFixture("cook", LevelNeed(Skill.COOKING, 15), bag = setO
 
     override val done: List<String> get() = cooker.steps
 
-    override fun turn(amount: Int?): StepTurn = turnOf(CookingWork(cooker), amount, step.needs(), carried, fillsBag = false, traveller)
+    override fun turn(amount: Int?): StepTurn = turnOf(CookingWork(cooker, WalkUps(traveller)), amount, step.needs(), carried, fillsBag = false, traveller)
 
     override fun gain(units: Int) {
         cooker.raw -= units
@@ -134,8 +135,8 @@ class CookFixture : SpotFixture("cook", LevelNeed(Skill.COOKING, 15), bag = setO
         cooker.view = cooker.view.copy(places = listOf(fire))
     }
 
-    override fun targetFarOff(door: DoorStep?) {
-        cooker.view = cooker.view.copy(places = listOf(farOff(fire, door)))
+    override fun targetFarOff(doors: List<DoorStep>) {
+        cooker.view = cooker.view.copy(places = listOf(farOff(fire, doors)))
     }
 
     override fun standInArea(inside: Boolean) {
@@ -212,7 +213,7 @@ class SmeltFixture : SpotFixture("smelt", LevelNeed(Skill.SMITHING, 15), bag = s
 
     override val done: List<String> get() = smelter.steps
 
-    override fun turn(amount: Int?): StepTurn = turnOf(SmeltingWork(smelter), amount, step.needs(), carried, fillsBag = false, traveller)
+    override fun turn(amount: Int?): StepTurn = turnOf(SmeltingWork(smelter, WalkUps(traveller)), amount, step.needs(), carried, fillsBag = false, traveller)
 
     override fun gain(units: Int) {
         smelter.bars += units
@@ -230,8 +231,8 @@ class SmeltFixture : SpotFixture("smelt", LevelNeed(Skill.SMITHING, 15), bag = s
         smelter.view = smelter.view.copy(furnaces = listOf(furnace))
     }
 
-    override fun targetFarOff(door: DoorStep?) {
-        smelter.view = smelter.view.copy(furnaces = listOf(farOff(furnace, door)))
+    override fun targetFarOff(doors: List<DoorStep>) {
+        smelter.view = smelter.view.copy(furnaces = listOf(farOff(furnace, doors)))
     }
 
     override fun standInArea(inside: Boolean) {
@@ -265,7 +266,7 @@ class SmithFixture : SpotFixture("smith", LevelNeed(Skill.SMITHING, 15), bag = s
 
     override val done: List<String> get() = smither.steps
 
-    override fun turn(amount: Int?): StepTurn = turnOf(SmithingWork(smither), amount, step.needs(), carried, fillsBag = false, traveller)
+    override fun turn(amount: Int?): StepTurn = turnOf(SmithingWork(smither, WalkUps(traveller)), amount, step.needs(), carried, fillsBag = false, traveller)
 
     override fun gain(units: Int) {
         smither.made += units
@@ -283,8 +284,8 @@ class SmithFixture : SpotFixture("smith", LevelNeed(Skill.SMITHING, 15), bag = s
         smither.view = smither.view.copy(anvils = listOf(anvil))
     }
 
-    override fun targetFarOff(door: DoorStep?) {
-        smither.view = smither.view.copy(anvils = listOf(farOff(anvil, door)))
+    override fun targetFarOff(doors: List<DoorStep>) {
+        smither.view = smither.view.copy(anvils = listOf(farOff(anvil, doors)))
     }
 
     override fun standInArea(inside: Boolean) {

@@ -60,7 +60,7 @@ class NpcsAroundTest {
 
         val found = chickens(login(), doorways = doorways).candidates()
 
-        assertEquals(listOf(candidate(npc, distance = 12, usableFromHere = false, approach = Position(3206, 3200)).copy(door = WalledDoor.shut)), found)
+        assertEquals(listOf(candidate(npc, distance = 12, usableFromHere = false, approach = Position(3206, 3200)).copy(doors = listOf(WalledDoor.shut))), found)
     }
 
     @Test

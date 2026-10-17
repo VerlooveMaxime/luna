@@ -19,10 +19,6 @@ class FakeMiner(var view: MiningView, private val anchor: Tile = Tile(3200, 3200
         steps += "mine ${rock.position.x},${rock.position.y}"
     }
 
-    override fun walkTo(rock: Candidate) {
-        steps += "walk to ${rock.position.x},${rock.position.y}"
-    }
-
     override fun anchor(): Tile = anchor
 
     override fun ores(): Int = ores

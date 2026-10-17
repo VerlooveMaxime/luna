@@ -1,5 +1,6 @@
 package game.idle.autopilot.smithing
 
+import game.idle.autopilot.travel.walkUpsFor
 import game.idle.flow.Counts
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
@@ -123,6 +124,8 @@ data class SmithStep(
     override fun needs(): List<StepNeeds> =
         listOf(StepNeeds(tools = listOf(SmithStepType.HAMMER), inputs = listOf(metal.id), level = LevelNeed(Skill.SMITHING, made.level)))
 
-    override fun work(player: Player, runTile: Tile): StepWork =
-        SmithingWork(LunaSmither(player, metal, table, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
+    override fun work(player: Player, runTile: Tile): StepWork {
+        val area = Area(workSpot.tile(runTile), radius)
+        return SmithingWork(LunaSmither(player, metal, table, area, TravelWebs.SERVER.doorwaysOf(player.world)), walkUpsFor(player))
+    }
 }

@@ -4,6 +4,7 @@ package game.idle.flow
 import engine.combat.prayer.CombatPrayer
 import game.idle.flow.option.FakeNames
 import game.idle.font.EVEN_FONT
+import game.idle.location.Tile
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -91,6 +92,11 @@ class StepWordsTest {
         val line = words.said(2, Said.Ended(Reason.BagFull(listOf(bones, cowhide, oakLogs, net, bait, bones, cowhide, oakLogs))))
 
         assertTrue(line.endsWith(".. left lying."), line)
+    }
+
+    @Test
+    fun `a walk up that could not get through a door says which and where`() {
+        assertEquals("Autopilot: step 2 could not get through the gate at 3101, 3509.", words.said(2, Said.DoorShut(Passage.GATE, Tile(3101, 3509))))
     }
 
     @Test

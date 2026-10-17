@@ -1,5 +1,6 @@
 package game.idle.autopilot.fighting
 
+import game.idle.autopilot.travel.walkUpsFor
 import game.idle.flow.Counts
 import game.idle.flow.Fights
 import game.idle.flow.FlowContext
@@ -79,6 +80,8 @@ data class FightStep(
 
     override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(fought = target.npcs))
 
-    override fun work(player: Player, runTile: Tile): StepWork =
-        FightWork(LunaFighter(player, target, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
+    override fun work(player: Player, runTile: Tile): StepWork {
+        val area = Area(workSpot.tile(runTile), radius)
+        return FightWork(LunaFighter(player, target, area, TravelWebs.SERVER.doorwaysOf(player.world)), walkUpsFor(player))
+    }
 }

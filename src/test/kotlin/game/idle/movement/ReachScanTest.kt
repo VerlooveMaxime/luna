@@ -21,7 +21,8 @@ class ReachScanTest {
     private val oak = Standing(Position(3160, 3440, 0), size = 2)
 
     /** A shut door from 3167 3444 onto the fence's tile east of it. */
-    private val door = DoorStep(Doorway(1530, Position(3168, 3444, 0), EdgeType.DOOR), from = Position(3167, 3444, 0), shut = true)
+    private val door =
+        DoorStep(Doorway(1530, Position(3168, 3444, 0), EdgeType.DOOR), from = Position(3167, 3444, 0), to = Position(3168, 3444, 0), shut = true)
 
     /**
      * Targets block their own tiles. A fence along x = 3168 from y = 3440 to 3448 stops steps onto it; a [wall] there
@@ -107,7 +108,7 @@ class ReachScanTest {
     fun `a target behind a shut door is walked to through it, the door counted and named`() {
         val found = reachable(Position(3165, 3444, 0), listOf(tree), Grid(listOf(tree), wall = true, door = door))
 
-        assertEquals(Reach(distance = 11, usableFromHere = false, approach = Position(3170, 3444, 0), door), found.single().second)
+        assertEquals(Reach(distance = 11, usableFromHere = false, approach = Position(3170, 3444, 0), listOf(door)), found.single().second)
     }
 
     @Test

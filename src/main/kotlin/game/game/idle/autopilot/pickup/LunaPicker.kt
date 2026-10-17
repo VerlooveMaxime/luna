@@ -36,8 +36,8 @@ class LunaPicker(private val player: Player, private val itemIds: Set<Int>, priv
         val items = lying().mapNotNull { item ->
             distances[item.position]?.let { distance ->
                 val fits = player.inventory.hasSpaceFor(item.toItem())
-                val door = distances.doorOn(item.position)
-                Candidate(item.id, item.position, distance, usableFromHere = distance == 0, approach = item.position, fits = fits, door = door)
+                val doors = distances.doorsOn(item.position)
+                Candidate(item.id, item.position, distance, usableFromHere = distance == 0, approach = item.position, fits = fits, doors = doors)
             }
         }
         return PickUpView(atLocation = scan.atLocation(here), items = items)
@@ -48,8 +48,6 @@ class LunaPicker(private val player: Player, private val itemIds: Set<Int>, priv
         taking = ground.id to player.inventory.computeAmountForId(ground.id)
         LunaClicks.interact(player, PickupItemEvent(player, ground), ground, PickupItemEvent::class.java)
     }
-
-    override fun walkTo(item: Candidate) = LunaClicks.approach(player, item)
 
     override fun walkToLocation() = LunaClicks.walk(player, anchor)
 

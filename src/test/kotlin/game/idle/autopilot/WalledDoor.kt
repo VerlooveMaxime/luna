@@ -22,7 +22,7 @@ object WalledDoor {
     val doorway = Doorway(DOOR, Position(3205, 3200), EdgeType.DOOR)
 
     /** The step a walk from the west takes through the shut door. */
-    val shut = DoorStep(doorway, inFront, shut = true)
+    val shut = DoorStep(doorway, inFront, doorway.position, shut = true)
 
     /** Builds the wall and its door, and gives the doorways a scan needs to know it. */
     fun build(): Doorways {

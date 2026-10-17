@@ -23,10 +23,6 @@ class FakeSmither(var view: SmithingView, private val anchor: Tile = Tile(3200, 
         steps += "choose $times"
     }
 
-    override fun walkTo(anvil: Candidate) {
-        steps += "walk to ${anvil.position.x},${anvil.position.y}"
-    }
-
     override fun anchor(): Tile = anchor
 
     override fun made(): Int = made

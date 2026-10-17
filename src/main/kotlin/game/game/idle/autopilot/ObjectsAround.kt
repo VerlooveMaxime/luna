@@ -36,7 +36,7 @@ class ObjectsAround(
     /** Each object the player can walk up to, with how; none from too far off the area or another floor. */
     fun candidates(): List<Candidate> =
         scan.reachable(player.position, standing(), ::footprintOf, terrain = this)
-            .map { (obj, reach) -> Candidate(obj.id, obj.position, reach.distance, reach.usableFromHere, reach.approach, door = reach.door) }
+            .map { (obj, reach) -> Candidate(obj.id, obj.position, reach.distance, reach.usableFromHere, reach.approach, doors = reach.doors) }
 
     /**
      * The object [candidate] was, if it still stands there for the player: a tree cut down, a rock emptied or a fire

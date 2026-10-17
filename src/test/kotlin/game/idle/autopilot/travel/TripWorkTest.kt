@@ -56,6 +56,21 @@ class TripWorkTest {
     }
 
     @Test
+    fun `a trip told to arrive on its target is not over beside it`() {
+        traveller.position = Position(3229, 3201)
+        val onTarget = TripWork(traveller, target, Place.TILE, arriveWithin = 0)
+        assertEquals(StepOutcome.Approached, onTarget.act(null))
+    }
+
+    @Test
+    fun `a trip told to arrive on its target walks its last leg all the way`() {
+        traveller.position = Position(3229, 3201)
+        val onTarget = TripWork(traveller, target, Place.TILE, WebWalkPlan(listOf(walkLeg(start, target.toPosition())), cost = 1.0), arriveWithin = 0)
+        onTarget.act(null)
+        assertEquals(listOf(target.toPosition()), traveller.walks)
+    }
+
+    @Test
     fun `a trip on another floor than its target is not over`() {
         traveller.position = Position(3230, 3200, 1)
         traveller.plans += CompletableFuture()

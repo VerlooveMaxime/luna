@@ -15,8 +15,8 @@ class RetrySkipTest {
     private val oak = Aim(1281, Tile(3171, 3444))
     private val willow = Aim(1308, Tile(3170, 3454))
     private var progress = 0
-    private val objects = RetrySkip.forTheTurn { progress }
-    private val npcs = RetrySkip.untilProgress { progress }
+    private val objects = RetrySkip.forTheTurn(progress = { progress })
+    private val npcs = RetrySkip.untilProgress(progress = { progress })
     private val asked = mutableListOf<Set<Aim>>()
 
     /** Decides [decision] under [rule] whatever is set aside, recording the aims it was asked to leave out. */
@@ -40,6 +40,27 @@ class RetrySkipTest {
         val second = decideOr(Use(oak, 0), Undecided)
 
         assertEquals(Undecided, second)
+    }
+
+    @Test
+    fun `an aim set aside is told to whoever listens`() {
+        val told = mutableListOf<Aim>()
+        val rule = RetrySkip.forTheTurn(progress = { progress }, setAside = { told += it })
+        decideOr(Use(oak, 0), Undecided, rule)
+
+        decideOr(Use(oak, 0), Undecided, rule)
+
+        assertEquals(listOf(oak), told)
+    }
+
+    @Test
+    fun `an aim decided on once is not told`() {
+        val told = mutableListOf<Aim>()
+        val rule = RetrySkip.untilProgress(progress = { progress }, setAside = { told += it })
+
+        decideOr(Use(oak, 0), Undecided, rule)
+
+        assertEquals(emptyList<Aim>(), told)
     }
 
     @Test

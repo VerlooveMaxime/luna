@@ -5,10 +5,12 @@ import game.idle.autopilot.fishing.FishingDecision.Fish
 import game.idle.autopilot.fishing.FishingDecision.Settled
 import game.idle.autopilot.fishing.FishingDecision.WalkTo
 import game.idle.autopilot.fishing.FishingDecision.WalkToLocation
+import game.idle.autopilot.travel.WalkUps
 import game.idle.flow.Aim
 import game.idle.flow.Aimed
 import game.idle.flow.Meter
 import game.idle.flow.RetrySkip
+import game.idle.flow.Said
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
 import game.idle.flow.Target
@@ -22,8 +24,6 @@ interface Fisher {
     fun look(): FishingView
 
     fun fish(spot: Candidate)
-
-    fun walkTo(spot: Candidate)
 
     /** The anchor of the step's area, where a walk back goes. */
     fun anchor(): Tile
@@ -81,27 +81,34 @@ object FishingPlanner {
 }
 
 /** The fish step's work: carries out [FishingPlanner] decisions, its fish the count, anything pulled up progress. */
-class FishingWork(private val fisher: Fisher) : StepWork {
+class FishingWork(private val fisher: Fisher, private val walkUps: WalkUps) : StepWork {
 
-    private val retry = RetrySkip.forTheTurn(fisher::pulledUp)
+    private val retry = RetrySkip.forTheTurn(fisher::pulledUp, walkUps::setAside)
 
     override val meter: Meter = Meter.Rises(fisher::catches)
 
-    override fun isBusy(): Boolean = fisher.isBusy()
+    override fun isBusy(): Boolean = walkUps.isBusy(fisher.isBusy())
 
     override fun finishing(): Boolean = false
 
-    override fun interrupt() = fisher.interrupt()
+    override fun interrupt() {
+        walkUps.stop()
+        fisher.interrupt()
+    }
+
+    override fun said(): Said? = walkUps.said()
 
     override fun act(left: Int?): StepOutcome {
         val view = fisher.look()
-        return carryOut(retry.decide { skipped -> FishingPlanner.decide(view, skipped) })
+        val decision = retry.decide { skipped -> FishingPlanner.decide(view, skipped) }
+        if (decision !is WalkTo) walkUps.stop()
+        return carryOut(decision)
     }
 
     private fun carryOut(decision: FishingDecision): StepOutcome =
         when (decision) {
             is Fish -> fish(decision.spot)
-            is WalkTo -> walkTo(decision.spot)
+            is WalkTo -> walkUps.walkTo(decision.spot)
             WalkToLocation -> StepOutcome.Away(fisher.anchor())
             is Settled -> decision.outcome
         }
@@ -109,10 +116,5 @@ class FishingWork(private val fisher: Fisher) : StepWork {
     private fun fish(spot: Candidate): StepOutcome {
         fisher.fish(spot)
         return StepOutcome.Worked
-    }
-
-    private fun walkTo(spot: Candidate): StepOutcome {
-        fisher.walkTo(spot)
-        return spot.approached
     }
 }

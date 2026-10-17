@@ -1,10 +1,13 @@
 package game.idle.autopilot.woodcutting
 
+import game.idle.autopilot.travel.FakeTraveller
+import game.idle.autopilot.travel.WalkUps
 import game.idle.flow.Meter
 import game.idle.flow.Reason
 import game.idle.flow.StepOutcome
 import game.idle.flow.Target
 import game.idle.location.Tile
+import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -18,7 +21,9 @@ class WoodcuttingWorkTest {
     private val anchor = Tile(3175, 3448)
 
     private val woodcutter = FakeWoodcutter(view(listOf(nearTree, farTree)), anchor)
-    private val work = WoodcuttingWork(woodcutter)
+    /** Stands away from every target, so a walk up walks; its walks join the adapter's steps. */
+    private val traveller = FakeTraveller(Position(3000, 3000), woodcutter.steps)
+    private val work = WoodcuttingWork(woodcutter, WalkUps(traveller))
 
     @Test
     fun `the meter reads the logs carried`() {
@@ -59,7 +64,7 @@ class WoodcuttingWorkTest {
     fun `a tree out of reach is walked to, which approaches it`() {
         val outcome = work.act(left = null)
 
-        assertEquals(StepOutcome.Approached to listOf("walk to 3171,3444"), outcome to woodcutter.steps)
+        assertEquals(StepOutcome.Approached to listOf("walk to 3170,3444"), outcome to woodcutter.steps)
     }
 
     @Test

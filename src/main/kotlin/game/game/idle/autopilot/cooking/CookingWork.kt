@@ -6,11 +6,13 @@ import game.idle.autopilot.cooking.CookingDecision.Settled
 import game.idle.autopilot.cooking.CookingDecision.UseOn
 import game.idle.autopilot.cooking.CookingDecision.WalkTo
 import game.idle.autopilot.cooking.CookingDecision.WalkToLocation
+import game.idle.autopilot.travel.WalkUps
 import game.idle.flow.Aim
 import game.idle.flow.Aimed
 import game.idle.flow.Meter
 import game.idle.flow.Reason
 import game.idle.flow.RetrySkip
+import game.idle.flow.Said
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
 import game.idle.flow.Target
@@ -28,8 +30,6 @@ interface Cooker {
 
     /** Picks "cook all" in the open cooking window. */
     fun cookAll()
-
-    fun walkTo(place: Candidate)
 
     /** The anchor of the step's area, where a walk back goes. */
     fun anchor(): Tile
@@ -94,27 +94,34 @@ object CookingPlanner {
 }
 
 /** The cook step's work: carries out [CookingPlanner] decisions, the raw food used (cooked or burnt) the count. */
-class CookingWork(private val cooker: Cooker) : StepWork {
+class CookingWork(private val cooker: Cooker, private val walkUps: WalkUps) : StepWork {
 
-    private val retry = RetrySkip.forTheTurn(cooker::raw)
+    private val retry = RetrySkip.forTheTurn(cooker::raw, walkUps::setAside)
 
     override val meter: Meter = Meter.Falls(cooker::raw)
 
-    override fun isBusy(): Boolean = cooker.isBusy()
+    override fun isBusy(): Boolean = walkUps.isBusy(cooker.isBusy())
 
     override fun finishing(): Boolean = false
 
-    override fun interrupt() = cooker.interrupt()
+    override fun interrupt() {
+        walkUps.stop()
+        cooker.interrupt()
+    }
+
+    override fun said(): Said? = walkUps.said()
 
     override fun act(left: Int?): StepOutcome {
         val view = cooker.look()
-        return carryOut(retry.decide { skipped -> CookingPlanner.decide(view, skipped) })
+        val decision = retry.decide { skipped -> CookingPlanner.decide(view, skipped) }
+        if (decision !is WalkTo) walkUps.stop()
+        return carryOut(decision)
     }
 
     private fun carryOut(decision: CookingDecision): StepOutcome =
         when (decision) {
             is UseOn -> useOn(decision.place, decision.slot)
-            is WalkTo -> walkTo(decision.place)
+            is WalkTo -> walkUps.walkTo(decision.place)
             CookAll -> cookAll()
             WalkToLocation -> StepOutcome.Away(cooker.anchor())
             is Settled -> decision.outcome
@@ -123,11 +130,6 @@ class CookingWork(private val cooker: Cooker) : StepWork {
     private fun useOn(place: Candidate, slot: Int): StepOutcome {
         cooker.useOn(place, slot)
         return StepOutcome.Worked
-    }
-
-    private fun walkTo(place: Candidate): StepOutcome {
-        cooker.walkTo(place)
-        return place.approached
     }
 
     private fun cookAll(): StepOutcome {

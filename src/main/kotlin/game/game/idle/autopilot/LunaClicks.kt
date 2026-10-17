@@ -111,21 +111,6 @@ object LunaClicks {
     }
 
     /**
-     * Walks [player] up to [target] as a step's look found it (web-walker movement Part 4): a shut door on the way is
-     * walked to and opened first, and the next decision walks on through it; otherwise the [walk] to its approach tile.
-     * A door the click cannot open (gone since the look, no tile reaching it) leaves the player standing, and the retry
-     * rule sets the target aside at the next decision.
-     */
-    fun approach(player: Player, target: Candidate) {
-        val door = target.door?.takeIf { it.shut }
-        if (door == null) {
-            walk(player, target.approach)
-        } else {
-            use(player, door.doorway.id, door.doorway.position, option = null, from = door.from)
-        }
-    }
-
-    /**
      * Whether collision lets a player step from [from] in [direction]: a closed door is a wall here, as it is to the
      * navigator. The reach scans step through doors by [reachSteps]; what looks for a free tile rather than a way walks
      * by this (where to light a fire; the flee until web-walker movement Part 5).

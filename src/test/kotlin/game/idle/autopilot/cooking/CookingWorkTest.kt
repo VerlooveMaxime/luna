@@ -2,11 +2,14 @@ package game.idle.autopilot.cooking
 
 import game.idle.autopilot.cooking.CookingDecision.Settled
 import game.idle.autopilot.cooking.CookingDecision.WalkTo
+import game.idle.autopilot.travel.FakeTraveller
+import game.idle.autopilot.travel.WalkUps
 import game.idle.flow.Meter
 import game.idle.flow.Reason
 import game.idle.flow.StepOutcome
 import game.idle.flow.Target
 import game.idle.location.Tile
+import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -20,7 +23,9 @@ class CookingWorkTest {
     private val anchor = Tile(3102, 3098)
 
     private val cooker = FakeCooker(cookingView(listOf(fire, farFire)), anchor)
-    private val work = CookingWork(cooker)
+    /** Stands away from every target, so a walk up walks; its walks join the adapter's steps. */
+    private val traveller = FakeTraveller(Position(3000, 3000), cooker.steps)
+    private val work = CookingWork(cooker, WalkUps(traveller))
 
     @Test
     fun `the meter reads the raw food carried, which falls as it is cooked`() {
@@ -61,7 +66,7 @@ class CookingWorkTest {
     fun `the nearest fire out of reach is walked to, which approaches it`() {
         val outcome = work.act(left = null)
 
-        assertEquals(StepOutcome.Approached to listOf("walk to 3100,3095"), outcome to cooker.steps)
+        assertEquals(StepOutcome.Approached to listOf("walk to 3099,3095"), outcome to cooker.steps)
     }
 
     @Test

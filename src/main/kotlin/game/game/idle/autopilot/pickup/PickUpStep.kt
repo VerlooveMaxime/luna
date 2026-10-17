@@ -1,5 +1,6 @@
 package game.idle.autopilot.pickup
 
+import game.idle.autopilot.travel.walkUpsFor
 import game.idle.flow.Counts
 import game.idle.flow.FillsBag
 import game.idle.flow.FlowContext
@@ -108,6 +109,8 @@ data class PickUpStep(
 
     override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + fills))
 
-    override fun work(player: Player, runTile: Tile): StepWork =
-        PickUpWork(LunaPicker(player, itemIds, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
+    override fun work(player: Player, runTile: Tile): StepWork {
+        val area = Area(workSpot.tile(runTile), radius)
+        return PickUpWork(LunaPicker(player, itemIds, area, TravelWebs.SERVER.doorwaysOf(player.world)), walkUpsFor(player))
+    }
 }

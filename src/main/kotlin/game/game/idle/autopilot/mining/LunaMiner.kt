@@ -28,8 +28,6 @@ class LunaMiner(private val player: Player, private val ore: Ore, private val ar
         LunaClicks.interact(player, ObjectFirstClickEvent(player, target), target, ObjectFirstClickEvent::class.java)
     }
 
-    override fun walkTo(rock: Candidate) = LunaClicks.approach(player, rock)
-
     override fun anchor(): Tile = area.anchor
 
     override fun ores(): Int = player.inventory.computeAmountForId(ore.item)

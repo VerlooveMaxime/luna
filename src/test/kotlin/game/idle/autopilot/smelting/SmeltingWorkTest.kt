@@ -2,11 +2,14 @@ package game.idle.autopilot.smelting
 
 import game.idle.autopilot.smelting.SmeltingDecision.Settled
 import game.idle.autopilot.smelting.SmeltingDecision.WalkTo
+import game.idle.autopilot.travel.FakeTraveller
+import game.idle.autopilot.travel.WalkUps
 import game.idle.flow.Meter
 import game.idle.flow.Reason
 import game.idle.flow.StepOutcome
 import game.idle.flow.Target
 import game.idle.location.Tile
+import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -20,7 +23,9 @@ class SmeltingWorkTest {
     private val anchor = Tile(3203, 3203)
 
     private val smelter = FakeSmelter(smeltingView(listOf(inReach)), anchor)
-    private val work = SmeltingWork(smelter)
+    /** Stands away from every target, so a walk up walks; its walks join the adapter's steps. */
+    private val traveller = FakeTraveller(Position(3000, 3000), smelter.steps)
+    private val work = SmeltingWork(smelter, WalkUps(traveller))
 
     @Test
     fun `the meter reads the bars carried`() {
@@ -61,7 +66,7 @@ class SmeltingWorkTest {
 
         val outcome = work.act(left = null)
 
-        assertEquals(StepOutcome.Approached to listOf("walk to 3201,3200"), outcome to smelter.steps)
+        assertEquals(StepOutcome.Approached to listOf("walk to 3200,3200"), outcome to smelter.steps)
     }
 
     @Test

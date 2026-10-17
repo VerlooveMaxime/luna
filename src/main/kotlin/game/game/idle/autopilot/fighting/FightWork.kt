@@ -5,11 +5,13 @@ import game.idle.autopilot.fighting.FightDecision.Attack
 import game.idle.autopilot.fighting.FightDecision.Settled
 import game.idle.autopilot.fighting.FightDecision.WalkTo
 import game.idle.autopilot.fighting.FightDecision.WalkToLocation
+import game.idle.autopilot.travel.WalkUps
 import game.idle.flow.Aim
 import game.idle.flow.Aimed
 import game.idle.flow.Meter
 import game.idle.flow.Reason
 import game.idle.flow.RetrySkip
+import game.idle.flow.Said
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
 import game.idle.flow.Target
@@ -24,9 +26,6 @@ interface Fighter {
     fun look(): FightView
 
     fun attack(npc: Candidate)
-
-    /** Walks to the tile [target] can be hit from. */
-    fun walkTo(npc: Candidate)
 
     /** The anchor of the step's area, where a walk back goes. */
     fun anchor(): Tile
@@ -99,27 +98,34 @@ object FightingPlanner {
  * [RetrySkip.untilProgress]. The kill that reaches the Amount ends the step only once its death is over ([finishing]),
  * so a pick-up step after it finds the drop (S07d).
  */
-class FightWork(private val fighter: Fighter) : StepWork {
+class FightWork(private val fighter: Fighter, private val walkUps: WalkUps) : StepWork {
 
-    private val retry = RetrySkip.untilProgress(fighter::kills)
+    private val retry = RetrySkip.untilProgress(fighter::kills, walkUps::setAside)
 
     override val meter: Meter = Meter.Rises(fighter::kills)
 
-    override fun isBusy(): Boolean = fighter.isBusy()
+    override fun isBusy(): Boolean = walkUps.isBusy(fighter.isBusy())
 
     override fun finishing(): Boolean = fighter.lastKillDying()
 
-    override fun interrupt() = fighter.interrupt()
+    override fun interrupt() {
+        walkUps.stop()
+        fighter.interrupt()
+    }
+
+    override fun said(): Said? = walkUps.said()
 
     override fun act(left: Int?): StepOutcome {
         val view = fighter.look()
-        return carryOut(retry.decide { skipped -> FightingPlanner.decide(view, skipped) })
+        val decision = retry.decide { skipped -> FightingPlanner.decide(view, skipped) }
+        if (decision !is WalkTo) walkUps.stop()
+        return carryOut(decision)
     }
 
     private fun carryOut(decision: FightDecision): StepOutcome =
         when (decision) {
             is Attack -> attack(decision.target)
-            is WalkTo -> walkTo(decision.target)
+            is WalkTo -> walkUps.walkTo(decision.target)
             WalkToLocation -> StepOutcome.Away(fighter.anchor())
             is Settled -> decision.outcome
         }
@@ -127,10 +133,5 @@ class FightWork(private val fighter: Fighter) : StepWork {
     private fun attack(npc: Candidate): StepOutcome {
         fighter.attack(npc)
         return StepOutcome.Worked
-    }
-
-    private fun walkTo(npc: Candidate): StepOutcome {
-        fighter.walkTo(npc)
-        return npc.approached
     }
 }

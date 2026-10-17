@@ -17,10 +17,6 @@ class FakePicker(var view: PickUpView) : Picker {
         steps += "take ${item.position.x},${item.position.y}"
     }
 
-    override fun walkTo(item: Candidate) {
-        steps += "walk to ${item.position.x},${item.position.y}"
-    }
-
     override fun walkToLocation() {
         steps += "walk to location"
     }

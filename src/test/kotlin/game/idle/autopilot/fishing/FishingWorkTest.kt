@@ -2,6 +2,8 @@ package game.idle.autopilot.fishing
 
 import game.idle.autopilot.Candidate
 import game.idle.autopilot.fishing.FishingDecision.WalkTo
+import game.idle.autopilot.travel.FakeTraveller
+import game.idle.autopilot.travel.WalkUps
 import game.idle.flow.Meter
 import game.idle.flow.Reason
 import game.idle.flow.StepOutcome
@@ -26,7 +28,9 @@ class FishingWorkTest {
     private fun view(spots: List<Candidate> = listOf(near, far), atLocation: Boolean = true) = FishingView(atLocation, spots)
 
     private val fisher = FakeFisher(view(), anchor)
-    private val work = FishingWork(fisher)
+    /** Stands away from every target, so a walk up walks; its walks join the adapter's steps. */
+    private val traveller = FakeTraveller(Position(3000, 3000), fisher.steps)
+    private val work = FishingWork(fisher, WalkUps(traveller))
 
     @Test
     fun `the meter reads the catches carried`() {
@@ -67,7 +71,7 @@ class FishingWorkTest {
     fun `the nearest spot out of reach is walked to, which approaches it`() {
         val outcome = work.act(left = null)
 
-        assertEquals(StepOutcome.Approached to listOf("walk to 3100,3092"), outcome to fisher.steps)
+        assertEquals(StepOutcome.Approached to listOf("walk to 3100,3093"), outcome to fisher.steps)
     }
 
     @Test

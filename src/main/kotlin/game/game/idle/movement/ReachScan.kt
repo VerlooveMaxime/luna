@@ -7,10 +7,10 @@ import io.luna.game.model.Position
 data class Footprint(val position: Position, val width: Int, val height: Int)
 
 /**
- * How a player gets to use a target: [distance] walking steps to [approach], zero when [usableFromHere], through [door]
- * when the walk goes through one (the shut one it opens first, else the first).
+ * How a player gets to use a target: [distance] walking steps to [approach], zero when [usableFromHere], through
+ * [doors] in that order.
  */
-data class Reach(val distance: Int, val usableFromHere: Boolean, val approach: Position, val door: DoorStep? = null)
+data class Reach(val distance: Int, val usableFromHere: Boolean, val approach: Position, val doors: List<DoorStep> = emptyList())
 
 /** The collision answers a scan for targets of type [T] needs. */
 interface ReachTerrain<in T> {
@@ -62,7 +62,7 @@ class ReachScan(private val anchor: Position, radius: Int, private val maxWalk: 
             .mapNotNull { tile -> distances[tile]?.let { tile to it } }
             .minByOrNull { (_, steps) -> steps }
             ?: return null
-        return Reach(steps, usableFromHere = false, approach, distances.doorOn(approach))
+        return Reach(steps, usableFromHere = false, approach, distances.doorsOn(approach))
     }
 
     companion object {

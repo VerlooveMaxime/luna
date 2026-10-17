@@ -1,6 +1,8 @@
 package game.idle.autopilot.pickup
 
 import game.idle.autopilot.Candidate
+import game.idle.autopilot.travel.FakeTraveller
+import game.idle.autopilot.travel.WalkUps
 import game.idle.flow.Meter
 import game.idle.flow.StepOutcome
 import io.luna.game.model.Position
@@ -16,7 +18,9 @@ class PickUpWorkTest {
     private val bonesUnderfoot = Candidate(bones, Position(3200, 3200), distance = 0, usableFromHere = true, approach = Position(3200, 3200))
     private val cowhideNear = Candidate(cowhide, Position(3203, 3200), distance = 3, usableFromHere = false, approach = Position(3203, 3200))
     private val picker = FakePicker(PickUpView(atLocation = true, items = listOf(bonesUnderfoot)))
-    private val work = PickUpWork(picker)
+    /** Stands away from every target, so a walk up walks; its walks join the adapter's steps. */
+    private val traveller = FakeTraveller(Position(3000, 3000), picker.steps)
+    private val work = PickUpWork(picker, WalkUps(traveller))
 
     @Test
     fun `the meter reads the pickups`() {

@@ -32,15 +32,12 @@ data class TileBounds(val minX: Int, val minY: Int, val maxX: Int, val maxY: Int
  * distance ignores walls and fences; this does not. A step may be worth more than one ([Step.cost]: a shut door), so the
  * search is Dijkstra's over buckets of equal cost, which with plain steps only is a breadth-first search.
  */
-class WalkingDistances private constructor(private val steps: Map<Position, Int>, private val doors: Map<Position, DoorStep>) {
+class WalkingDistances private constructor(private val steps: Map<Position, Int>, private val doors: Map<Position, List<DoorStep>>) {
 
     operator fun get(tile: Position): Int? = steps[tile]
 
-    /**
-     * The door on the cheapest walk to [tile] the search found first: the shut one it opens on the way, else the first it
-     * goes through; null for none.
-     */
-    fun doorOn(tile: Position): DoorStep? = doors[tile]
+    /** The doors on the cheapest walk to [tile] the search found first, in the order it goes through them. */
+    fun doorsOn(tile: Position): List<DoorStep> = doors[tile] ?: emptyList()
 
     val reachable: Set<Position> get() = steps.keys
 
@@ -69,7 +66,7 @@ class WalkingDistances private constructor(private val steps: Map<Position, Int>
             { from, direction -> if (canStep(from, direction)) Step.Plain else null }
     }
 
-    /** One search from [origin], recording each tile's steps and the door on its way. */
+    /** One search from [origin], recording each tile's steps and the doors on its way. */
     private class Search(
         origin: Position,
         private val bounds: TileBounds,
@@ -78,7 +75,8 @@ class WalkingDistances private constructor(private val steps: Map<Position, Int>
     ) {
 
         val steps = hashMapOf(origin to 0)
-        val doors = hashMapOf<Position, DoorStep>()
+        /** The doors on the way to each tile that has any; a tile shares its list with the one it was reached from. */
+        val doors = hashMapOf<Position, List<DoorStep>>()
 
         /** The tiles waiting to be walked on from, by their steps; one reached cheaper since it was queued is passed over. */
         private val queued = mutableListOf(ArrayDeque(listOf(origin)))
@@ -108,19 +106,11 @@ class WalkingDistances private constructor(private val steps: Map<Position, Int>
             val next = cost + taken.cost
             if (next > maxSteps || known != null && known <= next) return
             steps[neighbour] = next
-            val door = doorOnTheWay(doors[tile], taken)
-            if (door == null) doors.remove(neighbour) else doors[neighbour] = door
+            val before = doors[tile]
+            val route = if (taken is DoorStep) before.orEmpty() + taken else before
+            if (route == null) doors.remove(neighbour) else doors[neighbour] = route
             while (queued.size <= next) queued += ArrayDeque<Position>()
             queued[next].addLast(neighbour)
         }
-
-        /** The first shut door, which the walk must open, else the first door it goes through. */
-        private fun doorOnTheWay(before: DoorStep?, taken: Step): DoorStep? =
-            when {
-                taken !is DoorStep -> before
-                before == null -> taken
-                taken.shut && !before.shut -> taken
-                else -> before
-            }
     }
 }

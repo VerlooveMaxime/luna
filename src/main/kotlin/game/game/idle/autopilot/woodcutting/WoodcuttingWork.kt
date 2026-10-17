@@ -1,12 +1,14 @@
 package game.idle.autopilot.woodcutting
 
 import game.idle.autopilot.Candidate
+import game.idle.autopilot.travel.WalkUps
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Chop
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.Settled
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkTo
 import game.idle.autopilot.woodcutting.WoodcuttingDecision.WalkToLocation
 import game.idle.flow.Meter
 import game.idle.flow.RetrySkip
+import game.idle.flow.Said
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
 import game.idle.location.Tile
@@ -20,8 +22,6 @@ interface Woodcutter {
 
     fun chop(tree: Candidate)
 
-    fun walkTo(tree: Candidate)
-
     /** The anchor of the step's area, where a walk back goes. */
     fun anchor(): Tile
 
@@ -33,27 +33,34 @@ interface Woodcutter {
 }
 
 /** The chop step's work: carries out [WoodcuttingPlanner] decisions, its logs the count. */
-class WoodcuttingWork(private val woodcutter: Woodcutter) : StepWork {
+class WoodcuttingWork(private val woodcutter: Woodcutter, private val walkUps: WalkUps) : StepWork {
 
-    private val retry = RetrySkip.forTheTurn(woodcutter::logs)
+    private val retry = RetrySkip.forTheTurn(woodcutter::logs, walkUps::setAside)
 
     override val meter: Meter = Meter.Rises(woodcutter::logs)
 
-    override fun isBusy(): Boolean = woodcutter.isBusy()
+    override fun isBusy(): Boolean = walkUps.isBusy(woodcutter.isBusy())
 
     override fun finishing(): Boolean = false
 
-    override fun interrupt() = woodcutter.interrupt()
+    override fun interrupt() {
+        walkUps.stop()
+        woodcutter.interrupt()
+    }
+
+    override fun said(): Said? = walkUps.said()
 
     override fun act(left: Int?): StepOutcome {
         val view = woodcutter.look()
-        return carryOut(retry.decide { skipped -> WoodcuttingPlanner.decide(view, skipped) })
+        val decision = retry.decide { skipped -> WoodcuttingPlanner.decide(view, skipped) }
+        if (decision !is WalkTo) walkUps.stop()
+        return carryOut(decision)
     }
 
     private fun carryOut(decision: WoodcuttingDecision): StepOutcome =
         when (decision) {
             is Chop -> chop(decision.tree)
-            is WalkTo -> walkTo(decision.tree)
+            is WalkTo -> walkUps.walkTo(decision.tree)
             WalkToLocation -> StepOutcome.Away(woodcutter.anchor())
             is Settled -> decision.outcome
         }
@@ -61,10 +68,5 @@ class WoodcuttingWork(private val woodcutter: Woodcutter) : StepWork {
     private fun chop(tree: Candidate): StepOutcome {
         woodcutter.chop(tree)
         return StepOutcome.Worked
-    }
-
-    private fun walkTo(tree: Candidate): StepOutcome {
-        woodcutter.walkTo(tree)
-        return tree.approached
     }
 }

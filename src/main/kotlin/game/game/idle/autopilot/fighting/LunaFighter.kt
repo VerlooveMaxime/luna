@@ -44,12 +44,6 @@ class LunaFighter(private val player: Player, private val target: FightTarget, p
         LunaClicks.interact(player, AttackNpcEvent(player, found), found, AttackNpcEvent::class.java)
     }
 
-    /**
-     * Walks to the tile the look found, inside the work area; the npc may wander off meanwhile, and the next look
-     * finds where it went. Following it instead let Luna's pathfinder take long ways round fences.
-     */
-    override fun walkTo(npc: Candidate) = LunaClicks.approach(player, npc)
-
     override fun anchor(): Tile = area.anchor
 
     override fun kills(): Int {

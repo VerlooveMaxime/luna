@@ -8,9 +8,10 @@ import java.util.concurrent.CompletableFuture
 
 /**
  * Records what a trip asks of the player; [position] is where they stand. A plan is the next of [plans], or with none
- * queued a plain walk to the first destination, none when [noWay].
+ * queued a plain walk to the first destination, none when [noWay]. Each walk is written to [log] too, as `walk to x,y`,
+ * so a kind's test reads its walks among its adapter's steps.
  */
-class FakeTraveller(var position: Position) : Traveller {
+class FakeTraveller(var position: Position, private val log: MutableList<String> = mutableListOf()) : Traveller {
     var busy = false
     var choosing = false
     var usable = true
@@ -37,6 +38,7 @@ class FakeTraveller(var position: Position) : Traveller {
 
     override fun walk(to: Position) {
         walks += to
+        log += "walk to ${to.x},${to.y}"
     }
 
     override fun standing(id: Int, at: Position): Boolean = id to at in standing

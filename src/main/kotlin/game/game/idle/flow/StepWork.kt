@@ -32,4 +32,7 @@ interface StepWork {
 
     /** One decision; [left] is what the Amount still asks for, null without one. */
     fun act(left: Int?): StepOutcome
+
+    /** A line the last decision has for the chat box, once: a door a walk up could not get through. */
+    fun said(): Said? = null
 }

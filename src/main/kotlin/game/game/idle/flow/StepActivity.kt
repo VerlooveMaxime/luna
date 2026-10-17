@@ -1,5 +1,7 @@
 package game.idle.flow
 
+import game.idle.location.Tile
+
 /**
  * What carries out one step of a flow, decision by decision: it knows when the step is over, why it cannot go on, why
  * the flow must stop, and what it has to tell the player. Everything it reports is typed; the runner puts it into words
@@ -44,6 +46,9 @@ sealed interface Said {
     data class Ended(val reason: Reason.Stuck) : Said
 
     data class Skipped(val reason: Reason.Stuck) : Said
+
+    /** A walk up to a target could not get through [passage] on [tile], so the target was set aside (Part 4b). */
+    data class DoorShut(val passage: Passage, val tile: Tile) : Said
 }
 
 /** Why a step stops the flow: the step is [Stuck], or a [Reflex] of its ran away and stops the flow (S07c). */

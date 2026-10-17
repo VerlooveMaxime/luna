@@ -41,7 +41,7 @@ class NpcsAround(
             .map { (npc, reach) ->
                 Candidate(
                     npc.index, npc.position, reach.distance, reach.usableFromHere, reach.approach,
-                    attacking = npc.combat.target == player, door = reach.door,
+                    attacking = npc.combat.target == player, doors = reach.doors,
                 )
             }
 

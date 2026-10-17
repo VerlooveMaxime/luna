@@ -67,6 +67,7 @@ class StepTurn(
             walk != null -> walking(walk.act(null))
             else -> settle(precheck() ?: work.act(left()))
         }
+        work.said()?.let { said = it }
     }
 
     private fun reached(): Boolean = amount != null && tally.total() >= amount

@@ -159,16 +159,6 @@ class LunaCookerTest {
     }
 
     @Test
-    fun `walking to a fire heads for its approach tile`() {
-        val player = login()
-        TestWorld.place(fire, Position(3205, 3200))
-
-        cooker(player).walkTo(cooker(player).look().places.single())
-
-        assertEquals(Position(3204, 3200), player.navigator.currentTarget)
-    }
-
-    @Test
     fun `a walk back goes to the area's anchor`() {
         assertEquals(Tile(3200, 3200), cooker(login(Position(3220, 3200))).anchor())
     }

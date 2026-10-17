@@ -39,8 +39,6 @@ class LunaFisher(private val player: Player, private val catch: FishingCatch, pr
         }
     }
 
-    override fun walkTo(spot: Candidate) = LunaClicks.approach(player, spot)
-
     override fun anchor(): Tile = area.anchor
 
     /** Only the fish the step is for: what else the method pulls up is by-catch (Maxime, 2026-10-15). */

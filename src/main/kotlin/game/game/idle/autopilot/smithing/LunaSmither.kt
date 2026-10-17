@@ -58,8 +58,6 @@ class LunaSmither(
         LunaClicks.post(player, event)
     }
 
-    override fun walkTo(anvil: Candidate) = LunaClicks.approach(player, anvil)
-
     override fun anchor(): Tile = area.anchor
 
     override fun made(): Int = player.inventory.computeAmountForId(itemId)

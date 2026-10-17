@@ -11,6 +11,7 @@ import game.idle.autopilot.pickup.PickUpStep
 import game.idle.autopilot.pickup.PickUpView
 import game.idle.autopilot.pickup.PickUpWork
 import game.idle.autopilot.travel.FakeTraveller
+import game.idle.autopilot.travel.WalkUps
 import game.idle.location.Tile
 import game.idle.movement.DoorStep
 import io.luna.game.model.Position
@@ -45,7 +46,7 @@ class FightFixture : AreaFixture, SettlingFixture, ApproachFixture {
     override val done: List<String> get() = fighter.steps
 
     override fun turn(amount: Int?): StepTurn =
-        turnOf(FightWork(fighter), amount, step.needs(), carried, fillsBag = step is Gathers, traveller)
+        turnOf(FightWork(fighter, WalkUps(traveller)), amount, step.needs(), carried, fillsBag = step is Gathers, traveller)
 
     override fun gain(units: Int) {
         fighter.kills += units
@@ -67,9 +68,9 @@ class FightFixture : AreaFixture, SettlingFixture, ApproachFixture {
         fighter.view = fighter.view.copy(targets = listOf(man))
     }
 
-    override fun targetFarOff(door: DoorStep?) {
+    override fun targetFarOff(doors: List<DoorStep>) {
         val farOff = man.copy(
-            position = Position(anchor.x + 6, anchor.y), distance = 12, usableFromHere = false, approach = Position(anchor.x + 5, anchor.y), door = door,
+            position = Position(anchor.x + 6, anchor.y), distance = 12, usableFromHere = false, approach = Position(anchor.x + 5, anchor.y), doors = doors,
         )
         fighter.view = fighter.view.copy(targets = listOf(farOff))
     }
@@ -99,10 +100,12 @@ class PickUpFixture : AmountFixture, ApproachFixture {
     private val bones = Candidate(BONES, here.toPosition(), distance = 0, usableFromHere = true, approach = here.toPosition())
     private val picker = FakePicker(PickUpView(atLocation = true, listOf(bones)))
 
+    override val traveller = FakeTraveller(here.toPosition())
+
     override val done: List<String> get() = picker.steps
 
     override fun turn(amount: Int?): StepTurn =
-        turnOf(PickUpWork(picker), amount, step.needs(), carried, fillsBag = step is Gathers, FakeTraveller(here.toPosition()))
+        turnOf(PickUpWork(picker, WalkUps(traveller)), amount, step.needs(), carried, fillsBag = step is Gathers, traveller)
 
     override fun gain(units: Int) {
         picker.pickedUp += units
@@ -112,9 +115,9 @@ class PickUpFixture : AmountFixture, ApproachFixture {
         picker.busy = busy
     }
 
-    override fun targetFarOff(door: DoorStep?) {
-        val tile = Position(here.x + 6, here.y)
-        picker.view = picker.view.copy(items = listOf(bones.copy(position = tile, distance = 12, usableFromHere = false, approach = tile, door = door)))
+    override fun targetFarOff(doors: List<DoorStep>) {
+        val tile = Position(here.x + 5, here.y)
+        picker.view = picker.view.copy(items = listOf(bones.copy(position = tile, distance = 12, usableFromHere = false, approach = tile, doors = doors)))
     }
 
     override fun toString(): String = name

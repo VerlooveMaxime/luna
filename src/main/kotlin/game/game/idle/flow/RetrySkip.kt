@@ -22,7 +22,7 @@ interface Aimed {
  * or until every one around is set aside, when they all come back ([untilProgress]). A kind decides through [decide],
  * keeping only its own filter of the aims set aside.
  */
-class RetrySkip private constructor(private val progress: () -> Int, private val targets: Targets) {
+class RetrySkip private constructor(private val progress: () -> Int, private val targets: Targets, private val setAside: (Aim) -> Unit) {
 
     private val skipped = mutableSetOf<Aim>()
     private var last: Attempt? = null
@@ -32,7 +32,10 @@ class RetrySkip private constructor(private val progress: () -> Int, private val
         if (targets == Targets.WANDER && gained()) skipped.clear()
         val first = decide(skipped)
         val retried = retried(first)
-        if (retried != null) skipped += retried
+        if (retried != null) {
+            skipped += retried
+            setAside(retried)
+        }
         val decision = if (retried == null) first else decide(skipped)
         val taken = if (targets == Targets.WANDER && decision !is Aimed && skipped.isNotEmpty()) comeBack(decide) else decision
         last = (taken as? Aimed)?.let { Attempt(it::class, it.aim, it.distance, progress()) }
@@ -65,13 +68,16 @@ class RetrySkip private constructor(private val progress: () -> Int, private val
 
     companion object {
 
-        /** The rule for objects and items, which stay where they are: an aim set aside stays so for the turn. */
-        fun forTheTurn(progress: () -> Int): RetrySkip = RetrySkip(progress, Targets.STAY)
+        /**
+         * The rule for objects and items, which stay where they are: an aim set aside stays so for the turn. [setAside]
+         * hears of each aim set aside (a walk up stuck at a door tells it).
+         */
+        fun forTheTurn(progress: () -> Int, setAside: (Aim) -> Unit = {}): RetrySkip = RetrySkip(progress, Targets.STAY, setAside)
 
         /**
          * The rule for npcs, which wander (fight's rule, kept: one out of reach now may not be later): the aims set
          * aside come back once [progress] moves, a kill, or once every one around is set aside.
          */
-        fun untilProgress(progress: () -> Int): RetrySkip = RetrySkip(progress, Targets.WANDER)
+        fun untilProgress(progress: () -> Int, setAside: (Aim) -> Unit = {}): RetrySkip = RetrySkip(progress, Targets.WANDER, setAside)
     }
 }

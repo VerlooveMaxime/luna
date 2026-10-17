@@ -43,8 +43,6 @@ class LunaCooker(private val player: Player, private val rawIds: Set<Int>, priva
 
     override fun cookAll() = LunaClicks.post(player, ButtonClickEvent(player, COOK_ALL))
 
-    override fun walkTo(place: Candidate) = LunaClicks.approach(player, place)
-
     override fun anchor(): Tile = area.anchor
 
     override fun raw(): Int = rawIds.sumOf { player.inventory.computeAmountForId(it) }

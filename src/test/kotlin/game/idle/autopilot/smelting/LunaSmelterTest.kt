@@ -151,15 +151,6 @@ class LunaSmelterTest {
     }
 
     @Test
-    fun `walking to a furnace heads for its approach tile`() {
-        val player = login()
-
-        smelter(player).walkTo(Candidate(islandFurnace, furnaceTile, distance = 3, usableFromHere = false, approach = Position(3203, 3200)))
-
-        assertEquals(Position(3203, 3200), player.navigator.currentTarget)
-    }
-
-    @Test
     fun `a walk back goes to the area's anchor`() {
         assertEquals(Tile(3200, 3200), smelter(login(Position(3220, 3200))).anchor())
     }

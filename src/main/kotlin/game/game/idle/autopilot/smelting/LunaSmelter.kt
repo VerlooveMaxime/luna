@@ -39,8 +39,6 @@ class LunaSmelter(private val player: Player, private val bar: BarType, private 
         LunaClicks.interact(player, event, target, ItemOnObjectEvent::class.java)
     }
 
-    override fun walkTo(furnace: Candidate) = LunaClicks.approach(player, furnace)
-
     override fun anchor(): Tile = area.anchor
 
     override fun bars(): Int = player.inventory.computeAmountForId(bar.id)

@@ -48,6 +48,7 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
         when (said) {
             is Said.Ended -> line("${PREFIX}step $number ended, ", said.reason)
             is Said.Skipped -> line("${PREFIX}step $number skipped this lap: ", said.reason)
+            is Said.DoorShut -> "${PREFIX}step $number could not get through the ${noun(said.passage)} at ${said.tile.x}, ${said.tile.y}."
         }
 
     /** Why the flow stopped at step [number]. */

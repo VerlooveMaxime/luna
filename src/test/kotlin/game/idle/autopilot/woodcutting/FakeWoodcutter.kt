@@ -18,10 +18,6 @@ class FakeWoodcutter(var view: WoodcuttingView, private val anchor: Tile = Tile(
         steps += "chop ${tree.position.x},${tree.position.y}"
     }
 
-    override fun walkTo(tree: Candidate) {
-        steps += "walk to ${tree.position.x},${tree.position.y}"
-    }
-
     override fun anchor(): Tile = anchor
 
     override fun logs(): Int = logs
