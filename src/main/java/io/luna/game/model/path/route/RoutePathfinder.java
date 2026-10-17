@@ -19,7 +19,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * <p>
  * The search only covers about {@value RouteFinder#SEARCH_SIZE} tiles around the mob. Destinations farther away are
  * not {@link #supports(Position, Position) supported}, and fail when searched for. A {@link FallbackPathfinder} can
- * give them to another pathfinder.
+ * give them to another pathfinder, such as the {@link #widened() widened} one, which searches the same way over a
+ * square of {@value #WIDE_SEARCH_SIZE} tiles so that long routes have the shape of the game's too.
  * <p>
  * Use {@link Pathfinders} to create the pathfinder that suits a mob.
  *
@@ -39,9 +40,36 @@ public final class RoutePathfinder extends GamePathfinder<Position> {
     private static final int MAX_RANGE = RouteFinder.SEARCH_SIZE / 2 - 8;
 
     /**
+     * The width and length of the square that a {@link #widened() widened} pathfinder searches.
+     */
+    private static final int WIDE_SEARCH_SIZE = 512;
+
+    /**
+     * The farthest, along either axis, that a destination can be for a {@link #widened() widened} pathfinder.
+     */
+    private static final int WIDE_MAX_RANGE = WIDE_SEARCH_SIZE / 2 - 8;
+
+    /**
      * The route finders of the threads that search. A route finder reuses its buffers, so it can't be shared.
      */
     private static final ThreadLocal<RouteFinder> FINDERS = ThreadLocal.withInitial(RouteFinder::new);
+
+    /**
+     * The route finders over the wider square, of the threads that search. Each is only made on its thread's first
+     * search, as their buffers are large.
+     */
+    private static final ThreadLocal<RouteFinder> WIDE_FINDERS =
+            ThreadLocal.withInitial(() -> new RouteFinder(WIDE_SEARCH_SIZE));
+
+    /**
+     * The route finders this pathfinder searches with.
+     */
+    private final ThreadLocal<RouteFinder> finders;
+
+    /**
+     * The farthest, along either axis, that a destination can be for this pathfinder.
+     */
+    private final int maxRange;
 
     /**
      * The width and length of the mob, in tiles.
@@ -88,19 +116,37 @@ public final class RoutePathfinder extends GamePathfinder<Position> {
      */
     public RoutePathfinder(CollisionManager collisionManager, int size, int extraFlag, RouteStrategy strategy,
                            double standardChance) {
+        this(collisionManager, size, extraFlag, strategy, standardChance, FINDERS, MAX_RANGE);
+    }
+
+    private RoutePathfinder(CollisionManager collisionManager, int size, int extraFlag, RouteStrategy strategy,
+                            double standardChance, ThreadLocal<RouteFinder> finders, int maxRange) {
         super(collisionManager);
         this.size = size;
         this.extraFlag = extraFlag;
         this.strategy = strategy;
         this.standardChance = standardChance;
+        this.finders = finders;
+        this.maxRange = maxRange;
+    }
+
+    /**
+     * Creates a pathfinder for the same mob that searches a square of {@value #WIDE_SEARCH_SIZE} tiles, for the
+     * destinations that are too far for this one.
+     *
+     * @return The widened pathfinder.
+     */
+    public RoutePathfinder widened() {
+        return new RoutePathfinder(collisionManager, size, extraFlag, strategy, standardChance, WIDE_FINDERS,
+                WIDE_MAX_RANGE);
     }
 
     @Override
     public boolean supports(Position origin, Position target) {
         // Searches between planes are left to fail in find, as no pathfinder could do them.
         return origin.getZ() != target.getZ() ||
-                (Math.abs(origin.getX() - target.getX()) <= MAX_RANGE &&
-                        Math.abs(origin.getY() - target.getY()) <= MAX_RANGE);
+                (Math.abs(origin.getX() - target.getX()) <= maxRange &&
+                        Math.abs(origin.getY() - target.getY()) <= maxRange);
     }
 
     @Override
@@ -113,7 +159,7 @@ public final class RoutePathfinder extends GamePathfinder<Position> {
             return failed();
         }
 
-        Route route = FINDERS.get().find(collisionManager.view(true), origin.getZ(), origin.getX(), origin.getY(),
+        Route route = finders.get().find(collisionManager.view(true), origin.getZ(), origin.getX(), origin.getY(),
                 target.getX(), target.getY(), size, extraFlag, strategy, true, MAX_WAYPOINTS, chooseStyle());
         if (!route.isSuccess() || route.getWaypoints().isEmpty()) {
             // Either nothing was found, or the closest tile that could be reached is the one the mob is on.

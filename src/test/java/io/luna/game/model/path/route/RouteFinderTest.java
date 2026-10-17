@@ -291,6 +291,24 @@ final class RouteFinderTest {
     }
 
     @Test
+    void testWiderSearchFindsLongerRoutesWithTheSameShape() {
+        RouteFinder wide = new RouteFinder(256);
+        Route route = wide.find(map.view(), 0, 300, 300, 320, 400, 1, 0, RouteStrategy.NORMAL, true, 255);
+        assertTrue(route.isSuccess());
+        assertEquals(List.of(new Position(300, 380), new Position(320, 400)), route.getWaypoints());
+    }
+
+    @Test
+    void testSearchSizeMustBeAPowerOfTwo() {
+        assertThrows(IllegalArgumentException.class, () -> new RouteFinder(100));
+    }
+
+    @Test
+    void testSearchSizeMustBeAtLeastFour() {
+        assertThrows(IllegalArgumentException.class, () -> new RouteFinder(2));
+    }
+
+    @Test
     void testFinderCanBeReused() {
         Route first = find(100, 100, 106, 100);
         Route second = find(100, 100, 100, 106);

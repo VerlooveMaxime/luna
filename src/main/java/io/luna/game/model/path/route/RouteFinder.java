@@ -14,9 +14,9 @@ import java.util.List;
  * <p>
  * The search spreads out from the start one tile at a time, trying west, east, south, north and then the four
  * diagonals, which makes routes come out with the same shape as the ones in the real game. It looks at a square of
- * {@value #SEARCH_SIZE} tiles around the start, so it only finds routes of up to {@code SEARCH_SIZE / 2} tiles in each
- * direction. When the destination can't be reached, the tile closest to it among the ones the search got to can be
- * used instead.
+ * tiles around the start, {@value #SEARCH_SIZE} wide unless another size is given, so it only finds routes of up to
+ * half that many tiles in each direction. When the destination can't be reached, the tile closest to it among the
+ * ones the search got to can be used instead.
  * <p>
  * A finder reuses its buffers between searches, so a finder is not thread safe. Give every thread its own.
  * <p>
@@ -30,14 +30,9 @@ import java.util.List;
 public final class RouteFinder {
 
     /**
-     * The width and length of the square of tiles that is searched.
+     * The width and length of the square of tiles that is searched, unless another size is given.
      */
     public static final int SEARCH_SIZE = 128;
-
-    /**
-     * The size of the queue of tiles that are waiting to be expanded. Must be a power of two.
-     */
-    private static final int QUEUE_SIZE = 4096;
 
     /**
      * The distance of a tile that the search has not reached.
@@ -91,24 +86,34 @@ public final class RouteFinder {
             SOUTH | WEST};
 
     /**
+     * The width and length of the square of tiles that is searched.
+     */
+    private final int searchSize;
+
+    /**
+     * The size of the queue of tiles that are waiting to be expanded: a quarter of the square's tiles, a power of two.
+     */
+    private final int queueSize;
+
+    /**
      * The direction each tile was reached from, or {@code 0} if the tile has not been reached.
      */
-    private final int[] directions = new int[SEARCH_SIZE * SEARCH_SIZE];
+    private final int[] directions;
 
     /**
      * The number of steps it took to reach each tile.
      */
-    private final int[] distances = new int[SEARCH_SIZE * SEARCH_SIZE];
+    private final int[] distances;
 
     /**
      * The x coordinates of the tiles waiting to be expanded.
      */
-    private final int[] queueX = new int[QUEUE_SIZE];
+    private final int[] queueX;
 
     /**
      * The y coordinates of the tiles waiting to be expanded.
      */
-    private final int[] queueY = new int[QUEUE_SIZE];
+    private final int[] queueY;
 
     /**
      * The index of the next tile to expand.
@@ -129,6 +134,31 @@ public final class RouteFinder {
      * The y coordinate of the tile being expanded, and of the end of the route once it is found.
      */
     private int currentY;
+
+    /**
+     * Creates a new {@link RouteFinder} that searches a square of {@value #SEARCH_SIZE} tiles, as the game does.
+     */
+    public RouteFinder() {
+        this(SEARCH_SIZE);
+    }
+
+    /**
+     * Creates a new {@link RouteFinder} that searches a square of another size, for routes longer than the game's.
+     *
+     * @param searchSize The width and length of the square, a power of two of at least {@code 4}.
+     * @throws IllegalArgumentException If the size is not a power of two of at least {@code 4}.
+     */
+    public RouteFinder(int searchSize) {
+        if (searchSize < 4 || Integer.bitCount(searchSize) != 1) {
+            throw new IllegalArgumentException("searchSize must be a power of two of at least 4: " + searchSize);
+        }
+        this.searchSize = searchSize;
+        queueSize = searchSize * searchSize / 4;
+        directions = new int[searchSize * searchSize];
+        distances = new int[searchSize * searchSize];
+        queueX = new int[queueSize];
+        queueY = new int[queueSize];
+    }
 
     /**
      * Searches for a route from one tile to another.
@@ -173,8 +203,8 @@ public final class RouteFinder {
     public Route find(CollisionView view, int level, int startX, int startY, int destX, int destY, int size,
                       int extraFlag, RouteStrategy strategy, boolean moveNear, int maxWaypoints, RouteStyle style) {
         reset();
-        int baseX = startX - SEARCH_SIZE / 2;
-        int baseY = startY - SEARCH_SIZE / 2;
+        int baseX = startX - searchSize / 2;
+        int baseY = startY - searchSize / 2;
         int localStartX = startX - baseX;
         int localStartY = startY - baseY;
         int localDestX = destX - baseX;
@@ -229,11 +259,11 @@ public final class RouteFinder {
     private boolean search(CollisionView view, int level, int baseX, int baseY, int destX, int destY, int size,
                            int extraFlag, RouteStrategy strategy, int[] order) {
         // A large mob must fit inside the search area, so it stops short of the far edges by its size.
-        int last = SEARCH_SIZE - size;
+        int last = searchSize - size;
         while (writer != reader) {
             currentX = queueX[reader];
             currentY = queueY[reader];
-            reader = (reader + 1) & (QUEUE_SIZE - 1);
+            reader = (reader + 1) & (queueSize - 1);
 
             if (currentX == destX && currentY == destY) {
                 return true;
@@ -270,7 +300,7 @@ public final class RouteFinder {
         int fewestSteps = MAX_ALTERNATIVE_STEPS;
         for (int x = destX - MAX_ALTERNATIVE_RANGE; x <= destX + MAX_ALTERNATIVE_RANGE; x++) {
             for (int y = destY - MAX_ALTERNATIVE_RANGE; y <= destY + MAX_ALTERNATIVE_RANGE; y++) {
-                if (x < 0 || x >= SEARCH_SIZE || y < 0 || y >= SEARCH_SIZE ||
+                if (x < 0 || x >= searchSize || y < 0 || y >= searchSize ||
                         distances[index(x, y)] >= MAX_ALTERNATIVE_STEPS) {
                     continue;
                 }
@@ -304,7 +334,7 @@ public final class RouteFinder {
         distances[index] = distance;
         queueX[writer] = x;
         queueY[writer] = y;
-        writer = (writer + 1) & (QUEUE_SIZE - 1);
+        writer = (writer + 1) & (queueSize - 1);
     }
 
     /**
@@ -320,7 +350,7 @@ public final class RouteFinder {
     /**
      * Returns the index of a tile of the search area in {@link #directions} and {@link #distances}.
      */
-    private static int index(int x, int y) {
-        return x * SEARCH_SIZE + y;
+    private int index(int x, int y) {
+        return x * searchSize + y;
     }
 }

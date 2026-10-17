@@ -12,7 +12,9 @@ import io.luna.game.model.path.route.RouteStrategy;
  * Creates the pathfinders that suit each kind of mob.
  * <p>
  * Routes are found with a {@link RoutePathfinder}, which only searches around the mob. Destinations farther away are
- * given to a {@link LongRangePathfinder}, which has no such limit, by a {@link FallbackPathfinder}.
+ * given by a {@link FallbackPathfinder} to its {@link RoutePathfinder#widened() widened} twin, so that long routes
+ * have the game's shape too, and only the ones beyond that, or that it finds no route to, to a
+ * {@link LongRangePathfinder}, which has no such limit.
  *
  * @author hydrozoa
  */
@@ -69,11 +71,13 @@ public final class Pathfinders {
     }
 
     /**
-     * Wraps a route pathfinder so that destinations beyond its reach are given to a {@link LongRangePathfinder}.
+     * Wraps a route pathfinder so that destinations beyond its reach are given to its widened twin, and those beyond
+     * that one's reach, or that it finds no route to, to a {@link LongRangePathfinder}.
      */
     private static GamePathfinder<Position> withFallback(RoutePathfinder routes) {
-        return new FallbackPathfinder<>(routes,
-                origin -> new LongRangePathfinder(routes.collisionManager, origin.getZ()));
+        RoutePathfinder widened = routes.widened();
+        return new FallbackPathfinder<>(routes, origin -> new FailoverPathfinder<>(widened,
+                new LongRangePathfinder(routes.collisionManager, origin.getZ())));
     }
 
     private Pathfinders() {}

@@ -244,10 +244,38 @@ final class RoutePathfinderTest {
     }
 
     @Test
-    void testFarDestinationsUseTheLongRangePathfinder() {
+    void testFarDestinationsUseTheWidenedPathfinder() {
         Mob player = mob(Player.class, EntityType.PLAYER, 1);
         PathResult<Position> result = Pathfinders.forPlayer(player).find(new Position(100, 100), new Position(200, 100));
         assertEquals(PathResultType.COMPLETE, result.getType());
-        assertEquals(new Position(200, 100), result.getPath().peekLast());
+        assertEquals(List.of(new Position(200, 100)), list(result));
+    }
+
+    @Test
+    void testLongRoutesHaveTheShapeOfTheGame() {
+        Mob player = mob(Player.class, EntityType.PLAYER, 1);
+        PathResult<Position> result = Pathfinders.forPlayer(player).find(new Position(300, 300), new Position(320, 400));
+        assertEquals(List.of(new Position(300, 380), new Position(320, 400)), list(result));
+    }
+
+    @Test
+    void testWidenedPathfinderReachesFarther() {
+        RoutePathfinder widened = pathfinder(1, 0).widened();
+        assertFalse(pathfinder(1, 0).supports(new Position(300, 300), new Position(548, 300)));
+        assertTrue(widened.supports(new Position(300, 300), new Position(548, 300)));
+        assertFalse(widened.supports(new Position(300, 300), new Position(549, 300)));
+    }
+
+    @Test
+    void testDestinationsBeyondTheWidenedPathfinderUseTheLongRangePathfinder() {
+        // A corridor keeps the long range search short.
+        map.fill(99, 99, 303, 1, LOC);
+        map.fill(99, 101, 303, 1, LOC);
+        map.flag(99, 100, LOC);
+        map.flag(401, 100, LOC);
+        Mob player = mob(Player.class, EntityType.PLAYER, 1);
+        PathResult<Position> result = Pathfinders.forPlayer(player).find(new Position(100, 100), new Position(400, 100));
+        assertEquals(PathResultType.COMPLETE, result.getType());
+        assertEquals(new Position(400, 100), result.getPath().peekLast());
     }
 }
