@@ -26,14 +26,12 @@ import game.idle.location.Tile
 import game.skill.fishing.catchFish.Fish
 import game.skill.fishing.catchFish.FishingSpot
 import game.skill.fishing.catchFish.Tool
-import io.luna.game.model.def.ItemDefinition
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
 /**
  * How a fish step fishes: one of Luna's tools at the spot npcs Luna's [FishingSpot] table fishes with it, each spot
- * clicked on the option that uses the tool. [ALL] reads Luna's [Tool] lazily: its fish name themselves from the item
- * definitions, which only a booted world has.
+ * clicked on the option that uses the tool.
  */
 data class FishingMethod(val tool: Tool) {
 
@@ -45,8 +43,8 @@ data class FishingMethod(val tool: Tool) {
     /** Everything the method can pull up, a big net's caskets and boots included: what lands in the bag. */
     val catchIds: Set<Int> = tool.fish.map { it.id }.toSet()
 
-    /** The raw fish the method catches, in Luna's order: what a fish step can be for. */
-    val fish: List<Fish> = tool.fish.filter { ItemDefinition.ALL.retrieve(it.id).name.startsWith(RAW) }
+    /** The fish the method catches, in Luna's order, a big net's junk left out: what a fish step can be for. */
+    val fish: List<Fish> = tool.fish - JUNK
 
     /** The tool, which Luna's fishing counts in the bag only. */
     val toolNeed: ToolNeed = ToolNeed(word = null, mapOf(tool.id to 1))
@@ -65,7 +63,10 @@ data class FishingMethod(val tool: Tool) {
         /** The fly fishing rod's bait is named "Feather", one of many, so its need reads "feathers" as fishing bait reads "fishing bait". */
         private const val FEATHERS = "feathers"
 
-        /** What the cache calls an uncooked fish, which a casket or seaweed is not. */
+        /** What a big net pulls up besides fish (Maxime, 2026-10-17: every other catch of Luna's is a fish). */
+        private val JUNK = setOf(Fish.CASKET, Fish.OYSTER, Fish.LEATHER_BOOTS, Fish.LEATHER_GLOVES, Fish.SEAWEED)
+
+        /** What the cache puts before an uncooked fish's name, which the search rows leave out. */
         const val RAW = "Raw "
 
         /** Every tool, lowest level first: Luna's table has spots for each. */
@@ -85,8 +86,9 @@ data class FishingCatch(val fish: Fish, val method: FishingMethod) {
     companion object {
 
         /**
-         * Every raw fish, lowest level first, each caught by the first method in Luna's order that catches it: shrimp
-         * by the small net rather than at the karambwanji spots.
+         * Every fish, lowest level first, each caught by the first method in Luna's order that catches it: shrimp by
+         * the small net rather than at the karambwanji spots, slimy eels at their own spots rather than as the cave eel
+         * spots' by-catch.
          */
         val ALL: List<FishingCatch> by lazy {
             FishingMethod.ALL.flatMap { method -> method.fish.map { FishingCatch(it, method) } }.distinctBy { it.fish }.sortedBy { it.fish.level }

@@ -11,7 +11,7 @@ import io.luna.game.model.mob.Skill
 /**
  * The fish a fish step can be for, one row each named by the fish and the tool that catches it ("Anchovies (small
  * fishing net)"), greyed below the fish's level (Maxime, 2026-10-15: the step counts its fish, not its method). Only
- * raw fish are rows: a big net's caskets and seaweed are by-catch.
+ * fish are rows: a big net's caskets and seaweed are junk.
  */
 class FishOptions(private val names: GameNames) : OptionSource {
 

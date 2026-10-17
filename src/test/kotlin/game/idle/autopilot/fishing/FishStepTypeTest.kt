@@ -32,8 +32,7 @@ class FishStepTypeTest {
 
     private fun fish(vararg values: Pair<String, String>) = StepSettings("fish", mapOf(*values))
 
-    /** Lazy: a field initialiser runs before the definitions below are loaded. */
-    private val shrimp by lazy { FishingCatch(Fish.SHRIMP, FishingMethod(Tool.SMALL_NET)) }
+    private val shrimp = FishingCatch(Fish.SHRIMP, FishingMethod(Tool.SMALL_NET))
 
     /** Luna's fish name themselves from the item definitions, which need the cache. */
     @BeforeEach
@@ -68,11 +67,11 @@ class FishStepTypeTest {
     }
 
     @Test
-    fun `every raw fish of every method is a catch, lowest level first`() {
+    fun `every fish of every method is a catch, lowest level first`() {
         assertEquals(
             listOf(
-                "shrimp", "karambwanji", "sardine", "herring", "anchovy", "mackerel", "trout", "cod", "pike", "salmon", "tuna",
-                "cave_eel", "lobster", "bass", "swordfish", "lava_eel", "monkfish", "karambwan", "shark",
+                "shrimp", "karambwanji", "sardine", "herring", "anchovy", "mackerel", "trout", "cod", "pike", "slimy_eel",
+                "salmon", "tuna", "cave_eel", "lobster", "bass", "swordfish", "lava_eel", "monkfish", "karambwan", "shark",
             ),
             FishingCatch.ALL.map { it.word },
         )
@@ -84,7 +83,12 @@ class FishStepTypeTest {
     }
 
     @Test
-    fun `a method's raw fish leave out what else it pulls up`() {
+    fun `slimy eels are caught at their own spots, not as the cave eel spots' by-catch`() {
+        assertEquals(Tool.SLIMY_EEL_FISHING_ROD, FishingCatch.named("slimy_eel")?.method?.tool)
+    }
+
+    @Test
+    fun `a method's fish leave out the junk it pulls up`() {
         assertEquals(listOf(Fish.MACKEREL, Fish.COD, Fish.BASS), FishingMethod(Tool.BIG_NET).fish)
     }
 
