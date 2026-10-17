@@ -22,14 +22,14 @@ open class TeleportAction(plr: Player,
                           val destination: Position,
                           val style: TeleportSequence,
                           val requirements: List<SpellRequirement> = emptyList(),
-                          val maxWildernessLevel: Int = DEFAULT_MAX_WILDERNESS_LEVEL) : LockedAction(plr) {
+                          val maxWildernessLevel: Int = MAX_WILDERNESS_LEVEL) : LockedAction(plr) {
 
     companion object {
 
         /**
-         * The deepest Wilderness level a teleport works from, unless it says otherwise.
+         * The deepest Wilderness level that a teleport works from, unless it says otherwise.
          */
-        const val DEFAULT_MAX_WILDERNESS_LEVEL = 20
+        const val MAX_WILDERNESS_LEVEL = 20
 
         /**
          * The ticks that must pass between two teleport clicks.

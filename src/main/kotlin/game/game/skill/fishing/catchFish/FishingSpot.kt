@@ -3,75 +3,67 @@ package game.skill.fishing.catchFish
 import game.skill.fishing.catchFish.Tool.*
 
 /**
- * An enum representing the kinds of fishing spots, with the [Tool] each of their options fishes with. The click
- * listeners, the fishing bots and the idle fish step all read it.
- *
- * Spots whose fish are not in [Fish] (karambwanji, karambwan, slimy eels, cave eels, frog spawn, lava eels) are left
- * out.
+ * An enum representing the kinds of fishing spot, and the [Tool] each of their options uses. [firstOption] is the
+ * first menu option, and [secondOption] is the one after it.
  */
-enum class FishingSpot(val ids: Set<Int>,
-                       val firstClick: Tool,
-                       val secondClick: Tool? = null) {
+enum class FishingSpot(val npcs: Set<Int>,
+                       val objects: Set<Int> = emptySet(),
+                       val firstOption: Tool?,
+                       val secondOption: Tool? = null) {
+
+    NET_BAIT(npcs = setOf(316, 319, 320, 323, 325, 326, 327, 330, 332, 1331),
+             firstOption = SMALL_NET,
+             secondOption = FISHING_ROD),
+    LURE_BAIT(npcs = setOf(309, 310, 311, 314, 315, 317, 318, 328, 329, 331, 927, 1189, 1190, 3019),
+              objects = setOf(2027),
+              firstOption = FLY_FISHING_ROD,
+              secondOption = PIKE_FISHING_ROD),
+    CAGE_HARPOON(npcs = setOf(312, 321, 324, 333, 1332, 3804),
+                 firstOption = LOBSTER_POT,
+                 secondOption = HARPOON),
+    NET_HARPOON(npcs = setOf(313, 322, 334, 1191, 1333, 1405, 1406, 3574, 3575),
+                firstOption = BIG_NET,
+                secondOption = SHARK_HARPOON),
 
     /**
-     * Net and Bait spots on the coast.
+     * The Miscellania spots. The catch goes to Fisherman Frodi.
      */
-    SEA(ids = setOf(316, 319, 320, 323, 325, 326, 327, 330, 1331),
-        firstClick = SMALL_NET,
-        secondClick = FISHING_ROD),
+    MISCELLANIA(npcs = setOf(1399),
+                firstOption = LOBSTER_POT,
+                secondOption = HARPOON),
 
     /**
-     * Lure and Bait spots in rivers.
+     * The Piscatoris spots, where monkfish are caught.
      */
-    RIVER(ids = setOf(309, 310, 311, 314, 315, 317, 318, 328, 329, 927, 1189, 1190, 3019),
-          firstClick = FLY_FISHING_ROD,
-          secondClick = FISHING_ROD),
+    // TODO Swan Song: monkfish need the quest finished. During it, the net catches fresh monkfish (7942) instead.
+    HARPOON_NET(npcs = setOf(3848),
+                firstOption = HARPOON,
+                secondOption = MONKFISH_NET),
 
     /**
-     * Cage and Harpoon spots.
+     * The Lumbridge Swamp Caves spots.
      */
-    CAGE_AND_HARPOON(ids = setOf(312, 321, 324, 1332, 1399, 3804),
-                     firstClick = LOBSTER_POT,
-                     secondClick = HARPOON),
+    CAVE_EEL(npcs = setOf(2067, 2068),
+             // TODO Frog spawn fishing on the Net option.
+             firstOption = null,
+             secondOption = CAVE_EEL_FISHING_ROD),
+    SLIMY_EEL(npcs = setOf(1236, 1237, 1238),
+              firstOption = SLIMY_EEL_FISHING_ROD),
+    LAVA_EEL(npcs = setOf(800),
+             objects = setOf(2630, 14428),
+             firstOption = LAVA_EEL_FISHING_ROD),
+    KARAMBWANJI(npcs = setOf(1174, 1175),
+                firstOption = KARAMBWANJI_NET),
 
     /**
-     * Net and Harpoon spots: big net fish, and sharks.
+     * The Karambwan spots. 1178 is Lubufu's spot in Brimhaven.
      */
-    NET_AND_HARPOON(ids = setOf(313, 322, 1191, 1333, 1405, 1406, 3574, 3575),
-                    firstClick = BIG_NET,
-                    secondClick = SHARK_HARPOON),
-
-    /**
-     * The Piscatoris spots: Harpoon first, then Net for monkfish.
-     */
-    PISCATORIS(ids = setOf(3848),
-               firstClick = HARPOON,
-               secondClick = MONKFISH_NET),
-
-    /**
-     * The fishing contest spots at Hemenster, Bait only.
-     */
-    CONTEST(ids = setOf(233, 234, 235, 236),
-            firstClick = FISHING_ROD),
+    KARAMBWAN(npcs = setOf(1176, 1177, 1178),
+              firstOption = KARAMBWAN_VESSEL),
 
     /**
      * Tutorial Island's Net spot.
      */
-    TUTORIAL(ids = setOf(952),
-             firstClick = SMALL_NET);
-
-    companion object {
-
-        /**
-         * Retrieves the ids of every spot fished with [tool] on its first option.
-         */
-        fun firstClickIds(tool: Tool): Set<Int> =
-            entries.filter { it.firstClick == tool }.flatMap { it.ids }.toSet()
-
-        /**
-         * Retrieves the ids of every spot fished with [tool] on its second option.
-         */
-        fun secondClickIds(tool: Tool): Set<Int> =
-            entries.filter { it.secondClick == tool }.flatMap { it.ids }.toSet()
-    }
+    TUTORIAL(npcs = setOf(952),
+             firstOption = SMALL_NET)
 }

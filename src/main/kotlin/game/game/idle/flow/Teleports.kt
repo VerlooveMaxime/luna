@@ -134,7 +134,7 @@ object Teleports {
     /** The deepest wilderness level Luna lets [destination]'s teleport leave from. */
     fun wildernessLimit(destination: TeleportDestination): Int =
         when (destination) {
-            is TeleportDestination.Spell -> TeleportAction.DEFAULT_MAX_WILDERNESS_LEVEL
+            is TeleportDestination.Spell -> TeleportAction.MAX_WILDERNESS_LEVEL
             is TeleportDestination.Jewellery -> destination.jewellery.maxWildernessLevel
         }
 

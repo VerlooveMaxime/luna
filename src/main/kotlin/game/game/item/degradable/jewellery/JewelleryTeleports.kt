@@ -61,7 +61,7 @@ object JewelleryTeleports {
         if (!holdsRubbedItem(plr, slot, index, jewellery)) {
             return
         }
-        val chargesLeft = jewellery.items.size - index - 1
+        val chargesLeft = jewellery.charges(jewellery.items[index]) - 1
         val landing = findLandingTile(destination.centre, destination.radius)
         plr.teleport(landing, TeleportStyle.REGULAR, jewellery.maxWildernessLevel, onLand = {
             useCharge(plr, slot, index, jewellery)

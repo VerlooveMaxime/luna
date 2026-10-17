@@ -44,6 +44,9 @@ object Magic {
      * Returning an empty list means the spell can be cast without removing any items, such as when beta mode is
      * enabled or the player has administrator rights.
      *
+     * The requirements themselves are worked out by [spellCost]; this adds the free casting and tells the player which
+     * requirement they don't meet.
+     *
      * Requirement handling includes:
      * - Magic level validation
      * - Item requirements
@@ -61,12 +64,40 @@ object Magic {
     fun checkRequirements(plr: Player,
                           level: Int,
                           requirements: List<SpellRequirement>,
-                          autocast: Boolean = false): List<Item>? =
-        requirementsCost(plr, level, requirements, autocast, plr::sendMessage)
+                          autocast: Boolean = false): List<Item>? {
+        if (Luna.settings().game().betaMode() || plr.rights >= PlayerRights.ADMINISTRATOR) {
+            return emptyList()
+        }
+        return when (val cost = spellCost(plr, level, requirements)) {
+            is SpellCost.Castable -> cost.items
+            SpellCost.LowLevel -> {
+                plr.sendMessage("Your Magic level is not high enough for this spell.")
+                null
+            }
+
+            is SpellCost.MissingItem -> {
+                val pluralName = StringUtils.addPlural(itemName(cost.id))
+                plr.sendMessage("You do not have enough $pluralName to cast this spell.")
+                null
+            }
+
+            is SpellCost.MissingEquipment -> {
+                val articleName = addArticle(itemName(cost.id))
+                plr.sendMessage("You need $articleName equipped to cast this spell.")
+                null
+            }
+
+            is SpellCost.MissingRune -> {
+                val runeName = if (autocast) "rune" else itemName(cost.rune.id)
+                plr.sendMessage("You do not have enough ${runeName}s to cast this spell.")
+                null
+            }
+        }
+    }
 
     /**
      * Checks whether [plr] could cast a spell right now, without telling them what is missing. Same rules as
-     * [checkRequirements].
+     * [checkRequirements], the free casting of beta mode and administrators included.
      *
      * @param plr The player who would cast the spell.
      * @param level The minimum Magic level required.
@@ -74,23 +105,25 @@ object Magic {
      * @return `true` if casting would be allowed.
      */
     fun canCast(plr: Player, level: Int, requirements: List<SpellRequirement>): Boolean =
-        requirementsCost(plr, level, requirements, autocast = false) {} != null
+        Luna.settings().game().betaMode() || plr.rights >= PlayerRights.ADMINISTRATOR ||
+            spellCost(plr, level, requirements) is SpellCost.Castable
 
     /**
-     * The rules behind [checkRequirements]: the items to remove when casting is allowed, or `null` when it is not,
-     * [report] receiving the message that says what is missing.
+     * Works out what casting a spell would take from [plr], or why they can't cast it, without telling them anything and
+     * without the free casting of beta mode and administrators. [checkRequirements] is this, with those.
+     *
+     * The requirements are checked in order: the Magic level, then the items and equipment in the order the spell lists
+     * them, then the runes. A staff stands in for the runes it represents, then combination runes for what is left, then
+     * regular runes.
+     *
+     * @param plr The player.
+     * @param level The minimum Magic level required.
+     * @param requirements The spell requirements.
+     * @return What casting takes, or the first requirement that isn't met.
      */
-    private fun requirementsCost(plr: Player,
-                                 level: Int,
-                                 requirements: List<SpellRequirement>,
-                                 autocast: Boolean,
-                                 report: (String) -> Unit): List<Item>? {
-        if (Luna.settings().game().betaMode() || plr.rights >= PlayerRights.ADMINISTRATOR) {
-            return emptyList()
-        }
+    fun spellCost(plr: Player, level: Int, requirements: List<SpellRequirement>): SpellCost {
         if (plr.magic.level < level) {
-            report("Your Magic level is not high enough for this spell.")
-            return null
+            return SpellCost.LowLevel
         }
 
         // Loop through requirements.
@@ -102,16 +135,12 @@ object Magic {
             } else if (req is ItemRequirement) { // Determine if we have the correct items.
                 val item = Item(req.id, req.amount)
                 if (!plr.inventory.contains(item)) {
-                    val pluralName = StringUtils.addPlural(itemName(req.id))
-                    report("You do not have enough $pluralName to cast this spell.")
-                    return null
+                    return SpellCost.MissingItem(req.id)
                 }
                 removeItems += item
             } else if (req is EquipmentRequirement) {
                 if (!plr.equipment.contains(req.id)) {
-                    val articleName = addArticle(itemName(req.id))
-                    report("You need $articleName equipped to cast this spell.")
-                    return null
+                    return SpellCost.MissingEquipment(req.id)
                 }
             }
         }
@@ -169,11 +198,9 @@ object Magic {
 
         // Runes were leftover, meaning we didn't satisfy the requirements.
         for (rune in runesNeeded.elementSet()) {
-            val runeName = if (autocast) "rune" else itemName(rune.id)
-            report("You do not have enough ${runeName}s to cast this spell.")
-            return null
+            return SpellCost.MissingRune(rune)
         }
-        return removeItems
+        return SpellCost.Castable(removeItems)
     }
 
     /**
@@ -307,7 +334,7 @@ object Magic {
      */
     fun Player.teleport(destination: Position,
                         style: TeleportSequence? = null,
-                        maxWildernessLevel: Int = 20,
+                        maxWildernessLevel: Int = TeleportAction.MAX_WILDERNESS_LEVEL,
                         onLand: () -> Unit = {},
                         onTeleport: () -> Unit = {}) {
         submitAction(object : TeleportAction(this@teleport, destination = destination, style =
