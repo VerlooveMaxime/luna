@@ -1,12 +1,10 @@
 package game.idle.flow
 
-import game.idle.location.Tile
-
 /** What a step looks for in the world around its work spot. */
-enum class Target { TREE, ROCK, FISHING_SPOT, FIRE_OR_RANGE, FURNACE, ANVIL, NPC, BANK_BOOTH, FREE_TILE }
+enum class Target { TREE, ROCK, FISHING_SPOT, FIRE_OR_RANGE, FURNACE, ANVIL, NPC, FREE_TILE }
 
-/** Where a walk goes: a tile picked for a walk step, or a step's work spot. */
-enum class Place { TILE, WORK_SPOT }
+/** Where a trip goes: a tile picked for a walk step, a step's work spot, or the bank of a bank step. */
+enum class Place { TILE, WORK_SPOT, BANK }
 
 /**
  * Why a step cannot go on, or ended, or was skipped, typed so that every kind reports the same situation the same way
@@ -24,12 +22,13 @@ sealed interface Reason {
 
     data object WrongWindow : Reason
 
-    data class OtherFloor(val place: Place) : Reason
-
     data class NoWay(val place: Place) : Reason
 
-    /** A trip's [passage] standing at [tile] would not let the player past: a door that did not open, a ladder not there. */
-    data class Impassable(val passage: Passage, val tile: Tile) : Reason
+    /**
+     * A trip's [passage] would not let the player past: a door that did not open, a ladder not there. Which one is the
+     * one the player stands at; its tile would not fit the slot.
+     */
+    data class Impassable(val passage: Passage) : Reason
 
     /**
      * A stop or a reflex's jump held while something attacks the player, who runs until nothing does (S13): before the

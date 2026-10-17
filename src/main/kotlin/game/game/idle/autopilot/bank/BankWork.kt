@@ -42,9 +42,10 @@ interface Banker {
 /**
  * The bank step's work: carries out [BankPlanner] decisions for [order], remembering what the booth refused or did not
  * hand out. A deposit or a withdrawal that moved something is its work; the walk, opening, closing and a move that moved
- * nothing only approach it. It counts nothing.
+ * nothing only approach it. It counts nothing. The walk to the booth is the trip [toBooth] (none without a bank), then
+ * the banker's last steps into the booth's reach should the trip end beside a tile it is used from.
  */
-class BankWork(private val banker: Banker, private val order: BankOrder) : StepWork {
+class BankWork(private val banker: Banker, private val order: BankOrder, private val toBooth: StepWork?) : StepWork {
 
     private var tries = BankTries()
 
@@ -64,7 +65,7 @@ class BankWork(private val banker: Banker, private val order: BankOrder) : StepW
 
     private fun carryOut(decision: BankDecision): StepOutcome =
         when (decision) {
-            WalkToBooth -> approach(banker::walkToBooth)
+            WalkToBooth -> toBooth?.act(null)?.takeUnless { it == StepOutcome.Finished } ?: approach(banker::walkToBooth)
             Open -> approach(banker::open)
             is Deposit -> deposited(banker.deposit(decision.slots))
             is Withdraw -> withdrew(banker.withdraw(decision.takes))

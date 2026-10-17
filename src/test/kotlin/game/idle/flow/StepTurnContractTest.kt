@@ -372,7 +372,7 @@ class StepTurnContractTest {
 
         turn.act()
 
-        assertEquals(listOf<Any?>(1, null, null), listOf(kind.walker.walks, turn.blocked(), turn.waiting()))
+        assertEquals(listOf<Any?>(1, null, null), listOf(kind.traveller.walks.size, turn.blocked(), turn.waiting()))
     }
 
     @ParameterizedTest(name = "{0}")
@@ -390,15 +390,15 @@ class StepTurnContractTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("areaKinds")
-    fun `a work spot on another floor blocks the walk back`(kind: AreaFixture) {
+    fun `a walk back with no way to the work spot blocks on it`(kind: AreaFixture) {
         val turn = kind.turn()
         kind.leaveArea()
         kind.clearTargets()
-        kind.walker.here = kind.walker.here.copy(z = 1)
+        kind.traveller.noWay = true
 
         turn.act()
 
-        assertEquals(Reason.OtherFloor(Place.WORK_SPOT), turn.blocked())
+        assertEquals(Reason.NoWay(Place.WORK_SPOT), turn.blocked())
     }
 
     @ParameterizedTest(name = "{0}")
@@ -408,7 +408,7 @@ class StepTurnContractTest {
         kind.leaveArea()
         kind.clearTargets()
         turn.act()
-        kind.walker.here = kind.anchor
+        kind.traveller.position = kind.anchor.toPosition()
         kind.enterArea()
         kind.restoreTargets()
         turn.act()

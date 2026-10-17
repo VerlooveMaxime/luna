@@ -143,7 +143,7 @@ class LunaHarnessApi(
             FlowStepView(step.id, step.kind, step.values, step.reflexes, words.lines, problems[index], words.goal, met, state.progress.total(index), leftOut.sorted())
         }
         return FlowView(
-            player.username, state.running, state.stepIndex, state.laps, state.blocked, state.waiting, FlowStopView(state.stop.kind, state.stop.after),
+            player.username, state.running, state.stepIndex, state.laps, state.blocked, state.waiting, state.underWay, FlowStopView(state.stop.kind, state.stop.after),
             steps, state.reflexes.map { FlowReflexView(it.id, it.values) },
         )
     }

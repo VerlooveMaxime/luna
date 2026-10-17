@@ -873,7 +873,7 @@ class LunaHarnessApiTest {
             FlowStepView(2, "drop", emptyMap(), emptyList(), emptyList(), null, null, false, 0, emptyList()),
         )
         assertEquals(
-            FlowView("agent_a", running = false, stepIndex = 1, laps = 0, blocked = null, waiting = null, stop = FlowStopView("never", ""), steps = steps, reflexes = listOf(FlowReflexView(3, mapOf("do" to "stop")))),
+            FlowView("agent_a", running = false, stepIndex = 1, laps = 0, blocked = null, waiting = null, underWay = null, stop = FlowStopView("never", ""), steps = steps, reflexes = listOf(FlowReflexView(3, mapOf("do" to "stop")))),
             view,
         )
     }
@@ -924,6 +924,13 @@ class LunaHarnessApiTest {
         val view = api().flow("agent_a")
 
         assertEquals(listOf("Needs an axe you can use", "No tree in reach", listOf(null, "'bad' is refused")), listOf(view.blocked, view.waiting, view.steps.map { it.problem }))
+    }
+
+    @Test
+    fun `what a running flow's trip does on its way reads as the overlay shows it`() {
+        agent().idleState = IdleState(steps = listOf(step("chop", "oak")), running = true, underWay = "Opening the door")
+
+        assertEquals("Opening the door", api().flow("agent_a").underWay)
     }
 
     @Test

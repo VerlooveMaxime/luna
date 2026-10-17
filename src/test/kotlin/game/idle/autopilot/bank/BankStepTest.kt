@@ -1,10 +1,12 @@
 package game.idle.autopilot.bank
 
-import org.junit.jupiter.api.Assertions.assertSame
-import game.idle.flow.StepItem
+import api.bot.webwalk.model.EdgeType
+import api.bot.webwalk.plan.PlanLeg
+import api.bot.webwalk.plan.WebWalkPlan
+import game.idle.flow.Place
 import game.idle.flow.Reason
+import game.idle.flow.StepItem
 import game.idle.flow.StepOutcome
-import game.idle.flow.Target
 import game.idle.location.Bank
 import game.idle.location.Tile
 import game.testworld.TestWorld
@@ -13,6 +15,7 @@ import io.luna.game.model.item.Item
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 
 class BankStepTest {
@@ -27,43 +30,65 @@ class BankStepTest {
 
     private val here = Position(3200, 3200)
 
-    // Across a fence along y = 3202 (x 3180 to 3220): 5 tiles away in a straight line, about 40 on foot.
     private val acrossFence = Bank("across", "Bank across the fence", Tile(3200, 3205))
-    private val fence = { tile: Position -> tile.y == 3202 && tile.x in 3180..3220 }
-
-    // On this side of the fence: 10 tiles away both ways.
     private val thisSide = Bank("this side", "Bank on this side", Tile(3200, 3190))
+    private val acrossEnd = Position(3200, 3204)
+    private val thisSideEnd = Position(3200, 3191)
+    private val ends = mapOf(acrossFence to listOf(acrossEnd), thisSide to listOf(thisSideEnd))
 
-    private val usable = mapOf(acrossFence to listOf(Position(3200, 3204)), thisSide to listOf(Position(3200, 3191)))
+    /** Trips by [trip], which picks the end the cheapest trip reaches; [planned] records what was asked. */
+    private class FakeBankTrips(private val usable: Map<Bank, List<Position>>, private val trip: (List<Position>) -> WebWalkPlan?) : BankTrips {
+        val planned = mutableListOf<List<Position>>()
+
+        override fun usableFrom(bank: Bank): List<Position> = usable[bank].orEmpty()
+
+        override fun plan(ends: List<Position>): WebWalkPlan? {
+            planned += ends
+            return trip(ends)
+        }
+    }
+
+    private fun walkTo(end: Position) = WebWalkPlan(listOf(PlanLeg(EdgeType.WALK, here, end, cost = 40.0)), cost = 40.0)
 
     @Test
-    fun `the nearest bank is the one a walk reaches first, not the nearest in a straight line`() {
-        val nearest = BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(here, FakeBankTerrain(usable, fence))
+    fun `the nearest bank is the one the cheapest trip reaches, not the nearest in a straight line`() {
+        val trip = walkTo(thisSideEnd)
 
-        assertEquals(thisSide, nearest)
+        val nearest = BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(here, FakeBankTrips(ends) { trip })
+
+        assertEquals(BankTrip(thisSide, thisSideEnd, trip), nearest)
     }
 
     @Test
-    fun `with no bank within walking reach the nearest in a straight line is taken`() {
-        val walledIn = FakeBankTerrain(usable) { true }
+    fun `one trip is planned to every tile the banks are used from`() {
+        val trips = FakeBankTrips(ends) { walkTo(thisSideEnd) }
 
-        val nearest = BankStep(listOf(thisSide, acrossFence), EVERYTHING).nearest(here, walledIn)
+        BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(here, trips)
 
-        assertEquals(acrossFence, nearest)
+        assertEquals(listOf(listOf(acrossEnd, thisSideEnd)), trips.planned)
     }
 
     @Test
-    fun `a lone bank on the player's floor is taken without a search`() {
-        val terrain = FakeBankTerrain(usable, fence)
+    fun `with no booth standing at any bank there is none to take, and no trip is planned`() {
+        val trips = FakeBankTrips(emptyMap()) { walkTo(thisSideEnd) }
 
-        BankStep(listOf(acrossFence, near.copy(booth = Tile(3200, 3200, 1))), EVERYTHING).nearest(here, terrain)
+        val nearest = BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(here, trips)
 
-        assertEquals(0, terrain.stepsAsked)
+        assertEquals(null to 0, nearest to trips.planned.size)
     }
 
     @Test
-    fun `with no bank on the player's floor there is none to take`() {
-        assertNull(BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(Position(3200, 3200, 1), FakeBankTerrain(usable)))
+    fun `with no trip to a bank there is none to take`() {
+        assertNull(BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(here, FakeBankTrips(ends) { null }))
+    }
+
+    @Test
+    fun `a player already standing where a booth is used from takes that bank`() {
+        val standing = WebWalkPlan(emptyList(), cost = 0.0)
+
+        val nearest = BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(thisSideEnd, FakeBankTrips(ends) { standing })
+
+        assertEquals(BankTrip(thisSide, thisSideEnd, standing), nearest)
     }
 
     @Test
@@ -78,13 +103,15 @@ class BankStepTest {
         assertEquals(Position(3199, 3200), player.navigator.currentTarget)
     }
 
+    /** No stairs of the web reach floor 3 around TestWorld's map, so no trip there leaves it. */
     @Test
-    fun `with no bank on the player's floor the step blocks`() {
-        val player = TestWorld.login("banker", Position(3195, 3200, 1))
+    fun `with no trip to a bank the step blocks`() {
+        val player = TestWorld.login("banker", Position(3195, 3200, 3))
+        TestWorld.place(boothId, near.booth.toPosition())
         player.inventory.add(Item(1511))
         val work = BankStep(listOf(near), EVERYTHING).work(player, runTile)
 
-        assertEquals(StepOutcome.Blocked(Reason.NoneInReach(Target.BANK_BOOTH)), work.act(left = null))
+        assertEquals(StepOutcome.Blocked(Reason.NoWay(Place.BANK)), work.act(left = null))
     }
 
     private val withdrawing = BankStep(listOf(near), BankOrder(DepositRule.Everything, listOf(StepItem(1521), StepItem(1511, 5)), IfStuck.SKIP))

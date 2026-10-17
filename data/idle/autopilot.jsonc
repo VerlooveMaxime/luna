@@ -1,6 +1,8 @@
 {
-  // Ticks (600 ms each) a player must stand idle before the autopilot takes its next step: the pause between clicks.
-  "decision_delay_ticks": 2,
+  // Ticks (600 ms each) a player stands idle before the autopilot takes its next step, the pause between clicks: drawn
+  // afresh each time between these two, each as likely, so it never feels the same twice.
+  "min_decision_delay_ticks": 1,
+  "max_decision_delay_ticks": 3,
   // Steps a flow can hold and flows a player can save. Every player has these until unlocks exist (prestige,
   // construction); the builder shows the next slot as locked.
   "step_slots": 4,

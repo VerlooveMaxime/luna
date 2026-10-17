@@ -27,41 +27,6 @@ class TripWorkTest {
     private val door = 1530
     private val ladder = 1748
 
-    private class FakeTraveller(var position: Position) : Traveller {
-        var busy = false
-        var choosing = false
-        var usable = true
-        val standing = mutableSetOf<Pair<Int, Position>>()
-        val plans = ArrayDeque<CompletableFuture<WebWalkPlan?>>()
-        val planned = mutableListOf<List<Position>>()
-        val walks = mutableListOf<Position>()
-        val used = mutableListOf<Triple<Int, Position, String?>>()
-        val chosen = mutableListOf<Int>()
-        var interrupted = 0
-
-        override fun position(): Position = position
-        override fun isBusy(): Boolean = busy
-        override fun plan(destinations: List<Position>): CompletableFuture<WebWalkPlan?> {
-            planned += destinations
-            return plans.removeFirst()
-        }
-        override fun walk(to: Position) {
-            walks += to
-        }
-        override fun standing(id: Int, at: Position): Boolean = id to at in standing
-        override fun use(id: Int, at: Position, option: String?): Boolean {
-            used += Triple(id, at, option)
-            return usable
-        }
-        override fun choosing(): Boolean = choosing
-        override fun choose(option: Int) {
-            chosen += option
-        }
-        override fun interrupt() {
-            interrupted++
-        }
-    }
-
     private val traveller = FakeTraveller(start)
     private val trip = TripWork(traveller, target, Place.TILE)
 
@@ -79,10 +44,9 @@ class TripWorkTest {
         from = Position(3200, 3200, 1), to = start,
     )
 
-    /** Plans [legs] at the trip's first decision and hands the plan over, as the next decision finds it done. */
+    /** The plan the trip's first decision makes, and takes at once. */
     private fun planned(vararg legs: PlanLeg) {
         traveller.plans += CompletableFuture.completedFuture(WebWalkPlan(legs.toList(), cost = 1.0))
-        trip.act(null)
     }
 
     @Test
@@ -115,7 +79,40 @@ class TripWorkTest {
     @Test
     fun `a trip is not busy once its plan is made`() {
         planned(walkLeg(start, target.toPosition()))
+        trip.act(null)
         assertFalse(trip.isBusy())
+    }
+
+    @Test
+    fun `a plan made at once is taken in the same decision`() {
+        planned(walkLeg(start, target.toPosition()))
+        assertEquals(StepOutcome.Approached to listOf(target.toPosition()), trip.act(null) to traveller.walks)
+    }
+
+    @Test
+    fun `a plan made off the game thread is taken at a later decision`() {
+        val making = CompletableFuture<WebWalkPlan?>()
+        traveller.plans += making
+        trip.act(null)
+        making.complete(WebWalkPlan(listOf(walkLeg(start, target.toPosition())), cost = 1.0))
+        trip.act(null)
+        assertEquals(listOf(target.toPosition()), traveller.walks)
+    }
+
+    @Test
+    fun `a plan made off the game thread frees the trip once it is made`() {
+        val making = CompletableFuture<WebWalkPlan?>()
+        traveller.plans += making
+        trip.act(null)
+        making.complete(null)
+        assertFalse(trip.isBusy())
+    }
+
+    @Test
+    fun `a trip given its plan starts on it without planning`() {
+        val given = TripWork(traveller, target, Place.TILE, WebWalkPlan(listOf(walkLeg(start, target.toPosition())), cost = 1.0))
+        given.act(null)
+        assertEquals(emptyList<List<Position>>() to listOf(target.toPosition()), traveller.planned to traveller.walks)
     }
 
     @Test
@@ -131,8 +128,7 @@ class TripWorkTest {
 
     @Test
     fun `a trip with no way there blocks`() {
-        traveller.plans += CompletableFuture.completedFuture(null)
-        trip.act(null)
+        traveller.noWay = true
         assertEquals(StepOutcome.Blocked(Reason.NoWay(Place.TILE)), trip.act(null))
     }
 
@@ -156,6 +152,123 @@ class TripWorkTest {
         trip.act(null)
         traveller.position = Position(3205, 3200)
         assertEquals(StepOutcome.Approached, trip.act(null))
+    }
+
+    @Test
+    fun `a door is used from the side the trip comes from`() {
+        traveller.position = doorTile
+        traveller.standing += door to doorTile
+        planned(doorLeg())
+        trip.act(null)
+        assertEquals(listOf(doorTile), traveller.sides)
+    }
+
+    @Test
+    fun `a walk with a leg after it is done a few tiles short, so the next leg is clicked on the way`() {
+        planned(walkLeg(start, Position(3215, 3200)), walkLeg(Position(3215, 3200), target.toPosition()))
+        trip.act(null)
+        traveller.position = Position(3210, 3200)
+        trip.act(null)
+        assertEquals(listOf(Position(3215, 3200), target.toPosition()), traveller.walks)
+    }
+
+    @Test
+    fun `the last walk is done only beside its end`() {
+        planned(walkLeg(start, Position(3215, 3200)), walkLeg(Position(3215, 3200), Position(3225, 3200)))
+        trip.act(null)
+        traveller.position = Position(3214, 3200)
+        trip.act(null)
+        traveller.position = Position(3221, 3200)
+        traveller.plans += CompletableFuture()
+        trip.act(null)
+        assertEquals(listOf(Position(3215, 3200), Position(3225, 3200), Position(3225, 3200)), traveller.walks)
+    }
+
+    @Test
+    fun `a trip clicks ahead in a walk's last tiles when a leg follows`() {
+        planned(walkLeg(start, Position(3215, 3200)), doorLeg())
+        trip.act(null)
+        traveller.busy = true
+        traveller.position = Position(3210, 3200)
+        assertFalse(trip.isBusy())
+    }
+
+    @Test
+    fun `a trip far from a walk's end waits for the walk`() {
+        planned(walkLeg(start, Position(3215, 3200)), doorLeg())
+        trip.act(null)
+        traveller.busy = true
+        assertTrue(trip.isBusy())
+    }
+
+    @Test
+    fun `a trip on its last walk waits for the walk`() {
+        planned(walkLeg(start, Position(3215, 3200)))
+        trip.act(null)
+        traveller.busy = true
+        traveller.position = Position(3213, 3200)
+        assertTrue(trip.isBusy())
+    }
+
+    @Test
+    fun `a trip waits while a shut door is being opened`() {
+        traveller.position = doorTile
+        traveller.standing += door to doorTile
+        planned(doorLeg(), walkLeg(pastDoor, target.toPosition()))
+        trip.act(null)
+        traveller.busy = true
+        assertTrue(trip.isBusy())
+    }
+
+    @Test
+    fun `a door just opened lets the trip click on while the player still acts`() {
+        traveller.position = doorTile
+        traveller.standing += door to doorTile
+        planned(doorLeg(), walkLeg(pastDoor, target.toPosition()))
+        trip.act(null)
+        traveller.standing.clear()
+        traveller.busy = true
+        assertFalse(trip.isBusy())
+    }
+
+    @Test
+    fun `once the walk through an open door is clicked the trip waits for it`() {
+        traveller.position = doorTile
+        planned(doorLeg(), walkLeg(pastDoor, target.toPosition()))
+        trip.act(null)
+        traveller.busy = true
+        assertTrue(trip.isBusy())
+    }
+
+    @Test
+    fun `past one door the next one just opened lets the trip click on`() {
+        val secondDoor = leg(EdgeType.DOOR, pastDoor, Position(3208, 3200), 1533, pastDoor)
+        traveller.position = doorTile
+        planned(doorLeg(), secondDoor, walkLeg(Position(3208, 3200), target.toPosition()))
+        trip.act(null)
+        traveller.position = pastDoor
+        traveller.standing += 1533 to pastDoor
+        trip.act(null)
+        traveller.standing.clear()
+        traveller.busy = true
+        assertFalse(trip.isBusy())
+    }
+
+    @Test
+    fun `a door leg with nothing to click keeps the trip waiting for the player`() {
+        traveller.position = doorTile
+        planned(PlanLeg(EdgeType.DOOR, doorTile, pastDoor, cost = 1.0), walkLeg(pastDoor, target.toPosition()))
+        trip.act(null)
+        traveller.busy = true
+        assertTrue(trip.isBusy())
+    }
+
+    @Test
+    fun `a trip waits while the player climbs`() {
+        planned(upstairs(), walkLeg(Position(3200, 3200, 1), Position(3205, 3200, 1)))
+        trip.act(null)
+        traveller.busy = true
+        assertTrue(trip.isBusy())
     }
 
     @Test
@@ -220,7 +333,7 @@ class TripWorkTest {
         traveller.standing += door to doorTile
         planned(doorLeg())
         trip.act(null)
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR, Tile(3210, 3200))), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR)), trip.act(null))
     }
 
     @Test
@@ -228,7 +341,7 @@ class TripWorkTest {
         traveller.position = doorTile
         planned(doorLeg())
         trip.act(null)
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR, Tile(3210, 3200))), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR)), trip.act(null))
     }
 
     @Test
@@ -237,21 +350,28 @@ class TripWorkTest {
         traveller.standing += door to doorTile
         traveller.usable = false
         planned(doorLeg())
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR, Tile(3210, 3200))), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR)), trip.act(null))
     }
 
     @Test
     fun `a door leg with no object blocks at its start`() {
         traveller.position = doorTile
         planned(PlanLeg(EdgeType.DOOR, doorTile, pastDoor, cost = 1.0))
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR, Tile(3210, 3200))), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR)), trip.act(null))
+    }
+
+    @Test
+    fun `a door leg with nothing to click blocks`() {
+        traveller.position = doorTile
+        planned(PlanLeg(EdgeType.DOOR, doorTile, pastDoor, cost = 1.0, action = EdgeAction()))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR)), trip.act(null))
     }
 
     @Test
     fun `a door leg with no object tile blocks at its start`() {
         traveller.position = doorTile
         planned(leg(EdgeType.DOOR, doorTile, pastDoor, id = door))
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR, Tile(3210, 3200))), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR)), trip.act(null))
     }
 
     @Test
@@ -324,20 +444,20 @@ class TripWorkTest {
         traveller.choosing = true
         planned(upstairs())
         trip.act(null)
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.LADDER_UP, Tile(3201, 3200))), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.LADDER_UP)), trip.act(null))
     }
 
     @Test
     fun `a ladder that would not take the player up blocks, naming it`() {
         planned(upstairs())
         trip.act(null)
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.LADDER_UP, Tile(3201, 3200))), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.LADDER_UP)), trip.act(null))
     }
 
     @Test
     fun `a climb leg with no object blocks at its start`() {
         planned(PlanLeg(EdgeType.LADDER, start, Position(3200, 3200, 1), cost = 1.0))
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.LADDER_UP, Tile(3200, 3200))), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.LADDER_UP)), trip.act(null))
     }
 
     @Test
@@ -379,13 +499,13 @@ class TripWorkTest {
     @Test
     fun `a trapdoor Luna does not know blocks`() {
         planned(leg(EdgeType.TRAPDOOR, start, Position(3201, 9600), 1, Position(3201, 3200)))
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.TRAPDOOR, Tile(3201, 3200))), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.TRAPDOOR)), trip.act(null))
     }
 
     @Test
     fun `a trapdoor leg with no object blocks at its start`() {
         planned(PlanLeg(EdgeType.TRAPDOOR, start, Position(3201, 9600), cost = 1.0))
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.TRAPDOOR, Tile(3200, 3200))), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.TRAPDOOR)), trip.act(null))
     }
 
     @Test
@@ -397,6 +517,7 @@ class TripWorkTest {
     @Test
     fun `a player taken off the plan plans again`() {
         planned(walkLeg(start, Position(3220, 3200)))
+        trip.act(null)
         traveller.position = Position(3200, 3300)
         traveller.plans += CompletableFuture()
         trip.act(null)
@@ -406,6 +527,7 @@ class TripWorkTest {
     @Test
     fun `a plan walked through without arriving plans again`() {
         planned(walkLeg(start, Position(3220, 3200)))
+        trip.act(null)
         traveller.position = Position(3220, 3200)
         traveller.plans += CompletableFuture()
         trip.act(null)
@@ -420,10 +542,8 @@ class TripWorkTest {
 
     @Test
     fun `a work spot's trip says the work spot`() {
-        val spotTrip = TripWork(traveller, target, Place.WORK_SPOT)
-        traveller.plans += CompletableFuture.completedFuture(null)
-        spotTrip.act(null)
-        assertEquals(StepOutcome.Blocked(Reason.NoWay(Place.WORK_SPOT)), spotTrip.act(null))
+        traveller.noWay = true
+        assertEquals(StepOutcome.Blocked(Reason.NoWay(Place.WORK_SPOT)), TripWork(traveller, target, Place.WORK_SPOT).act(null))
     }
 
     @Test

@@ -106,6 +106,17 @@ class LunaTravellerTest {
     }
 
     @Test
+    fun `without the web's data a destination on another floor has no plain walk`() {
+        assertNull(LunaTraveller(login(), web = null).plan(listOf(Position(3205, 3200, 1))).join())
+    }
+
+    @Test
+    fun `without the web's data the plain walk goes to the nearest destination on the player's floor`() {
+        val trip = LunaTraveller(login(), web = null).plan(listOf(Position(3201, 3200, 1), Position(3220, 3200))).join()
+        assertEquals(listOf(Position(3220, 3200)), trip?.legs?.map { it.to })
+    }
+
+    @Test
     fun `a toll is not paid unless the flow allows coins`() {
         assertNull(tollTrip(withCoins(20), TravelAllowance.NONE))
     }
@@ -160,13 +171,62 @@ class LunaTravellerTest {
 
     @Test
     fun `using an object that is gone clicks nothing`() {
-        assertFalse(LunaTraveller(login(), web = null).use(door, beside, option = null))
+        assertFalse(LunaTraveller(login(), web = null).use(door, beside, option = null, from = here))
     }
 
     @Test
     fun `using an option the object lacks clicks nothing`() {
         TestWorld.place(door, beside)
-        assertFalse(LunaTraveller(login(), web = null).use(door, beside, "Climb-up"))
+        assertFalse(LunaTraveller(login(), web = null).use(door, beside, "Climb-up", from = here))
+    }
+
+    @Test
+    fun `using an object out of reach walks up to it and clicks on arrival, as the client does`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+        val clicked = clicks()
+        LunaTraveller(player, web = null).use(door, beside, option = null, from = here)
+        TestWorld.tick(8)
+        assertEquals(here to listOf(ObjectFirstClickEvent::class.java), player.position to clicked.map { it.javaClass })
+    }
+
+    @Test
+    fun `a click waiting for the walk up holds the trip`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+        val traveller = LunaTraveller(player, web = null)
+        traveller.use(door, beside, option = null, from = here)
+        assertTrue(traveller.isBusy())
+    }
+
+    @Test
+    fun `a walk up cut short drops its click and frees the trip`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+        val clicked = clicks()
+        val traveller = LunaTraveller(player, web = null)
+        traveller.use(door, beside, option = null, from = here)
+        TestWorld.tick()
+        LunaClicks.endWalk(player)
+        TestWorld.tick(8)
+        assertEquals(emptyList<ObjectClickEvent>() to false, clicked to traveller.isBusy())
+    }
+
+    @Test
+    fun `the walk up goes to the side the trip comes from`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+        LunaTraveller(player, web = null).use(door, beside, option = null, from = Position(3202, 3200))
+        assertEquals(Position(3202, 3200), player.navigator.currentTarget)
+    }
+
+    @Test
+    fun `an object no tile reaches is not used`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+        listOf(-1, 0, 1).flatMap { dx -> listOf(-1, 0, 1).map { dy -> Position(beside.x + dx, beside.y + dy) } }
+            .filter { it != beside }.forEach { TestWorld.place(door, it) }
+        assertFalse(LunaTraveller(player, web = null).use(door, beside, option = null, from = here))
     }
 
     @Test
@@ -174,7 +234,7 @@ class LunaTravellerTest {
         val player = login()
         TestWorld.place(door, beside)
         val clicked = clicks()
-        LunaTraveller(player, web = null).use(door, beside, option = null)
+        LunaTraveller(player, web = null).use(door, beside, option = null, from = here)
         TestWorld.tick()
         assertEquals(listOf(ObjectFirstClickEvent::class.java), clicked.map { it.javaClass })
     }
@@ -184,7 +244,7 @@ class LunaTravellerTest {
         val player = login()
         TestWorld.place(ladder, beside)
         val clicked = clicks()
-        LunaTraveller(player, web = null).use(ladder, beside, "Climb-up")
+        LunaTraveller(player, web = null).use(ladder, beside, "Climb-up", from = here)
         TestWorld.tick()
         assertEquals(listOf(ObjectSecondClickEvent::class.java), clicked.map { it.javaClass })
     }
@@ -194,7 +254,7 @@ class LunaTravellerTest {
         val player = login()
         TestWorld.place(ladder, beside)
         val clicked = clicks()
-        LunaTraveller(player, web = null).use(ladder, beside, "Climb-down")
+        LunaTraveller(player, web = null).use(ladder, beside, "Climb-down", from = here)
         TestWorld.tick()
         assertEquals(listOf(ObjectThirdClickEvent::class.java), clicked.map { it.javaClass })
     }

@@ -8,8 +8,8 @@ import game.idle.autopilot.bank.Held
 import game.idle.autopilot.drop.DropWork
 import game.idle.autopilot.drop.ItemDropper
 import game.idle.autopilot.rest.RestWork
-import game.idle.autopilot.walk.FakeWalker
-import game.idle.autopilot.walk.WalkWork
+import game.idle.autopilot.travel.FakeTraveller
+import game.idle.autopilot.travel.TripWork
 import game.idle.location.Tile
 import io.luna.game.model.Position
 
@@ -65,8 +65,8 @@ interface SettlingFixture : AmountFixture {
 /** A kind that works at targets around a work spot: chop, mine, fish; cook, smelt, smith; fight. */
 interface AreaFixture : KindFixture {
 
-    /** The walker every walk back of the turn uses; where it stands is where the player is. */
-    val walker: FakeWalker
+    /** The traveller every walk back of the turn uses; where it stands is where the player is. */
+    val traveller: FakeTraveller
 
     val anchor: Tile
 
@@ -94,9 +94,9 @@ interface ProcessFixture : NeedsFixture, AmountFixture {
     fun supply(units: Int)
 }
 
-/** The turn the autopilot builds for a kind's [work]: no own-spot walk, the walk back over [walker]. */
-fun turnOf(work: StepWork, amount: Int?, needs: List<StepNeeds>, carried: FakeCarried, fillsBag: Boolean, walker: FakeWalker): StepTurn =
-    StepTurn(work, amount, needs, carried, fillsBag) { to -> WalkWork(walker, to, Place.WORK_SPOT) }
+/** The turn the autopilot builds for a kind's [work]: no own-spot walk, the walk back a trip over [traveller]. */
+fun turnOf(work: StepWork, amount: Int?, needs: List<StepNeeds>, carried: FakeCarried, fillsBag: Boolean, traveller: FakeTraveller): StepTurn =
+    StepTurn(work, amount, needs, carried, fillsBag) { to -> TripWork(traveller, to, Place.WORK_SPOT) }
 
 /**
  * A kind at its work spot: the player stands on the [anchor] with the [bag] (tools, bait, input) and the [level] it
@@ -108,7 +108,7 @@ abstract class SpotFixture(final override val name: String, final override val l
 
     final override val anchor = Tile(3200, 3200)
 
-    final override val walker = FakeWalker(anchor)
+    final override val traveller = FakeTraveller(anchor.toPosition())
 
     final override val carried = FakeCarried().apply {
         this.bag += bag
@@ -122,12 +122,12 @@ abstract class SpotFixture(final override val name: String, final override val l
 
     override fun leaveArea() {
         standInArea(inside = false)
-        walker.here = Tile(anchor.x + 20, anchor.y)
+        traveller.position = Position(anchor.x + 20, anchor.y)
     }
 
     override fun enterArea() {
         standInArea(inside = true)
-        walker.here = anchor
+        traveller.position = anchor.toPosition()
     }
 
     override fun toString(): String = name
@@ -146,12 +146,12 @@ class WalkFixture : KindFixture {
 
     override val carried = FakeCarried()
 
-    private val walker = FakeWalker(Tile(3050, 3050))
+    private val traveller = FakeTraveller(Position(3050, 3050))
 
-    override val done: List<String> get() = List(walker.walks) { "walk" } + List(walker.interrupted) { "interrupt" }
+    override val done: List<String> get() = List(traveller.walks.size) { "walk" } + List(traveller.interrupted) { "interrupt" }
 
     override fun turn(amount: Int?): StepTurn =
-        turnOf(WalkWork(walker, Tile(3100, 3100), Place.TILE), amount, emptyList(), carried, fillsBag = false, walker)
+        turnOf(TripWork(traveller, Tile(3100, 3100), Place.TILE), amount, emptyList(), carried, fillsBag = false, traveller)
 
     override fun gain(units: Int) = Unit
 
@@ -169,7 +169,7 @@ class RestFixture : KindFixture {
     override val done: List<String> get() = emptyList()
 
     override fun turn(amount: Int?): StepTurn =
-        turnOf(RestWork({ health }, percent = 100), amount, emptyList(), carried, fillsBag = false, FakeWalker(Tile(3050, 3050)))
+        turnOf(RestWork({ health }, percent = 100), amount, emptyList(), carried, fillsBag = false, FakeTraveller(Position(3050, 3050)))
 
     override fun gain(units: Int) {
         health = Health(health.hitpoints + units, health.full)
@@ -189,7 +189,7 @@ class DropFixture : KindFixture {
     override val done: List<String> get() = dropper.done
 
     override fun turn(amount: Int?): StepTurn =
-        turnOf(DropWork(dropper), amount, emptyList(), carried, fillsBag = false, FakeWalker(Tile(3050, 3050)))
+        turnOf(DropWork(dropper), amount, emptyList(), carried, fillsBag = false, FakeTraveller(Position(3050, 3050)))
 
     override fun gain(units: Int) = Unit
 
@@ -228,7 +228,7 @@ class BankFixture : KindFixture {
     override val done: List<String> get() = banker.steps
 
     override fun turn(amount: Int?): StepTurn =
-        turnOf(BankWork(banker, EVERYTHING), amount, emptyList(), carried, fillsBag = false, FakeWalker(Tile(3050, 3050)))
+        turnOf(BankWork(banker, EVERYTHING, toBooth = null), amount, emptyList(), carried, fillsBag = false, FakeTraveller(Position(3050, 3050)))
 
     override fun gain(units: Int) = Unit
 

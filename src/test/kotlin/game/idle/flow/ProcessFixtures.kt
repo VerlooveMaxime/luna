@@ -23,7 +23,7 @@ import game.idle.autopilot.smithing.FakeSmither
 import game.idle.autopilot.smithing.SmithStep
 import game.idle.autopilot.smithing.SmithingWork
 import game.idle.autopilot.smithing.SmithingView
-import game.idle.autopilot.walk.FakeWalker
+import game.idle.autopilot.travel.FakeTraveller
 import game.idle.location.Tile
 import game.skill.smithing.BarType
 import game.skill.smithing.smithBar.SmithingTable
@@ -72,7 +72,7 @@ class LightFixture : ProcessFixture, ToolFixture, SettlingFixture {
     override val done: List<String> get() = lighter.steps
 
     override fun turn(amount: Int?): StepTurn =
-        turnOf(LightWork(lighter), amount, step.needs(), carried, fillsBag = false, FakeWalker(HERE))
+        turnOf(LightWork(lighter), amount, step.needs(), carried, fillsBag = false, FakeTraveller(HERE.toPosition()))
 
     override fun gain(units: Int) {
         lighter.logs -= units
@@ -115,7 +115,7 @@ class CookFixture : SpotFixture("cook", LevelNeed(Skill.COOKING, 15), bag = setO
 
     override val done: List<String> get() = cooker.steps
 
-    override fun turn(amount: Int?): StepTurn = turnOf(CookingWork(cooker), amount, step.needs(), carried, fillsBag = false, walker)
+    override fun turn(amount: Int?): StepTurn = turnOf(CookingWork(cooker), amount, step.needs(), carried, fillsBag = false, traveller)
 
     override fun gain(units: Int) {
         cooker.raw -= units
@@ -170,7 +170,7 @@ class MakeFixture : ProcessFixture, ToolFixture {
     override val done: List<String> get() = maker.steps
 
     override fun turn(amount: Int?): StepTurn =
-        turnOf(MakeWork(maker), amount, MakeStep(recipe).needs(), carried, fillsBag = false, FakeWalker(HERE))
+        turnOf(MakeWork(maker), amount, MakeStep(recipe).needs(), carried, fillsBag = false, FakeTraveller(HERE.toPosition()))
 
     override fun gain(units: Int) {
         maker.products += units
@@ -207,7 +207,7 @@ class SmeltFixture : SpotFixture("smelt", LevelNeed(Skill.SMITHING, 15), bag = s
 
     override val done: List<String> get() = smelter.steps
 
-    override fun turn(amount: Int?): StepTurn = turnOf(SmeltingWork(smelter), amount, step.needs(), carried, fillsBag = false, walker)
+    override fun turn(amount: Int?): StepTurn = turnOf(SmeltingWork(smelter), amount, step.needs(), carried, fillsBag = false, traveller)
 
     override fun gain(units: Int) {
         smelter.bars += units
@@ -256,7 +256,7 @@ class SmithFixture : SpotFixture("smith", LevelNeed(Skill.SMITHING, 15), bag = s
 
     override val done: List<String> get() = smither.steps
 
-    override fun turn(amount: Int?): StepTurn = turnOf(SmithingWork(smither), amount, step.needs(), carried, fillsBag = false, walker)
+    override fun turn(amount: Int?): StepTurn = turnOf(SmithingWork(smither), amount, step.needs(), carried, fillsBag = false, traveller)
 
     override fun gain(units: Int) {
         smither.made += units

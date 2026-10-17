@@ -6,9 +6,9 @@ import game.idle.autopilot.bank.BankDecision.Open
 import game.idle.autopilot.bank.BankDecision.Settled
 import game.idle.autopilot.bank.BankDecision.WalkToBooth
 import game.idle.autopilot.bank.BankDecision.Withdraw
+import game.idle.flow.Place
 import game.idle.flow.Reason
 import game.idle.flow.StepOutcome
-import game.idle.flow.Target
 
 /** An item in a bag slot: its [id] and how many the slot holds. */
 data class Held(val id: Int, val amount: Int)
@@ -111,7 +111,7 @@ object BankPlanner {
             view.bankOpen && plan.deposits.isNotEmpty() -> Deposit(plan.deposits)
             view.bankOpen && plan.takes.isNotEmpty() -> Withdraw(plan.takes)
             view.bankOpen -> Close
-            plan.canMove && !view.boothFound -> Settled(StepOutcome.Blocked(Reason.NoneInReach(Target.BANK_BOOTH)))
+            plan.canMove && !view.boothFound -> Settled(StepOutcome.Blocked(Reason.NoWay(Place.BANK)))
             plan.canMove && view.boothUsableFromHere -> Open
             plan.canMove -> WalkToBooth
             plan.stuck == null || moved -> Settled(StepOutcome.Finished)

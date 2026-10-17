@@ -1,5 +1,8 @@
 package game.idle.autopilot.bank
 
+import api.bot.webwalk.plan.WebWalkPlan
+import game.idle.autopilot.travel.LunaTraveller
+import game.idle.autopilot.travel.TripWork
 import game.idle.flow.BankMoves
 import game.idle.flow.Choice
 import game.idle.flow.EmptiesBag
@@ -7,6 +10,7 @@ import game.idle.flow.FieldColumn
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.LeavesOut
+import game.idle.flow.Place
 import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepField
@@ -25,8 +29,7 @@ import game.idle.flow.option.StepTarget
 import game.idle.location.Bank
 import game.idle.location.BankCatalog
 import game.idle.location.Tile
-import game.idle.movement.WalkingDistances
-import io.luna.game.model.Direction
+import game.idle.movement.TravelWebs
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
 
@@ -169,14 +172,18 @@ class BankStepType(private val catalog: BankCatalog, private val items: ItemCata
     }
 }
 
-/** The collision answers picking the nearest bank needs. [LunaBankTerrain] is the in-game one. */
-interface BankTerrain {
+/** What picking the nearest bank needs: where each bank is used from, and trips. [LunaBankTrips] is the in-game one. */
+interface BankTrips {
 
-    fun canStep(from: Position, direction: Direction): Boolean
-
-    /** The tiles [bank]'s booth can be used from; none when no booth stands on its tile. */
+    /** The tiles [bank]'s booth is used from; none when no booth stands on its tile. */
     fun usableFrom(bank: Bank): List<Position>
+
+    /** The cheapest trip from where the player stands to the nearest of [ends], null for none. */
+    fun plan(ends: List<Position>): WebWalkPlan?
 }
+
+/** The bank a bank step goes to: [plan] is the trip to [end], a tile its booth is used from. */
+data class BankTrip(val bank: Bank, val end: Position, val plan: WebWalkPlan)
 
 /** A bank step resolved: it uses the nearest of [candidates] when it starts, and does what [order] says there. */
 data class BankStep(val candidates: List<Bank>, val order: BankOrder) : ResolvedStep, BankMoves, EmptiesBag {
@@ -193,30 +200,24 @@ data class BankStep(val candidates: List<Bank>, val order: BankOrder) : Resolved
         if (items.isEmpty()) this else copy(order = order.copy(withdrawals = order.withdrawals.filter { it.id !in items }))
 
     /**
-     * The candidate on [from]'s floor that a walk reaches first: a booth across a river can be near in a straight
-     * line and far on foot. With none within [MAX_WALK] steps, the one nearest in a straight line, as a walk may
-     * still get there. Null when no candidate is on that floor; a lone one is taken without a search.
+     * The candidate the cheapest trip from [here] reaches, on any floor, through doors and up stairs: a booth across a
+     * river can be near in a straight line and far on foot. Null when no trip reaches a booth of theirs.
      */
-    fun nearest(from: Position, terrain: BankTerrain): Bank? {
-        val onFloor = candidates.filter { it.booth.z == from.z }
-        if (onFloor.size < 2) return onFloor.firstOrNull()
-        val bankByTile = onFloor.flatMap { bank -> terrain.usableFrom(bank).map { tile -> tile to bank } }.toMap()
-        val reached = WalkingDistances.firstReached(from, bankByTile.keys, MAX_WALK, terrain::canStep)
-        return reached?.let(bankByTile::getValue) ?: onFloor.minBy { squared(it.booth.x - from.x) + squared(it.booth.y - from.y) }
+    fun nearest(here: Position, trips: BankTrips): BankTrip? {
+        val bankByEnd = candidates.flatMap { bank -> trips.usableFrom(bank).map { tile -> tile to bank } }.toMap()
+        if (bankByEnd.isEmpty()) return null
+        val plan = trips.plan(bankByEnd.keys.toList()) ?: return null
+        // A trip from one of the ends has no legs and so no destination: the player stands at that end.
+        val end = plan.destination ?: here
+        return BankTrip(bankByEnd.getValue(end), end, plan)
     }
 
+    /** The bank is picked by the trip there, which the walk to its booth then takes. */
     override fun work(player: Player, runTile: Tile): StepWork {
-        val booth = nearest(player.position, LunaBankTerrain(player.world))?.booth?.toPosition()
-        return BankWork(LunaBanker(player, booth), order)
-    }
-
-    private fun squared(value: Int): Int = value * value
-
-    companion object {
-        /**
-         * About two minutes on foot, enough for every bank near the spots flows use; a search that finds nothing
-         * this close costs the game thread up to about 200 ms.
-         */
-        const val MAX_WALK = 200
+        val web = TravelWebs.SERVER.of(player.world)
+        val traveller = LunaTraveller(player, web)
+        val trip = nearest(player.position, LunaBankTrips(player.world, traveller, web))
+        val toBooth = trip?.let { TripWork(traveller, Tile.of(it.end), Place.BANK, it.plan) }
+        return BankWork(LunaBanker(player, trip?.bank?.booth?.toPosition()), order, toBooth)
     }
 }

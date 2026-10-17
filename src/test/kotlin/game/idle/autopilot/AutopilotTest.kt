@@ -17,7 +17,7 @@ class AutopilotTest {
     private val clock = FakeClock(now = 1_000)
     private val activity = FakeActivity()
     private val autopilot = Autopilot<FakeAutopilotPlayer>(scheduler, clock) { player ->
-        if (BROKEN in player.idleState.steps) null else AutopilotDriver(activity, decisionDelayTicks = 1)
+        if (BROKEN in player.idleState.steps) null else AutopilotDriver(activity) { 1 }
     }
 
     private val idle = FakeAutopilotPlayer("maxime", IdleState(steps = listOf(LOOP)))
@@ -454,7 +454,7 @@ class AutopilotTest {
     @Test
     fun `the driver is built from the run as started, so it reads the start time`() {
         var seen = -1L
-        val autopilot = Autopilot<FakeAutopilotPlayer>(scheduler, clock) { player -> seen = player.idleState.progress.startedAt; AutopilotDriver(activity, decisionDelayTicks = 1) }
+        val autopilot = Autopilot<FakeAutopilotPlayer>(scheduler, clock) { player -> seen = player.idleState.progress.startedAt; AutopilotDriver(activity) { 1 } }
 
         autopilot.start(idle)
 

@@ -69,7 +69,7 @@ val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(world), clock)
     } catch (e: FlowError) {
         null
     }
-    runner?.let { AutopilotDriver(it, config.decisionDelayTicks) }
+    runner?.let { AutopilotDriver(it, DecisionDelay.between(config.decisionDelayTicks)) }
 }
 
 val builderUi = LunaBuilderUi(BuilderScreen(autopilot, resolver, reflexResolver, reflexForm, LunaGameNames, config.stepSlots, config.reflexSlots, savedFlows), builderWindow, ui, font)

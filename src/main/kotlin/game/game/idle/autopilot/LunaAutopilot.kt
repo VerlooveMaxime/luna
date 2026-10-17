@@ -2,8 +2,7 @@ package game.idle.autopilot
 
 import game.idle.IdleState
 import game.idle.autopilot.reflex.LunaReflexBody
-import game.idle.autopilot.walk.LunaWalker
-import game.idle.autopilot.walk.WalkWork
+import game.idle.autopilot.travel.tripTo
 import game.idle.flow.Counts
 import game.idle.flow.Gathers
 import game.idle.flow.FlowPlayer
@@ -95,7 +94,7 @@ class LunaAutopilotPlayer(val player: Player, private val ui: IdleUi) : Autopilo
     private fun walkToSpot(spot: Tile): StepActivity =
         StepTurn(walkBack(spot), amount = null, needs = emptyList(), carried = carried, fillsBag = false, walkBack = ::walkBack)
 
-    private fun walkBack(to: Tile): StepWork = WalkWork(LunaWalker(player, to), to, Place.WORK_SPOT)
+    private fun walkBack(to: Tile): StepWork = tripTo(player, to, Place.WORK_SPOT)
 
     private fun runTile(): Tile = idleState.runTile ?: tile
 }

@@ -48,7 +48,7 @@ class ChopFixture : SpotFixture("chop", LevelNeed(Skill.WOODCUTTING, 15), bag = 
     override val done: List<String> get() = woodcutter.steps
 
     override fun turn(amount: Int?): StepTurn =
-        turnOf(WoodcuttingWork(woodcutter), amount, step.needs(), carried, fillsBag = true, walker)
+        turnOf(WoodcuttingWork(woodcutter), amount, step.needs(), carried, fillsBag = true, traveller)
 
     override fun gain(units: Int) {
         woodcutter.logs += units
@@ -86,7 +86,7 @@ class MineFixture : SpotFixture("mine", LevelNeed(Skill.MINING, 15), bag = setOf
 
     override val done: List<String> get() = miner.steps
 
-    override fun turn(amount: Int?): StepTurn = turnOf(MiningWork(miner), amount, step.needs(), carried, fillsBag = true, walker)
+    override fun turn(amount: Int?): StepTurn = turnOf(MiningWork(miner), amount, step.needs(), carried, fillsBag = true, traveller)
 
     override fun gain(units: Int) {
         miner.ores += units
@@ -125,7 +125,7 @@ class FishFixture : SpotFixture("fish", LevelNeed(Skill.FISHING, 20), bag = setO
 
     override val done: List<String> get() = fisher.steps
 
-    override fun turn(amount: Int?): StepTurn = turnOf(FishingWork(fisher), amount, step.needs(), carried, fillsBag = true, walker)
+    override fun turn(amount: Int?): StepTurn = turnOf(FishingWork(fisher), amount, step.needs(), carried, fillsBag = true, traveller)
 
     override fun gain(units: Int) {
         fisher.catches += units

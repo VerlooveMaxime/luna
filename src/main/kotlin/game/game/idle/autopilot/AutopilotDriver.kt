@@ -1,5 +1,7 @@
 package game.idle.autopilot
 
+import kotlin.random.Random
+
 /** Something the autopilot trains: it knows whether the player is still busy with it and takes the next step. */
 interface AutopilotActivity {
 
@@ -23,17 +25,28 @@ interface AutopilotActivity {
     fun end()
 }
 
+/** How many idle ticks the player stands before each decision: the pause a real player takes between clicks. */
+fun interface DecisionDelay {
+
+    fun nextTicks(): Int
+
+    companion object {
+        /** A pause drawn afresh before each decision from [ticks], each as likely (Maxime, 2026-10-17: a fixed one felt unnatural). */
+        fun between(ticks: IntRange, random: Random = Random.Default): DecisionDelay = DecisionDelay { ticks.random(random) }
+    }
+}
+
 /**
- * Lets [activity] take a step once the player has stood idle for [decisionDelayTicks] ticks in a row: the pause a
- * real player takes between clicks. [tick] must be called once per game tick.
+ * Lets [activity] take a step once the player has stood idle for as many ticks in a row as [delay] draws, drawn again
+ * after each step. [tick] must be called once per game tick.
  */
-class AutopilotDriver(private val activity: AutopilotActivity, private val decisionDelayTicks: Int) {
+class AutopilotDriver(private val activity: AutopilotActivity, private val delay: DecisionDelay) {
 
     private var idleTicks = 0
 
-    init {
-        require(decisionDelayTicks > 0) { "decisionDelayTicks must be positive, got $decisionDelayTicks" }
-    }
+    private var wait = drawn()
+
+    private fun drawn(): Int = delay.nextTicks().also { require(it > 0) { "a decision delay must be positive, got $it" } }
 
     fun stopReason(): String? = activity.stopReason()
 
@@ -51,8 +64,9 @@ class AutopilotDriver(private val activity: AutopilotActivity, private val decis
             return
         }
         idleTicks++
-        if (idleTicks >= decisionDelayTicks) {
+        if (idleTicks >= wait) {
             idleTicks = 0
+            wait = drawn()
             activity.act()
         }
     }

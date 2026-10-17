@@ -1,5 +1,7 @@
 package game.idle.movement
 
+import api.bot.webwalk.model.BankDefinition
+import api.bot.webwalk.model.BankLink
 import api.bot.webwalk.model.EdgeType
 import api.bot.webwalk.model.NodeKind
 import api.bot.webwalk.model.TeleportDefinition
@@ -52,6 +54,18 @@ class TravelWebTest {
 
     private fun legTypes(destination: Position, snapshot: CapabilitySnapshot = CapabilitySnapshot()): List<EdgeType>? =
         web().plan(start, listOf(destination), snapshot)?.legs?.map { it.type }
+
+    @Test
+    fun `a bank the web knows is used from its stand`() {
+        val bank = BankDefinition("edgeville", booth = Position(120, 102), stand = Position(120, 101), links = listOf(BankLink(east.id, 1)))
+        val web = TravelWeb(WebWalkGraph(listOf(east), emptyList(), emptyList(), emptyList(), listOf(bank)), { false }, { walls })
+        assertEquals(Position(120, 101), web.bankStand(Position(120, 102)))
+    }
+
+    @Test
+    fun `a booth the web does not know has no stand`() {
+        assertNull(web().bankStand(Position(120, 102)))
+    }
 
     @Test
     fun `a trip goes through the door of the web`() {

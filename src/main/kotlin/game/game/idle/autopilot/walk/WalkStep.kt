@@ -1,5 +1,6 @@
 package game.idle.autopilot.walk
 
+import game.idle.autopilot.travel.tripTo
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.Place
@@ -48,5 +49,5 @@ data class WalkStep(val target: Tile) : ResolvedStep {
 
     override fun after(context: FlowContext): FlowContext = context.copy(workSpot = WorkSpot.At(target))
 
-    override fun work(player: Player, runTile: Tile): StepWork = WalkWork(LunaWalker(player, target), target, Place.TILE)
+    override fun work(player: Player, runTile: Tile): StepWork = tripTo(player, target, Place.TILE)
 }

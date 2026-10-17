@@ -40,7 +40,7 @@ class BuilderWindowTest {
         reflexSlots = 2,
     )
     private val idleUi = IdleUi(status(), idleTab(), window)
-    private val autopilot = Autopilot<LunaAutopilotPlayer>(FakeTickScheduler(), FakeClock()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
+    private val autopilot = Autopilot<LunaAutopilotPlayer>(FakeTickScheduler(), FakeClock()) { AutopilotDriver(FakeActivity()) { 1 } }
     private val ui = LunaBuilderUi(BuilderScreen(autopilot, resolver, REFLEXES, REFLEX_FORM, FakeNames(), slots = 4, reflexSlots = 2, SavedFlows(2)), window, idleUi, font)
 
     private val oak = step("chop", "oak")

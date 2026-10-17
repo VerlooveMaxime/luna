@@ -9,14 +9,21 @@ import java.nio.file.Paths
 
 /** Settings from `data/idle/autopilot.jsonc`. Every field has a default so Gson can use the no-arg constructor. */
 data class AutopilotConfig(
-    val decisionDelayTicks: Int = 2,
+    val minDecisionDelayTicks: Int = 1,
+    val maxDecisionDelayTicks: Int = 3,
     val stepSlots: Int = 4,
     val savedFlowSlots: Int = 2,
     val reflexSlots: Int = 4,
 ) {
 
+    /** The idle ticks before each decision, drawn from this range each time. */
+    val decisionDelayTicks: IntRange get() = minDecisionDelayTicks..maxDecisionDelayTicks
+
     fun validated(): AutopilotConfig {
-        require(decisionDelayTicks > 0) { "decision_delay_ticks must be positive, got $decisionDelayTicks" }
+        require(minDecisionDelayTicks > 0) { "min_decision_delay_ticks must be positive, got $minDecisionDelayTicks" }
+        require(maxDecisionDelayTicks >= minDecisionDelayTicks) {
+            "max_decision_delay_ticks must be at least min_decision_delay_ticks ($minDecisionDelayTicks), got $maxDecisionDelayTicks"
+        }
         require(stepSlots > 0) { "step_slots must be positive, got $stepSlots" }
         require(stepSlots <= BuilderWidgets.MOST_STEP_SLOTS) { "step_slots must be at most ${BuilderWidgets.MOST_STEP_SLOTS}, got $stepSlots" }
         require(reflexSlots > 0) { "reflex_slots must be positive, got $reflexSlots" }

@@ -1,6 +1,5 @@
 package game.idle.flow
 
-import game.idle.location.Tile
 
 import engine.combat.prayer.CombatPrayer
 import game.idle.flow.option.FakeNames
@@ -192,22 +191,20 @@ class StepWordsTest {
             Arguments.of(Reason.NoneInReach(Target.FURNACE), "No furnace in reach"),
             Arguments.of(Reason.NoneInReach(Target.ANVIL), "No anvil in reach"),
             Arguments.of(Reason.NoneInReach(Target.NPC), "Nothing to fight in reach"),
-            Arguments.of(Reason.NoneInReach(Target.BANK_BOOTH), "No bank booth on this floor"),
             Arguments.of(Reason.NoneInReach(Target.FREE_TILE), "No free tile for a fire"),
             Arguments.of(Reason.CannotMake, "Cannot make it yet"),
             Arguments.of(Reason.WrongWindow, "Another make window is open"),
-            Arguments.of(Reason.OtherFloor(Place.TILE), "Cannot walk to another floor"),
-            Arguments.of(Reason.OtherFloor(Place.WORK_SPOT), "The work spot is on another floor"),
             Arguments.of(Reason.NoWay(Place.TILE), "No way there from here"),
             Arguments.of(Reason.NoWay(Place.WORK_SPOT), "No way to the work spot from here"),
-            Arguments.of(Reason.Impassable(Passage.DOOR, Tile(3101, 3509)), "No way through the door at 3101, 3509"),
-            Arguments.of(Reason.Impassable(Passage.GATE, Tile(3253, 3266)), "No way through the gate at 3253, 3266"),
-            Arguments.of(Reason.Impassable(Passage.CURTAIN, Tile(3000, 3000)), "No way through the curtain at 3000, 3000"),
-            Arguments.of(Reason.Impassable(Passage.LADDER_UP, Tile(3200, 3200)), "No way up the ladder at 3200, 3200"),
-            Arguments.of(Reason.Impassable(Passage.LADDER_DOWN, Tile(3200, 3200, 1)), "No way down the ladder at 3200, 3200, 1"),
-            Arguments.of(Reason.Impassable(Passage.STAIRS_UP, Tile(3200, 3200)), "No way up the stairs at 3200, 3200"),
-            Arguments.of(Reason.Impassable(Passage.STAIRS_DOWN, Tile(3200, 3200, 1)), "No way down the stairs at 3200, 3200, 1"),
-            Arguments.of(Reason.Impassable(Passage.TRAPDOOR, Tile(3097, 3468)), "No way down the trapdoor at 3097, 3468"),
+            Arguments.of(Reason.NoWay(Place.BANK), "No way to the bank from here"),
+            Arguments.of(Reason.Impassable(Passage.DOOR), "No way through the door"),
+            Arguments.of(Reason.Impassable(Passage.GATE), "No way through the gate"),
+            Arguments.of(Reason.Impassable(Passage.CURTAIN), "No way through the curtain"),
+            Arguments.of(Reason.Impassable(Passage.LADDER_UP), "No way up the ladder"),
+            Arguments.of(Reason.Impassable(Passage.LADDER_DOWN), "No way down the ladder"),
+            Arguments.of(Reason.Impassable(Passage.STAIRS_UP), "No way up the stairs"),
+            Arguments.of(Reason.Impassable(Passage.STAIRS_DOWN), "No way down the stairs"),
+            Arguments.of(Reason.Impassable(Passage.TRAPDOOR), "No way down the trapdoor"),
             Arguments.of(Reason.RunningClear(), "Running clear before stopping"),
             Arguments.of(Reason.RunningClear(toStep = 2), "Running clear to jump to step 2"),
             Arguments.of(Reason.BagFull(emptyList()), "The bag is full"),

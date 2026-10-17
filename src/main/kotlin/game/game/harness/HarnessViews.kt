@@ -128,8 +128,9 @@ data class FlowStopView(val kind: String, val after: String)
 
 /**
  * A player's flow; [blocked] is why its running step cannot go on, as the overlay shows it, null while it can, and
- * [waiting] what it waits for the world to supply, null for nothing; [laps] counts the laps since Run and [stop] is
- * when the flow stops (S12).
+ * [waiting] what it waits for the world to supply, null for nothing, and [underWay] what its trip does on its way
+ * ("Opening the door"), the overlay's white line; [laps] counts the laps since Run and [stop] is when the flow stops
+ * (S12).
  */
 data class FlowView(
     val player: String,
@@ -138,6 +139,7 @@ data class FlowView(
     val laps: Int,
     val blocked: String?,
     val waiting: String?,
+    val underWay: String?,
     val stop: FlowStopView,
     val steps: List<FlowStepView>,
     val reflexes: List<FlowReflexView>,

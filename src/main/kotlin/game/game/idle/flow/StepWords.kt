@@ -2,7 +2,6 @@ package game.idle.flow
 
 import game.idle.flow.option.GameNames
 import game.idle.font.ClientFont
-import game.idle.location.Tile
 import io.luna.game.model.mob.Skill
 
 /**
@@ -25,9 +24,8 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
             is Reason.NoneInReach -> noneInReach(reason.target)
             Reason.CannotMake -> "Cannot make it yet"
             Reason.WrongWindow -> "Another make window is open"
-            is Reason.OtherFloor -> otherFloor(reason.place)
             is Reason.NoWay -> noWay(reason.place)
-            is Reason.Impassable -> impassable(reason.passage, reason.tile)
+            is Reason.Impassable -> "No way ${way(reason.passage.way)} the ${noun(reason.passage)}"
             is Reason.BagFull -> "The bag is full"
             is Reason.NoneLeftInBank -> "No ${item(reason.item)} left in the bank"
             Reason.BankFull -> "The bank is full"
@@ -139,19 +137,8 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
             Target.FURNACE -> "No furnace in reach"
             Target.ANVIL -> "No anvil in reach"
             Target.NPC -> "Nothing to fight in reach"
-            Target.BANK_BOOTH -> "No bank booth on this floor"
             Target.FREE_TILE -> "No free tile for a fire"
         }
-
-    private fun otherFloor(place: Place): String =
-        when (place) {
-            Place.TILE -> "Cannot walk to another floor"
-            Place.WORK_SPOT -> "The work spot is on another floor"
-        }
-
-    /** "No way through the door at 3101, 3509", the tile as the walk step's slot shows one. */
-    private fun impassable(passage: Passage, tile: Tile): String =
-        "No way ${way(passage.way)} the ${noun(passage)} at ${tile.text().replace(" ", ", ")}"
 
     private fun noun(passage: Passage): String =
         when (passage) {
@@ -174,6 +161,7 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
         when (place) {
             Place.TILE -> "No way there from here"
             Place.WORK_SPOT -> "No way to the work spot from here"
+            Place.BANK -> "No way to the bank from here"
         }
 
     private fun item(id: Int): String = names.item(id).lowercase()

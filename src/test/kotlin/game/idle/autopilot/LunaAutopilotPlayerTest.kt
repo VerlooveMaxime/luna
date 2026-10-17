@@ -34,7 +34,7 @@ import game.idle.autopilot.smelting.SmeltingWork
 import game.idle.autopilot.smithing.SmithStep
 import game.idle.autopilot.smithing.SmithingWork
 import game.idle.autopilot.walk.WalkStep
-import game.idle.autopilot.walk.WalkWork
+import game.idle.autopilot.travel.TripWork
 import game.idle.autopilot.woodcutting.ChopStep
 import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.autopilot.woodcutting.WoodcuttingWork
@@ -272,7 +272,7 @@ class LunaAutopilotPlayerTest {
         val player = autopilotPlayer.player
         player.idleState = IdleState(steps = listOf(chopOak))
         val autopilot = Autopilot<LunaAutopilotPlayer>(WorldTickScheduler(TestWorld.world), FakeClock()) {
-            AutopilotDriver(WalkingFarOff(player, farTile), decisionDelayTicks = 1)
+            AutopilotDriver(WalkingFarOff(player, farTile)) { 1 }
         }
         autopilot.start(autopilotPlayer)
         TestWorld.tick(times = 3)
@@ -356,8 +356,8 @@ class LunaAutopilotPlayerTest {
     }
 
     @Test
-    fun `a walk step runs its walk work in a turn`() {
-        assertInstanceOf(WalkWork::class.java, workOf(WalkStep(Tile(3210, 3200))))
+    fun `a walk step runs its trip in a turn`() {
+        assertInstanceOf(TripWork::class.java, workOf(WalkStep(Tile(3210, 3200))))
     }
 
     @Test
@@ -411,13 +411,14 @@ class LunaAutopilotPlayerTest {
         assertInstanceOf(StepTurn::class.java, autopilotPlayer().activity(step))
     }
 
+    /** No stairs of the web reach floor 3 around TestWorld's map, so no trip there leaves the ground. */
     @Test
     fun `a step's walk to its own spot blocks on the spot when it cannot get there`() {
-        val activity = autopilotPlayer().activity(ChopStep(Tree.NORMAL, radius = 5, WorkSpot.Own(Tile(3220, 3200, 1))))
+        val activity = autopilotPlayer().activity(ChopStep(Tree.NORMAL, radius = 5, WorkSpot.Own(Tile(3220, 3200, 3))))
 
         activity.act()
 
-        assertEquals(Reason.OtherFloor(Place.WORK_SPOT), activity.blocked())
+        assertEquals(Reason.NoWay(Place.WORK_SPOT), activity.blocked())
     }
 
     @Test

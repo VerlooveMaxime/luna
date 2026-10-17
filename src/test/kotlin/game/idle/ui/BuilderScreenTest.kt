@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test
 
 class BuilderScreenTest {
 
-    private val autopilot = Autopilot<FakeAutopilotPlayer>(FakeTickScheduler(), FakeClock()) { AutopilotDriver(FakeActivity(), decisionDelayTicks = 1) }
+    private val autopilot = Autopilot<FakeAutopilotPlayer>(FakeTickScheduler(), FakeClock()) { AutopilotDriver(FakeActivity()) { 1 } }
     private val screen = BuilderScreen(autopilot, FlowResolver(CONFIGURED_TYPES), REFLEXES, REFLEX_FORM, FakeNames(), slots = 3, reflexSlots = 2, SavedFlows(2))
 
     private val chop = step("chop", "oak")

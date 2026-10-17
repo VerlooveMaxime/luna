@@ -60,7 +60,7 @@ class FakeHarnessApi : HarnessApi {
         return contentAuditView
     }
 
-    val flowView = FlowView("agent_a", running = false, stepIndex = 0, laps = 0, blocked = null, waiting = null, stop = FlowStopView("never", ""), steps = emptyList(), reflexes = emptyList())
+    val flowView = FlowView("agent_a", running = false, stepIndex = 0, laps = 0, blocked = null, waiting = null, underWay = null, stop = FlowStopView("never", ""), steps = emptyList(), reflexes = emptyList())
     val replacedStops = mutableListOf<StopSettings>()
 
     val replacedFlows = mutableListOf<Pair<String, List<StepSettings>>>()

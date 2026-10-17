@@ -1,13 +1,17 @@
 package game.idle.autopilot.bank
 
+import game.idle.flow.FakeStepWork
 import game.idle.flow.Meter
+import game.idle.flow.Passage
+import game.idle.flow.Place
 import game.idle.flow.Reason
 import game.idle.flow.StepItem
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepOutcome.Approached
 import game.idle.flow.StepOutcome.Finished
 import game.idle.flow.StepOutcome.Worked
-import game.idle.flow.Target
+import game.idle.flow.StepWork
+import game.idle.flow.UnderWay
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -21,7 +25,7 @@ class BankWorkTest {
     private val bagOfLogs = listOf<Held?>(Held(logs, 1), Held(logs, 1)) + List(26) { null }
     private val banker = FakeBanker(BankView(boothFound = true, boothUsableFromHere = true, bankOpen = false, bagOfLogs, emptyMap()))
 
-    private fun work(order: BankOrder = EVERYTHING) = BankWork(banker, order)
+    private fun work(order: BankOrder = EVERYTHING, toBooth: StepWork? = null) = BankWork(banker, order, toBooth)
 
     private fun withdrawing(ifStuck: IfStuck) = BankOrder(DepositRule.Only(emptySet()), listOf(StepItem(oak)), ifStuck)
 
@@ -50,7 +54,26 @@ class BankWorkTest {
     }
 
     @Test
-    fun `a trip walks to the booth when it is out of reach, which approaches it`() {
+    fun `out of the booth's reach the walk to it is the trip's`() {
+        banker.view = banker.view.copy(boothUsableFromHere = false)
+        val trip = FakeStepWork(StepOutcome.OnTheWay(UnderWay.Opening(Passage.DOOR)))
+
+        val outcome = work(toBooth = trip).act(left = null)
+
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Passage.DOOR)) to emptyList<String>(), outcome to banker.steps)
+    }
+
+    @Test
+    fun `a trip that arrived out of the booth's reach leaves the last steps to the banker`() {
+        banker.view = banker.view.copy(boothUsableFromHere = false)
+
+        val outcome = work(toBooth = FakeStepWork(Finished)).act(left = null)
+
+        assertEquals(Approached to listOf("walk"), outcome to banker.steps)
+    }
+
+    @Test
+    fun `without a trip the banker steps up to the booth`() {
         banker.view = banker.view.copy(boothUsableFromHere = false)
 
         val outcome = work().act(left = null)
@@ -196,9 +219,9 @@ class BankWorkTest {
     }
 
     @Test
-    fun `something to move and no booth on this floor blocks, the player must get to one`() {
+    fun `something to move and no trip to a booth blocks, the player must get to one`() {
         banker.view = banker.view.copy(boothFound = false)
 
-        assertEquals(StepOutcome.Blocked(Reason.NoneInReach(Target.BANK_BOOTH)), work().act(left = null))
+        assertEquals(StepOutcome.Blocked(Reason.NoWay(Place.BANK)), work().act(left = null))
     }
 }

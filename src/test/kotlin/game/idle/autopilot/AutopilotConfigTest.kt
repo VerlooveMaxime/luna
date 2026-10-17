@@ -13,8 +13,13 @@ import java.nio.file.Path
 class AutopilotConfigTest {
 
     @Test
-    fun `the default decision delay is two ticks`() {
-        assertEquals(AutopilotConfig(decisionDelayTicks = 2, stepSlots = 4, savedFlowSlots = 2, reflexSlots = 4), AutopilotConfig())
+    fun `the default decision delay is one to three ticks`() {
+        assertEquals(AutopilotConfig(minDecisionDelayTicks = 1, maxDecisionDelayTicks = 3, stepSlots = 4, savedFlowSlots = 2, reflexSlots = 4), AutopilotConfig())
+    }
+
+    @Test
+    fun `the decision delay is the range between its two lengths`() {
+        assertEquals(2..5, AutopilotConfig(minDecisionDelayTicks = 2, maxDecisionDelayTicks = 5).decisionDelayTicks)
     }
 
     @Test
@@ -22,14 +27,15 @@ class AutopilotConfigTest {
         val jsonc = """
             {
               // comment lines are allowed
-              "decision_delay_ticks": 5,
+              "min_decision_delay_ticks": 5,
+              "max_decision_delay_ticks": 8,
               "step_slots": 6,
               "saved_flow_slots": 3,
               "reflex_slots": 7
             }
         """
 
-        assertEquals(AutopilotConfig(decisionDelayTicks = 5, stepSlots = 6, savedFlowSlots = 3, reflexSlots = 7), AutopilotConfig.parse(jsonc))
+        assertEquals(AutopilotConfig(minDecisionDelayTicks = 5, maxDecisionDelayTicks = 8, stepSlots = 6, savedFlowSlots = 3, reflexSlots = 7), AutopilotConfig.parse(jsonc))
     }
 
     @Test
@@ -44,14 +50,19 @@ class AutopilotConfigTest {
 
     @Test
     fun `an existing file is read`(@TempDir dir: Path) {
-        val file = Files.writeString(dir.resolve("autopilot.jsonc"), """{ "decision_delay_ticks": 4 }""")
+        val file = Files.writeString(dir.resolve("autopilot.jsonc"), """{ "max_decision_delay_ticks": 4 }""")
 
-        assertEquals(AutopilotConfig(decisionDelayTicks = 4), AutopilotConfig.load(file))
+        assertEquals(AutopilotConfig(maxDecisionDelayTicks = 4), AutopilotConfig.load(file))
     }
 
     @Test
     fun `a decision delay of zero is rejected`() {
-        assertThrows<IllegalArgumentException> { AutopilotConfig(decisionDelayTicks = 0).validated() }
+        assertThrows<IllegalArgumentException> { AutopilotConfig(minDecisionDelayTicks = 0).validated() }
+    }
+
+    @Test
+    fun `a longest decision delay shorter than the shortest is rejected`() {
+        assertThrows<IllegalArgumentException> { AutopilotConfig(minDecisionDelayTicks = 3, maxDecisionDelayTicks = 2).validated() }
     }
 
     @Test

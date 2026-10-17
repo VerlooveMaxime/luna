@@ -63,7 +63,8 @@ class StepWordsFitTest {
             Skill.NAMES.indices.map { Reason.NeedsLevel(it, 99) } +
             Target.entries.map { Reason.NoneInReach(it) } +
             listOf(Reason.CannotMake, Reason.WrongWindow) +
-            Place.entries.flatMap { listOf(Reason.OtherFloor(it), Reason.NoWay(it)) } +
+            Place.entries.map { Reason.NoWay(it) } +
+            Passage.entries.map { Reason.Impassable(it) } +
             listOf(Reason.BagFull(emptyList()), Reason.NoneLeftInBank(longestNamedItem()), Reason.BankFull) +
             listOf(Reason.RunningClear(), Reason.RunningClear(toStep = 99))
 

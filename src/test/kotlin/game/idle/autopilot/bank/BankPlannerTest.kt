@@ -6,10 +6,10 @@ import game.idle.autopilot.bank.BankDecision.Open
 import game.idle.autopilot.bank.BankDecision.Settled
 import game.idle.autopilot.bank.BankDecision.WalkToBooth
 import game.idle.autopilot.bank.BankDecision.Withdraw
+import game.idle.flow.Place
 import game.idle.flow.Reason
 import game.idle.flow.StepItem
 import game.idle.flow.StepOutcome
-import game.idle.flow.Target
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -235,8 +235,8 @@ class BankPlannerTest {
     }
 
     @Test
-    fun `something to move and no booth blocks`() {
-        assertEquals(Settled(StepOutcome.Blocked(Reason.NoneInReach(Target.BANK_BOOTH))), decide(view().copy(boothFound = false), depositing))
+    fun `something to move and no booth blocks, with no way to the bank`() {
+        assertEquals(Settled(StepOutcome.Blocked(Reason.NoWay(Place.BANK))), decide(view().copy(boothFound = false), depositing))
     }
 
     @Test

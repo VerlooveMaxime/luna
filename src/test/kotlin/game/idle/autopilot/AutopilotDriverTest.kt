@@ -3,11 +3,12 @@ package game.idle.autopilot
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import kotlin.random.Random
 
 class AutopilotDriverTest {
 
     private val activity = FakeActivity()
-    private val driver = AutopilotDriver(activity, decisionDelayTicks = 2)
+    private val driver = AutopilotDriver(activity) { 2 }
 
     @Test
     fun `the activity's reason to stop is the driver's`() {
@@ -95,7 +96,25 @@ class AutopilotDriverTest {
     }
 
     @Test
-    fun `the delay must be positive`() {
-        assertThrows<IllegalArgumentException> { AutopilotDriver(activity, decisionDelayTicks = 0) }
+    fun `each step waits as long as the delay draws for it`() {
+        val waits = ArrayDeque(listOf(1, 3))
+        val drawing = AutopilotDriver(activity) { waits.removeFirst() }
+        drawing.tick()
+        drawing.tick()
+        drawing.tick()
+
+        assertEquals(1, activity.steps)
+    }
+
+    @Test
+    fun `a delay drawn as nothing is refused`() {
+        assertThrows<IllegalArgumentException> { AutopilotDriver(activity) { 0 } }
+    }
+
+    @Test
+    fun `a delay between two lengths draws every length in between, and no other`() {
+        val delay = DecisionDelay.between(1..3, Random(7))
+
+        assertEquals(setOf(1, 2, 3), List(60) { delay.nextTicks() }.toSet())
     }
 }

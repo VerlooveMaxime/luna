@@ -33,6 +33,9 @@ class TravelWeb(
 
     private val planner = WebWalkPlanner(graph, estimator(doors))
 
+    /** The tile in front of the booth on [booth] of a bank the web knows, whose walks from the web are linked already. */
+    fun bankStand(booth: Position): Position? = graph.banks.firstOrNull { it.booth == booth }?.stand
+
     /** The cheapest trip from [start] to the nearest of [destinations] that [snapshot] can take, null for none. */
     fun plan(start: Position, destinations: Collection<Position>, snapshot: CapabilitySnapshot): WebWalkPlan? =
         planner.planToNearest(start, destinations, snapshot, intelligence = 1.0, random = random)
