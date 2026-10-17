@@ -15,6 +15,7 @@ import game.idle.autopilot.woodcutting.ChopStep
 import game.idle.autopilot.woodcutting.FakeWoodcutter
 import game.idle.autopilot.woodcutting.WoodcuttingView
 import game.idle.autopilot.woodcutting.WoodcuttingWork
+import game.idle.movement.DoorStep
 import game.skill.fishing.catchFish.Fish
 import game.skill.fishing.catchFish.Tool
 import game.skill.mining.Pickaxe
@@ -66,6 +67,10 @@ class ChopFixture : SpotFixture("chop", LevelNeed(Skill.WOODCUTTING, 15), bag = 
         woodcutter.view = woodcutter.view.copy(trees = listOf(tree))
     }
 
+    override fun targetFarOff(door: DoorStep?) {
+        woodcutter.view = woodcutter.view.copy(trees = listOf(farOff(tree, door)))
+    }
+
     override fun standInArea(inside: Boolean) {
         woodcutter.view = woodcutter.view.copy(atLocation = inside)
     }
@@ -102,6 +107,10 @@ class MineFixture : SpotFixture("mine", LevelNeed(Skill.MINING, 15), bag = setOf
 
     override fun restoreTargets() {
         miner.view = miner.view.copy(rocks = listOf(rock))
+    }
+
+    override fun targetFarOff(door: DoorStep?) {
+        miner.view = miner.view.copy(rocks = listOf(farOff(rock, door)))
     }
 
     override fun standInArea(inside: Boolean) {
@@ -142,6 +151,10 @@ class FishFixture : SpotFixture("fish", LevelNeed(Skill.FISHING, 20), bag = setO
 
     override fun restoreTargets() {
         fisher.view = fisher.view.copy(spots = listOf(spot))
+    }
+
+    override fun targetFarOff(door: DoorStep?) {
+        fisher.view = fisher.view.copy(spots = listOf(farOff(spot, door)))
     }
 
     override fun standInArea(inside: Boolean) {

@@ -1,8 +1,10 @@
 package game.idle.autopilot
 
 import game.idle.location.Area
+import game.idle.movement.Doorways
 import game.idle.movement.ReachScan
 import game.idle.movement.ReachTerrain
+import game.idle.movement.Step
 import game.idle.movement.footprintOf
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
@@ -14,13 +16,19 @@ import io.luna.game.model.`object`.GameObject
  * The objects of [objectIds] standing around a step's [area] that the player can see, as the step looks at them: each
  * with the walk to a tile it is used from, the reach checked against the object itself as the click's listener
  * checks it (a tree is cut from a tile beside it, never a diagonal one; a long range from its open side). The walk is
- * [LunaClicks.canStep]'s.
+ * [LunaClicks.reachSteps]': through the shut ones of [doorways] too.
  */
-class ObjectsAround(private val player: Player, private val area: Area, private val objectIds: Set<Int>) : ReachTerrain<GameObject> {
+class ObjectsAround(
+    private val player: Player,
+    private val area: Area,
+    private val objectIds: Set<Int>,
+    doorways: Doorways,
+) : ReachTerrain<GameObject> {
 
     private val world get() = player.world
     private val anchor: Position = area.anchor.toPosition()
     private val scan = ReachScan(anchor, area.radius)
+    private val steps = LunaClicks.reachSteps(world, doorways)
 
     /** Whether the player stands inside the area. */
     fun atLocation(): Boolean = scan.atLocation(player.position)
@@ -28,7 +36,7 @@ class ObjectsAround(private val player: Player, private val area: Area, private 
     /** Each object the player can walk up to, with how; none from too far off the area or another floor. */
     fun candidates(): List<Candidate> =
         scan.reachable(player.position, standing(), ::footprintOf, terrain = this)
-            .map { (obj, reach) -> Candidate(obj.id, obj.position, reach.distance, reach.usableFromHere, reach.approach) }
+            .map { (obj, reach) -> Candidate(obj.id, obj.position, reach.distance, reach.usableFromHere, reach.approach, door = reach.door) }
 
     /**
      * The object [candidate] was, if it still stands there for the player: a tree cut down, a rock emptied or a fire
@@ -43,7 +51,7 @@ class ObjectsAround(private val player: Player, private val area: Area, private 
     private fun standing(): List<GameObject> =
         world.locator.findObjects(anchor, area.radius) { it.id in objectIds && it.isVisibleTo(player) }.toList()
 
-    override fun canStep(from: Position, direction: Direction): Boolean = LunaClicks.canStep(world, from, direction)
+    override fun step(from: Position, direction: Direction): Step? = steps.step(from, direction)
 
     override fun reachedFrom(tile: Position, target: GameObject): Boolean = world.collisionManager.reached(tile, target, STANDARD_SIZE)
 }

@@ -1,0 +1,134 @@
+package game.idle.movement
+
+import api.bot.webwalk.model.EdgeAction
+import api.bot.webwalk.model.EdgeType
+import api.bot.webwalk.model.NodeKind
+import api.bot.webwalk.model.WebWalkEdge
+import api.bot.webwalk.model.WebWalkGraph
+import api.bot.webwalk.model.WebWalkNode
+import io.luna.game.model.Position
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Test
+
+class DoorwaysTest {
+
+    /** A door in a wall running north to south, between 3200 and 3201 on y 3200. */
+    private val west = Position(3200, 3200)
+    private val east = Position(3201, 3200)
+    private val door = Doorway(1530, east, EdgeType.DOOR)
+
+    /** A gate in a fence running west to east, between 3210 and 3211 on x 3210. */
+    private val south = Position(3210, 3210)
+    private val north = Position(3210, 3211)
+    private val gate = Doorway(1551, north, EdgeType.GATE)
+
+    private val doorways = Doorways(mapOf((west to east) to door, (south to north) to gate))
+
+    private val outside = WebWalkNode("outside", west, NodeKind.OBSTACLE)
+    private val inside = WebWalkNode("inside", east, NodeKind.OBSTACLE)
+    private val opens = EdgeAction(objectId = 1530, objectPosition = east)
+
+    private fun graphOf(vararg edges: WebWalkEdge) = WebWalkGraph(listOf(outside, inside), edges.toList(), emptyList(), emptyList())
+
+    @Test
+    fun `a doorway is between its two tiles`() {
+        assertEquals(door, doorways.between(west, east))
+    }
+
+    @Test
+    fun `a doorway is between its two tiles the other way across too`() {
+        assertEquals(door, doorways.between(east, west))
+    }
+
+    @Test
+    fun `beside a doorway but not across it there is none`() {
+        assertNull(doorways.between(west, Position(3200, 3201)))
+    }
+
+    @Test
+    fun `away from every doorway there is none`() {
+        assertNull(doorways.between(Position(3100, 3100), Position(3101, 3100)))
+    }
+
+    @Test
+    fun `a step east through the door crosses it`() {
+        assertEquals(door, doorways.crossedBy(west, east))
+    }
+
+    @Test
+    fun `a step north through the gate crosses it`() {
+        assertEquals(gate, doorways.crossedBy(south, north))
+    }
+
+    @Test
+    fun `a diagonal step whose first leg sideways goes through crosses it`() {
+        assertEquals(door, doorways.crossedBy(west, Position(3201, 3201)))
+    }
+
+    @Test
+    fun `a diagonal step whose second leg sideways goes through crosses it`() {
+        assertEquals(gate, doorways.crossedBy(Position(3209, 3210), north))
+    }
+
+    @Test
+    fun `a diagonal step whose first leg ahead goes through crosses it`() {
+        assertEquals(gate, doorways.crossedBy(south, Position(3211, 3211)))
+    }
+
+    @Test
+    fun `a diagonal step whose second leg ahead goes through crosses it`() {
+        assertEquals(door, doorways.crossedBy(Position(3200, 3201), east))
+    }
+
+    @Test
+    fun `a diagonal step beside a doorway, not through it, crosses none`() {
+        assertNull(doorways.crossedBy(west, Position(3199, 3201)))
+    }
+
+    @Test
+    fun `a step far from every doorway crosses none`() {
+        assertNull(doorways.crossedBy(Position(3100, 3100), Position(3101, 3101)))
+    }
+
+    @Test
+    fun `a door edge of the web is a doorway between its nodes`() {
+        val doorways = Doorways.of(graphOf(WebWalkEdge("outside", "inside", EdgeType.DOOR, action = opens)))
+
+        assertEquals(Doorway(1530, east, EdgeType.DOOR), doorways.between(west, east))
+    }
+
+    @Test
+    fun `a walk edge is no doorway`() {
+        assertNull(Doorways.of(graphOf(WebWalkEdge("outside", "inside", EdgeType.WALK, action = opens))).between(west, east))
+    }
+
+    @Test
+    fun `a door edge from a node the web lacks is left out`() {
+        assertNull(Doorways.of(graphOf(WebWalkEdge("gone", "inside", EdgeType.DOOR, action = opens))).between(west, east))
+    }
+
+    @Test
+    fun `a door edge to a node the web lacks is left out`() {
+        assertNull(Doorways.of(graphOf(WebWalkEdge("outside", "gone", EdgeType.DOOR, action = opens))).between(west, east))
+    }
+
+    @Test
+    fun `a door edge with nothing to click is left out`() {
+        assertNull(Doorways.of(graphOf(WebWalkEdge("outside", "inside", EdgeType.DOOR))).between(west, east))
+    }
+
+    @Test
+    fun `a door edge naming no object is left out`() {
+        val edge = WebWalkEdge("outside", "inside", EdgeType.DOOR, action = EdgeAction(objectPosition = east))
+
+        assertNull(Doorways.of(graphOf(edge)).between(west, east))
+    }
+
+    @Test
+    fun `a door edge naming no tile for its object is left out`() {
+        val edge = WebWalkEdge("outside", "inside", EdgeType.DOOR, action = EdgeAction(objectId = 1530))
+
+        assertNull(Doorways.of(graphOf(edge)).between(west, east))
+    }
+}

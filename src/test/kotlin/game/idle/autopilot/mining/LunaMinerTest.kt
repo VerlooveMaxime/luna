@@ -5,6 +5,7 @@ import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.skill.mining.Ore
 import game.testworld.TestWorld
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
@@ -33,7 +34,7 @@ class LunaMinerTest {
 
     private fun login(position: Position = anchor): Player = TestWorld.login("miner", position)
 
-    private fun miner(player: Player) = LunaMiner(player, Ore.COPPER, area)
+    private fun miner(player: Player) = LunaMiner(player, Ore.COPPER, area, Doorways.NONE)
 
     private fun recordClicks(): MutableList<Int> {
         val clicked = mutableListOf<Int>()

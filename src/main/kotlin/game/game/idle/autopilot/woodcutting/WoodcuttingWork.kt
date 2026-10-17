@@ -65,6 +65,6 @@ class WoodcuttingWork(private val woodcutter: Woodcutter) : StepWork {
 
     private fun walkTo(tree: Candidate): StepOutcome {
         woodcutter.walkTo(tree)
-        return StepOutcome.Approached
+        return tree.approached
     }
 }

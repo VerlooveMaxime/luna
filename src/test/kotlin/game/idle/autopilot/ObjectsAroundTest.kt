@@ -2,6 +2,7 @@ package game.idle.autopilot
 
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.testworld.TestWorld
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
@@ -32,7 +33,7 @@ class ObjectsAroundTest {
 
     private fun login(position: Position = anchor): Player = TestWorld.login("looker", position)
 
-    private fun trees(player: Player) = ObjectsAround(player, area, setOf(normalTree))
+    private fun trees(player: Player, doorways: Doorways = Doorways.NONE) = ObjectsAround(player, area, setOf(normalTree), doorways)
 
     @Test
     fun `a player inside the area is at the location`() {
@@ -73,12 +74,30 @@ class ObjectsAroundTest {
 
     /** Tutorial Island's kitchen: the range lies across the back of an alcove whose side walls flank the front tiles. */
     @Test
+    fun `a tree behind a shut door of the web is walked to through it, six steps dearer, the door named`() {
+        val doorways = WalledDoor.build()
+        TestWorld.place(normalTree, Position(3207, 3200))
+
+        val found = trees(login(), doorways).candidates()
+
+        assertEquals(listOf(Candidate(normalTree, Position(3207, 3200), 12, false, Position(3206, 3200), door = WalledDoor.shut)), found)
+    }
+
+    @Test
+    fun `a tree behind a shut door the web does not know is out of reach`() {
+        WalledDoor.build()
+        TestWorld.place(normalTree, Position(3207, 3200))
+
+        assertEquals(emptyList<Candidate>(), trees(login()).candidates())
+    }
+
+    @Test
     fun `a long object at the back of an alcove is walked up to between the walls`() {
         TestWorld.place(range, Position(3205, 3200), direction = ObjectDirection.SOUTH)
         TestWorld.place(wall, Position(3205, 3201), ObjectType.STRAIGHT_WALL, ObjectDirection.WEST)
         TestWorld.place(wall, Position(3206, 3201), ObjectType.STRAIGHT_WALL, ObjectDirection.EAST)
 
-        val found = ObjectsAround(login(Position(3205, 3205)), area, setOf(range)).candidates().single()
+        val found = ObjectsAround(login(Position(3205, 3205)), area, setOf(range), Doorways.NONE).candidates().single()
 
         assertTrue(found.approach in listOf(Position(3205, 3201), Position(3206, 3201)))
     }

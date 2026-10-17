@@ -9,6 +9,7 @@ import game.idle.flow.Reason
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.skill.cooking.cookFood.CookingInterface
 import game.skill.cooking.cookFood.Food
 import game.testworld.TestWorld
@@ -41,7 +42,7 @@ class LunaCookerTest {
 
     private fun login(position: Position = anchor): Player = TestWorld.login("cook", position)
 
-    private fun cooker(player: Player) = LunaCooker(player, setOf(rawShrimps, rawAnchovies), area)
+    private fun cooker(player: Player) = LunaCooker(player, setOf(rawShrimps, rawAnchovies), area, Doorways.NONE)
 
     @Test
     fun `a walking player is busy`() {
@@ -83,7 +84,7 @@ class LunaCookerTest {
     /** What the step needs and the raw food the cooker picks to cook, read from the same bag. */
     private fun neededAndCooked(player: Player): Pair<Reason?, Int?> {
         val step = CookStep(setOf(rawShrimps, rawLobster), 10, WorkSpot.At(area.anchor))
-        return Preconditions.check(step.needs(), LunaCarried(player)) to LunaCooker(player, step.rawIds, area).look().rawSlot
+        return Preconditions.check(step.needs(), LunaCarried(player)) to LunaCooker(player, step.rawIds, area, Doorways.NONE).look().rawSlot
     }
 
     @Test

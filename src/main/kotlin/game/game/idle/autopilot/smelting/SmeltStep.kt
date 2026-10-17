@@ -25,6 +25,7 @@ import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.TravelWebs
 import game.skill.smithing.BarType
 import io.luna.game.model.item.Item
 import io.luna.game.model.mob.Player
@@ -111,5 +112,5 @@ data class SmeltStep(
     }
 
     override fun work(player: Player, runTile: Tile): StepWork =
-        SmeltingWork(LunaSmelter(player, bar, Area(workSpot.tile(runTile), radius)))
+        SmeltingWork(LunaSmelter(player, bar, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
 }

@@ -117,7 +117,7 @@ class PickUpWork(private val picker: Picker) : StepWork {
 
     private fun walkTo(item: Candidate): StepOutcome {
         picker.walkTo(item)
-        return StepOutcome.Approached
+        return item.approached
     }
 
     /** Still away after its one walk to the area, the step is over. */

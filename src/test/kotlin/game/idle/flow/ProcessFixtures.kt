@@ -25,6 +25,7 @@ import game.idle.autopilot.smithing.SmithingWork
 import game.idle.autopilot.smithing.SmithingView
 import game.idle.autopilot.travel.FakeTraveller
 import game.idle.location.Tile
+import game.idle.movement.DoorStep
 import game.skill.smithing.BarType
 import game.skill.smithing.smithBar.SmithingTable
 import game.testworld.TestWorld
@@ -133,6 +134,10 @@ class CookFixture : SpotFixture("cook", LevelNeed(Skill.COOKING, 15), bag = setO
         cooker.view = cooker.view.copy(places = listOf(fire))
     }
 
+    override fun targetFarOff(door: DoorStep?) {
+        cooker.view = cooker.view.copy(places = listOf(farOff(fire, door)))
+    }
+
     override fun standInArea(inside: Boolean) {
         cooker.view = cooker.view.copy(atLocation = inside)
     }
@@ -225,6 +230,10 @@ class SmeltFixture : SpotFixture("smelt", LevelNeed(Skill.SMITHING, 15), bag = s
         smelter.view = smelter.view.copy(furnaces = listOf(furnace))
     }
 
+    override fun targetFarOff(door: DoorStep?) {
+        smelter.view = smelter.view.copy(furnaces = listOf(farOff(furnace, door)))
+    }
+
     override fun standInArea(inside: Boolean) {
         smelter.view = smelter.view.copy(atLocation = inside)
     }
@@ -272,6 +281,10 @@ class SmithFixture : SpotFixture("smith", LevelNeed(Skill.SMITHING, 15), bag = s
 
     override fun restoreTargets() {
         smither.view = smither.view.copy(anvils = listOf(anvil))
+    }
+
+    override fun targetFarOff(door: DoorStep?) {
+        smither.view = smither.view.copy(anvils = listOf(farOff(anvil, door)))
     }
 
     override fun standInArea(inside: Boolean) {

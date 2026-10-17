@@ -113,6 +113,6 @@ class FishingWork(private val fisher: Fisher) : StepWork {
 
     private fun walkTo(spot: Candidate): StepOutcome {
         fisher.walkTo(spot)
-        return StepOutcome.Approached
+        return spot.approached
     }
 }

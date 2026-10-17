@@ -2,6 +2,7 @@ package game.idle.autopilot
 
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.testworld.TestWorld
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Npc
@@ -29,8 +30,8 @@ class NpcsAroundTest {
 
     private fun login(position: Position = anchor): Player = TestWorld.login("looker", position)
 
-    private fun chickens(player: Player, policy: InteractionPolicy = STANDARD_SIZE) =
-        NpcsAround(player, area, accepts = { it.id == chicken }, policy = { policy })
+    private fun chickens(player: Player, policy: InteractionPolicy = STANDARD_SIZE, doorways: Doorways = Doorways.NONE) =
+        NpcsAround(player, area, accepts = { it.id == chicken }, policy = { policy }, doorways)
 
     private fun candidate(npc: Npc, distance: Int, usableFromHere: Boolean, approach: Position, attacking: Boolean = false) =
         Candidate(npc.index, npc.position, distance, usableFromHere, approach, attacking)
@@ -50,6 +51,16 @@ class NpcsAroundTest {
         val npc = TestWorld.spawnNpc(chicken, Position(3201, 3200))
 
         assertEquals(listOf(candidate(npc, distance = 0, usableFromHere = true, approach = anchor)), chickens(login()).candidates())
+    }
+
+    @Test
+    fun `an npc behind a shut door of the web is walked up to through it, the door named`() {
+        val doorways = WalledDoor.build()
+        val npc = TestWorld.spawnNpc(chicken, Position(3207, 3200))
+
+        val found = chickens(login(), doorways = doorways).candidates()
+
+        assertEquals(listOf(candidate(npc, distance = 12, usableFromHere = false, approach = Position(3206, 3200)).copy(door = WalledDoor.shut)), found)
     }
 
     @Test

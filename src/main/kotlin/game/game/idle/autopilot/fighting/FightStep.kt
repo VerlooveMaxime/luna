@@ -20,6 +20,7 @@ import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.TravelWebs
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
@@ -79,5 +80,5 @@ data class FightStep(
     override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(fought = target.npcs))
 
     override fun work(player: Player, runTile: Tile): StepWork =
-        FightWork(LunaFighter(player, target, Area(workSpot.tile(runTile), radius)))
+        FightWork(LunaFighter(player, target, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
 }

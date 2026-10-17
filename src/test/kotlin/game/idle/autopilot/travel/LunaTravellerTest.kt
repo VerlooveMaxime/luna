@@ -157,76 +157,12 @@ class LunaTravellerTest {
     }
 
     @Test
-    fun `another object on the tile is not the one standing`() {
-        TestWorld.place(ladder, beside)
-        assertFalse(LunaTraveller(login(), web = null).standing(door, beside))
-    }
-
-    @Test
-    fun `an object only another player sees is not standing`() {
-        val player = login()
-        TestWorld.placeFor(login("someone"), door, beside)
-        assertFalse(LunaTraveller(player, web = null).standing(door, beside))
-    }
-
-    @Test
-    fun `using an object that is gone clicks nothing`() {
-        assertFalse(LunaTraveller(login(), web = null).use(door, beside, option = null, from = here))
-    }
-
-    @Test
-    fun `using an option the object lacks clicks nothing`() {
-        TestWorld.place(door, beside)
-        assertFalse(LunaTraveller(login(), web = null).use(door, beside, "Climb-up", from = here))
-    }
-
-    @Test
-    fun `using an object out of reach walks up to it and clicks on arrival, as the client does`() {
-        val player = TestWorld.login("traveller", Position(3195, 3200))
-        TestWorld.place(door, beside)
-        val clicked = clicks()
-        LunaTraveller(player, web = null).use(door, beside, option = null, from = here)
-        TestWorld.tick(8)
-        assertEquals(here to listOf(ObjectFirstClickEvent::class.java), player.position to clicked.map { it.javaClass })
-    }
-
-    @Test
     fun `a click waiting for the walk up holds the trip`() {
         val player = TestWorld.login("traveller", Position(3195, 3200))
         TestWorld.place(door, beside)
         val traveller = LunaTraveller(player, web = null)
         traveller.use(door, beside, option = null, from = here)
         assertTrue(traveller.isBusy())
-    }
-
-    @Test
-    fun `a walk up cut short drops its click and frees the trip`() {
-        val player = TestWorld.login("traveller", Position(3195, 3200))
-        TestWorld.place(door, beside)
-        val clicked = clicks()
-        val traveller = LunaTraveller(player, web = null)
-        traveller.use(door, beside, option = null, from = here)
-        TestWorld.tick()
-        LunaClicks.endWalk(player)
-        TestWorld.tick(8)
-        assertEquals(emptyList<ObjectClickEvent>() to false, clicked to traveller.isBusy())
-    }
-
-    @Test
-    fun `the walk up goes to the side the trip comes from`() {
-        val player = TestWorld.login("traveller", Position(3195, 3200))
-        TestWorld.place(door, beside)
-        LunaTraveller(player, web = null).use(door, beside, option = null, from = Position(3202, 3200))
-        assertEquals(Position(3202, 3200), player.navigator.currentTarget)
-    }
-
-    @Test
-    fun `an object no tile reaches is not used`() {
-        val player = TestWorld.login("traveller", Position(3195, 3200))
-        TestWorld.place(door, beside)
-        listOf(-1, 0, 1).flatMap { dx -> listOf(-1, 0, 1).map { dy -> Position(beside.x + dx, beside.y + dy) } }
-            .filter { it != beside }.forEach { TestWorld.place(door, it) }
-        assertFalse(LunaTraveller(player, web = null).use(door, beside, option = null, from = here))
     }
 
     @Test
@@ -237,26 +173,6 @@ class LunaTravellerTest {
         LunaTraveller(player, web = null).use(door, beside, option = null, from = here)
         TestWorld.tick()
         assertEquals(listOf(ObjectFirstClickEvent::class.java), clicked.map { it.javaClass })
-    }
-
-    @Test
-    fun `an option is clicked by its place among the object's options`() {
-        val player = login()
-        TestWorld.place(ladder, beside)
-        val clicked = clicks()
-        LunaTraveller(player, web = null).use(ladder, beside, "Climb-up", from = here)
-        TestWorld.tick()
-        assertEquals(listOf(ObjectSecondClickEvent::class.java), clicked.map { it.javaClass })
-    }
-
-    @Test
-    fun `a third option is clicked as the third`() {
-        val player = login()
-        TestWorld.place(ladder, beside)
-        val clicked = clicks()
-        LunaTraveller(player, web = null).use(ladder, beside, "Climb-down", from = here)
-        TestWorld.tick()
-        assertEquals(listOf(ObjectThirdClickEvent::class.java), clicked.map { it.javaClass })
     }
 
     @Test

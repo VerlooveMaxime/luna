@@ -1,5 +1,6 @@
 package game.idle.movement
 
+import api.bot.webwalk.model.EdgeType
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -18,6 +19,19 @@ class WalkingDistancesTest {
     private fun fenced(from: Position, direction: Direction): Boolean {
         val next = from.translate(1, direction)
         return !(next.x == 12 && next.y in 8..12)
+    }
+
+    private fun doorway(x: Int) = Doorway(id = x, Position(x, 10, 0), EdgeType.DOOR)
+
+    /** A corridor along y = 10, walked east or west; a door stands between x - 1 and x for each x of [doors], shut when true. */
+    private fun corridor(doors: Map<Int, Boolean>): (Position, Direction) -> Step? = { from, direction ->
+        val to = from.translate(1, direction)
+        val shut = doors[maxOf(from.x, to.x)]
+        when {
+            to.y != 10 -> null
+            shut != null -> DoorStep(doorway(maxOf(from.x, to.x)), from, shut)
+            else -> Step.Plain
+        }
     }
 
     @Test
@@ -90,6 +104,87 @@ class WalkingDistancesTest {
         val reached = WalkingDistances.firstReached(origin, setOf(Position(13, 10, 0)), maxSteps = 6, ::fenced)
 
         assertEquals(Position(13, 10, 0), reached)
+    }
+
+    @Test
+    fun `a shut door on the way costs six steps more`() {
+        val distances = WalkingDistances.through(origin, bounds, corridor(mapOf(12 to true)))
+
+        assertEquals(9, distances[Position(13, 10, 0)])
+    }
+
+    @Test
+    fun `an open door costs a step like any other`() {
+        val distances = WalkingDistances.through(origin, bounds, corridor(mapOf(12 to false)))
+
+        assertEquals(3, distances[Position(13, 10, 0)])
+    }
+
+    @Test
+    fun `a walk through a shut door names it, with the tile it is opened from`() {
+        val distances = WalkingDistances.through(origin, bounds, corridor(mapOf(12 to true)))
+
+        assertEquals(DoorStep(doorway(12), from = Position(11, 10, 0), shut = true), distances.doorOn(Position(13, 10, 0)))
+    }
+
+    @Test
+    fun `a walk through no door names none`() {
+        val distances = WalkingDistances.through(origin, bounds, corridor(mapOf(12 to true)))
+
+        assertNull(distances.doorOn(Position(9, 10, 0)))
+    }
+
+    @Test
+    fun `past an open door and then a shut one, the walk names the shut one, which it must open`() {
+        val distances = WalkingDistances.through(origin, bounds, corridor(mapOf(11 to false, 12 to true)))
+
+        assertEquals(doorway(12), distances.doorOn(Position(13, 10, 0))?.doorway)
+    }
+
+    @Test
+    fun `past a shut door and then an open one, the walk names the shut one`() {
+        val distances = WalkingDistances.through(origin, bounds, corridor(mapOf(11 to true, 12 to false)))
+
+        assertEquals(doorway(11), distances.doorOn(Position(13, 10, 0))?.doorway)
+    }
+
+    @Test
+    fun `past two open doors, the walk names the first`() {
+        val distances = WalkingDistances.through(origin, bounds, corridor(mapOf(11 to false, 12 to false)))
+
+        assertEquals(doorway(11), distances.doorOn(Position(13, 10, 0))?.doorway)
+    }
+
+    @Test
+    fun `past two shut doors, the walk names the first`() {
+        val distances = WalkingDistances.through(origin, bounds, corridor(mapOf(11 to true, 12 to true)))
+
+        assertEquals(doorway(11), distances.doorOn(Position(13, 10, 0))?.doorway)
+    }
+
+    @Test
+    fun `a walk round a shut door beats opening it, and names no door`() {
+        val door = DoorStep(doorway(11), origin, shut = true)
+        val distances = WalkingDistances.through(origin, bounds) { from, direction ->
+            if (from == origin && direction == Direction.EAST) door else Step.Plain
+        }
+
+        assertEquals(2 to null, distances[Position(11, 10, 0)] to distances.doorOn(Position(11, 10, 0)))
+    }
+
+    @Test
+    fun `a dearer way through a shut door onto a tile already reached keeps the cheaper count`() {
+        val onto = Position(11, 10, 0)
+        val distances = WalkingDistances.through(origin, bounds) { from, direction ->
+            if (from.translate(1, direction) == onto) DoorStep(doorway(11), from, shut = true) else Step.Plain
+        }
+
+        assertEquals(7, distances[onto])
+    }
+
+    @Test
+    fun `a walk through doors must start inside its bounds too`() {
+        assertThrows<IllegalArgumentException> { WalkingDistances.through(Position(0, 0, 0), bounds) { _, _ -> Step.Plain } }
     }
 
     @Test

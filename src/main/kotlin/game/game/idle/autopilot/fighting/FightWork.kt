@@ -129,6 +129,6 @@ class FightWork(private val fighter: Fighter) : StepWork {
 
     private fun walkTo(npc: Candidate): StepOutcome {
         fighter.walkTo(npc)
-        return StepOutcome.Approached
+        return npc.approached
     }
 }

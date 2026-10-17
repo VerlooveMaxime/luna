@@ -5,6 +5,7 @@ import game.idle.autopilot.EndlessAction
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.testworld.TestWorld
 import io.luna.game.event.impl.NpcClickEvent.AttackNpcEvent
 import io.luna.game.model.Direction
@@ -38,7 +39,7 @@ class LunaFighterTest {
 
     private fun login(position: Position = anchor): Player = TestWorld.login("fighter", position)
 
-    private fun fighter(player: Player) = LunaFighter(player, chickens, area)
+    private fun fighter(player: Player) = LunaFighter(player, chickens, area, Doorways.NONE)
 
     /** [npc] dies with [killer]'s hit the last it took, or nobody's hit when null. */
     private fun kill(npc: Npc, killer: Player?) {

@@ -8,6 +8,7 @@ import game.idle.flow.Preconditions
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.skill.smithing.BarType
 import game.testworld.TestWorld
 import io.luna.game.event.impl.UseItemEvent.ItemOnObjectEvent
@@ -37,7 +38,7 @@ class LunaSmelterTest {
 
     private fun login(position: Position = anchor): Player = TestWorld.login("smelter", position)
 
-    private fun smelter(player: Player, bar: BarType = BarType.BRONZE) = LunaSmelter(player, bar, area)
+    private fun smelter(player: Player, bar: BarType = BarType.BRONZE) = LunaSmelter(player, bar, area, Doorways.NONE)
 
     @AfterEach
     fun resetWorld() = TestWorld.reset()

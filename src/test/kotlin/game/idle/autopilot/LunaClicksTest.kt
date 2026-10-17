@@ -1,12 +1,20 @@
 package game.idle.autopilot
 
+import api.bot.webwalk.model.EdgeType
 import engine.widget.skill.LevelUpData
 import engine.widget.skill.LevelUpInterface
+import game.idle.movement.DoorStep
+import game.idle.movement.Doorway
+import game.idle.movement.Doorways
+import game.idle.movement.Step
 import game.idle.movement.approachTiles
 import game.testworld.TestWorld
 import io.luna.game.action.ActionType
 import io.luna.game.event.impl.ButtonClickEvent
+import io.luna.game.event.impl.ObjectClickEvent
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
+import io.luna.game.event.impl.ObjectClickEvent.ObjectSecondClickEvent
+import io.luna.game.event.impl.ObjectClickEvent.ObjectThirdClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
@@ -19,6 +27,7 @@ import io.luna.game.model.`object`.ObjectType
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -31,6 +40,15 @@ class LunaClicksTest {
     private val wallId = 1902
     private val walkTarget = Position(3210, 3200)
     private val button = 13717
+
+    /** Ticks a walk of one tile up to an object takes to end, its click due in the tick after (measured on TestWorld). */
+    private val arrivalTicks = 3
+
+    /** Using objects: the player on [here], a door or a ladder [beside] them. */
+    private val here = Position(3200, 3200)
+    private val beside = Position(3201, 3200)
+    private val door = 1530
+    private val ladder = 1748
 
     private fun player() = TestWorld.login("clicker", nextToBooth)
 
@@ -50,6 +68,22 @@ class LunaClicksTest {
         TestWorld.listen(ButtonClickEvent::class.java) { pressed += it.id }
         return pressed
     }
+
+    private fun login(name: String = "traveller"): Player = TestWorld.login(name, here)
+
+    private fun clicks(): MutableList<ObjectClickEvent> {
+        val clicked = mutableListOf<ObjectClickEvent>()
+        TestWorld.listen(ObjectFirstClickEvent::class.java) { clicked += it }
+        TestWorld.listen(ObjectSecondClickEvent::class.java) { clicked += it }
+        TestWorld.listen(ObjectThirdClickEvent::class.java) { clicked += it }
+        return clicked
+    }
+
+    /** A tree east of [beside], behind the door there when [door] is given. */
+    private fun treeBehind(door: DoorStep?) =
+        Candidate(1276, Position(3203, 3200), distance = 9, usableFromHere = false, approach = Position(3202, 3200), door = door)
+
+    private fun doorOnTheWay(shut: Boolean) = DoorStep(Doorway(door, beside, EdgeType.DOOR), from = here, shut)
 
     private fun openWindow(player: Player) = player.overlays.open(StandardInterface(5292))
 
@@ -349,6 +383,228 @@ class LunaClicksTest {
         TestWorld.place(wallId, Position(3211, 3210), ObjectType.STRAIGHT_WALL, ObjectDirection.WEST)
 
         assertFalse(LunaClicks.canStep(TestWorld.world, Position(3210, 3210), Direction.EAST))
+    }
+
+    @Test
+    fun `the reach scans step onto open ground as collision lets them`() {
+        assertEquals(Step.Plain, LunaClicks.reachSteps(TestWorld.world, Doorways.NONE).step(Position(3210, 3210), Direction.EAST))
+    }
+
+    @Test
+    fun `the reach scans step through a shut door of the web`() {
+        val doorTile = Position(3211, 3210)
+        TestWorld.place(door, doorTile, ObjectType.STRAIGHT_WALL, ObjectDirection.WEST)
+        val doorway = Doorway(door, doorTile, EdgeType.DOOR)
+        val steps = LunaClicks.reachSteps(TestWorld.world, Doorways(mapOf((Position(3210, 3210) to doorTile) to doorway)))
+
+        assertEquals(DoorStep(doorway, Position(3210, 3210), shut = true), steps.step(Position(3210, 3210), Direction.EAST))
+    }
+
+    @Test
+    fun `an object on its tile is found`() {
+        val placed = TestWorld.place(door, beside)
+
+        assertEquals(placed, LunaClicks.objectOn(login(), door, beside))
+    }
+
+    @Test
+    fun `an object gone from its tile is not found`() {
+        assertNull(LunaClicks.objectOn(login(), door, beside))
+    }
+
+    @Test
+    fun `another object on the tile is not the one found`() {
+        TestWorld.place(ladder, beside)
+        assertNull(LunaClicks.objectOn(login(), door, beside))
+    }
+
+    @Test
+    fun `an object only another player sees is not found`() {
+        val player = login()
+        TestWorld.placeFor(login("someone"), door, beside)
+        assertNull(LunaClicks.objectOn(player, door, beside))
+    }
+
+    @Test
+    fun `using an object that is gone clicks nothing`() {
+        assertFalse(LunaClicks.use(login(), door, beside, option = null, from = here))
+    }
+
+    @Test
+    fun `using an option the object lacks clicks nothing`() {
+        TestWorld.place(door, beside)
+        assertFalse(LunaClicks.use(login(), door, beside, "Climb-up", from = here))
+    }
+
+    @Test
+    fun `using an object out of reach walks up to it and clicks on arrival, as the client does`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+        val clicked = clicks()
+        LunaClicks.use(player, door, beside, option = null, from = here)
+        TestWorld.tick(8)
+        assertEquals(here to listOf(ObjectFirstClickEvent::class.java), player.position to clicked.map { it.javaClass })
+    }
+
+    @Test
+    fun `a walk up cut short drops its click and frees the player`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+        val clicked = clicks()
+        LunaClicks.use(player, door, beside, option = null, from = here)
+        TestWorld.tick()
+        LunaClicks.endWalk(player)
+        TestWorld.tick(8)
+        assertEquals(emptyList<ObjectClickEvent>() to false, clicked to LunaClicks.isActing(player))
+    }
+
+    @Test
+    fun `the walk up goes to the side the click comes from`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+        LunaClicks.use(player, door, beside, option = null, from = Position(3202, 3200))
+        assertEquals(Position(3202, 3200), player.navigator.currentTarget)
+    }
+
+    @Test
+    fun `an object no tile reaches is not used`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+        listOf(-1, 0, 1).flatMap { dx -> listOf(-1, 0, 1).map { dy -> Position(beside.x + dx, beside.y + dy) } }
+            .filter { it != beside }.forEach { TestWorld.place(door, it) }
+        assertFalse(LunaClicks.use(player, door, beside, option = null, from = here))
+    }
+
+    @Test
+    fun `an option is clicked by its place among the object's options`() {
+        val player = login()
+        TestWorld.place(ladder, beside)
+        val clicked = clicks()
+        LunaClicks.use(player, ladder, beside, "Climb-up", from = here)
+        TestWorld.tick()
+        assertEquals(listOf(ObjectSecondClickEvent::class.java), clicked.map { it.javaClass })
+    }
+
+    @Test
+    fun `a third option is clicked as the third`() {
+        val player = login()
+        TestWorld.place(ladder, beside)
+        val clicked = clicks()
+        LunaClicks.use(player, ladder, beside, "Climb-down", from = here)
+        TestWorld.tick()
+        assertEquals(listOf(ObjectThirdClickEvent::class.java), clicked.map { it.javaClass })
+    }
+
+    @Test
+    fun `using an object with no option named clicks its first option`() {
+        val player = login()
+        TestWorld.place(door, beside)
+        val clicked = clicks()
+        LunaClicks.use(player, door, beside, option = null, from = here)
+        TestWorld.tick()
+        assertEquals(listOf(ObjectFirstClickEvent::class.java), clicked.map { it.javaClass })
+    }
+
+    @Test
+    fun `an interrupt during the walk up drops its click`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+        val clicked = clicks()
+        LunaClicks.use(player, door, beside, option = null, from = here)
+        TestWorld.tick()
+
+        LunaClicks.interrupt(player)
+        TestWorld.tick(8)
+
+        assertEquals(emptyList<ObjectClickEvent>() to false, clicked to LunaClicks.isActing(player))
+    }
+
+    @Test
+    fun `an interrupt once the walk up arrived still drops the click due the tick after`() {
+        val player = TestWorld.login("traveller", Position(3199, 3200))
+        TestWorld.place(door, beside)
+        val clicked = clicks()
+        LunaClicks.use(player, door, beside, option = null, from = here)
+        TestWorld.tick(arrivalTicks)
+
+        LunaClicks.interrupt(player)
+        TestWorld.tick(2)
+
+        assertEquals(emptyList<ObjectClickEvent>(), clicked)
+    }
+
+    @Test
+    fun `a click due on arrival at an object gone since is not made`() {
+        val player = TestWorld.login("traveller", Position(3199, 3200))
+        val placed = TestWorld.place(door, beside)
+        val clicked = clicks()
+        LunaClicks.use(player, door, beside, option = null, from = here)
+        TestWorld.tick(arrivalTicks)
+
+        TestWorld.world.objects.unregister(placed)
+        TestWorld.tick(2)
+
+        assertEquals(emptyList<ObjectClickEvent>() to false, clicked to LunaClicks.isActing(player))
+    }
+
+    @Test
+    fun `a click waiting for the walk up to its object keeps the player acting`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+
+        LunaClicks.use(player, door, beside, option = null, from = here)
+
+        assertTrue(LunaClicks.isActing(player))
+    }
+
+    @Test
+    fun `a click waiting for the walk up to its object keeps the player interacting, before the walk shows`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+
+        LunaClicks.use(player, door, beside, option = null, from = here)
+
+        assertTrue(LunaClicks.interacting(player))
+    }
+
+    @Test
+    fun `approaching a target with no door on the way walks to the tile it is used from`() {
+        val player = login()
+
+        LunaClicks.approach(player, treeBehind(door = null))
+
+        assertEquals(Position(3202, 3200), player.navigator.currentTarget)
+    }
+
+    @Test
+    fun `approaching through a shut door opens the door first`() {
+        val player = login()
+        TestWorld.place(door, beside)
+        val clicked = clicks()
+
+        LunaClicks.approach(player, treeBehind(doorOnTheWay(shut = true)))
+        TestWorld.tick()
+
+        assertEquals(listOf(door), clicked.map { it.gameObject.id })
+    }
+
+    @Test
+    fun `approaching through a shut door out of reach walks up to the door first`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+
+        LunaClicks.approach(player, treeBehind(doorOnTheWay(shut = true)))
+
+        assertEquals(here, player.navigator.currentTarget)
+    }
+
+    @Test
+    fun `approaching through an open door walks on to the tile the target is used from`() {
+        val player = login()
+
+        LunaClicks.approach(player, treeBehind(doorOnTheWay(shut = false)))
+
+        assertEquals(Position(3202, 3200), player.navigator.currentTarget)
     }
 
     @Test

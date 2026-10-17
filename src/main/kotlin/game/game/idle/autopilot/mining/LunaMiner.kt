@@ -5,6 +5,7 @@ import game.idle.autopilot.LunaClicks
 import game.idle.autopilot.ObjectsAround
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.skill.mining.Ore
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
 import io.luna.game.model.mob.Player
@@ -14,9 +15,9 @@ import io.luna.game.model.mob.Player
  * client's "Mine", so Luna's mining runs unchanged; an emptied rock turns into another object and drops out of the
  * search until it fills again.
  */
-class LunaMiner(private val player: Player, private val ore: Ore, private val area: Area) : Miner {
+class LunaMiner(private val player: Player, private val ore: Ore, private val area: Area, doorways: Doorways) : Miner {
 
-    private val around = ObjectsAround(player, area, Ore.ORE_MAP.get(ore))
+    private val around = ObjectsAround(player, area, Ore.ORE_MAP.get(ore), doorways)
 
     override fun isBusy(): Boolean = LunaClicks.busy(player)
 
@@ -27,7 +28,7 @@ class LunaMiner(private val player: Player, private val ore: Ore, private val ar
         LunaClicks.interact(player, ObjectFirstClickEvent(player, target), target, ObjectFirstClickEvent::class.java)
     }
 
-    override fun walkTo(rock: Candidate) = LunaClicks.walk(player, rock.approach)
+    override fun walkTo(rock: Candidate) = LunaClicks.approach(player, rock)
 
     override fun anchor(): Tile = area.anchor
 

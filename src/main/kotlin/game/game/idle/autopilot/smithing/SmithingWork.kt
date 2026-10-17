@@ -133,7 +133,7 @@ class SmithingWork(private val smither: Smither) : StepWork {
 
     private fun walkTo(anvil: Candidate): StepOutcome {
         smither.walkTo(anvil)
-        return StepOutcome.Approached
+        return anvil.approached
     }
 
     private fun choose(times: Int): StepOutcome {

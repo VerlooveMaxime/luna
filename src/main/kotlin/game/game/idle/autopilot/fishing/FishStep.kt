@@ -23,6 +23,7 @@ import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.TravelWebs
 import game.skill.fishing.catchFish.Fish
 import game.skill.fishing.catchFish.FishingSpot
 import game.skill.fishing.catchFish.Tool
@@ -153,5 +154,6 @@ data class FishStep(
     override fun needs(): List<StepNeeds> =
         listOf(StepNeeds(tools = listOfNotNull(catch.method.toolNeed, catch.method.baitNeed), level = LevelNeed(Skill.FISHING, catch.fish.level)))
 
-    override fun work(player: Player, runTile: Tile): StepWork = FishingWork(LunaFisher(player, catch, Area(workSpot.tile(runTile), radius)))
+    override fun work(player: Player, runTile: Tile): StepWork =
+        FishingWork(LunaFisher(player, catch, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
 }

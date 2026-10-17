@@ -5,6 +5,7 @@ import game.idle.autopilot.LunaClicks
 import game.idle.autopilot.ObjectsAround
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.skill.smithing.BarType
 import game.skill.smithing.Smithing
 import game.skill.smithing.smithBar.SmithingInterface
@@ -25,9 +26,10 @@ class LunaSmither(
     private val metal: BarType,
     private val table: SmithingTable,
     private val area: Area,
+    doorways: Doorways,
 ) : Smither {
 
-    private val around = ObjectsAround(player, area, Smithing.ANVIL_OBJECTS)
+    private val around = ObjectsAround(player, area, Smithing.ANVIL_OBJECTS, doorways)
     private val itemId: Int = table.items.first { it.barType == metal }.item.id
 
     /** The smithing window is the point of this step, so it does not count as a window in the way. */
@@ -56,7 +58,7 @@ class LunaSmither(
         LunaClicks.post(player, event)
     }
 
-    override fun walkTo(anvil: Candidate) = LunaClicks.walk(player, anvil.approach)
+    override fun walkTo(anvil: Candidate) = LunaClicks.approach(player, anvil)
 
     override fun anchor(): Tile = area.anchor
 

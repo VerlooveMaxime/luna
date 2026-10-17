@@ -23,6 +23,7 @@ import game.idle.flow.option.GameNames
 import game.idle.flow.option.InputSource
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.TravelWebs
 import game.skill.cooking.cookFood.Food
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
@@ -104,5 +105,5 @@ data class CookStep(
         }
 
     override fun work(player: Player, runTile: Tile): StepWork =
-        CookingWork(LunaCooker(player, rawIds, Area(workSpot.tile(runTile), radius)))
+        CookingWork(LunaCooker(player, rawIds, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
 }

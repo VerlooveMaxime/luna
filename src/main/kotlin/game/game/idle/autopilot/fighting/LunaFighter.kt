@@ -5,6 +5,7 @@ import game.idle.autopilot.LunaClicks
 import game.idle.autopilot.NpcsAround
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import io.luna.game.event.impl.NpcClickEvent.AttackNpcEvent
 import io.luna.game.model.EntityState
 import io.luna.game.model.mob.MobDeathAction
@@ -18,9 +19,9 @@ import io.luna.game.model.mob.interact.InteractionType
  * click, so Luna's combat and reach checks run unchanged. A kill is an npc of the target that died with the player's
  * hit last on it, whether the step attacked it or the player fought back.
  */
-class LunaFighter(private val player: Player, private val target: FightTarget, private val area: Area) : Fighter {
+class LunaFighter(private val player: Player, private val target: FightTarget, private val area: Area, doorways: Doorways) : Fighter {
 
-    private val around = NpcsAround(player, area, ::candidate, ::attackPolicy)
+    private val around = NpcsAround(player, area, ::candidate, ::attackPolicy, doorways)
     private var watched: Npc? = null
     private var lastKill: Npc? = null
     private var kills = 0
@@ -47,7 +48,7 @@ class LunaFighter(private val player: Player, private val target: FightTarget, p
      * Walks to the tile the look found, inside the work area; the npc may wander off meanwhile, and the next look
      * finds where it went. Following it instead let Luna's pathfinder take long ways round fences.
      */
-    override fun walkTo(npc: Candidate) = LunaClicks.walk(player, npc.approach)
+    override fun walkTo(npc: Candidate) = LunaClicks.approach(player, npc)
 
     override fun anchor(): Tile = area.anchor
 

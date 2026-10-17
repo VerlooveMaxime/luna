@@ -1,5 +1,9 @@
 package game.idle.flow
 
+import api.bot.webwalk.model.EdgeType
+import game.idle.movement.DoorStep
+import game.idle.movement.Doorway
+import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -441,7 +445,44 @@ class StepTurnContractTest {
         assertEquals(2, kind.done.size)
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("approachKinds")
+    fun `a walk up to a target behind a shut door says it opens the door`(kind: ApproachFixture) {
+        kind.targetFarOff(DOOR_ON_THE_WAY.copy(shut = true))
+        val turn = kind.turn()
+
+        turn.act()
+
+        assertEquals(UnderWay.Opening(Passage.DOOR), turn.underWay())
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("approachKinds")
+    fun `a walk up to a target through an open door says it goes through the door`(kind: ApproachFixture) {
+        kind.targetFarOff(DOOR_ON_THE_WAY.copy(shut = false))
+        val turn = kind.turn()
+
+        turn.act()
+
+        assertEquals(UnderWay.Passing(Passage.DOOR), turn.underWay())
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("approachKinds")
+    fun `a walk up to a target with no door on the way says nothing under way`(kind: ApproachFixture) {
+        kind.targetFarOff(door = null)
+        val turn = kind.turn()
+
+        turn.act()
+
+        assertEquals(true to null, kind.done.last().startsWith("walk to") to turn.underWay())
+    }
+
     companion object {
+
+        private val DOOR_ON_THE_WAY =
+            DoorStep(Doorway(1530, Position(3203, 3200), EdgeType.DOOR), from = Position(3202, 3200), shut = true)
+
 
         @JvmStatic
         fun allKinds(): List<KindFixture> = plainKinds() + gatherKinds() + processKinds() + lootKinds()
@@ -498,5 +539,8 @@ class StepTurnContractTest {
 
         @JvmStatic
         fun lootKinds(): List<AmountFixture> = game.idle.flow.lootKinds()
+
+        @JvmStatic
+        fun approachKinds(): List<ApproachFixture> = amountKinds().filterIsInstance<ApproachFixture>()
     }
 }

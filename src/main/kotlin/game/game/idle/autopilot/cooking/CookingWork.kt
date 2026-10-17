@@ -127,7 +127,7 @@ class CookingWork(private val cooker: Cooker) : StepWork {
 
     private fun walkTo(place: Candidate): StepOutcome {
         cooker.walkTo(place)
-        return StepOutcome.Approached
+        return place.approached
     }
 
     private fun cookAll(): StepOutcome {

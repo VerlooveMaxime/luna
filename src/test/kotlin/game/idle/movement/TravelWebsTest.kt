@@ -46,4 +46,15 @@ class TravelWebsTest {
         val trip = web?.plan(Position(3200, 3200), listOf(Position(3210, 3200)), CapabilitySnapshot())
         assertEquals(listOf(EdgeType.WALK), trip?.legs?.map { it.type })
     }
+
+    @Test
+    fun `there are no doorways while the walk graph is missing`(@TempDir directory: Path) {
+        assertSame(Doorways.NONE, TravelWebs(directory).doorwaysOf(TestWorld.world))
+    }
+
+    @Test
+    fun `the doorways are the web's`(@TempDir directory: Path) {
+        val webs = TravelWebs(withWalkGraph(directory))
+        assertSame(webs.of(TestWorld.world)?.doorways, webs.doorwaysOf(TestWorld.world))
+    }
 }

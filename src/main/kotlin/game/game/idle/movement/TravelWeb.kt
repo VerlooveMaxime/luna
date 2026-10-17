@@ -31,6 +31,9 @@ class TravelWeb(
 
     val doors: DoorCrossings = DoorCrossings.of(graph)
 
+    /** The same doors with their objects, for the reach scans' walks. */
+    val doorways: Doorways = Doorways.of(graph)
+
     private val planner = WebWalkPlanner(graph, estimator(doors))
 
     /** The tile in front of the booth on [booth] of a bank the web knows, whose walks from the web are linked already. */
@@ -54,6 +57,9 @@ class TravelWebs(private val directory: Path) {
         if (!Files.exists(directory.resolve(WebWalkLoader.WALK_GRAPH))) return null
         return webs.computeIfAbsent(world, ::load)
     }
+
+    /** The doorways of [world]'s web, none while it has no data: every closed door is then a wall to the reach scans. */
+    fun doorwaysOf(world: World): Doorways = of(world)?.doorways ?: Doorways.NONE
 
     private fun load(world: World): TravelWeb {
         // A player's route finder as Pathfinders.forPlayer builds it: one tile wide, held up by walls and objects only.

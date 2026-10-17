@@ -113,6 +113,6 @@ class SmeltingWork(private val smelter: Smelter) : StepWork {
 
     private fun walkTo(furnace: Candidate): StepOutcome {
         smelter.walkTo(furnace)
-        return StepOutcome.Approached
+        return furnace.approached
     }
 }

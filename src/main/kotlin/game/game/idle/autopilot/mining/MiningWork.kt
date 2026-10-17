@@ -68,6 +68,6 @@ class MiningWork(private val miner: Miner) : StepWork {
 
     private fun walkTo(rock: Candidate): StepOutcome {
         miner.walkTo(rock)
-        return StepOutcome.Approached
+        return rock.approached
     }
 }

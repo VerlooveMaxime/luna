@@ -1,12 +1,22 @@
 package game.idle.autopilot
 
+import api.attr.Attr
+import api.bot.webwalk.walk.WebWalkExecutor
+import api.predef.ext.scheduleOnce
 import engine.widget.skill.LevelUpInterface
+import game.idle.movement.Doorways
+import game.idle.movement.ReachSteps
 import game.idle.movement.approachTiles
 import game.idle.movement.canStandOn
+import game.idle.movement.reachingTiles
 import io.luna.game.action.ActionType
 import io.luna.game.event.Event
 import io.luna.game.event.impl.ControllableEvent
 import io.luna.game.event.impl.InteractableEvent
+import io.luna.game.event.impl.ObjectClickEvent
+import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
+import io.luna.game.event.impl.ObjectClickEvent.ObjectSecondClickEvent
+import io.luna.game.event.impl.ObjectClickEvent.ObjectThirdClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.Entity
 import io.luna.game.model.EntityType
@@ -14,7 +24,10 @@ import io.luna.game.model.Position
 import io.luna.game.model.World
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.interact.InteractionAction
+import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
+import io.luna.game.model.mob.movement.NavigationResult
 import io.luna.game.model.mob.overlay.OverlayType
+import io.luna.game.model.`object`.GameObject
 
 /** What every autopilot adapter does with a real player: click things like the client and tell busy from idle. */
 object LunaClicks {
@@ -27,9 +40,14 @@ object LunaClicks {
 
     private val WINDOW_TYPES = setOf(OverlayType.WIDGET_STANDARD, OverlayType.INPUT)
 
-    /** Walking or running a non-soft action; windows are the activity's own concern. */
+    /** A click [use] holds for the tick after the walk up to its object ends: option [number] of the object of [id] on [at]. */
+    private class HeldClick(val id: Int, val at: Position, val number: Int)
+
+    private var Player.heldClick by Attr.nullableObj(HeldClick::class)
+
+    /** Walking, about to click on arrival or running a non-soft action; windows are the activity's own concern. */
     fun isActing(player: Player): Boolean =
-        !player.walking.isEmpty || FOREGROUND_ACTIONS.any { player.actions.size(it) > 0 }
+        !player.walking.isEmpty || player.heldClick != null || FOREGROUND_ACTIONS.any { player.actions.size(it) > 0 }
 
     /**
      * A window the player has open, which a real player would close before walking off. A level-up dialogue does not
@@ -52,13 +70,14 @@ object LunaClicks {
      * combat's own action is WEAK and lingers after the kill.
      */
     fun interacting(player: Player): Boolean =
-        !player.walking.isEmpty || player.actions.first(InteractionAction::class.java) != null
+        !player.walking.isEmpty || player.heldClick != null || player.actions.first(InteractionAction::class.java) != null
 
     /**
      * Breaks off what the autopilot has the player doing: the action in progress as a player's own click would, leaving
-     * a strong one (a death) alone, and the walk it started.
+     * a strong one (a death) alone, the walk it started and a click held for that walk's end.
      */
     fun interrupt(player: Player) {
+        player.heldClick = null
         endWalk(player)
         player.actions.interruptWeak()
     }
@@ -92,12 +111,86 @@ object LunaClicks {
     }
 
     /**
-     * Whether a player can step from [from] in [direction]. The reach scans walk by this, so a closed door is a wall to
-     * them while the navigator walks through doors (Maxime, 2026-10-12: the scans should see through doors once the
-     * navigator handles doors, portals, levers and teleports, `.memory/tasks/world-doors/`).
+     * Walks [player] up to [target] as a step's look found it (web-walker movement Part 4): a shut door on the way is
+     * walked to and opened first, and the next decision walks on through it; otherwise the [walk] to its approach tile.
+     * A door the click cannot open (gone since the look, no tile reaching it) leaves the player standing, and the retry
+     * rule sets the target aside at the next decision.
+     */
+    fun approach(player: Player, target: Candidate) {
+        val door = target.door?.takeIf { it.shut }
+        if (door == null) {
+            walk(player, target.approach)
+        } else {
+            use(player, door.doorway.id, door.doorway.position, option = null, from = door.from)
+        }
+    }
+
+    /**
+     * Whether collision lets a player step from [from] in [direction]: a closed door is a wall here, as it is to the
+     * navigator. The reach scans step through doors by [reachSteps]; what looks for a free tile rather than a way walks
+     * by this (where to light a fire; the flee until web-walker movement Part 5).
      */
     fun canStep(world: World, from: Position, direction: Direction): Boolean =
         world.collisionManager.traversable(from, EntityType.PLAYER, direction)
+
+    /** The steps of a reach scan in [world]: [canStep]'s, and through the shut ones of [doorways], which a walk opens. */
+    fun reachSteps(world: World, doorways: Doorways): ReachSteps =
+        ReachSteps({ from, direction -> canStep(world, from, direction) }, doorways)
+
+    /** The object of [id] on [at] that [player] sees, if one stands there. */
+    fun objectOn(player: Player, id: Int, at: Position): GameObject? =
+        player.world.objects.findAll(at).filter { it.id == id && it.isVisibleTo(player) }.findFirst().orElse(null)
+
+    /**
+     * Clicks [option] of the object of [id] on [at] for [player], its first one when null, as the client does: Luna's
+     * interaction never walks, it only checks the reach while the player walks (web-walker movement Part 3's live check:
+     * a door clicked from two tiles inside said "I can't reach that!"), and a click interrupts a walk queued with it. So
+     * out of reach the player walks to the tile it is used from nearest [from] first and the click follows in the tick
+     * after they get there, the player [isActing] until it lands. A walk cut short (another walk), an [interrupt] (a
+     * Stop) or the object gone by then (a door someone else opened) drops the click. False when the object is not there,
+     * has no such option or no tile reaches it.
+     */
+    fun use(player: Player, id: Int, at: Position, option: String?, from: Position): Boolean {
+        val target = objectOn(player, id, at) ?: return false
+        val number = if (option == null) 1 else WebWalkExecutor.optionNumber(target.def().actions, option) ?: return false
+        val collision = player.world.collisionManager
+        if (collision.reached(player, target, STANDARD_SIZE)) {
+            click(player, target, number)
+            return true
+        }
+        val tile = reachingTiles(collision, target, from).firstOrNull() ?: return false
+        val held = HeldClick(id, at, number)
+        player.heldClick = held
+        player.navigator.navigate(tile, true).whenComplete { result, _ ->
+            if (result == NavigationResult.REACHED) {
+                player.world.scheduleOnce(1) { arrived(player, held) }
+            } else {
+                drop(player, held)
+            }
+        }
+        return true
+    }
+
+    /** Makes [held] unless it was dropped meanwhile or another click is held now; only on the object still there. */
+    private fun arrived(player: Player, held: HeldClick) {
+        if (player.heldClick !== held) return
+        player.heldClick = null
+        val target = objectOn(player, held.id, held.at) ?: return
+        click(player, target, held.number)
+    }
+
+    private fun drop(player: Player, held: HeldClick) {
+        if (player.heldClick === held) player.heldClick = null
+    }
+
+    private fun click(player: Player, target: GameObject, number: Int) {
+        val event: ObjectClickEvent = when (number) {
+            1 -> ObjectFirstClickEvent(player, target)
+            2 -> ObjectSecondClickEvent(player, target)
+            else -> ObjectThirdClickEvent(player, target)
+        }
+        interact(player, event, target, event.javaClass)
+    }
 
     /** The checks the packet reader makes before dispatching a click. */
     fun mayAct(player: Player, event: ControllableEvent): Boolean =

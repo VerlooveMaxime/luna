@@ -1,5 +1,6 @@
 package game.idle.movement
 
+import api.bot.webwalk.model.EdgeType
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -19,16 +20,31 @@ class ReachScanTest {
     private val tree = Standing(Position(3171, 3444, 0), size = 1)
     private val oak = Standing(Position(3160, 3440, 0), size = 2)
 
-    /**
-     * Targets block their own tiles. A fence along x = 3168 from y = 3440 to 3448 stops steps onto it. A target is used
-     * from an orthogonally adjacent tile.
-     */
-    private class Grid(private val standing: List<Standing>, private val fence: Boolean = false) : ReachTerrain<Standing> {
+    /** A shut door from 3167 3444 onto the fence's tile east of it. */
+    private val door = DoorStep(Doorway(1530, Position(3168, 3444, 0), EdgeType.DOOR), from = Position(3167, 3444, 0), shut = true)
 
-        override fun canStep(from: Position, direction: Direction): Boolean = !isBlocked(from.translate(1, direction))
+    /**
+     * Targets block their own tiles. A fence along x = 3168 from y = 3440 to 3448 stops steps onto it; a [wall] there
+     * stops them at any y. A target is used from an orthogonally adjacent tile. A [door] lets a walk through the fence.
+     */
+    private class Grid(
+        private val standing: List<Standing>,
+        private val fence: Boolean = false,
+        private val wall: Boolean = false,
+        private val door: DoorStep? = null,
+    ) : ReachTerrain<Standing> {
+
+        override fun step(from: Position, direction: Direction): Step? {
+            val to = from.translate(1, direction)
+            return when {
+                door != null && from == door.from && to == door.doorway.position -> door
+                isBlocked(to) -> null
+                else -> Step.Plain
+            }
+        }
 
         fun isBlocked(tile: Position): Boolean =
-            standing.any { it.covers(tile) } || (fence && tile.x == 3168 && tile.y in 3440..3448)
+            standing.any { it.covers(tile) } || (fence && tile.x == 3168 && tile.y in 3440..3448) || (wall && tile.x == 3168)
 
         override fun reachedFrom(tile: Position, target: Standing): Boolean =
             Direction.NESW.any { target.covers(tile.translate(1, it)) }
@@ -88,6 +104,13 @@ class ReachScanTest {
     }
 
     @Test
+    fun `a target behind a shut door is walked to through it, the door counted and named`() {
+        val found = reachable(Position(3165, 3444, 0), listOf(tree), Grid(listOf(tree), wall = true, door = door))
+
+        assertEquals(Reach(distance = 11, usableFromHere = false, approach = Position(3170, 3444, 0), door), found.single().second)
+    }
+
+    @Test
     fun `a two by two target is approached at its footprint`() {
         val found = reachable(Position(3165, 3444, 0), listOf(oak), Grid(listOf(oak)))
 
@@ -134,23 +157,23 @@ class ReachScanTest {
 
     @Test
     fun `the distances from a tile near the area count the steps into it`() {
-        val distances = scan.distancesFrom(Position(3181, 3445, 0)) { _, _ -> true }
+        val distances = scan.distancesFrom(Position(3181, 3445, 0)) { _, _ -> Step.Plain }
 
         assertEquals(16, distances?.get(anchor))
     }
 
     @Test
     fun `too far from the anchor there are no distances`() {
-        assertNull(scan.distancesFrom(Position(3196, 3445, 0)) { _, _ -> true })
+        assertNull(scan.distancesFrom(Position(3196, 3445, 0)) { _, _ -> Step.Plain })
     }
 
     @Test
     fun `on another floor there are no distances`() {
-        assertNull(scan.distancesFrom(Position(3165, 3445, 1)) { _, _ -> true })
+        assertNull(scan.distancesFrom(Position(3165, 3445, 1)) { _, _ -> Step.Plain })
     }
 
     /** Nothing can be stepped onto except the origin's own tile. */
     private fun ReachTerrain<Standing>.walledOff(): ReachTerrain<Standing> = object : ReachTerrain<Standing> by this {
-        override fun canStep(from: Position, direction: Direction): Boolean = false
+        override fun step(from: Position, direction: Direction): Step? = null
     }
 }

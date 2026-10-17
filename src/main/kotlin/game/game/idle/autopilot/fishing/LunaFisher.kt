@@ -5,6 +5,7 @@ import game.idle.autopilot.LunaClicks
 import game.idle.autopilot.NpcsAround
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import io.luna.game.event.impl.NpcClickEvent.NpcFirstClickEvent
 import io.luna.game.event.impl.NpcClickEvent.NpcSecondClickEvent
 import io.luna.game.model.mob.Player
@@ -14,11 +15,11 @@ import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
  * [Fisher] for a logged-in player fishing for [catch] within [area]. A cast goes through the same interaction as the
  * client's click on the spot's option for the catch's method, so Luna's reach check and fishing run unchanged.
  */
-class LunaFisher(private val player: Player, private val catch: FishingCatch, private val area: Area) : Fisher {
+class LunaFisher(private val player: Player, private val catch: FishingCatch, private val area: Area, doorways: Doorways) : Fisher {
 
     private val method = catch.method
 
-    private val around = NpcsAround(player, area, accepts = { it.id in method.spotIds }, policy = { STANDARD_SIZE })
+    private val around = NpcsAround(player, area, accepts = { it.id in method.spotIds }, policy = { STANDARD_SIZE }, doorways)
 
     /**
      * An open window keeps the player busy, except the dialogue in which Luna's fishing says why it stopped: without the
@@ -38,7 +39,7 @@ class LunaFisher(private val player: Player, private val catch: FishingCatch, pr
         }
     }
 
-    override fun walkTo(spot: Candidate) = LunaClicks.walk(player, spot.approach)
+    override fun walkTo(spot: Candidate) = LunaClicks.approach(player, spot)
 
     override fun anchor(): Tile = area.anchor
 

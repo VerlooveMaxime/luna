@@ -5,6 +5,7 @@ import game.idle.autopilot.LunaClicks
 import game.idle.autopilot.ObjectsAround
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.skill.smithing.BarType
 import game.skill.smithing.Smithing
 import io.luna.game.event.impl.UseItemEvent.ItemOnObjectEvent
@@ -15,9 +16,9 @@ import io.luna.game.model.mob.Player
  * [Smelter] for a logged-in player smelting [bar] at furnaces within [area]. The ore is used on the furnace through
  * the same interaction as the client's, so Luna's smelting runs unchanged and smelts every bar the ores make.
  */
-class LunaSmelter(private val player: Player, private val bar: BarType, private val area: Area) : Smelter {
+class LunaSmelter(private val player: Player, private val bar: BarType, private val area: Area, doorways: Doorways) : Smelter {
 
-    private val around = ObjectsAround(player, area, Smithing.FURNACE_OBJECTS)
+    private val around = ObjectsAround(player, area, Smithing.FURNACE_OBJECTS, doorways)
 
     /** Luna smelts the bar its ore names; iron ore names iron, so steel is smelted from its coal. */
     private val oreToUse: Int = if (bar == BarType.STEEL) COAL else bar.oreRequired.first.id
@@ -38,7 +39,7 @@ class LunaSmelter(private val player: Player, private val bar: BarType, private 
         LunaClicks.interact(player, event, target, ItemOnObjectEvent::class.java)
     }
 
-    override fun walkTo(furnace: Candidate) = LunaClicks.walk(player, furnace.approach)
+    override fun walkTo(furnace: Candidate) = LunaClicks.approach(player, furnace)
 
     override fun anchor(): Tile = area.anchor
 

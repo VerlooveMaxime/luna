@@ -5,6 +5,7 @@ import game.idle.autopilot.LunaClicks
 import game.idle.autopilot.ObjectsAround
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.skill.woodcutting.cutTree.Tree
 import game.skill.woodcutting.cutTree.TreeStump
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
@@ -15,9 +16,9 @@ import io.luna.game.model.mob.Player
  * goes through the same event and interaction action as the client's click, so Luna's reach checks, animations and XP
  * apply unchanged.
  */
-class LunaWoodcutter(private val player: Player, private val kind: Tree, private val area: Area) : Woodcutter {
+class LunaWoodcutter(private val player: Player, private val kind: Tree, private val area: Area, doorways: Doorways) : Woodcutter {
 
-    private val around = ObjectsAround(player, area, TreeStump.ALIVE_TREE_MAP.get(kind))
+    private val around = ObjectsAround(player, area, TreeStump.ALIVE_TREE_MAP.get(kind), doorways)
 
     override fun isBusy(): Boolean = LunaClicks.busy(player)
 
@@ -28,7 +29,7 @@ class LunaWoodcutter(private val player: Player, private val kind: Tree, private
         LunaClicks.interact(player, ObjectFirstClickEvent(player, target), target, ObjectFirstClickEvent::class.java)
     }
 
-    override fun walkTo(tree: Candidate) = LunaClicks.walk(player, tree.approach)
+    override fun walkTo(tree: Candidate) = LunaClicks.approach(player, tree)
 
     override fun anchor(): Tile = area.anchor
 

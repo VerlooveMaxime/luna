@@ -24,6 +24,7 @@ import game.idle.flow.option.ItemCatalog
 import game.idle.flow.option.OptionFacts
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.TravelWebs
 import io.luna.game.model.mob.Player
 
 /**
@@ -108,5 +109,5 @@ data class PickUpStep(
     override fun after(context: FlowContext): FlowContext = workSpot.after(context.copy(gathered = context.gathered + fills))
 
     override fun work(player: Player, runTile: Tile): StepWork =
-        PickUpWork(LunaPicker(player, itemIds, Area(workSpot.tile(runTile), radius)))
+        PickUpWork(LunaPicker(player, itemIds, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
 }

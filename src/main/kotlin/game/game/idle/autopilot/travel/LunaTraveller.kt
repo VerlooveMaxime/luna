@@ -5,26 +5,16 @@ import api.bot.webwalk.plan.BotCapabilities
 import api.bot.webwalk.plan.PlanLeg
 import api.bot.webwalk.plan.Spend
 import api.bot.webwalk.plan.WebWalkPlan
-import api.bot.webwalk.walk.WebWalkExecutor
-import api.predef.ext.scheduleOnce
 import game.idle.autopilot.LunaClicks
 import game.idle.flow.Place
 import game.idle.location.Tile
 import game.idle.movement.TravelAllowance
 import game.idle.movement.TravelWeb
 import game.idle.movement.TravelWebs
-import game.idle.movement.reachingTiles
 import io.luna.game.event.impl.ButtonClickEvent
-import io.luna.game.event.impl.ObjectClickEvent
-import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
-import io.luna.game.event.impl.ObjectClickEvent.ObjectSecondClickEvent
-import io.luna.game.event.impl.ObjectClickEvent.ObjectThirdClickEvent
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.dialogue.OptionDialogue
-import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
-import io.luna.game.model.mob.movement.NavigationResult
-import io.luna.game.model.`object`.GameObject
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executor
 
@@ -44,13 +34,10 @@ class LunaTraveller(
     private val planning: Executor = Executor(Runnable::run),
 ) : Traveller {
 
-    /** A click waiting for the walk up to its object to end, see [use]. */
-    private var clickOnArrival = false
-
     override fun position(): Position = player.position
 
     /** The up-or-down dialogue a climb opens is the trip's own window, which it answers; a click on arrival holds the trip. */
-    override fun isBusy(): Boolean = clickOnArrival || LunaClicks.busyBesides(player, ownWindowOpen = choosing())
+    override fun isBusy(): Boolean = LunaClicks.busyBesides(player, ownWindowOpen = choosing())
 
     override fun plan(destinations: List<Position>): CompletableFuture<WebWalkPlan?> {
         val start = player.position
@@ -67,47 +54,10 @@ class LunaTraveller(
 
     override fun walk(to: Position) = LunaClicks.walk(player, to)
 
-    override fun standing(id: Int, at: Position): Boolean = objectOn(id, at) != null
+    override fun standing(id: Int, at: Position): Boolean = LunaClicks.objectOn(player, id, at) != null
 
-    /**
-     * As the client does it: Luna's interaction never walks, it only checks the reach while the player walks (Part 3's
-     * live check: a door clicked from two tiles inside said "I can't reach that!"), and a click interrupts a walk
-     * queued with it, so out of reach the player walks to the reaching tile first and the click follows in the tick after
-     * they get there, without waiting for the next decision. A walk cut short (a Stop, another walk) drops its click.
-     */
-    override fun use(id: Int, at: Position, option: String?, from: Position): Boolean {
-        val target = objectOn(id, at) ?: return false
-        val number = if (option == null) 1 else WebWalkExecutor.optionNumber(target.def().actions, option) ?: return false
-        val collision = player.world.collisionManager
-        if (collision.reached(player, target, STANDARD_SIZE)) {
-            click(target, number)
-            return true
-        }
-        val tile = reachingTiles(collision, target, from).firstOrNull() ?: return false
-        clickOnArrival = true
-        player.navigator.navigate(tile, true).whenComplete { result, _ ->
-            if (result == NavigationResult.REACHED) {
-                player.world.scheduleOnce(1) { arrived(target, number) }
-            } else {
-                clickOnArrival = false
-            }
-        }
-        return true
-    }
-
-    private fun arrived(target: GameObject, number: Int) {
-        clickOnArrival = false
-        click(target, number)
-    }
-
-    private fun click(target: GameObject, number: Int) {
-        val event: ObjectClickEvent = when (number) {
-            1 -> ObjectFirstClickEvent(player, target)
-            2 -> ObjectSecondClickEvent(player, target)
-            else -> ObjectThirdClickEvent(player, target)
-        }
-        LunaClicks.interact(player, event, target, event.javaClass)
-    }
+    /** [LunaClicks.use]: out of reach, the player walks up to the object first and clicks on arrival. */
+    override fun use(id: Int, at: Position, option: String?, from: Position): Boolean = LunaClicks.use(player, id, at, option, from)
 
     override fun choosing(): Boolean = dialogue() != null
 
@@ -120,9 +70,6 @@ class LunaTraveller(
     override fun interrupt() = LunaClicks.interrupt(player)
 
     private fun dialogue(): OptionDialogue? = player.overlays.getOverlay(OptionDialogue::class.java)
-
-    private fun objectOn(id: Int, at: Position): GameObject? =
-        player.world.objects.findAll(at).filter { it.id == id && it.isVisibleTo(player) }.findFirst().orElse(null)
 }
 
 /** A trip for [player] to [target] on the server's travel web, its block saying [place]. */

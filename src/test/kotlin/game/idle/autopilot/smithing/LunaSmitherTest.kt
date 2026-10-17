@@ -8,6 +8,7 @@ import game.idle.flow.Preconditions
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.skill.smithing.BarType
 import game.skill.smithing.smithBar.SmithingInterface
 import game.skill.smithing.smithBar.SmithingTable
@@ -43,7 +44,7 @@ class LunaSmitherTest {
     private fun login(position: Position = anchor): Player = TestWorld.login("smith", position)
 
     private fun smither(player: Player, table: SmithingTable = SmithingTable.DAGGER) =
-        LunaSmither(player, BarType.BRONZE, table, area)
+        LunaSmither(player, BarType.BRONZE, table, area, Doorways.NONE)
 
     private fun recordUses(): MutableList<Int> {
         val used = mutableListOf<Int>()
@@ -191,7 +192,7 @@ class LunaSmitherTest {
         player.inventory.add(Item(bronzeDagger))
         player.inventory.add(Item(1203))
 
-        assertEquals(1, LunaSmither(player, BarType.IRON, SmithingTable.DAGGER, area).made())
+        assertEquals(1, LunaSmither(player, BarType.IRON, SmithingTable.DAGGER, area, Doorways.NONE).made())
     }
 
     @Test

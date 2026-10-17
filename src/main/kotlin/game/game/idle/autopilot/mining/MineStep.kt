@@ -23,6 +23,7 @@ import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.TravelWebs
 import game.skill.mining.Ore
 import game.skill.mining.Pickaxe
 import io.luna.game.model.mob.Player
@@ -94,5 +95,6 @@ data class MineStep(
     override fun needs(): List<StepNeeds> =
         listOf(StepNeeds(tools = listOf(MineStepType.PICKAXE), level = LevelNeed(Skill.MINING, ore.level)))
 
-    override fun work(player: Player, runTile: Tile): StepWork = MiningWork(LunaMiner(player, ore, Area(workSpot.tile(runTile), radius)))
+    override fun work(player: Player, runTile: Tile): StepWork =
+        MiningWork(LunaMiner(player, ore, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
 }

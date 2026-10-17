@@ -1,5 +1,6 @@
 package game.idle.flow
 
+import game.idle.autopilot.Candidate
 import game.idle.autopilot.bank.BankView
 import game.idle.autopilot.bank.BankWork
 import game.idle.autopilot.bank.EVERYTHING
@@ -11,6 +12,7 @@ import game.idle.autopilot.rest.RestWork
 import game.idle.autopilot.travel.FakeTraveller
 import game.idle.autopilot.travel.TripWork
 import game.idle.location.Tile
+import game.idle.movement.DoorStep
 import io.luna.game.model.Position
 
 /**
@@ -81,6 +83,13 @@ interface AreaFixture : KindFixture {
     fun enterArea()
 }
 
+/** A kind that walks up to the targets it finds around a spot: chop, mine, fish; cook, smelt, smith; fight, pick up. */
+interface ApproachFixture : KindFixture {
+
+    /** The one target stands out of reach now, walked up to through [door] when one is given. */
+    fun targetFarOff(door: DoorStep?)
+}
+
 /** A kind that gathers around a work spot and fills the bag with what it gets: chop, mine, fish. */
 interface GatherFixture : ToolFixture, AreaFixture, AmountFixture
 
@@ -104,7 +113,8 @@ fun turnOf(work: StepWork, amount: Int?, needs: List<StepNeeds>, carried: FakeCa
  * against it, not copied. The levels are above 1, so a level one short still allows the bronze tool and the block is
  * the step's level, not the tool.
  */
-abstract class SpotFixture(final override val name: String, final override val level: LevelNeed, bag: Set<Int>) : NeedsFixture, AreaFixture, AmountFixture {
+abstract class SpotFixture(final override val name: String, final override val level: LevelNeed, bag: Set<Int>) :
+    NeedsFixture, AreaFixture, AmountFixture, ApproachFixture {
 
     final override val anchor = Tile(3200, 3200)
 
@@ -119,6 +129,10 @@ abstract class SpotFixture(final override val name: String, final override val l
     protected val targetTile = Position(anchor.x + 1, anchor.y)
 
     protected abstract fun standInArea(inside: Boolean)
+
+    /** [target] out of reach, a walk of twelve steps through [door] when one is given. */
+    protected fun farOff(target: Candidate, door: DoorStep?): Candidate =
+        target.copy(distance = 12, usableFromHere = false, approach = Position(anchor.x + 5, anchor.y), door = door)
 
     override fun leaveArea() {
         standInArea(inside = false)

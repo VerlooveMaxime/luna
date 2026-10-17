@@ -3,10 +3,12 @@ package game.idle.autopilot.pickup
 import game.idle.autopilot.Candidate
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
+import game.idle.autopilot.WalledDoor
 import game.idle.flow.StepOutcome
 import game.idle.flow.WorkSpot
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.testworld.TestWorld
 import io.luna.game.event.impl.GroundItemClickEvent.PickupItemEvent
 import io.luna.game.model.Direction
@@ -40,7 +42,8 @@ class LunaPickerTest {
 
     private fun login(position: Position = anchor): Player = TestWorld.login("picker", position)
 
-    private fun picker(player: Player) = LunaPicker(player, setOf(bones, cowhide, coins), Area(Tile.of(anchor), radius = 10))
+    private fun picker(player: Player, doorways: Doorways = Doorways.NONE) =
+        LunaPicker(player, setOf(bones, cowhide, coins), Area(Tile.of(anchor), radius = 10), doorways)
 
     private fun takes(): MutableList<Int> {
         val taken = mutableListOf<Int>()
@@ -56,6 +59,16 @@ class LunaPickerTest {
         }
 
     private fun fillBag(player: Player) = repeat(28) { player.inventory.add(Item(logs)) }
+
+    @Test
+    fun `an item behind a shut door of the web is walked onto through it, the door named`() {
+        val doorways = WalledDoor.build()
+        TestWorld.dropItem(bones, 1, Position(3207, 3200))
+
+        val items = picker(login(), doorways).look().items
+
+        assertEquals(listOf(Candidate(bones, Position(3207, 3200), 13, false, Position(3207, 3200), door = WalledDoor.shut)), items)
+    }
 
     @Test
     fun `an idle player is not busy`() {

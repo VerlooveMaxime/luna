@@ -5,6 +5,7 @@ import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.skill.fishing.catchFish.Fish
 import game.skill.fishing.catchFish.Tool
 import game.testworld.TestWorld
@@ -37,7 +38,7 @@ class LunaFisherTest {
 
     private val fishingBait = 313
 
-    private fun fisher(player: Player, tool: Tool = Tool.SMALL_NET, fish: Fish = Fish.SHRIMP) = LunaFisher(player, FishingCatch(fish, FishingMethod(tool)), area)
+    private fun fisher(player: Player, tool: Tool = Tool.SMALL_NET, fish: Fish = Fish.SHRIMP) = LunaFisher(player, FishingCatch(fish, FishingMethod(tool)), area, Doorways.NONE)
 
     @Test
     fun `an idle player is not busy`() {

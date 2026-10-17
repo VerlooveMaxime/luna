@@ -5,6 +5,7 @@ import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.Doorways
 import game.skill.woodcutting.cutTree.Tree
 import game.testworld.TestWorld
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
@@ -32,7 +33,7 @@ class LunaWoodcutterTest {
 
     private fun login(position: Position = anchor): Player = TestWorld.login("lumberjack", position)
 
-    private fun woodcutter(player: Player) = LunaWoodcutter(player, Tree.NORMAL, area)
+    private fun woodcutter(player: Player) = LunaWoodcutter(player, Tree.NORMAL, area, Doorways.NONE)
 
     private fun recordClicks(): MutableList<Int> {
         val clicked = mutableListOf<Int>()

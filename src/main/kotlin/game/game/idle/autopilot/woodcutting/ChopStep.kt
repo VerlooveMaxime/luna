@@ -23,6 +23,7 @@ import game.idle.flow.option.GameNames
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.TravelWebs
 import game.skill.woodcutting.cutTree.Axe
 import game.skill.woodcutting.cutTree.Tree
 import game.skill.woodcutting.cutTree.TreeStump
@@ -96,5 +97,5 @@ data class ChopStep(
         listOf(StepNeeds(tools = listOf(ChopStepType.AXE), level = LevelNeed(Skill.WOODCUTTING, tree.level)))
 
     override fun work(player: Player, runTile: Tile): StepWork =
-        WoodcuttingWork(LunaWoodcutter(player, tree, Area(workSpot.tile(runTile), radius)))
+        WoodcuttingWork(LunaWoodcutter(player, tree, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
 }

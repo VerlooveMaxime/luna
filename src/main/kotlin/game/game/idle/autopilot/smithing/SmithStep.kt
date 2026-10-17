@@ -26,6 +26,7 @@ import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
 import game.idle.location.Area
 import game.idle.location.Tile
+import game.idle.movement.TravelWebs
 import game.skill.smithing.BarType
 import game.skill.smithing.Smithing
 import game.skill.smithing.smithBar.SmithingItem
@@ -123,5 +124,5 @@ data class SmithStep(
         listOf(StepNeeds(tools = listOf(SmithStepType.HAMMER), inputs = listOf(metal.id), level = LevelNeed(Skill.SMITHING, made.level)))
 
     override fun work(player: Player, runTile: Tile): StepWork =
-        SmithingWork(LunaSmither(player, metal, table, Area(workSpot.tile(runTile), radius)))
+        SmithingWork(LunaSmither(player, metal, table, Area(workSpot.tile(runTile), radius), TravelWebs.SERVER.doorwaysOf(player.world)))
 }

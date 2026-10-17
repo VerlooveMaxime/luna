@@ -2,6 +2,7 @@ package game.idle.movement
 
 import api.bot.webwalk.model.BankDefinition
 import api.bot.webwalk.model.BankLink
+import api.bot.webwalk.model.EdgeAction
 import api.bot.webwalk.model.EdgeType
 import api.bot.webwalk.model.NodeKind
 import api.bot.webwalk.model.TeleportDefinition
@@ -88,6 +89,14 @@ class TravelWebTest {
         var handed: DoorCrossings? = null
         val web = web(estimator = { doors -> handed = doors; walls })
         assertSame(web.doors, handed)
+    }
+
+    @Test
+    fun `the reach scans get the doors of the graph with their objects`() {
+        val opens = EdgeAction(objectId = 1530, objectPosition = doorEast.position)
+        val graph = WebWalkGraph(listOf(doorWest, doorEast), listOf(WebWalkEdge(doorWest.id, doorEast.id, EdgeType.DOOR, action = opens)), emptyList(), emptyList())
+        val web = TravelWeb(graph, { false }, { walls })
+        assertEquals(Doorway(1530, doorEast.position, EdgeType.DOOR), web.doorways.between(doorWest.position, doorEast.position))
     }
 
     @Test

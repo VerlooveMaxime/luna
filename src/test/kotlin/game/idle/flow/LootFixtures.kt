@@ -12,6 +12,7 @@ import game.idle.autopilot.pickup.PickUpView
 import game.idle.autopilot.pickup.PickUpWork
 import game.idle.autopilot.travel.FakeTraveller
 import game.idle.location.Tile
+import game.idle.movement.DoorStep
 import io.luna.game.model.Position
 
 /**
@@ -27,7 +28,7 @@ private const val BONES = 526
 private const val MAN = 1
 
 /** Fight with one man next to the anchor, in reach from where the player stands; no kill dying until [settling]. */
-class FightFixture : AreaFixture, SettlingFixture {
+class FightFixture : AreaFixture, SettlingFixture, ApproachFixture {
 
     override val name = "fight"
 
@@ -66,6 +67,13 @@ class FightFixture : AreaFixture, SettlingFixture {
         fighter.view = fighter.view.copy(targets = listOf(man))
     }
 
+    override fun targetFarOff(door: DoorStep?) {
+        val farOff = man.copy(
+            position = Position(anchor.x + 6, anchor.y), distance = 12, usableFromHere = false, approach = Position(anchor.x + 5, anchor.y), door = door,
+        )
+        fighter.view = fighter.view.copy(targets = listOf(farOff))
+    }
+
     override fun leaveArea() {
         fighter.view = fighter.view.copy(atLocation = false)
         traveller.position = Position(anchor.x + 20, anchor.y)
@@ -80,7 +88,7 @@ class FightFixture : AreaFixture, SettlingFixture {
 }
 
 /** Pick up at the work spot with bones lying underfoot that fit the bag. */
-class PickUpFixture : AmountFixture {
+class PickUpFixture : AmountFixture, ApproachFixture {
 
     override val name = "pick up"
 
@@ -102,6 +110,11 @@ class PickUpFixture : AmountFixture {
 
     override fun adapterBusy(busy: Boolean) {
         picker.busy = busy
+    }
+
+    override fun targetFarOff(door: DoorStep?) {
+        val tile = Position(here.x + 6, here.y)
+        picker.view = picker.view.copy(items = listOf(bones.copy(position = tile, distance = 12, usableFromHere = false, approach = tile, door = door)))
     }
 
     override fun toString(): String = name
