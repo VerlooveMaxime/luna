@@ -20,8 +20,11 @@ fun approachTiles(corner: Position, width: Int, height: Int, from: Position): Li
     val footprintYs = corner.y until corner.y + height
     return xs.flatMap { x -> ys.map { y -> Position(x, y, corner.z) } }
         .filterNot { it.x in footprintXs && it.y in footprintYs }
-        .sortedWith(compareBy({ squaredDistance(it, from) }, { it.x }, { it.y }))
+        .sortedWith(nearestFirst(from))
 }
+
+/** Tiles nearest to [from] first, ties broken west to east, then south to north. */
+fun nearestFirst(from: Position): Comparator<Position> = compareBy({ squaredDistance(it, from) }, { it.x }, { it.y })
 
 /**
  * The tiles [obj] covers: its definition's sides, swapped when it is turned a quarter (facing north or south), as the

@@ -19,9 +19,15 @@ fun navigateToReach(player: Player, target: GameObject): CompletableFuture<Navig
         else -> player.navigator.navigate(tile, true)
     }
 
-/** The tiles around [target] a player can stand on and use it from, nearest to [from] first. */
+/**
+ * The tiles around [target], or under it, that a player can stand on and use it from, nearest to [from] first. A wall's
+ * own tile is one: a door is opened from the tile it stands on, and leaving that tile out sent a walk from there to the
+ * tile across the shut door (found live 2026-10-18, web-walker movement Part 4b).
+ */
 fun reachingTiles(collision: CollisionManager, target: GameObject, from: Position): List<Position> {
     val footprint = footprintOf(target)
-    return approachTiles(footprint.position, footprint.width, footprint.height, from)
+    val under = (0 until footprint.width).flatMap { dx -> (0 until footprint.height).map { dy -> footprint.position.translate(dx, dy) } }
+    return (under + approachTiles(footprint.position, footprint.width, footprint.height, from))
         .filter { canStandOn(collision, it) && collision.reached(it, target, STANDARD_SIZE) }
+        .sortedWith(nearestFirst(from))
 }

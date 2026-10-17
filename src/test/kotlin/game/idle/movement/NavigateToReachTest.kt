@@ -14,6 +14,7 @@ class NavigateToReachTest {
     private val boothTile = Position(3200, 3200)
     private val deadTreeId = 1286
     private val wallId = 1902
+    private val doorId = 1530
 
     @AfterEach
     fun resetWorld() = TestWorld.reset()
@@ -58,6 +59,14 @@ class NavigateToReachTest {
         navigateToReach(player, booth)
 
         assertEquals(Position(3199, 3200), player.navigator.currentTarget)
+    }
+
+    @Test
+    fun `a door is used from the tile it stands on`() {
+        val doorTile = Position(3201, 3200)
+        val door = TestWorld.place(doorId, doorTile, ObjectType.STRAIGHT_WALL, ObjectDirection.WEST)
+
+        assertEquals(doorTile, reachingTiles(TestWorld.world.collisionManager, door, from = doorTile).first())
     }
 
     @Test

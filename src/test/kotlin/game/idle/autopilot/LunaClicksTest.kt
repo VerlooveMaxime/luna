@@ -500,6 +500,16 @@ class LunaClicksTest {
     }
 
     @Test
+    fun `using a door from the side its own tile is on walks to that tile, not round to the tile across it`() {
+        val player = TestWorld.login("traveller", Position(3205, 3200))
+        TestWorld.place(door, beside, ObjectType.STRAIGHT_WALL, ObjectDirection.WEST)
+
+        LunaClicks.use(player, door, beside, option = null, from = beside)
+
+        assertEquals(beside, player.navigator.currentTarget)
+    }
+
+    @Test
     fun `an interrupt during the walk up drops its click`() {
         val player = TestWorld.login("traveller", Position(3195, 3200))
         TestWorld.place(door, beside)
