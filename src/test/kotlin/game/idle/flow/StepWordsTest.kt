@@ -1,5 +1,7 @@
 package game.idle.flow
 
+import game.idle.location.Tile
+
 import engine.combat.prayer.CombatPrayer
 import game.idle.flow.option.FakeNames
 import game.idle.font.EVEN_FONT
@@ -162,7 +164,25 @@ class StepWordsTest {
         assertEquals("Autopilot: could not resume your flow. Check it in the flow builder.", StepWords.CANNOT_RESUME)
     }
 
+    @ParameterizedTest(name = "{1}")
+    @MethodSource("underWayWords")
+    fun `what a trip does on its way is said in a few words`(underWay: UnderWay, text: String) {
+        assertEquals(text, words.underWay(underWay))
+    }
+
     companion object {
+        @JvmStatic
+        fun underWayWords(): List<Arguments> = listOf(
+            Arguments.of(UnderWay.Opening(Passage.DOOR), "Opening the door"),
+            Arguments.of(UnderWay.Opening(Passage.GATE), "Opening the gate"),
+            Arguments.of(UnderWay.Opening(Passage.TRAPDOOR), "Opening the trapdoor"),
+            Arguments.of(UnderWay.Passing(Passage.DOOR), "Going through the door"),
+            Arguments.of(UnderWay.Passing(Passage.CURTAIN), "Going through the curtain"),
+            Arguments.of(UnderWay.Passing(Passage.LADDER_UP), "Climbing up the ladder"),
+            Arguments.of(UnderWay.Passing(Passage.STAIRS_DOWN), "Climbing down the stairs"),
+            Arguments.of(UnderWay.Passing(Passage.TRAPDOOR), "Climbing down the trapdoor"),
+        )
+
         @JvmStatic
         fun fixedWords(): List<Arguments> = listOf(
             Arguments.of(Reason.NoneInReach(Target.TREE), "No tree in reach"),
@@ -180,6 +200,14 @@ class StepWordsTest {
             Arguments.of(Reason.OtherFloor(Place.WORK_SPOT), "The work spot is on another floor"),
             Arguments.of(Reason.NoWay(Place.TILE), "No way there from here"),
             Arguments.of(Reason.NoWay(Place.WORK_SPOT), "No way to the work spot from here"),
+            Arguments.of(Reason.Impassable(Passage.DOOR, Tile(3101, 3509)), "No way through the door at 3101, 3509"),
+            Arguments.of(Reason.Impassable(Passage.GATE, Tile(3253, 3266)), "No way through the gate at 3253, 3266"),
+            Arguments.of(Reason.Impassable(Passage.CURTAIN, Tile(3000, 3000)), "No way through the curtain at 3000, 3000"),
+            Arguments.of(Reason.Impassable(Passage.LADDER_UP, Tile(3200, 3200)), "No way up the ladder at 3200, 3200"),
+            Arguments.of(Reason.Impassable(Passage.LADDER_DOWN, Tile(3200, 3200, 1)), "No way down the ladder at 3200, 3200, 1"),
+            Arguments.of(Reason.Impassable(Passage.STAIRS_UP, Tile(3200, 3200)), "No way up the stairs at 3200, 3200"),
+            Arguments.of(Reason.Impassable(Passage.STAIRS_DOWN, Tile(3200, 3200, 1)), "No way down the stairs at 3200, 3200, 1"),
+            Arguments.of(Reason.Impassable(Passage.TRAPDOOR, Tile(3097, 3468)), "No way down the trapdoor at 3097, 3468"),
             Arguments.of(Reason.RunningClear(), "Running clear before stopping"),
             Arguments.of(Reason.RunningClear(toStep = 2), "Running clear to jump to step 2"),
             Arguments.of(Reason.BagFull(emptyList()), "The bag is full"),

@@ -20,10 +20,11 @@ import io.luna.game.model.mob.Player
  * options judged on boosted levels instead of the unboosted ones; a flow that stops when a boost wears off is theirs.
  * [blocked] is why the running step cannot go on for now, a fragment such as "Needs an axe you can use" (`StepWords`),
  * shown in red on the overlay and the builder, and [waiting] what it waits for the world to supply ("No tree in reach"),
- * shown in yellow; both transient, so a save never holds them, and cleared whenever the flow starts, stops or changes
- * step. [progress] is what the run did so far (S12: per-step totals, met goals, when it started), saved so a relog
- * resumes it, kept after a stop (the slots keep saying which goals were met) and cleared when a run starts afresh or
- * the flow changes; [stop] is the flow's stop condition, saved with the flow.
+ * shown in yellow, and [underWay] what a trip of the step does on its way ("Opening the door"), shown in white; all
+ * transient, so a save never holds them, and cleared whenever the flow starts, stops or changes step. [progress] is
+ * what the run did so far (S12: per-step totals, met goals, when it started), saved so a relog resumes it, kept after a
+ * stop (the slots keep saying which goals were met) and cleared when a run starts afresh or the flow changes; [stop] is
+ * the flow's stop condition, saved with the flow.
  *
  * The flow was kept as typed lines under the name `flow` until 2026-10-07; a save still holding them loads with an
  * empty flow, which the next save makes final.
@@ -45,15 +46,16 @@ data class IdleState(
     val stop: StopSettings = StopSettings(),
     @Transient val blocked: String? = null,
     @Transient val waiting: String? = null,
+    @Transient val underWay: String? = null,
 ) {
     /**
      * The flow as [steps] and [reflexes], the reflexes and the [stop] kept as they are unless given, stopped and from its
      * first step.
      */
     fun withFlow(steps: List<StepSettings>, reflexes: List<ReflexSettings> = this.reflexes, stop: StopSettings = this.stop): IdleState =
-        copy(steps = steps, reflexes = reflexes, stepIndex = 0, running = false, runTile = null, laps = 0, progress = RunProgress(), stop = stop, blocked = null, waiting = null)
+        copy(steps = steps, reflexes = reflexes, stepIndex = 0, running = false, runTile = null, laps = 0, progress = RunProgress(), stop = stop, blocked = null, waiting = null, underWay = null)
 
-    fun atStep(index: Int): IdleState = copy(stepIndex = index, blocked = null, waiting = null)
+    fun atStep(index: Int): IdleState = copy(stepIndex = index, blocked = null, waiting = null, underWay = null)
 
     /** Back to the first step, to be started from wherever the player then stands, nothing done yet. */
     fun fromStart(): IdleState = copy(stepIndex = 0, runTile = null, laps = 0, progress = RunProgress())
@@ -62,11 +64,11 @@ data class IdleState(
 
     /** Running, from [here] and [now] unless it was started before and is resuming. */
     fun started(here: Tile, now: Long): IdleState =
-        copy(running = true, runTile = runTile ?: here, progress = if (runTile == null) progress.copy(startedAt = now) else progress, blocked = null, waiting = null)
+        copy(running = true, runTile = runTile ?: here, progress = if (runTile == null) progress.copy(startedAt = now) else progress, blocked = null, waiting = null, underWay = null)
 
     fun withProgress(progress: RunProgress): IdleState = copy(progress = progress)
 
-    fun stopped(): IdleState = copy(running = false, blocked = null, waiting = null)
+    fun stopped(): IdleState = copy(running = false, blocked = null, waiting = null, underWay = null)
 
     companion object {
         const val TUTORIAL_DONE = 1000

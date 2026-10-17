@@ -202,6 +202,38 @@ class AutopilotTest {
     }
 
     @Test
+    fun `what a step does on its way goes into the state`() {
+        autopilot.start(idle)
+        activity.underWay = "Opening the door"
+
+        scheduler.tick()
+
+        assertEquals("Opening the door", idle.idleState.underWay)
+    }
+
+    @Test
+    fun `what a step does on its way tells nothing in the chat box`() {
+        autopilot.start(idle)
+        activity.underWay = "Opening the door"
+
+        scheduler.tick()
+
+        assertEquals(emptyList<String>(), idle.told)
+    }
+
+    @Test
+    fun `what a step did on its way leaves the state once it is past`() {
+        autopilot.start(idle)
+        activity.underWay = "Opening the door"
+        scheduler.tick()
+        activity.underWay = null
+
+        scheduler.tick()
+
+        assertEquals(null, idle.idleState.underWay)
+    }
+
+    @Test
     fun `a block after a wait is told`() {
         autopilot.start(idle)
         activity.waiting = "No tree in reach"

@@ -227,6 +227,25 @@ class ReflexGuardTest {
     }
 
     @Test
+    fun `running clear hides what the step's trip did on its way`() {
+        val guard = guard(stop())
+        step.underWay = UnderWay.Opening(Passage.DOOR)
+        body.attacked = true
+        hurt()
+
+        guard.act()
+
+        assertNull(guard.underWay())
+    }
+
+    @Test
+    fun `what the step's trip does on its way is the guard's`() {
+        step.underWay = UnderWay.Passing(Passage.LADDER_DOWN)
+
+        assertEquals(UnderWay.Passing(Passage.LADDER_DOWN), guard().underWay())
+    }
+
+    @Test
     fun `running clear before a jump names the step it goes on from`() {
         val guard = guard(jump(index = 2))
         body.attacked = true

@@ -261,6 +261,8 @@ class LunaAutopilotPlayerTest {
 
         override fun waiting(): String? = null
 
+        override fun underWay(): String? = null
+
         override fun end() = Unit
     }
 

@@ -11,6 +11,9 @@ sealed interface StepOutcome {
     /** A walk to a target or a free tile, the bank opened or closed: not work yet, not a problem either. */
     data object Approached : StepOutcome
 
+    /** A trip opens or gets past a passage on its way (Q7): an approach, with words while it lasts. */
+    data class OnTheWay(val underWay: UnderWay) : StepOutcome
+
     /** Nothing in reach from outside the step's area: the walk back goes [to] the area's anchor. */
     data class Away(val to: Tile) : StepOutcome
 

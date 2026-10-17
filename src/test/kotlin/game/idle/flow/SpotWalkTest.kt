@@ -175,6 +175,21 @@ class SpotWalkTest {
     }
 
     @Test
+    fun `what the walk to the spot does on its way is the step's`() {
+        walk.underWay = UnderWay.Opening(Passage.GATE)
+
+        assertEquals(UnderWay.Opening(Passage.GATE), spotWalk.underWay())
+    }
+
+    @Test
+    fun `after the walk what the work does on its way is the step's`() {
+        arrive()
+        work.underWay = UnderWay.Passing(Passage.DOOR)
+
+        assertEquals(UnderWay.Passing(Passage.DOOR), spotWalk.underWay())
+    }
+
+    @Test
     fun `a walk is no work`() {
         walk.worked = true
 

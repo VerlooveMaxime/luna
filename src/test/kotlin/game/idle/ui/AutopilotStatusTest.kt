@@ -70,6 +70,20 @@ class AutopilotStatusTest {
     }
 
     @Test
+    fun `a step on its way adds what it does in white`() {
+        val state = IdleState(steps = flow, stepIndex = 0, running = true, underWay = "Opening the door")
+
+        assertEquals("@whi@Opening the door", last(state))
+    }
+
+    @Test
+    fun `what a step does on its way comes under its line, before a block`() {
+        val state = IdleState(steps = flow, stepIndex = 0, running = true, underWay = "Opening the door", blocked = "No way there from here")
+
+        assertEquals(listOf("@whi@Opening the door", "@red@No way there from here"), status.text(state).split(StatusOverlayMessageWriter.LINE_SEPARATOR).drop(2))
+    }
+
+    @Test
     fun `separators in a block become spaces`() {
         val state = IdleState(steps = flow, stepIndex = 0, running = true, blocked = "No|way\nhere")
 

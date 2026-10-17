@@ -6,6 +6,7 @@ class FakeActivity : AutopilotActivity {
     var stop: String? = null
     var blocked: String? = null
     var waiting: String? = null
+    var underWay: String? = null
     var steps = 0
         private set
     var ended = 0
@@ -21,6 +22,8 @@ class FakeActivity : AutopilotActivity {
     override fun blocked(): String? = blocked
 
     override fun waiting(): String? = waiting
+
+    override fun underWay(): String? = underWay
 
     override fun act() {
         steps++

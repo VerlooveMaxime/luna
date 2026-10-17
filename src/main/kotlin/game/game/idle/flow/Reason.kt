@@ -1,5 +1,7 @@
 package game.idle.flow
 
+import game.idle.location.Tile
+
 /** What a step looks for in the world around its work spot. */
 enum class Target { TREE, ROCK, FISHING_SPOT, FIRE_OR_RANGE, FURNACE, ANVIL, NPC, BANK_BOOTH, FREE_TILE }
 
@@ -25,6 +27,9 @@ sealed interface Reason {
     data class OtherFloor(val place: Place) : Reason
 
     data class NoWay(val place: Place) : Reason
+
+    /** A trip's [passage] standing at [tile] would not let the player past: a door that did not open, a ladder not there. */
+    data class Impassable(val passage: Passage, val tile: Tile) : Reason
 
     /**
      * A stop or a reflex's jump held while something attacks the player, who runs until nothing does (S13): before the

@@ -161,6 +161,22 @@ class IdleStateTest {
     }
 
     @Test
+    fun `what a step does on its way is never saved`() {
+        val json = Attribute.getGsonInstance().toJson(state.copy(underWay = "Opening the door"))
+
+        assertFalse(json.contains("underWay"))
+    }
+
+    @Test
+    fun `starting, stopping, a new flow and a new step all clear what a step does on its way`() {
+        val onItsWay = state.copy(underWay = "Opening the door")
+
+        val cleared = listOf(onItsWay.started(runTile, 0), onItsWay.stopped(), onItsWay.withFlow(emptyList()), onItsWay.atStep(0))
+
+        assertEquals(listOf<String?>(null, null, null, null), cleared.map { it.underWay })
+    }
+
+    @Test
     fun `a new state has options judged on unboosted levels`() {
         assertFalse(IdleState().countBoostedLevels)
     }

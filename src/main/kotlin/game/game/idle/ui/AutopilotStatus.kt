@@ -10,14 +10,18 @@ import game.idle.font.ClientFont
  */
 class AutopilotStatus(private val lines: StepLines, private val font: ClientFont) {
 
-    /** Nothing while the autopilot is off; a blocked step adds why in red, a waiting one what it waits for in yellow. */
+    /**
+     * Nothing while the autopilot is off; a step on its way adds what it does in white under its line (Q7), a blocked
+     * one why in red, a waiting one what it waits for in yellow.
+     */
     fun text(state: IdleState): String {
         if (!state.running) return ""
         val header = "@gre@Autopilot@whi@ step ${state.stepIndex + 1}/${state.steps.size}"
         val step = current(state)?.let { "@yel@${plain(it)}" }
+        val underWay = state.underWay?.let { "@whi@${plain(it)}" }
         val blocked = state.blocked?.let { "@red@${plain(it)}" }
         val waiting = state.waiting?.let { "@yel@${plain(it)}" }
-        return listOfNotNull(header, step, blocked, waiting).joinToString(StatusOverlayMessageWriter.LINE_SEPARATOR.toString())
+        return listOfNotNull(header, step, underWay, blocked, waiting).joinToString(StatusOverlayMessageWriter.LINE_SEPARATOR.toString())
     }
 
     private fun current(state: IdleState): String? =

@@ -156,6 +156,7 @@ class FakeStepActivity(private val name: String, val log: MutableList<String>) :
     var stop: StepStop? = null
     var blocked: Reason? = null
     var waiting: Reason? = null
+    var underWay: UnderWay? = null
     var said: Said? = null
     var amountDone = 0
     var worked = true
@@ -171,6 +172,8 @@ class FakeStepActivity(private val name: String, val log: MutableList<String>) :
     override fun blocked(): Reason? = blocked
 
     override fun waiting(): Reason? = waiting
+
+    override fun underWay(): UnderWay? = underWay
 
     override fun said(): Said? = said.also { said = null }
 

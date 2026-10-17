@@ -208,6 +208,27 @@ class BuilderOverviewTest {
     }
 
     @Test
+    fun `what the running step does on its way takes the last line in white, with no mark`() {
+        val state = IdleState(steps = listOf(oak), running = true, underWay = "Opening the door")
+
+        assertEquals(listOf("Oak", "5 per lap", "@whi@Opening the door"), step(state).lines)
+    }
+
+    @Test
+    fun `what a step does on its way comes after its wait`() {
+        val state = IdleState(steps = listOf(oak), running = true, waiting = "No tree in reach", underWay = "Opening the door")
+
+        assertEquals(listOf("@yel@! No tree in reach", "@whi@Opening the door"), step(state).lines.drop(2))
+    }
+
+    @Test
+    fun `what a step does on its way belongs to the running step only`() {
+        val state = IdleState(steps = listOf(oak, oak), stepIndex = 1, running = true, underWay = "Opening the door")
+
+        assertEquals(listOf("Oak", "5 per lap"), step(state, slot = 0).lines)
+    }
+
+    @Test
     fun `an aggressive npc in reach of where a stopped step works takes its last lines in yellow, the frame unchanged`() {
         val step = step(IdleState(steps = listOf(oak)), facts = endangered)
 

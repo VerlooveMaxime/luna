@@ -19,6 +19,9 @@ interface StepActivity {
     /** What the step waits for the world to supply (a tree growing back), or null: shown in yellow, never told. */
     fun waiting(): Reason?
 
+    /** What a trip of the step does on its way (opening a door), or null: shown in white while it lasts, never told. */
+    fun underWay(): UnderWay?
+
     /** Why the whole flow must stop now, or null to carry on. */
     fun stopping(): StepStop?
 

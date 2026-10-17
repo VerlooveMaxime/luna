@@ -210,6 +210,41 @@ class FlowRunnerTest {
     }
 
     @Test
+    fun `what the current step's trip does on its way is the flow's, in words`() {
+        val runner = runner("chop")
+        runner.act()
+
+        player.started.single().underWay = UnderWay.Opening(Passage.DOOR)
+
+        assertEquals("Opening the door", runner.underWay())
+    }
+
+    @Test
+    fun `nothing is under way between two steps`() {
+        val runner = runner("chop", "drop")
+        runner.act()
+        player.started.single().underWay = UnderWay.Opening(Passage.DOOR)
+        player.started.single().done = true
+
+        runner.act()
+
+        assertEquals(null, runner.underWay())
+    }
+
+    @Test
+    fun `while a stop waits what the step's trip did on its way is not shown`() {
+        val runner = runner("fight")
+        runner.act()
+        player.started.single().stop = stuck
+        player.started.single().underWay = UnderWay.Opening(Passage.DOOR)
+        body.attacked = true
+
+        runner.act()
+
+        assertEquals(null, runner.underWay())
+    }
+
+    @Test
     fun `nothing is waited for between two steps`() {
         val runner = runner("chop", "drop")
         runner.act()

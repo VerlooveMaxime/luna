@@ -149,6 +149,9 @@ class ReflexGuard(
             is Leaving.InFlight -> null
         }
 
+    /** Hidden while the player runs clear or a teleport is under way, as the step's block is. */
+    override fun underWay(): UnderWay? = if (leaving != null) null else step.underWay()
+
     override fun amountDone(): Int = step.amountDone()
 
     override fun worked(): Boolean = step.worked()

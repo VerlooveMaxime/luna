@@ -184,18 +184,20 @@ class BuilderOverview(
 
     /**
      * The slot's lines are the step's words, the target in grey while nothing is picked, the goal on up to two lines,
-     * green once met (S12), then the held lines: the reason, the wait and the dangers, as many as the lines a reason may
-     * take; a danger shows whole or not at all.
+     * green once met (S12), then the held lines: the reason, the wait, what a trip does on its way in white with no "! "
+     * (Q7) and the dangers, as many as the lines a reason may take; a danger shows whole or not at all.
      */
     private fun step(state: IdleState, slot: Int, words: SlotWords, problem: String?, facts: OptionFacts): SlotView.Step {
         val icon = words.icon?.let { WidgetPicture.of(it) } ?: WidgetPicture.None
         val running = state.running && state.stepIndex == slot
         val reason = state.blocked?.takeIf { running } ?: problem
         val waiting = state.waiting?.takeIf { running }
+        val underWay = state.underWay?.takeIf { running }
         val targetLine = words.picked?.let { it.label?.let(::fitted) ?: NOT_SET }
         val goalLines = words.goal?.let { goal -> font.wrap(goal, BuilderWidgets.LINE_ROOM, GOAL_LINES).map { if (slot in state.progress.met) "@gre@$it" else it } }
         val details = listOfNotNull(targetLine) + words.details.map(::fitted) + goalLines.orEmpty()
-        val held = (reason?.let { heldLines(it, "@red@") }.orEmpty() + waiting?.let { heldLines(it, "@yel@") }.orEmpty()).take(REASON_LINES)
+        val held = (reason?.let { heldLines(it, "@red@") }.orEmpty() + waiting?.let { heldLines(it, "@yel@") }.orEmpty() +
+            underWay?.let { font.wrap(it, BuilderWidgets.LINE_ROOM, REASON_LINES).map { line -> "@whi@$line" } }.orEmpty()).take(REASON_LINES)
         val threats = dangers.of(state.steps, slot, facts).map { heldLines(it.short, "@yel@") }
         val shown = threats.fold(held) { lines, threat -> if (lines.size + threat.size <= REASON_LINES) lines + threat else lines }
         val pictures = StepPictures.of(icon, words.picked?.icon)

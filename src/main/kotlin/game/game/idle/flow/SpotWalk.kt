@@ -22,6 +22,8 @@ class SpotWalk(private val walk: StepActivity, private val work: () -> StepActiv
 
     override fun waiting(): Reason? = working?.waiting()
 
+    override fun underWay(): UnderWay? = (working ?: walk).underWay()
+
     override fun stopping(): StepStop? = working?.stopping()
 
     override fun said(): Said? = working?.said()

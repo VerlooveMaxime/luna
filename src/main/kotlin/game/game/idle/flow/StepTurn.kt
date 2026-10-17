@@ -26,6 +26,7 @@ class StepTurn(
     private var worked = false
     private var blocked: Reason? = null
     private var waiting: Reason? = null
+    private var underWay: UnderWay? = null
     private var said: Said? = null
     private var stopping: StepStop? = null
 
@@ -40,6 +41,8 @@ class StepTurn(
     override fun blocked(): Reason? = blocked
 
     override fun waiting(): Reason? = waiting
+
+    override fun underWay(): UnderWay? = underWay
 
     override fun stopping(): StepStop? = stopping
 
@@ -78,6 +81,7 @@ class StepTurn(
         when (outcome) {
             StepOutcome.Worked -> startedWork()
             StepOutcome.Approached -> clear()
+            is StepOutcome.OnTheWay -> onTheWay(outcome.underWay)
             is StepOutcome.Away -> away(outcome.to)
             is StepOutcome.Waiting -> wait(outcome.reason)
             is StepOutcome.Blocked -> block(outcome.reason)
@@ -100,16 +104,22 @@ class StepTurn(
     private fun clear() {
         blocked = null
         waiting = null
+        underWay = null
+    }
+
+    private fun onTheWay(doing: UnderWay) {
+        clear()
+        underWay = doing
     }
 
     private fun wait(reason: Reason) {
+        clear()
         waiting = reason
-        blocked = null
     }
 
     private fun block(reason: Reason) {
+        clear()
         blocked = reason
-        waiting = null
     }
 
     private fun finish() {
@@ -131,6 +141,7 @@ class StepTurn(
         when (outcome) {
             StepOutcome.Finished -> arrived()
             is StepOutcome.Blocked -> block(outcome.reason)
+            is StepOutcome.OnTheWay -> onTheWay(outcome.underWay)
             else -> clear()
         }
 

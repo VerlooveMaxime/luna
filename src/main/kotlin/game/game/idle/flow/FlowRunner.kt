@@ -112,6 +112,9 @@ class FlowRunner(
     /** What the current step waits for, in the block's words, or running clear before the flow stops. */
     override fun waiting(): String? = (if (fleeing) Reason.RunningClear() else current?.waiting())?.let(words::block)
 
+    /** What the current step's trip does on its way; none while the player runs clear before the flow stops. */
+    override fun underWay(): String? = if (fleeing) null else current?.underWay()?.let(words::underWay)
+
     override fun act() {
         if (steps.isEmpty()) return
         if (stopping() == null) step()

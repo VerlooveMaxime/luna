@@ -99,18 +99,18 @@ class Autopilot<P : AutopilotPlayer>(
         driver.tick()
         val reason = driver.stopReason()
         if (reason == null) {
-            noteHeld(player, driver.blocked(), driver.waiting())
+            noteHeld(player, driver.blocked(), driver.waiting(), driver.underWay())
             return
         }
         halt(player)
         player.tell(reason)
     }
 
-    private fun noteHeld(player: P, blocked: String?, waiting: String?) {
+    private fun noteHeld(player: P, blocked: String?, waiting: String?, underWay: String?) {
         val state = player.idleState
-        if (state.blocked == blocked && state.waiting == waiting) return
+        if (state.blocked == blocked && state.waiting == waiting && state.underWay == underWay) return
         if (state.blocked == null && blocked != null) player.tell(StepWords.cannotWork(state.stepIndex + 1))
-        player.idleState = state.copy(blocked = blocked, waiting = waiting)
+        player.idleState = state.copy(blocked = blocked, waiting = waiting, underWay = underWay)
     }
 
     /** Stops the flow and the walk it was taking the player on (to a bank, say), which would carry them far off. */

@@ -2,6 +2,7 @@ package game.idle.flow
 
 import game.idle.flow.option.GameNames
 import game.idle.font.ClientFont
+import game.idle.location.Tile
 import io.luna.game.model.mob.Skill
 
 /**
@@ -26,10 +27,22 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
             Reason.WrongWindow -> "Another make window is open"
             is Reason.OtherFloor -> otherFloor(reason.place)
             is Reason.NoWay -> noWay(reason.place)
+            is Reason.Impassable -> impassable(reason.passage, reason.tile)
             is Reason.BagFull -> "The bag is full"
             is Reason.NoneLeftInBank -> "No ${item(reason.item)} left in the bank"
             Reason.BankFull -> "The bank is full"
             is Reason.RunningClear -> reason.toStep?.let { "Running clear to jump to step $it" } ?: "Running clear before stopping"
+        }
+
+    /** What a trip does on its way, as the white line on the overlay and the running slot: "Opening the door". */
+    fun underWay(underWay: UnderWay): String =
+        when (underWay) {
+            is UnderWay.Opening -> "Opening the ${noun(underWay.passage)}"
+            is UnderWay.Passing -> when (underWay.passage.way) {
+                Way.THROUGH -> "Going through the ${noun(underWay.passage)}"
+                Way.UP -> "Climbing up the ${noun(underWay.passage)}"
+                Way.DOWN -> "Climbing down the ${noun(underWay.passage)}"
+            }
         }
 
     /** What step [number] tells the player: "Autopilot: step 2 ended, the bag is full: bones, cowhide left lying." */
@@ -134,6 +147,27 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
         when (place) {
             Place.TILE -> "Cannot walk to another floor"
             Place.WORK_SPOT -> "The work spot is on another floor"
+        }
+
+    /** "No way through the door at 3101, 3509", the tile as the walk step's slot shows one. */
+    private fun impassable(passage: Passage, tile: Tile): String =
+        "No way ${way(passage.way)} the ${noun(passage)} at ${tile.text().replace(" ", ", ")}"
+
+    private fun noun(passage: Passage): String =
+        when (passage) {
+            Passage.DOOR -> "door"
+            Passage.GATE -> "gate"
+            Passage.CURTAIN -> "curtain"
+            Passage.LADDER_UP, Passage.LADDER_DOWN -> "ladder"
+            Passage.STAIRS_UP, Passage.STAIRS_DOWN -> "stairs"
+            Passage.TRAPDOOR -> "trapdoor"
+        }
+
+    private fun way(way: Way): String =
+        when (way) {
+            Way.THROUGH -> "through"
+            Way.UP -> "up"
+            Way.DOWN -> "down"
         }
 
     private fun noWay(place: Place): String =

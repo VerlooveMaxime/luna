@@ -36,6 +36,13 @@ class AutopilotDriverTest {
     }
 
     @Test
+    fun `what the activity does on its way is the driver's`() {
+        activity.underWay = "Opening the door"
+
+        assertEquals("Opening the door", driver.underWay())
+    }
+
+    @Test
     fun `ending the driver ends its activity`() {
         driver.end()
 
