@@ -71,18 +71,48 @@ class LunaFisherTest {
     @Test
     fun `out of bait, an open window does not keep the player busy, so the step can say why it stopped`() {
         val player = login()
+        player.inventory.add(Item(Tool.FISHING_ROD.id))
         player.overlays.open(StandardInterface(5292))
 
         assertFalse(fisher(player, Tool.FISHING_ROD).isBusy())
     }
 
     @Test
-    fun `with bait, an open window keeps a rod fisher busy`() {
+    fun `with the rod and bait, an open window keeps a rod fisher busy`() {
         val player = login()
+        player.inventory.add(Item(Tool.FISHING_ROD.id))
         player.inventory.add(Item(fishingBait, 5))
         player.overlays.open(StandardInterface(5292))
 
         assertTrue(fisher(player, Tool.FISHING_ROD).isBusy())
+    }
+
+    @Test
+    fun `without the tool, an open window does not keep the player busy, so the step can say why it stopped`() {
+        val player = login()
+        player.overlays.open(StandardInterface(5292))
+
+        assertFalse(fisher(player).isBusy())
+    }
+
+    @Test
+    fun `with a full bag, Luna's dialogue saying so does not keep the player busy, so the step can end`() {
+        val player = login()
+        player.inventory.add(Item(Tool.SMALL_NET.id))
+        player.inventory.add(Item(rawShrimps, 27))
+        player.overlays.open(StandardInterface(5292))
+
+        assertFalse(fisher(player).isBusy())
+    }
+
+    @Test
+    fun `a player still acting with a full bag stays busy, so a last cast lands first`() {
+        val player = login()
+        player.inventory.add(Item(Tool.SMALL_NET.id))
+        player.inventory.add(Item(rawShrimps, 27))
+        player.walking.addStep(Direction.EAST)
+
+        assertTrue(fisher(player).isBusy())
     }
 
     @Test

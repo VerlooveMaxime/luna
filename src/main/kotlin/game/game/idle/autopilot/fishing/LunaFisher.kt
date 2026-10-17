@@ -21,10 +21,10 @@ class LunaFisher(private val player: Player, private val catch: FishingCatch, pr
     private val around = NpcsAround(player, area, accepts = { it.id in method.spotIds }, policy = { STANDARD_SIZE })
 
     /**
-     * Out of bait, the player is never busy: Luna's fishing then opens a dialogue that would hold the step, and the
-     * step has to block on the bait.
+     * An open window keeps the player busy, except the dialogue in which Luna's fishing says why it stopped: without the
+     * tool or the bait, or with a full bag, the step has to block on the tool or the bait, or end on the full bag.
      */
-    override fun isBusy(): Boolean = LunaClicks.busy(player) && hasBait()
+    override fun isBusy(): Boolean = LunaClicks.isActing(player) || (LunaClicks.hasBlockingWindow(player) && canGoOn())
 
     override fun look(): FishingView = FishingView(around.atLocation(), around.candidates())
 
@@ -48,6 +48,8 @@ class LunaFisher(private val player: Player, private val catch: FishingCatch, pr
     override fun pulledUp(): Int = method.catchIds.sumOf { player.inventory.computeAmountForId(it) }
 
     override fun interrupt() = LunaClicks.interrupt(player)
+
+    private fun canGoOn(): Boolean = player.inventory.contains(method.tool.id) && hasBait() && !player.inventory.isFull
 
     private fun hasBait(): Boolean = method.tool.bait?.let { player.inventory.contains(it) } ?: true
 }
