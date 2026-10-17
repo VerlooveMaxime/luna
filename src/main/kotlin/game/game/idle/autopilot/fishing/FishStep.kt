@@ -31,16 +31,16 @@ import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
 /**
- * How a fish step fishes: one of Luna's tools at the spots Luna's [FishingSpot] table fishes with it, each spot clicked
- * on the option that uses the tool. [ALL] reads Luna's [Tool] lazily: its fish name themselves from the item
+ * How a fish step fishes: one of Luna's tools at the spot npcs Luna's [FishingSpot] table fishes with it, each spot
+ * clicked on the option that uses the tool. [ALL] reads Luna's [Tool] lazily: its fish name themselves from the item
  * definitions, which only a booted world has.
  */
 data class FishingMethod(val tool: Tool) {
 
     /** The spots fished with this method on their second option; the others on their first. */
-    val secondClickSpots: Set<Int> = FishingSpot.secondClickIds(tool)
+    val secondClickSpots: Set<Int> = spotIds { it.secondOption }
 
-    val spotIds: Set<Int> = FishingSpot.firstClickIds(tool) + secondClickSpots
+    val spotIds: Set<Int> = spotIds { it.firstOption } + secondClickSpots
 
     /** Everything the method can pull up, a big net's caskets and boots included: what lands in the bag. */
     val catchIds: Set<Int> = tool.fish.map { it.id }.toSet()
@@ -54,7 +54,13 @@ data class FishingMethod(val tool: Tool) {
     /** The bait, when the method takes any (S03b: bait like tools), counted in the bag only and not one by one. */
     val baitNeed: ToolNeed? = tool.bait?.let { ToolNeed(word = FEATHERS.takeIf { tool == Tool.FLY_FISHING_ROD }, mapOf(it to 1), countable = false) }
 
+    private fun spotIds(option: (FishingSpot) -> Tool?): Set<Int> =
+        FishingSpot.entries.filter { it !in ELSEWHERE && option(it) == tool }.flatMap { it.npcs }.toSet()
+
     companion object {
+
+        /** Spots whose catch Luna hands to someone else instead of the bag, so a step could never count it. */
+        private val ELSEWHERE = setOf(FishingSpot.MISCELLANIA)
 
         /** The fly fishing rod's bait is named "Feather", one of many, so its need reads "feathers" as fishing bait reads "fishing bait". */
         private const val FEATHERS = "feathers"
@@ -62,8 +68,8 @@ data class FishingMethod(val tool: Tool) {
         /** What the cache calls an uncooked fish, which a casket or seaweed is not. */
         const val RAW = "Raw "
 
-        /** Every tool Luna's table has spots for, lowest level first. */
-        val ALL: List<FishingMethod> by lazy { Tool.entries.map(::FishingMethod).filter { it.spotIds.isNotEmpty() } }
+        /** Every tool, lowest level first: Luna's table has spots for each. */
+        val ALL: List<FishingMethod> by lazy { Tool.entries.map(::FishingMethod) }
     }
 }
 
@@ -78,8 +84,13 @@ data class FishingCatch(val fish: Fish, val method: FishingMethod) {
 
     companion object {
 
-        /** Every raw fish of every method, lowest level first. */
-        val ALL: List<FishingCatch> by lazy { FishingMethod.ALL.flatMap { method -> method.fish.map { FishingCatch(it, method) } }.sortedBy { it.fish.level } }
+        /**
+         * Every raw fish, lowest level first, each caught by the first method in Luna's order that catches it: shrimp
+         * by the small net rather than at the karambwanji spots.
+         */
+        val ALL: List<FishingCatch> by lazy {
+            FishingMethod.ALL.flatMap { method -> method.fish.map { FishingCatch(it, method) } }.distinctBy { it.fish }.sortedBy { it.fish.level }
+        }
 
         fun named(word: String): FishingCatch? = ALL.firstOrNull { it.word == word.lowercase() }
     }

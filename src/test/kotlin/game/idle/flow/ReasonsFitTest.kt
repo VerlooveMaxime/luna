@@ -165,7 +165,7 @@ class ReasonsFitTest {
         "mine with no rock" to listOf(step("mine")),
         "mine of a rock that is not one" to listOf(step("mine", "ore" to "rune_essence")),
         "fish with no catch" to listOf(step("fish")),
-        "fish of a catch that is not one" to listOf(step("fish", "fish" to "karambwan")),
+        "fish of a catch that is not one" to listOf(step("fish", "fish" to "casket")),
         "light with no logs" to listOf(step("light", "input" to "bank")),
         "light of logs no step before gets" to listOf(step("light", "input" to "earlier", "logs" to "1521")),
         "cook with no raw food" to listOf(step("cook", "input" to "bank")),

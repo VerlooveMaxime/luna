@@ -32,7 +32,8 @@ class FishStepTypeTest {
 
     private fun fish(vararg values: Pair<String, String>) = StepSettings("fish", mapOf(*values))
 
-    private val shrimp = FishingCatch(Fish.SHRIMP, FishingMethod(Tool.SMALL_NET))
+    /** Lazy: a field initialiser runs before the definitions below are loaded. */
+    private val shrimp by lazy { FishingCatch(Fish.SHRIMP, FishingMethod(Tool.SMALL_NET)) }
 
     /** Luna's fish name themselves from the item definitions, which need the cache. */
     @BeforeEach
@@ -69,9 +70,17 @@ class FishStepTypeTest {
     @Test
     fun `every raw fish of every method is a catch, lowest level first`() {
         assertEquals(
-            listOf("shrimp", "sardine", "herring", "anchovy", "mackerel", "trout", "cod", "pike", "salmon", "tuna", "lobster", "bass", "swordfish", "monkfish", "shark"),
+            listOf(
+                "shrimp", "karambwanji", "sardine", "herring", "anchovy", "mackerel", "trout", "cod", "pike", "salmon", "tuna",
+                "cave_eel", "lobster", "bass", "swordfish", "lava_eel", "monkfish", "karambwan", "shark",
+            ),
             FishingCatch.ALL.map { it.word },
         )
+    }
+
+    @Test
+    fun `a fish two methods catch is the first method's catch`() {
+        assertEquals(Tool.SMALL_NET, FishingCatch.named("shrimp")?.method?.tool)
     }
 
     @Test
@@ -85,9 +94,9 @@ class FishStepTypeTest {
     }
 
     @Test
-    fun `a fish not caught yet is rejected`() {
-        assertRejected("'karambwan' is not a catch") {
-            FishStepType.resolve(fish("fish" to "karambwan"), FlowContext())
+    fun `what a method only pulls up as by-catch is rejected`() {
+        assertRejected("'casket' is not a catch") {
+            FishStepType.resolve(fish("fish" to "casket"), FlowContext())
         }
     }
 
@@ -110,35 +119,40 @@ class FishStepTypeTest {
     }
 
     @Test
-    fun `every tool Luna's spot table uses is a method, lowest level first, the karambwan vessel not`() {
+    fun `every tool Luna's spot table uses is a method, lowest level first`() {
         val tools = listOf(
-            Tool.SMALL_NET, Tool.FISHING_ROD, Tool.BIG_NET, Tool.FLY_FISHING_ROD, Tool.HARPOON, Tool.LOBSTER_POT,
-            Tool.MONKFISH_NET, Tool.SHARK_HARPOON,
+            Tool.SMALL_NET, Tool.KARAMBWANJI_NET, Tool.FISHING_ROD, Tool.BIG_NET, Tool.FLY_FISHING_ROD, Tool.PIKE_FISHING_ROD,
+            Tool.SLIMY_EEL_FISHING_ROD, Tool.CAVE_EEL_FISHING_ROD, Tool.HARPOON, Tool.LOBSTER_POT, Tool.LAVA_EEL_FISHING_ROD,
+            Tool.MONKFISH_NET, Tool.KARAMBWAN_VESSEL, Tool.SHARK_HARPOON,
         )
 
         assertEquals(tools, FishingMethod.ALL.map { it.tool })
     }
 
     @Test
+    fun `every method works some spot`() {
+        assertEquals(emptyList<FishingMethod>(), FishingMethod.ALL.filter { it.spotIds.isEmpty() })
+    }
+
+    @Test
     fun `the small net works the sea's and the island's net spots and catches shrimp and anchovies`() {
         val net = FishingMethod(Tool.SMALL_NET)
 
-        assertEquals(setOf(316, 319, 320, 323, 325, 326, 327, 330, 1331, 952), net.spotIds)
+        assertEquals(setOf(316, 319, 320, 323, 325, 326, 327, 330, 332, 1331, 952), net.spotIds)
         assertEquals(emptySet<Int>(), net.secondClickSpots)
         assertEquals(setOf(317, 321), net.catchIds)
     }
 
     @Test
-    fun `the rod baits the contest spots on their first option and the sea and river spots on their second`() {
+    fun `the rod baits the sea spots on their second option`() {
         val rod = FishingMethod(Tool.FISHING_ROD)
 
-        assertEquals(setOf(233, 234, 235, 236), rod.spotIds - rod.secondClickSpots)
-        assertEquals(FishingSpot.SEA.ids + FishingSpot.RIVER.ids, rod.secondClickSpots)
+        assertEquals(listOf(FishingSpot.NET_BAIT.npcs, FishingSpot.NET_BAIT.npcs), listOf(rod.spotIds, rod.secondClickSpots))
     }
 
     @Test
-    fun `a method with no spot in Luna's table works nowhere`() {
-        assertEquals(emptySet<Int>(), FishingMethod(Tool.KARAMBWAN_VESSEL).spotIds)
+    fun `the lobster pot works the cage spots but not Miscellania's, whose catch goes to Fisherman Frodi`() {
+        assertEquals(FishingSpot.CAGE_HARPOON.npcs, FishingMethod(Tool.LOBSTER_POT).spotIds)
     }
 
     @Test
