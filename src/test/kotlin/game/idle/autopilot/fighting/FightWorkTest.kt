@@ -113,6 +113,25 @@ class FightWorkTest {
     }
 
     @Test
+    fun `an npc attacking the player is fought back even when set aside`() {
+        val attacker = inReach.copy(attacking = true)
+
+        val decision = FightingPlanner.decide(view(targets = listOf(attacker, far)), skipped = setOf(attacker.aim))
+
+        assertEquals(FightDecision.Attack(attacker), decision)
+    }
+
+    @Test
+    fun `an npc attacking the player is attacked again after its fight broke off, never set aside for another`() {
+        fighter.view = view(targets = listOf(inReach.copy(attacking = true), far))
+        work.act(left = null)
+
+        work.act(left = null)
+
+        assertEquals(listOf("attack 3100,9510", "attack 3100,9510"), fighter.steps)
+    }
+
+    @Test
     fun `with every npc around set aside the planner waits, never blocks`() {
         val decision = FightingPlanner.decide(view(targets = listOf(inReach)), skipped = setOf(inReach.aim))
 

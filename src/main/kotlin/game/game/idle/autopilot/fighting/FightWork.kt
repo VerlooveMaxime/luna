@@ -71,9 +71,11 @@ sealed interface FightDecision {
 /**
  * Fights back what attacks the player first (Maxime, 2026-10-10: in single combat nothing else can be fought, in multi
  * a second npc would join), then the nearest npc, one in reach first, walking up to it when none is: Luna's click does
- * not walk. The npcs [RetrySkip] set aside are left out by index: a set-aside npc that wanders is still set aside. With
- * none in reach inside the area the step waits: the world respawns npcs, and the ones set aside come back (Maxime,
- * 2026-10-11).
+ * not walk. The npcs [RetrySkip] set aside are left out by index: a set-aside npc that wanders is still set aside. One
+ * attacking the player never is: attacking it again is no fruitless retry but fighting back, after a level-up broke off
+ * the fight, say (Maxime, 2026-10-18: the step clicked other npcs, "You are already in combat.", while it kept hitting).
+ * With none in reach inside the area the step waits: the world respawns npcs, and the ones set aside come back
+ * (Maxime, 2026-10-11).
  */
 object FightingPlanner {
 
@@ -82,7 +84,7 @@ object FightingPlanner {
 
     fun decide(view: FightView, skipped: Set<Aim>): FightDecision {
         val setAside = skipped.map { it.key }.toSet()
-        val best = view.targets.filterNot { it.id in setAside }.minWithOrNull(preferredFirst)
+        val best = view.targets.filterNot { it.id in setAside && !it.attacking }.minWithOrNull(preferredFirst)
         return when {
             best == null && !view.atLocation -> WalkToLocation
             best == null -> Settled(StepOutcome.Waiting(Reason.NoneInReach(Target.NPC)))
