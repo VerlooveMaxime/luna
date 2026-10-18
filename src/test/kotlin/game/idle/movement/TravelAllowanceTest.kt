@@ -56,6 +56,22 @@ class TravelAllowanceTest {
     }
 
     @Test
+    fun `switching a choice on changes that choice alone`() {
+        assertEquals(
+            listOf(TravelAllowance(coins = true), TravelAllowance(runes = true), TravelAllowance(charges = true)),
+            TravelChoice.entries.map { TravelAllowance.NONE.with(it, allowed = true) },
+        )
+    }
+
+    @Test
+    fun `switching a choice off changes that choice alone`() {
+        assertEquals(
+            listOf(TravelAllowance(runes = true, charges = true), TravelAllowance(coins = true, charges = true), TravelAllowance(coins = true, runes = true)),
+            TravelChoice.entries.map { TravelAllowance.ALL.with(it, allowed = false) },
+        )
+    }
+
+    @Test
     fun `everything allowed is every choice`() {
         assertEquals(listOf(true, true, true), TravelChoice.entries.map(TravelAllowance.ALL::allows))
     }

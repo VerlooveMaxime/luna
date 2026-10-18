@@ -73,7 +73,7 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
     private fun teleported(started: TeleportStarted): String =
         when (started) {
             is TeleportStarted.Cast -> {
-                val spent = started.spent.entries.joinToString(", ") { (item, amount) -> "$amount ${spentItem(item)}" }
+                val spent = Teleports.amounts(started.spent, names)
                 "casts the ${Teleports.named(started.destination).removePrefix("the ")} teleport${if (spent.isEmpty()) "" else ": $spent"}"
             }
             is TeleportStarted.Rubbed ->
@@ -88,19 +88,8 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
 
     private fun jewellery(destination: TeleportDestination.Jewellery): String = Teleports.jewelleryName(destination.jewellery, names)
 
-    /** A rune by its kind ("law"), anything else by its name ("banana"), as the reflexes' teleport list notes a spell's cost. */
-    private fun spentItem(id: Int): String = item(id).removeSuffix(" rune")
-
     /** The Travel tab's row that would allow it, as the player finds it there (Maxime, 2026-10-18): "tolls and fares are off in Travel". */
     private fun offInTravel(choice: TravelChoice): String = "${travelRow(choice)} ${if (choice == TravelChoice.CHARGES) "is" else "are"} off in Travel"
-
-    /** A Travel choice by its row on the Travel tab, in a sentence: "tolls and fares", "teleport spells", "teleport jewellery". */
-    private fun travelRow(choice: TravelChoice): String =
-        when (choice) {
-            TravelChoice.COINS -> "tolls and fares"
-            TravelChoice.RUNES -> "teleport spells"
-            TravelChoice.CHARGES -> "teleport jewellery"
-        }
 
     /** Why the flow stopped at step [number]. */
     fun stop(number: Int, stop: StepStop): String =
@@ -227,6 +216,14 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
 
         /** What every chat line of the autopilot starts with, the builder's own lines included. */
         const val PREFIX = "Autopilot: "
+
+        /** A Travel choice by its row on the Travel tab, in a sentence: "tolls and fares", "teleport spells", "teleport jewellery". */
+        fun travelRow(choice: TravelChoice): String =
+            when (choice) {
+                TravelChoice.COINS -> "tolls and fares"
+                TravelChoice.RUNES -> "teleport spells"
+                TravelChoice.CHARGES -> "teleport jewellery"
+            }
 
         const val DIED = "${PREFIX}stopped, you died."
 

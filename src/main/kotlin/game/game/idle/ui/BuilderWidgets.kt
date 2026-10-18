@@ -47,6 +47,9 @@ object BuilderWidgets {
     /** The layer of the Steps tab's "Attach all reflexes" (S07c2b), hidden on the Reflexes tab. */
     const val ATTACH_ALL_REFLEXES_LAYER = 30726
     const val ATTACH_ALL_REFLEXES = 30727
+    /** The overview's third tab (web-walker movement Part 3b): what the flow's trips may spend. */
+    const val TRAVEL_TAB = 30728
+    const val TRAVEL_TAB_FRAME = 30729
 
     const val KINDS = 30730
     const val KINDS_TITLE = 30731
@@ -101,6 +104,25 @@ object BuilderWidgets {
     const val STOPS_AFTER_FACE = 42211
     const val STOPS_AFTER_FRAME = 42212
     const val STOPS_AFTER_TEXT = 42213
+
+    /**
+     * The Travel tab's page (Part 3b), in the slots' place: a row per Travel choice (its name, a frame and a button for No
+     * and for Yes, then its lines), then the line on what is always used.
+     */
+    const val TRAVEL = 42600
+    const val TRAVEL_ALWAYS = 42601
+    const val TRAVEL_ROWS = 3
+    const val TRAVEL_LINES = 3
+    private const val TRAVEL_ROW_BASE = 42610
+    private const val TRAVEL_ROW_STRIDE = 10
+
+    /** Room for a line under a Travel row, the always-used line, a row's name, its No and Yes, and the tab's word. */
+    const val TRAVEL_LINE_ROOM = 463
+    const val TRAVEL_ALWAYS_ROOM = 471
+    const val TRAVEL_LABEL_ROOM = 120
+    const val TRAVEL_NO_ROOM = 30
+    const val TRAVEL_YES_ROOM = 78
+    const val TRAVEL_TAB_ROOM = 44
 
     /** A configure list per column (Maxime, 2026-10-10), a line to add or remove, then one line per item. */
     const val LISTS = 2
@@ -272,6 +294,30 @@ object BuilderWidgets {
             2 -> row(row) + TWO_BUTTONS
             3 -> row(row) + THREE_BUTTONS
             else -> WIDE_TOGGLES + row * WIDE_TOGGLE_STRIDE
+        }
+
+    private fun travelRow(row: Int): Int = TRAVEL_ROW_BASE + row * TRAVEL_ROW_STRIDE
+
+    fun travelLabel(row: Int): Int = travelRow(row)
+
+    fun travelNoFrame(row: Int): Int = travelRow(row) + 1
+
+    fun travelNo(row: Int): Int = travelRow(row) + 2
+
+    fun travelYesFrame(row: Int): Int = travelRow(row) + 3
+
+    fun travelYes(row: Int): Int = travelRow(row) + 4
+
+    fun travelLine(row: Int, line: Int): Int = travelRow(row) + 5 + line
+
+    /** The Travel row whose No or Yes button [widgetId] is, with true for Yes, or null. */
+    fun travelOf(widgetId: Int): Pair<Int, Boolean>? =
+        (0 until TRAVEL_ROWS).firstNotNullOfOrNull { row ->
+            when (widgetId) {
+                travelNo(row) -> row to false
+                travelYes(row) -> row to true
+                else -> null
+            }
         }
 
     /** The frame of the stop row's [choice], which the server lights. */

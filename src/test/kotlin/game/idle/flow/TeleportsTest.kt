@@ -256,6 +256,24 @@ class TeleportsTest {
     }
 
     @Test
+    fun `each reflex keeping a teleport back is known by its place among the flow's reflexes`() {
+        val steps = listOf(StepSettings("chop", reflexes = listOf(1, 3, 4)))
+        val reflexes = listOf(
+            reflex(1, "do" to "teleport", "destination" to "varrock"),
+            reflex(2, "do" to "teleport", "destination" to "falador"),
+            reflex(3, "do" to "eat"),
+            reflex(4, "do" to "teleport", "destination" to "varrock"),
+        )
+
+        assertEquals(mapOf(0 to varrock, 3 to varrock), Teleports.reserving(steps, reflexes))
+    }
+
+    @Test
+    fun `amounts name a rune by its kind and anything else by its name`() {
+        assertEquals("3 air, 1 banana", Teleports.amounts(mapOf(Rune.AIR.id to 3, banana to 1), FakeNames(mapOf(Rune.AIR.id to "Air rune", banana to "Banana"))))
+    }
+
+    @Test
     fun `a teleport reflex going nowhere it can keeps nothing back`() {
         val steps = listOf(StepSettings("chop", reflexes = listOf(1, 2)))
 

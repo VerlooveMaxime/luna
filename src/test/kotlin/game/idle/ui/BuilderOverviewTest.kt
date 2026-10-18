@@ -10,6 +10,7 @@ import game.idle.flow.FakeStepType.Companion.step
 import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.FlowResolver
+import game.idle.flow.ReflexKeys
 import game.idle.flow.ReflexSettings
 import game.idle.flow.ResolvedStep
 import game.idle.flow.SavedFlows
@@ -63,7 +64,7 @@ class BuilderOverviewTest {
     private val font = ClientFont(IntArray(256) { 5 })
     private val types = StepTypes(listOf(Chop, FakeStepType("drop"), GoalChop))
     private val resolver = FlowResolver(types)
-    private val overview = BuilderOverview(resolver, REFLEXES, REFLEX_FORM, FakeNames(items = mapOf(1521 to "Oak")), font, SavedFlows(2), StepDangers(resolver, DANGERS, FakeNames()))
+    private val overview = BuilderOverview(resolver, REFLEXES, REFLEX_FORM, FakeNames(items = mapOf(1521 to "Oak", 554 to "Fire rune", 563 to "Law rune")), font, SavedFlows(2), StepDangers(resolver, DANGERS, FakeNames()))
 
     private val oak = StepSettings("chop", mapOf("tree" to "oak"))
     private val drop = StepSettings("drop")
@@ -541,10 +542,59 @@ class BuilderOverviewTest {
     }
 
     @Test
-    fun `the Steps tab shows Attach all reflexes and the Reflexes tab hides it`() {
+    fun `the Travel tab shows the overview with its page instead of the slots, the tab lit`() {
+        val page = overview.page(BuilderPage.TRAVEL)
+
         assertEquals(
-            listOf(true, false),
-            listOf(BuilderPage.OVERVIEW, BuilderPage.REFLEXES).map { page ->
+            listOf(
+                WidgetUpdate.Visible(BuilderWidgets.OVERVIEW, visible = true),
+                WidgetUpdate.Visible(BuilderWidgets.SLOTS, visible = false),
+                WidgetUpdate.Visible(BuilderWidgets.REFLEX_ROWS, visible = false),
+                WidgetUpdate.Text(BuilderWidgets.STEPS_TAB, "Steps"),
+                WidgetUpdate.Colour(BuilderWidgets.STEPS_TAB_FRAME, BuilderWidgets.UNLIT),
+                WidgetUpdate.Text(BuilderWidgets.REFLEXES_TAB, "Reflexes"),
+                WidgetUpdate.Colour(BuilderWidgets.REFLEXES_TAB_FRAME, BuilderWidgets.UNLIT),
+                WidgetUpdate.Visible(BuilderWidgets.TRAVEL, visible = true),
+                WidgetUpdate.Text(BuilderWidgets.TRAVEL_TAB, "@whi@Travel"),
+                WidgetUpdate.Colour(BuilderWidgets.TRAVEL_TAB_FRAME, BuilderWidgets.LIT),
+            ),
+            page.take(10),
+        )
+    }
+
+    @Test
+    fun `the Steps tab hides the Travel page, its tab unlit`() {
+        val page = overview.page(BuilderPage.OVERVIEW)
+
+        assertEquals(
+            listOf(
+                WidgetUpdate.Visible(BuilderWidgets.TRAVEL, visible = false),
+                WidgetUpdate.Text(BuilderWidgets.TRAVEL_TAB, "Travel"),
+                WidgetUpdate.Colour(BuilderWidgets.TRAVEL_TAB_FRAME, BuilderWidgets.UNLIT),
+            ),
+            page.drop(7).take(3),
+        )
+    }
+
+    @Test
+    fun `the overview's updates fill the Travel page`() {
+        assertEquals(WidgetUpdate.Text(BuilderWidgets.travelNo(0), "@whi@No"), updates(IdleState())[BuilderWidgets.travelNo(0)])
+    }
+
+    @Test
+    fun `the Travel page keeps back no rune the player's worn staff gives`() {
+        val varrock = ReflexSettings(1, mapOf(ReflexKeys.DO to ReflexKeys.TELEPORT, ReflexKeys.DESTINATION to "varrock"))
+        val state = IdleState(steps = listOf(oak.copy(reflexes = listOf(1))), reflexes = listOf(varrock))
+        val sent = overview.updates(state, slots = 4, reflexSlots = 2, OptionFacts(worn = setOf(1381))).filterIsInstance<WidgetUpdate.Text>()
+
+        assertEquals("@whi@Kept for reflex 1's Varrock teleport: 1 fire, 1 law", sent.single { it.id == BuilderWidgets.travelLine(1, 1) }.text)
+    }
+
+    @Test
+    fun `the Steps tab shows Attach all reflexes and the Reflexes and Travel tabs hide it`() {
+        assertEquals(
+            listOf(true, false, false),
+            listOf(BuilderPage.OVERVIEW, BuilderPage.REFLEXES, BuilderPage.TRAVEL).map { page ->
                 overview.page(page).filterIsInstance<WidgetUpdate.Visible>().single { it.id == BuilderWidgets.ATTACH_ALL_REFLEXES_LAYER }.visible
             },
         )

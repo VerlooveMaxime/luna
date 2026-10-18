@@ -19,6 +19,14 @@ data class TravelAllowance(val coins: Boolean = false, val runes: Boolean = fals
             TravelChoice.CHARGES -> charges
         }
 
+    /** This allowance with [choice] switched to [allowed], as the builder's Travel tab sets it (Part 3b). */
+    fun with(choice: TravelChoice, allowed: Boolean): TravelAllowance =
+        when (choice) {
+            TravelChoice.COINS -> copy(coins = allowed)
+            TravelChoice.RUNES -> copy(runes = allowed)
+            TravelChoice.CHARGES -> copy(charges = allowed)
+        }
+
     /**
      * [carried] (what the player carries and can do) as the planner may spend it on a trip: coins only when [coins] is
      * allowed, spells only with [runes], jewellery only with [charges], never the home teleport, and never what

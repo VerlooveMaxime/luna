@@ -81,11 +81,14 @@ object Teleports {
      * The teleports the flow's reflexes would cast next, which a trip never spends (Q2, Maxime 2026-10-17): every
      * teleport reflex attached to one of [steps], once each, in the flow's order.
      */
-    fun reserved(steps: List<StepSettings>, reflexes: List<ReflexSettings>): List<TeleportDestination> {
+    fun reserved(steps: List<StepSettings>, reflexes: List<ReflexSettings>): List<TeleportDestination> = reserving(steps, reflexes).values.distinct()
+
+    /** The reflexes [reserved] keeps teleports back for, by their index in [reflexes], with where each teleports. */
+    fun reserving(steps: List<StepSettings>, reflexes: List<ReflexSettings>): Map<Int, TeleportDestination> {
         val attached = steps.flatMap { it.reflexes }.toSet()
-        return reflexes.filter { it.id in attached && it[ReflexKeys.DO] == ReflexKeys.TELEPORT }
-            .mapNotNull { reflex -> reflex[ReflexKeys.DESTINATION]?.let(::of) }
-            .distinct()
+        return reflexes.withIndex().filter { (_, reflex) -> reflex.id in attached && reflex[ReflexKeys.DO] == ReflexKeys.TELEPORT }
+            .mapNotNull { (index, reflex) -> reflex[ReflexKeys.DESTINATION]?.let(::of)?.let { index to it } }
+            .toMap()
     }
 
     /** [spent], what a cast used up, in the order its spell's [requirements] list it; a combination rune where its first rune is. */
@@ -154,6 +157,10 @@ object Teleports {
         val book = if (spell.style.spellbook == Spellbook.ANCIENT) listOf("Ancient spellbook") else emptyList()
         return (book + spell.requirements.mapNotNull { costOf(it, names) }).joinToString(", ")
     }
+
+    /** Items a teleport takes or keeps back, by id: "3 air, 1 fire, 1 law", a rune by its kind, anything else by its name ("1 banana"). */
+    fun amounts(items: Map<Int, Int>, names: GameNames): String =
+        items.entries.joinToString(", ") { (id, amount) -> "$amount ${names.item(id).lowercase().removeSuffix(" rune")}" }
 
     /** One requirement as the note words it, null for one Luna's rules do not name: "3 air", "1 banana". */
     fun costOf(requirement: SpellRequirement, names: GameNames): String? =

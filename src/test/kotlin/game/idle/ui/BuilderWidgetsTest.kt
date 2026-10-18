@@ -1,6 +1,7 @@
 package game.idle.ui
 
 import game.harness.encode
+import game.idle.movement.TravelChoice
 import game.testworld.TestWorld
 import io.luna.game.model.Position
 import io.luna.net.codec.MessageType
@@ -367,4 +368,34 @@ class BuilderWidgetsTest {
         assertEquals(listOf(1 to 0, 6 to 3), listOf(BuilderWidgets.toggleOf(BuilderWidgets.toggleFace(1, 1, 0)), BuilderWidgets.toggleOf(BuilderWidgets.toggleFace(6, 4, 3))))
     }
 
+    @Test
+    fun `the Travel tab and page mirror the client's ids`() {
+        assertEquals(
+            listOf(30728, 30729, 42600, 42601, 42610, 42611, 42612, 42613, 42614, 42615, 42617, 42620, 42637),
+            listOf(
+                BuilderWidgets.TRAVEL_TAB, BuilderWidgets.TRAVEL_TAB_FRAME, BuilderWidgets.TRAVEL, BuilderWidgets.TRAVEL_ALWAYS,
+                BuilderWidgets.travelLabel(0), BuilderWidgets.travelNoFrame(0), BuilderWidgets.travelNo(0), BuilderWidgets.travelYesFrame(0),
+                BuilderWidgets.travelYes(0), BuilderWidgets.travelLine(0, 0), BuilderWidgets.travelLine(0, 2), BuilderWidgets.travelLabel(1),
+                BuilderWidgets.travelLine(2, 2),
+            ),
+        )
+    }
+
+    @Test
+    fun `the Travel page has a row per Travel choice`() {
+        assertEquals(TravelChoice.entries.size, BuilderWidgets.TRAVEL_ROWS)
+    }
+
+    @Test
+    fun `a Travel row's No and Yes name their row`() {
+        assertEquals(listOf(2 to false, 1 to true), listOf(BuilderWidgets.travelOf(BuilderWidgets.travelNo(2)), BuilderWidgets.travelOf(BuilderWidgets.travelYes(1))))
+    }
+
+    @Test
+    fun `a Travel row's frames and lines are no button`() {
+        assertEquals(
+            listOf(null, null, null),
+            listOf(BuilderWidgets.travelYesFrame(0), BuilderWidgets.travelLine(1, 0), BuilderWidgets.TRAVEL_TAB).map(BuilderWidgets::travelOf),
+        )
+    }
 }

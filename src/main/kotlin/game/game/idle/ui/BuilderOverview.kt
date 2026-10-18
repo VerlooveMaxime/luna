@@ -18,10 +18,10 @@ import game.idle.flow.option.OptionIcon
 import game.idle.font.ClientFont
 
 /**
- * The builder's screens the server shows one at a time: the overview on its Steps tab or its Reflexes tab (S07c), the
- * kind picker, and a step's or reflex's configure screen.
+ * The builder's screens the server shows one at a time: the overview on its Steps tab, its Reflexes tab (S07c) or its
+ * Travel tab (web-walker movement Part 3b), the kind picker, and a step's or reflex's configure screen.
  */
-enum class BuilderPage { OVERVIEW, REFLEXES, KINDS, CONFIGURE }
+enum class BuilderPage { OVERVIEW, REFLEXES, TRAVEL, KINDS, CONFIGURE }
 
 /** The pictures a step shows: its target's [picture] with the kind's icon in the [corner], or the kind's icon alone. */
 data class StepPictures(val picture: WidgetPicture, val corner: WidgetPicture) {
@@ -76,7 +76,7 @@ sealed interface ReflexRowView {
  * it, and what never stops the step follows it in yellow on those lines: the running step's wait, then the aggressive
  * npcs within reach of where the step works ([dangers], S08). The Reflexes tab (S07c) shows a row per reflex slot, each
  * reflex as [form] words it, red when [reflexes] refuses it; the Steps tab's "Attach all reflexes" (S07c2b) is greyed
- * unless a stopped flow holds steps and reflexes.
+ * unless a stopped flow holds steps and reflexes. The Travel tab shows what the flow's trips may spend ([TravelPage]).
  */
 class BuilderOverview(
     private val resolver: FlowResolver,
@@ -90,6 +90,7 @@ class BuilderOverview(
 
     private val types = resolver.types
     private val lines = StepLines(resolver, names)
+    private val travel = TravelPage(names, font)
 
     /** The slots as the player [facts] describe sees them (the dangers depend on their combat level and tile). */
     fun slots(state: IdleState, slots: Int, facts: OptionFacts): List<SlotView> {
@@ -128,10 +129,11 @@ class BuilderOverview(
         }
     }
 
-    /** Every widget of the overview: slots, reflex rows, status, levels toggle and buttons. */
+    /** Every widget of the overview: slots, reflex rows, the Travel page, status, levels toggle and buttons. */
     fun updates(state: IdleState, slots: Int, reflexSlots: Int, facts: OptionFacts): List<WidgetUpdate> =
         slots(state, slots, facts).withIndex().flatMap { (slot, view) -> slotUpdates(slot, view) } +
-            reflexRows(state, reflexSlots).withIndex().flatMap { (row, view) -> reflexRowUpdates(row, view) } + controls(state, slots)
+            reflexRows(state, reflexSlots).withIndex().flatMap { (row, view) -> reflexRowUpdates(row, view) } + travel.updates(state, facts.worn) +
+            controls(state, slots)
 
     /** The kind picker: its title and a button per kind of step, the buttons left over hidden. */
     fun kinds(state: IdleState): List<WidgetUpdate> =
@@ -144,18 +146,23 @@ class BuilderOverview(
                 )
             }
 
-    /** Shows [page]: the overview with the tab it names lit (its other tab's area hidden), or another screen. */
+    /** Shows [page]: the overview with the tab it names lit (the other tabs' areas hidden), or another screen. */
     fun page(page: BuilderPage): List<WidgetUpdate> {
         val reflexTab = page == BuilderPage.REFLEXES
+        val travelTab = page == BuilderPage.TRAVEL
+        val stepsTab = !reflexTab && !travelTab
         return listOf(
-            WidgetUpdate.Visible(BuilderWidgets.OVERVIEW, visible = page == BuilderPage.OVERVIEW || reflexTab),
-            WidgetUpdate.Visible(BuilderWidgets.SLOTS, visible = !reflexTab),
+            WidgetUpdate.Visible(BuilderWidgets.OVERVIEW, visible = page == BuilderPage.OVERVIEW || reflexTab || travelTab),
+            WidgetUpdate.Visible(BuilderWidgets.SLOTS, visible = stepsTab),
             WidgetUpdate.Visible(BuilderWidgets.REFLEX_ROWS, visible = reflexTab),
-            WidgetUpdate.Text(BuilderWidgets.STEPS_TAB, lit("Steps", !reflexTab)),
-            WidgetUpdate.Colour(BuilderWidgets.STEPS_TAB_FRAME, frame(lit = !reflexTab)),
+            WidgetUpdate.Text(BuilderWidgets.STEPS_TAB, lit("Steps", stepsTab)),
+            WidgetUpdate.Colour(BuilderWidgets.STEPS_TAB_FRAME, frame(lit = stepsTab)),
             WidgetUpdate.Text(BuilderWidgets.REFLEXES_TAB, lit("Reflexes", reflexTab)),
             WidgetUpdate.Colour(BuilderWidgets.REFLEXES_TAB_FRAME, frame(lit = reflexTab)),
-            WidgetUpdate.Visible(BuilderWidgets.ATTACH_ALL_REFLEXES_LAYER, visible = !reflexTab),
+            WidgetUpdate.Visible(BuilderWidgets.TRAVEL, visible = travelTab),
+            WidgetUpdate.Text(BuilderWidgets.TRAVEL_TAB, lit("Travel", travelTab)),
+            WidgetUpdate.Colour(BuilderWidgets.TRAVEL_TAB_FRAME, frame(lit = travelTab)),
+            WidgetUpdate.Visible(BuilderWidgets.ATTACH_ALL_REFLEXES_LAYER, visible = stepsTab),
             WidgetUpdate.Visible(BuilderWidgets.KINDS, visible = page == BuilderPage.KINDS),
             WidgetUpdate.Visible(BuilderWidgets.CONFIGURE, visible = page == BuilderPage.CONFIGURE),
         )

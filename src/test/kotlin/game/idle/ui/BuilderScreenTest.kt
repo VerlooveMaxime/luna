@@ -1315,6 +1315,36 @@ class BuilderScreenTest {
     }
 
     @Test
+    fun `the Travel tab shows its page`() {
+        assertEquals(BuilderAnswer.Show(BuilderPage.TRAVEL), click(player(), BuilderWidgets.TRAVEL_TAB))
+    }
+
+    @Test
+    fun `a Travel row's Yes lets the flow's trips spend on it at once`() {
+        val player = player(chop)
+
+        assertEquals(BuilderAnswer.Show(), click(player, BuilderWidgets.travelYes(1)))
+        assertEquals(TravelAllowance(runes = true), player.idleState.travel)
+    }
+
+    @Test
+    fun `a Travel row's No takes it back, the other choices kept`() {
+        val player = player(chop).apply { idleState = idleState.copy(travel = TravelAllowance.ALL) }
+
+        click(player, BuilderWidgets.travelNo(0))
+
+        assertEquals(TravelAllowance(runes = true, charges = true), player.idleState.travel)
+    }
+
+    @Test
+    fun `nothing the trips may spend changes while the flow runs`() {
+        val player = running()
+
+        assertEquals(BuilderAnswer.Show(message = BuilderScreen.STOP_FIRST), click(player, BuilderWidgets.travelYes(2)))
+        assertEquals(TravelAllowance.NONE, player.idleState.travel)
+    }
+
+    @Test
     fun `clear drops what the flow's trips may spend too`() {
         val player = player(chop).apply { idleState = idleState.copy(travel = TravelAllowance(runes = true)) }
 

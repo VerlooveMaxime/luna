@@ -22,6 +22,7 @@ import game.idle.flow.option.OptionContext
 import game.idle.flow.option.StepOption
 import game.idle.location.Tile
 import game.idle.movement.TravelAllowance
+import game.idle.movement.TravelChoice
 
 /** What the game shows after a click on the builder's screens or the Idle tab. */
 sealed interface BuilderAnswer {
@@ -113,9 +114,11 @@ class BuilderScreen<P : AutopilotPlayer>(
             BuilderWidgets.STOPS_AFTER_FACE -> stopAmount(player)
             BuilderWidgets.KINDS_BACK, BuilderWidgets.STEPS_TAB -> BuilderAnswer.Show(BuilderPage.OVERVIEW)
             BuilderWidgets.REFLEXES_TAB -> BuilderAnswer.Show(BuilderPage.REFLEXES)
+            BuilderWidgets.TRAVEL_TAB -> BuilderAnswer.Show(BuilderPage.TRAVEL)
             BuilderWidgets.ATTACH_ALL_REFLEXES -> attachAllReflexes(player)
             else -> BuilderWidgets.slotOf(widgetId)?.let { slot(player, it) }
                 ?: BuilderWidgets.stopOf(widgetId)?.let { stops(player, it) }
+                ?: BuilderWidgets.travelOf(widgetId)?.let { (row, allowed) -> travel(player, TravelChoice.entries[row], allowed) }
                 ?: BuilderWidgets.kindOf(widgetId)?.let { kind(player, it) }
                 ?: BuilderWidgets.reflexRowOf(widgetId)?.let { reflexRow(player, it) }
                 ?: draft?.let { configure(player, widgetId, it) }
@@ -314,6 +317,14 @@ class BuilderScreen<P : AutopilotPlayer>(
         val kind = FlowStops.CHOICES[choice].value
         player.idleState = state.copy(stop = state.stop.copy(kind = kind))
         return if (FlowStops.typed(kind) && state.stop.after.isEmpty()) BuilderAnswer.StopAmount else BuilderAnswer.Show()
+    }
+
+    /** A Travel row's No or Yes (Part 3b): what the flow's trips may spend changes at once, as a stop does. */
+    private fun travel(player: P, choice: TravelChoice, allowed: Boolean): BuilderAnswer {
+        if (autopilot.isRunning(player)) return BuilderAnswer.Show(message = STOP_FIRST)
+        val state = player.idleState
+        player.idleState = state.copy(travel = state.travel.with(choice, allowed))
+        return BuilderAnswer.Show()
     }
 
     private fun stopAmount(player: P): BuilderAnswer {
