@@ -6,6 +6,7 @@ import engine.combat.prayer.CombatPrayer.PROTECT_FROM_MELEE
 import engine.combat.prayer.CombatPrayer.RAPID_HEAL
 import engine.combat.prayer.CombatPrayer.ROCK_SKIN
 import engine.combat.prayer.CombatPrayer.THICK_SKIN
+import game.item.degradable.jewellery.TeleportJewellery
 import game.skill.magic.teleportSpells.TeleportSpell
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -29,7 +30,9 @@ class ReflexGuardTest {
 
     private fun jump(index: Int, number: Int = 2) = ResolvedReflex(number, below(50), ReflexAction.JumpTo(index))
 
-    private fun guard(vararg reflexes: ResolvedReflex) = ReflexGuard(step, reflexes.toList(), body, hold)
+    private val takenOff = mutableListOf<TookOff>()
+
+    private fun guard(vararg reflexes: ResolvedReflex) = ReflexGuard(step, reflexes.toList(), body, hold, takenOff::add)
 
     private val varrock = TeleportDestination.Spell(TeleportSpell.VARROCK)
 
@@ -916,6 +919,31 @@ class ReflexGuardTest {
         guard.act()
 
         assertEquals(StepStop.Reflex(2, Fired.AtSpecialEnergy(70)), guard.stopping())
+    }
+
+    private val edgeville = TeleportDestination.Jewellery(TeleportJewellery.AMULET_OF_GLORY, 0)
+
+    @Test
+    fun `a teleport reflex taking worn jewellery off to rub it says so as the teleport starts`() {
+        body.wornJewellery = true
+        body.teleportable += edgeville
+        hurt()
+        val guard = guard(ResolvedReflex(2, below(50), ReflexAction.Teleport(edgeville, jumpTo = null)))
+
+        guard.act()
+
+        assertEquals(listOf(TookOff(2, edgeville)), takenOff)
+    }
+
+    @Test
+    fun `a teleport reflex rubbing jewellery from the bag takes nothing off`() {
+        body.teleportable += edgeville
+        hurt()
+        val guard = guard(ResolvedReflex(2, below(50), ReflexAction.Teleport(edgeville, jumpTo = null)))
+
+        guard.act()
+
+        assertEquals(emptyList<TookOff>(), takenOff)
     }
 
     @Test

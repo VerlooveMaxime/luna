@@ -13,21 +13,25 @@ import io.luna.game.action.ActionType
 import io.luna.game.event.Event
 import io.luna.game.event.impl.ControllableEvent
 import io.luna.game.event.impl.InteractableEvent
+import io.luna.game.event.impl.NpcClickEvent.NpcFirstClickEvent
 import io.luna.game.event.impl.ObjectClickEvent
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
 import io.luna.game.event.impl.ObjectClickEvent.ObjectSecondClickEvent
 import io.luna.game.event.impl.ObjectClickEvent.ObjectThirdClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.Entity
+import io.luna.game.model.EntityState
 import io.luna.game.model.EntityType
 import io.luna.game.model.Position
 import io.luna.game.model.World
+import io.luna.game.model.mob.Npc
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.interact.InteractionAction
 import io.luna.game.model.mob.interact.InteractionPolicy.STANDARD_SIZE
 import io.luna.game.model.mob.movement.NavigationResult
 import io.luna.game.model.mob.overlay.OverlayType
 import io.luna.game.model.`object`.GameObject
+import java.util.concurrent.CompletableFuture
 
 /** What every autopilot adapter does with a real player: click things like the client and tell busy from idle. */
 object LunaClicks {
@@ -40,8 +44,25 @@ object LunaClicks {
 
     private val WINDOW_TYPES = setOf(OverlayType.WIDGET_STANDARD, OverlayType.INPUT)
 
-    /** A click [use] holds for the tick after the walk up to its object ends: option [number] of the object of [id] on [at]. */
-    private class HeldClick(val id: Int, val at: Position, val number: Int)
+    /** A click [use] or [talkTo] holds for the tick after the walk up to its target ends, made on a target still there. */
+    private sealed interface HeldClick {
+
+        fun land(player: Player)
+
+        /** Option [number] of the object of [id] on [at]. */
+        class OnObject(val id: Int, val at: Position, val number: Int) : HeldClick {
+            override fun land(player: Player) {
+                objectOn(player, id, at)?.let { click(player, it, number) }
+            }
+        }
+
+        /** The first option of [npc]. */
+        class OnNpc(val npc: Npc) : HeldClick {
+            override fun land(player: Player) {
+                if (npc.state == EntityState.ACTIVE) talk(player, npc)
+            }
+        }
+    }
 
     private var Player.heldClick by Attr.nullableObj(HeldClick::class)
 
@@ -147,25 +168,42 @@ object LunaClicks {
             return true
         }
         val tile = reachingTiles(collision, target, from).firstOrNull() ?: return false
-        val held = HeldClick(id, at, number)
+        hold(player, HeldClick.OnObject(id, at, number), player.navigator.navigate(tile, async))
+        return true
+    }
+
+    /**
+     * Talks to [npc] as the client's first option on it does, walking into its reach first as [use] walks up to an
+     * object (Luna's navigator keeps after an npc that wanders off meanwhile); the click is dropped as [use]'s is, and
+     * when the npc is gone by then.
+     */
+    fun talkTo(player: Player, npc: Npc, async: Boolean = true) {
+        if (player.world.collisionManager.reached(player, npc, STANDARD_SIZE)) {
+            talk(player, npc)
+            return
+        }
+        hold(player, HeldClick.OnNpc(npc), player.navigator.navigate(npc, async, false))
+    }
+
+    private fun hold(player: Player, held: HeldClick, walk: CompletableFuture<NavigationResult>) {
         player.heldClick = held
-        player.navigator.navigate(tile, async).whenComplete { result, _ ->
+        walk.whenComplete { result, _ ->
             if (result == NavigationResult.REACHED) {
                 player.world.scheduleOnce(1) { arrived(player, held) }
             } else {
                 drop(player, held)
             }
         }
-        return true
     }
 
-    /** Makes [held] unless it was dropped meanwhile or another click is held now; only on the object still there. */
+    /** Makes [held] unless it was dropped meanwhile or another click is held now. */
     private fun arrived(player: Player, held: HeldClick) {
         if (player.heldClick !== held) return
         player.heldClick = null
-        val target = objectOn(player, held.id, held.at) ?: return
-        click(player, target, held.number)
+        held.land(player)
     }
+
+    private fun talk(player: Player, npc: Npc) = interact(player, NpcFirstClickEvent(player, npc), npc, NpcFirstClickEvent::class.java)
 
     private fun drop(player: Player, held: HeldClick) {
         if (player.heldClick === held) player.heldClick = null

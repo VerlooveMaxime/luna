@@ -1,8 +1,10 @@
 package game.idle.autopilot.bank
 
-import api.bot.webwalk.plan.WebWalkPlan
-import game.idle.autopilot.travel.LunaTraveller
+import game.idle.autopilot.travel.NoTrip
+import game.idle.autopilot.travel.PlannedTrip
+import game.idle.autopilot.travel.TripPlanning
 import game.idle.autopilot.travel.TripWork
+import game.idle.autopilot.travel.travellerFor
 import game.idle.flow.BankMoves
 import game.idle.flow.Choice
 import game.idle.flow.EmptiesBag
@@ -11,6 +13,7 @@ import game.idle.flow.FlowContext
 import game.idle.flow.FlowError
 import game.idle.flow.LeavesOut
 import game.idle.flow.Place
+import game.idle.flow.Reason
 import game.idle.flow.Reasons
 import game.idle.flow.ResolvedStep
 import game.idle.flow.StepField
@@ -29,6 +32,7 @@ import game.idle.flow.option.StepTarget
 import game.idle.location.Bank
 import game.idle.location.BankCatalog
 import game.idle.location.Tile
+import game.idle.movement.TravelChoice
 import game.idle.movement.TravelWebs
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
@@ -178,12 +182,15 @@ interface BankTrips {
     /** The tiles [bank]'s booth is used from; none when no booth stands on its tile. */
     fun usableFrom(bank: Bank): List<Position>
 
-    /** The cheapest trip from where the player stands to the nearest of [ends], null for none. */
-    fun plan(ends: List<Position>): WebWalkPlan?
+    /** The cheapest trip from where the player stands to the nearest of [ends], or why none. */
+    fun plan(ends: List<Position>): TripPlanning
 }
 
 /** The bank a bank step goes to: [plan] is the trip to [end], a tile its booth is used from. */
-data class BankTrip(val bank: Bank, val end: Position, val plan: WebWalkPlan)
+data class BankTrip(val bank: Bank, val end: Position, val plan: PlannedTrip)
+
+/** Where a bank step goes: the bank [trip] reaches, or none, [off] naming the Travel choice that would open a way. */
+data class BankReach(val trip: BankTrip?, val off: TravelChoice? = null)
 
 /** A bank step resolved: it uses the nearest of [candidates] when it starts, and does what [order] says there. */
 data class BankStep(val candidates: List<Bank>, val order: BankOrder) : ResolvedStep, BankMoves, EmptiesBag {
@@ -201,23 +208,26 @@ data class BankStep(val candidates: List<Bank>, val order: BankOrder) : Resolved
 
     /**
      * The candidate the cheapest trip from [here] reaches, on any floor, through doors and up stairs: a booth across a
-     * river can be near in a straight line and far on foot. Null when no trip reaches a booth of theirs.
+     * river can be near in a straight line and far on foot. None when no trip reaches a booth of theirs.
      */
-    fun nearest(here: Position, trips: BankTrips): BankTrip? {
+    fun nearest(here: Position, trips: BankTrips): BankReach {
         val bankByEnd = candidates.flatMap { bank -> trips.usableFrom(bank).map { tile -> tile to bank } }.toMap()
-        if (bankByEnd.isEmpty()) return null
-        val plan = trips.plan(bankByEnd.keys.toList()) ?: return null
+        if (bankByEnd.isEmpty()) return BankReach(trip = null)
+        val trip = when (val planning = trips.plan(bankByEnd.keys.toList())) {
+            is NoTrip -> return BankReach(trip = null, planning.off)
+            is PlannedTrip -> planning
+        }
         // A trip from one of the ends has no legs and so no destination: the player stands at that end.
-        val end = plan.destination ?: here
-        return BankTrip(bankByEnd.getValue(end), end, plan)
+        val end = trip.plan.destination ?: here
+        return BankReach(BankTrip(bankByEnd.getValue(end), end, trip))
     }
 
     /** The bank is picked by the trip there, which the walk to its booth then takes. */
     override fun work(player: Player, runTile: Tile): StepWork {
-        val web = TravelWebs.SERVER.of(player.world)
-        val traveller = LunaTraveller(player, web)
-        val trip = nearest(player.position, LunaBankTrips(player.world, traveller, web))
+        val traveller = travellerFor(player)
+        val reach = nearest(player.position, LunaBankTrips(player.world, traveller, TravelWebs.SERVER.of(player.world)))
+        val trip = reach.trip
         val toBooth = trip?.let { TripWork(traveller, Tile.of(it.end), Place.BANK, it.plan) }
-        return BankWork(LunaBanker(player, trip?.bank?.booth?.toPosition()), order, toBooth)
+        return BankWork(LunaBanker(player, trip?.bank?.booth?.toPosition()), order, toBooth, Reason.NoWay(Place.BANK, reach.off))
     }
 }

@@ -14,7 +14,6 @@ import game.idle.flow.UnderWay
 import game.idle.location.Tile
 import game.idle.movement.DoorStep
 import game.idle.movement.Doorway
-import game.idle.movement.TravelWebs
 import io.luna.game.model.Position
 import io.luna.game.model.mob.Player
 
@@ -46,7 +45,7 @@ class WalkUps(private val traveller: Traveller) {
     /** Walks one decision's worth towards [target]; a trip that gets nowhere is the retry rule's to judge, not a block. */
     fun walkTo(target: Candidate): StepOutcome {
         // The place is never said: a walk up's block goes to the retry rule.
-        val walk = TripWork(traveller, Tile.of(target.approach), Place.WORK_SPOT, plan(traveller.position(), target.doors, target.approach), arriveWithin = 0)
+        val walk = TripWork(traveller, Tile.of(target.approach), Place.WORK_SPOT, PlannedTrip(plan(traveller.position(), target.doors, target.approach)), arriveWithin = 0)
         trip = walk
         val outcome = walk.act(left = null)
         val opening = outcome is StepOutcome.Blocked || (outcome as? StepOutcome.OnTheWay)?.underWay is UnderWay.Opening
@@ -99,5 +98,5 @@ class WalkUps(private val traveller: Traveller) {
     }
 }
 
-/** The walks up to targets for [player], over the server's travel web. */
-fun walkUpsFor(player: Player): WalkUps = WalkUps(LunaTraveller(player, TravelWebs.SERVER.of(player.world)))
+/** The walks up to targets for [player], over the server's travel web, spending what their flow allows. */
+fun walkUpsFor(player: Player): WalkUps = WalkUps(travellerFor(player))

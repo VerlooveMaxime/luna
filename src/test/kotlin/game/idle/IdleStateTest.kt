@@ -5,6 +5,7 @@ import game.idle.flow.RunProgress
 import game.idle.flow.ReflexSettings
 import game.idle.flow.StepSettings
 import game.idle.location.Tile
+import game.idle.movement.TravelAllowance
 import io.luna.game.model.mob.attr.Attribute
 import io.luna.util.GsonUtils
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -204,6 +205,23 @@ class IdleStateTest {
 
         assertEquals(RunProgress() to laps5, before.withFlow(emptyList()).let { it.progress to it.stop })
         assertEquals(StopSettings("goals"), before.withFlow(emptyList(), stop = StopSettings("goals")).stop)
+    }
+
+    @Test
+    fun `a new flow keeps what its trips may spend unless given it`() {
+        val before = state.copy(travel = TravelAllowance(coins = true))
+
+        assertEquals(
+            listOf(TravelAllowance(coins = true), TravelAllowance(runes = true)),
+            listOf(before.withFlow(emptyList()).travel, before.withFlow(emptyList(), travel = TravelAllowance(runes = true)).travel),
+        )
+    }
+
+    @Test
+    fun `what the flow's trips may spend is saved`() {
+        val saving = state.copy(travel = TravelAllowance(coins = true, charges = true))
+
+        assertEquals(saving, GsonUtils.GSON.fromJson(GsonUtils.GSON.toJson(saving), IdleState::class.java))
     }
 
     @Test

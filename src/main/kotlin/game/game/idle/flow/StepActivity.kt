@@ -1,6 +1,7 @@
 package game.idle.flow
 
 import game.idle.location.Tile
+import game.idle.movement.TravelChoice
 
 /**
  * What carries out one step of a flow, decision by decision: it knows when the step is over, why it cannot go on, why
@@ -40,7 +41,19 @@ interface StepActivity {
     fun endTurn()
 }
 
-/** What a step tells the player: it ended, or skipped its turn this lap, held by what the bag or the bank holds. */
+/**
+ * Where a step's trips say what they do the moment they do it (a spend, a long way round), so a spend's line comes before
+ * the game's own lines about it (Maxime, 2026-10-18).
+ */
+fun interface Speech {
+
+    fun say(said: Said)
+}
+
+/**
+ * What a step tells the player: it ended, or skipped its turn this lap, held by what the bag or the bank holds; or what
+ * one of its trips did that the player should know of (a door it could not get through, a spend, a long way round).
+ */
 sealed interface Said {
 
     data class Ended(val reason: Reason.Stuck) : Said
@@ -49,6 +62,18 @@ sealed interface Said {
 
     /** A walk up to a target could not get through [passage] on [tile], so the target was set aside (Part 4b). */
     data class DoorShut(val passage: Passage, val tile: Tile) : Said
+
+    /** A trip started a teleport (web-walker movement Part 3c). */
+    data class Teleported(val started: TeleportStarted) : Said
+
+    /** A trip agreed to pay [coins] at the Al Kharid toll gate. */
+    data class PaidToll(val coins: Int) : Said
+
+    /** A trip boards the ship to [place], for a fare of [coins] (none for Entrana's). */
+    data class Fare(val coins: Int, val place: String) : Said
+
+    /** A trip went the long way: what [choice] allows would have been quicker, and the flow does not allow it. */
+    data class LongWay(val choice: TravelChoice) : Said
 }
 
 /** Why a step stops the flow: the step is [Stuck], or a [Reflex] of its ran away and stops the flow (S07c). */

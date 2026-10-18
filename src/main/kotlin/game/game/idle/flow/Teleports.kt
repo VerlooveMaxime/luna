@@ -1,5 +1,7 @@
 package game.idle.flow
 
+import api.bot.webwalk.model.TeleportDefinition
+import api.bot.webwalk.model.TeleportKind
 import game.idle.flow.option.GameNames
 import game.idle.movement.inWilderness
 import game.item.degradable.jewellery.TeleportJewellery
@@ -28,6 +30,18 @@ sealed interface TeleportDestination {
     }
 }
 
+/** How a teleport of the autopilot started, for its words (web-walker movement Part 3c). */
+sealed interface TeleportStarted {
+
+    val destination: TeleportDestination
+
+    /** A spell cast, using up [spent]: item id to amount, in the order the spell lists its runes. */
+    data class Cast(override val destination: TeleportDestination.Spell, val spent: Map<Int, Int>) : TeleportStarted
+
+    /** A piece of jewellery rubbed, [tookOff] when it was worn and taken off to rub it (Maxime, 2026-10-18). */
+    data class Rubbed(override val destination: TeleportDestination.Jewellery, val tookOff: Boolean) : TeleportStarted
+}
+
 /**
  * Luna's teleports as a reflex offers, keys, names and pictures them (S13 part 5, Maxime 2026-10-16): every teleport
  * spell whose destination lies outside Luna's wilderness (no automation enters it unless the player said so), then
@@ -52,6 +66,50 @@ object Teleports {
 
     /** The destination kept under [key], null for none offered. */
     fun of(key: String): TeleportDestination? = all.firstOrNull { key(it) == key }
+
+    /** The destination a teleport of the travel web takes, null for one no reflex offers either (home, the wilderness). */
+    fun of(teleport: TeleportDefinition): TeleportDestination? {
+        val destination = when (teleport.kind) {
+            TeleportKind.SPELL -> TeleportSpell.named(teleport.key)?.let(TeleportDestination::Spell)
+            TeleportKind.JEWELLERY -> TeleportJewellery.named(teleport.key)?.let { jewellery -> teleport.option?.let { TeleportDestination.Jewellery(jewellery, it - 1) } }
+            TeleportKind.HOME -> null
+        }
+        return destination?.takeIf { it in all }
+    }
+
+    /**
+     * The teleports the flow's reflexes would cast next, which a trip never spends (Q2, Maxime 2026-10-17): every
+     * teleport reflex attached to one of [steps], once each, in the flow's order.
+     */
+    fun reserved(steps: List<StepSettings>, reflexes: List<ReflexSettings>): List<TeleportDestination> {
+        val attached = steps.flatMap { it.reflexes }.toSet()
+        return reflexes.filter { it.id in attached && it[ReflexKeys.DO] == ReflexKeys.TELEPORT }
+            .mapNotNull { reflex -> reflex[ReflexKeys.DESTINATION]?.let(::of) }
+            .distinct()
+    }
+
+    /** [spent], what a cast used up, in the order its spell's [requirements] list it; a combination rune where its first rune is. */
+    fun inSpellOrder(requirements: List<SpellRequirement>, spent: Map<Int, Int>): Map<Int, Int> {
+        val order = requirements.mapNotNull { requirement ->
+            when (requirement) {
+                is RuneRequirement -> listOf(requirement.rune.id) + CombinationRune.entries.filter { requirement.rune in it.represents }.map { it.id }
+                is ItemRequirement -> listOf(requirement.id)
+                else -> null
+            }
+        }
+        fun rank(item: Int): Int = order.indexOfFirst { item in it }.let { if (it < 0) order.size else it }
+        return spent.entries.sortedBy { rank(it.key) }.associate { it.key to it.value }
+    }
+
+    /** What a spell's [requirements] list that [worn] does not stand for: each rune no worn staff gives and each item, by id. */
+    fun listed(requirements: List<SpellRequirement>, worn: Set<Int>): Map<Int, Int> =
+        requirements.mapNotNull { requirement ->
+            when (requirement) {
+                is RuneRequirement -> (requirement.rune.id to requirement.amount).takeIf { runeNeed(requirement.rune, worn) != null }
+                is ItemRequirement -> requirement.id to requirement.amount
+                else -> null
+            }
+        }.toMap()
 
     /** "varrock", "amulet_of_glory:edgeville". */
     fun key(destination: TeleportDestination): String =

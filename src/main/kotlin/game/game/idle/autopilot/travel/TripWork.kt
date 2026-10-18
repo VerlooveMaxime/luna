@@ -1,21 +1,41 @@
 package game.idle.autopilot.travel
 
 import api.bot.webwalk.model.EdgeType
+import api.bot.webwalk.model.TeleportDefinition
 import api.bot.webwalk.plan.PlanLeg
 import api.bot.webwalk.plan.WebWalkPlan
 import api.bot.webwalk.walk.LegContext
 import api.bot.webwalk.walk.WebWalkExecutor
+import api.bot.webwalk.walk.crossing.BorderGateCrossing
+import api.bot.webwalk.walk.ship.ShipBoarding
+import game.content.sailing.ShipRoute
 import engine.obj.Trapdoor
 import game.idle.flow.Meter
 import game.idle.flow.Passage
 import game.idle.flow.Place
 import game.idle.flow.Reason
+import game.idle.flow.Said
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
+import game.idle.flow.TeleportStarted
 import game.idle.flow.UnderWay
 import game.idle.location.Tile
+import game.idle.movement.TravelChoice
+import game.npc.spawn.alKharid.BorderGate
 import io.luna.game.model.Position
 import java.util.concurrent.CompletableFuture
+
+/** What planning a trip found (web-walker movement Part 3c): a [PlannedTrip], or [NoTrip]. */
+sealed interface TripPlanning
+
+/**
+ * A trip's [plan], and the Travel choices a quicker trip would have needed ([longWay]): what it would spend that the
+ * flow does not allow, empty when this is the quickest the player could take.
+ */
+data class PlannedTrip(val plan: WebWalkPlan, val longWay: Set<TravelChoice> = emptySet()) : TripPlanning
+
+/** No trip goes there; with [off], one would if the flow allowed that Travel choice. */
+data class NoTrip(val off: TravelChoice? = null) : TripPlanning
 
 /** What a trip can see and do for one player. [LunaTraveller] is the in-game one. */
 interface Traveller {
@@ -24,8 +44,8 @@ interface Traveller {
 
     fun isBusy(): Boolean
 
-    /** The cheapest trip from where the player stands to the nearest of [destinations], null for none; planned off the game thread. */
-    fun plan(destinations: List<Position>): CompletableFuture<WebWalkPlan?>
+    /** The cheapest trip from where the player stands to the nearest of [destinations], or why none; planned off the game thread. */
+    fun plan(destinations: List<Position>): CompletableFuture<TripPlanning>
 
     fun walk(to: Position)
 
@@ -45,37 +65,74 @@ interface Traveller {
     /** Picks the [option]th option of that dialogue, from 1. */
     fun choose(option: Int)
 
+    /** What that dialogue's options say, in order; none without one. */
+    fun options(): List<String>
+
+    /** Talks to the nearest of the npcs of [ids] standing within a crew's reach of [near], walking up first; false for none. */
+    fun talkTo(ids: Set<Int>, near: Position): Boolean
+
+    /** Whether a dialogue shows a line the player clicks on from. */
+    fun talking(): Boolean
+
+    /** Clicks on from that line. */
+    fun talkOn()
+
+    /**
+     * Starts [teleport] as the spellbook or the jewellery would, telling [starting] how it starts the moment before it
+     * does; how it started, null when it cannot be done now.
+     */
+    fun teleport(teleport: TeleportDefinition, starting: (TeleportStarted) -> Unit): TeleportStarted?
+
+    /** Tells the player what the trip does, at once: a spend before the game's own lines about it (Maxime, 2026-10-18). */
+    fun say(said: Said)
+
     fun interrupt()
 }
 
 /**
  * A trip to [target] on the web-walker's plan, one decision at a time (web-walker movement Part 2): walks, doors, gates and
- * curtains opened when shut, ladders and stairs climbed, trapdoors opened and climbed down, each leg as a player's clicks.
- * The trip is done within [arriveWithin] tiles of the target, next to it as a walk is unless told otherwise (a walk up
+ * curtains opened when shut, ladders and stairs climbed, trapdoors opened and climbed down, each leg as a player's clicks;
+ * and the legs that spend what the flow allows (Part 3c): teleports cast or rubbed, the Al Kharid toll gate paid, ships
+ * boarded. The
+ * trip is done within [arriveWithin] tiles of the target, next to it as a walk is unless told otherwise (a walk up
  * to a step's target ends on the tile it is used from). It starts on [plan] when one was made already (the
  * bank step's, which picked the bank by it), and plans again when the player is off the plan (a reflex teleported them,
  * say) or through it without arriving; a plan made at once is taken in the same decision. The same move on the same leg
  * from the same tile twice found no way on, so it blocks, saying which [place] or which passage, and tries again once the
- * player stands elsewhere. Legs that spend (teleports, ships, tolls) are not taken yet: the trips' default allowance
- * plans none of them.
+ * player stands elsewhere. Every spend is told, and so is a long way round for want of a Travel choice (Q6).
  */
 class TripWork(
     private val traveller: Traveller,
     private val target: Tile,
     private val place: Place,
-    plan: WebWalkPlan? = null,
+    plan: PlannedTrip? = null,
     private val arriveWithin: Int = 1,
+    private val dialogueLines: Int = DIALOGUE_LINES,
 ) : StepWork {
 
-    private enum class Move { PLAN, WALK, OPEN, PASS, CLIMB, CHOOSE }
+    private enum class Move { PLAN, WALK, OPEN, PASS, CLIMB, CHOOSE, TELEPORT, TALK, BOARD, LAND }
 
-    private data class Attempt(val leg: Int, val from: Position, val move: Move)
+    /**
+     * A move on the [leg]th leg from [from]; a dialogue's moves ([TALK] and its [CHOOSE]) count their [line], so several
+     * from one tile differ, up to [dialogueLines] in a row before the trip blocks: a dialogue that never closes.
+     */
+    private data class Attempt(val leg: Int, val from: Position, val move: Move, val line: Int = 0)
 
-    private var pending: CompletableFuture<WebWalkPlan?>? = null
-    private var legs: List<PlanLeg>? = plan?.legs
+    private var pending: CompletableFuture<TripPlanning>? = null
+    private var legs: List<PlanLeg>? = plan?.plan?.legs
     private var index = 0
     private var last: Attempt? = null
     private var passedThrough: Int? = null
+    private var lines = 0
+    private var refused: Pair<Position, String>? = null
+    private var noWay = Reason.NoWay(place)
+
+    /** The legs of the plan under way whose spend was told: a toll or a fare once a leg. */
+    private val told = mutableSetOf<Int>()
+
+    init {
+        plan?.let(::sayLongWay)
+    }
 
     override val meter: Meter = Meter.None
 
@@ -103,6 +160,10 @@ class TripWork(
 
     override fun finishing(): Boolean = false
 
+    private fun sayLongWay(trip: PlannedTrip) {
+        TravelChoice.entries.filter { it in trip.longWay }.forEach { traveller.say(Said.LongWay(it)) }
+    }
+
     override fun interrupt() = traveller.interrupt()
 
     override fun act(left: Int?): StepOutcome {
@@ -114,8 +175,17 @@ class TripWork(
         pending?.let { planned ->
             if (!planned.isDone) return StepOutcome.Approached
             pending = null
-            legs = planned.join()?.legs ?: return StepOutcome.Blocked(Reason.NoWay(place))
+            val trip = when (val planning = planned.join()) {
+                is NoTrip -> {
+                    noWay = Reason.NoWay(place, planning.off)
+                    return StepOutcome.Blocked(noWay)
+                }
+                is PlannedTrip -> planning
+            }
+            sayLongWay(trip)
+            legs = trip.plan.legs
             index = 0
+            told.clear()
         }
         val trip = legs ?: return plan(here)
         while (index < trip.size && done(trip[index], here, last = index == trip.lastIndex)) index++
@@ -126,7 +196,7 @@ class TripWork(
     private fun arrived(here: Position): Boolean = near(here, target.toPosition(), arriveWithin)
 
     private fun plan(here: Position): StepOutcome =
-        move(Attempt(NO_LEG, here, Move.PLAN), Reason.NoWay(place)) {
+        move(Attempt(NO_LEG, here, Move.PLAN), noWay) {
             pending = traveller.plan(listOf(target.toPosition()))
             go(here)
         }
@@ -135,12 +205,13 @@ class TripWork(
     private fun done(leg: PlanLeg, here: Position, last: Boolean): Boolean =
         when (leg.type) {
             EdgeType.WALK -> near(here, leg.to, if (last) arriveWithin else LEAD)
-            EdgeType.LADDER, EdgeType.STAIR, EdgeType.TRAPDOOR -> near(here, leg.to, LegContext.LANDING_SLACK)
+            EdgeType.LADDER, EdgeType.STAIR, EdgeType.TRAPDOOR, EdgeType.TELEPORT -> near(here, leg.to, LegContext.LANDING_SLACK)
+            EdgeType.SHIP -> near(here, leg.to, DOCK_SLACK)
             else -> here == leg.to
         }
 
-    /** Away from the leg's start: on another floor, or farther than a leg's walk. */
-    private fun offPlan(leg: PlanLeg, here: Position): Boolean = !near(here, leg.from, MAX_LEG)
+    /** Away from the leg's start: on another floor, or farther than a leg's walk; a ship's deck at its end is on its leg. */
+    private fun offPlan(leg: PlanLeg, here: Position): Boolean = !near(here, leg.from, MAX_LEG) && routeOf(leg)?.let { onDeck(it, here) } != true
 
     private fun take(leg: PlanLeg, here: Position): StepOutcome =
         when (leg.type) {
@@ -154,6 +225,9 @@ class TripWork(
             EdgeType.LADDER -> climb(leg, here, if (up(leg)) Passage.LADDER_UP else Passage.LADDER_DOWN)
             EdgeType.STAIR -> climb(leg, here, if (up(leg)) Passage.STAIRS_UP else Passage.STAIRS_DOWN)
             EdgeType.TRAPDOOR -> trapdoor(leg, here)
+            EdgeType.TELEPORT -> teleport(leg, here)
+            EdgeType.CROSSING -> crossing(leg, here)
+            EdgeType.SHIP -> ship(leg, here)
             else -> StepOutcome.Blocked(Reason.NoWay(place))
         }
 
@@ -198,6 +272,94 @@ class TripWork(
         }
     }
 
+    /**
+     * A teleport the plan takes, cast or rubbed as the reflexes do. One that cannot be done now (the spellbook's click
+     * throttle, say) plans the trip again; the same teleport turned down again from the same tile blocks.
+     */
+    private fun teleport(leg: PlanLeg, here: Position): StepOutcome {
+        val teleport = leg.teleport ?: return StepOutcome.Blocked(Reason.NoWay(place))
+        return move(Attempt(index, here, Move.TELEPORT), Reason.NoWay(place)) {
+            val started = traveller.teleport(teleport) { traveller.say(Said.Teleported(it)) }
+            when {
+                started != null -> StepOutcome.OnTheWay(UnderWay.Teleporting(started.destination))
+                refused == here to teleport.id -> StepOutcome.Blocked(Reason.NoWay(place))
+                else -> {
+                    refused = here to teleport.id
+                    legs = null
+                    StepOutcome.Approached
+                }
+            }
+        }
+    }
+
+    /**
+     * The Al Kharid toll gate (the crossing its data hands to `border_gate`), as a player pays it: the gate clicked, the
+     * guard's lines clicked on, "Yes, ok." picked by its words, and the gate walks the player through. Any other crossing
+     * has no way, and so has a question without those words.
+     */
+    private fun crossing(leg: PlanLeg, here: Position): StepOutcome {
+        if (leg.action?.handler != BorderGateCrossing.ID) return StepOutcome.Blocked(Reason.NoWay(place))
+        val (id, at) = objectOf(leg) ?: return StepOutcome.Blocked(Reason.NoWay(place))
+        val stuck = Reason.Impassable(Passage.GATE)
+        return when {
+            traveller.choosing() -> {
+                val agree = traveller.options().indexOf(TOLL_AGREED)
+                if (agree < 0) return StepOutcome.Blocked(stuck)
+                talk(here, Move.CHOOSE, stuck) {
+                    if (told.add(index)) traveller.say(Said.PaidToll(BorderGate.TOLL))
+                    traveller.choose(agree + 1)
+                    StepOutcome.OnTheWay(UnderWay.PayingToll)
+                }
+            }
+            traveller.talking() -> talk(here, Move.TALK, stuck) {
+                traveller.talkOn()
+                StepOutcome.OnTheWay(UnderWay.PayingToll)
+            }
+            else -> move(Attempt(index, here, Move.OPEN), stuck) { use(id, at, null, leg.from, UnderWay.PayingToll, stuck) }
+        }
+    }
+
+    /**
+     * A ship as a player takes it (Luna's `ShipRoute`, upstream's `ShipBoarding` options): the crew talked to, their lines
+     * clicked on and the boarding options picked, the voyage sat out (Luna holds the player), "The ship arrives" clicked
+     * on, then the gangplank crossed from the deck. The fare is told as boarding starts (Maxime, 2026-10-18).
+     */
+    private fun ship(leg: PlanLeg, here: Position): StepOutcome {
+        val boarding = routeOf(leg)?.let(ShipBoarding::of) ?: return StepOutcome.Blocked(Reason.NoWay(place))
+        val plank = objectOf(leg) ?: return StepOutcome.Blocked(Reason.NoWay(place))
+        val route = boarding.route
+        val sailing = StepOutcome.OnTheWay(UnderWay.Sailing(route.place))
+        val stuck = Reason.NoWay(place)
+        return when {
+            traveller.choosing() -> {
+                val option = traveller.options().indexOfFirst { it in boarding.options }
+                if (option < 0) return StepOutcome.Blocked(stuck)
+                talk(here, Move.CHOOSE, stuck) {
+                    traveller.choose(option + 1)
+                    sailing
+                }
+            }
+            traveller.talking() -> talk(here, Move.TALK, stuck) {
+                traveller.talkOn()
+                sailing
+            }
+            onDeck(route, here) -> move(Attempt(index, here, Move.LAND), stuck) { use(plank.first, plank.second, null, here, UnderWay.Sailing(route.place), stuck) }
+            else -> move(Attempt(index, here, Move.BOARD), stuck) {
+                if (told.add(index)) traveller.say(Said.Fare(route.fare, route.place))
+                if (traveller.talkTo(route.crew, leg.from)) sailing else StepOutcome.Blocked(stuck)
+            }
+        }
+    }
+
+    private fun routeOf(leg: PlanLeg): ShipRoute? {
+        if (leg.type != EdgeType.SHIP) return null
+        val key = leg.action?.key ?: return null
+        return ShipRoute.entries.firstOrNull { it.name == key }
+    }
+
+    /** On the deck the voyage ends on, where the gangplank ashore is crossed from. */
+    private fun onDeck(route: ShipRoute, here: Position): Boolean = near(here, route.destination, DOCK_SLACK)
+
     private fun use(id: Int, at: Position, option: String?, from: Position, doing: UnderWay, stuck: Reason): StepOutcome =
         if (traveller.use(id, at, option, from)) StepOutcome.OnTheWay(doing) else StepOutcome.Blocked(stuck)
 
@@ -205,8 +367,13 @@ class TripWork(
     private fun move(attempt: Attempt, stuck: Reason, make: () -> StepOutcome): StepOutcome {
         if (attempt == last) return StepOutcome.Blocked(stuck)
         last = attempt
+        if (attempt.line == 0) lines = 0
         return make()
     }
+
+    /** A dialogue's next move, its lines counted since the last other move; one too many blocks on [stuck]. */
+    private fun talk(here: Position, move: Move, stuck: Reason, make: () -> StepOutcome): StepOutcome =
+        if (lines >= dialogueLines) StepOutcome.Blocked(stuck) else move(Attempt(index, here, move, ++lines), stuck, make)
 
     private fun objectOf(leg: PlanLeg): Pair<Int, Position>? {
         val action = leg.action ?: return null
@@ -229,5 +396,14 @@ class TripWork(
         const val LEAD = 6
 
         const val CLIMB = "Climb"
+
+        /** How far from a ship's deck or its dock the player may stand, as upstream's `ShipVoyage` allows. */
+        const val DOCK_SLACK = 2
+
+        /** The longest talk a passage takes is a customs officer's, nine lines and questions: twice that is a dialogue stuck. */
+        const val DIALOGUE_LINES = 18
+
+        /** The toll guard's third option, `BorderGate.talk`'s, which pays. */
+        const val TOLL_AGREED = "Yes, ok."
     }
 }

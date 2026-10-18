@@ -2,6 +2,7 @@ package game.idle.flow
 
 import game.idle.flow.option.GameNames
 import game.idle.font.ClientFont
+import game.idle.movement.TravelChoice
 import io.luna.game.model.mob.Skill
 
 /**
@@ -24,7 +25,7 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
             is Reason.NoneInReach -> noneInReach(reason.target)
             Reason.CannotMake -> "Cannot make it yet"
             Reason.WrongWindow -> "Another make window is open"
-            is Reason.NoWay -> noWay(reason.place)
+            is Reason.NoWay -> reason.off?.let { "No way with ${travelRow(it)} off" } ?: noWay(reason.place)
             is Reason.Impassable -> "No way ${way(reason.passage.way)} the ${noun(reason.passage)}"
             is Reason.BagFull -> "The bag is full"
             is Reason.NoneLeftInBank -> "No ${item(reason.item)} left in the bank"
@@ -42,6 +43,9 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
                 Way.DOWN -> "Climbing down the ${noun(underWay.passage)}"
             }
             is UnderWay.Closing -> "Closing the ${noun(underWay.passage)}"
+            is UnderWay.Teleporting -> "Teleporting to ${Teleports.named(underWay.destination)}"
+            UnderWay.PayingToll -> "Paying the toll"
+            is UnderWay.Sailing -> "Sailing to ${underWay.place}"
         }
 
     /** A flight shut [passage] behind the player (web-walker movement Part 5, Q4): "Autopilot: closed the door behind you." */
@@ -53,6 +57,49 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
             is Said.Ended -> line("${PREFIX}step $number ended, ", said.reason)
             is Said.Skipped -> line("${PREFIX}step $number skipped this lap: ", said.reason)
             is Said.DoorShut -> "${PREFIX}step $number could not get through the ${noun(said.passage)} at ${said.tile.x}, ${said.tile.y}."
+            is Said.Teleported -> "${PREFIX}step $number ${teleported(said.started)}."
+            is Said.PaidToll -> "${PREFIX}step $number pays the ${said.coins}-coin toll at the Al Kharid gate."
+            is Said.Fare -> "${PREFIX}step $number ${if (said.coins > 0) "pays the ${said.coins}-coin fare" else "takes the ship"} to ${said.place}."
+            is Said.LongWay -> "${PREFIX}step $number takes the long way: ${offInTravel(said.choice)}."
+        }
+
+    /** Reflex [TookOff.number] took worn jewellery off to rub it (Maxime, 2026-10-18): "Autopilot: reflex 2 takes off the amulet of glory to rub it to Edgeville." */
+    fun tookOff(tookOff: TookOff): String = "${PREFIX}reflex ${tookOff.number} ${takesOff(tookOff.destination)}."
+
+    /**
+     * A trip's teleport, every spend worded (Q6, Maxime 2026-10-18): "casts the Varrock teleport: 3 air, 1 fire, 1 law",
+     * "rubs the amulet of glory to Edgeville", "takes off the amulet of glory to rub it to Edgeville".
+     */
+    private fun teleported(started: TeleportStarted): String =
+        when (started) {
+            is TeleportStarted.Cast -> {
+                val spent = started.spent.entries.joinToString(", ") { (item, amount) -> "$amount ${spentItem(item)}" }
+                "casts the ${Teleports.named(started.destination).removePrefix("the ")} teleport${if (spent.isEmpty()) "" else ": $spent"}"
+            }
+            is TeleportStarted.Rubbed ->
+                if (started.tookOff) takesOff(started.destination) else "rubs the ${jewellery(started.destination)} to ${Teleports.named(started.destination)}"
+        }
+
+    /** The destination cut, should the line not fit the chat box ("Burthorpe Games Rooms" after a two-digit number). */
+    private fun takesOff(destination: TeleportDestination.Jewellery): String {
+        val start = "takes off the ${jewellery(destination)} to rub it to "
+        return start + chat.fit(Teleports.named(destination), CHAT_ROOM - chat.width("${PREFIX}reflex 99 $start."))
+    }
+
+    private fun jewellery(destination: TeleportDestination.Jewellery): String = Teleports.jewelleryName(destination.jewellery, names)
+
+    /** A rune by its kind ("law"), anything else by its name ("banana"), as the reflexes' teleport list notes a spell's cost. */
+    private fun spentItem(id: Int): String = item(id).removeSuffix(" rune")
+
+    /** The Travel tab's row that would allow it, as the player finds it there (Maxime, 2026-10-18): "tolls and fares are off in Travel". */
+    private fun offInTravel(choice: TravelChoice): String = "${travelRow(choice)} ${if (choice == TravelChoice.CHARGES) "is" else "are"} off in Travel"
+
+    /** A Travel choice by its row on the Travel tab, in a sentence: "tolls and fares", "teleport spells", "teleport jewellery". */
+    private fun travelRow(choice: TravelChoice): String =
+        when (choice) {
+            TravelChoice.COINS -> "tolls and fares"
+            TravelChoice.RUNES -> "teleport spells"
+            TravelChoice.CHARGES -> "teleport jewellery"
         }
 
     /** Why the flow stopped at step [number]. */

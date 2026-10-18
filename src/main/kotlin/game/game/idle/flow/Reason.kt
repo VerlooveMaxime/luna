@@ -1,5 +1,7 @@
 package game.idle.flow
 
+import game.idle.movement.TravelChoice
+
 /** What a step looks for in the world around its work spot. */
 enum class Target { TREE, ROCK, FISHING_SPOT, FIRE_OR_RANGE, FURNACE, ANVIL, NPC, FREE_TILE }
 
@@ -22,7 +24,11 @@ sealed interface Reason {
 
     data object WrongWindow : Reason
 
-    data class NoWay(val place: Place) : Reason
+    /**
+     * No trip reaches [place]; with [off], one would if the flow's Travel setting allowed that choice, worded without
+     * the place, which the slot shows already (Maxime, 2026-10-18: "No way with tolls and fares off").
+     */
+    data class NoWay(val place: Place, val off: TravelChoice? = null) : Reason
 
     /**
      * A trip's [passage] would not let the player past: a door that did not open, a ladder not there. Which one is the

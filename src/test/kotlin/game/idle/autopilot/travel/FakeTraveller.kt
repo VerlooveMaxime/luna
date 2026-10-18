@@ -1,15 +1,20 @@
 package game.idle.autopilot.travel
 
 import api.bot.webwalk.model.EdgeType
+import api.bot.webwalk.model.TeleportDefinition
 import api.bot.webwalk.plan.PlanLeg
 import api.bot.webwalk.plan.WebWalkPlan
+import game.idle.flow.Said
+import game.idle.flow.TeleportStarted
 import io.luna.game.model.Position
 import java.util.concurrent.CompletableFuture
 
 /**
  * Records what a trip asks of the player; [position] is where they stand. A plan is the next of [plans], or with none
  * queued a plain walk to the first destination, none when [noWay]. Each walk is written to [log] too, as `walk to x,y`,
- * so a kind's test reads its walks among its adapter's steps.
+ * so a kind's test reads its walks among its adapter's steps. A dialogue line shows while [talking]; a teleport starts as
+ * [teleported] says, none when it is null; what the trip [said] is logged in order with the walks. A question offers
+ * [options]; a ship's crew is found while [crewNear].
  */
 class FakeTraveller(var position: Position, private val log: MutableList<String> = mutableListOf()) : Traveller {
     var busy = false
@@ -17,7 +22,15 @@ class FakeTraveller(var position: Position, private val log: MutableList<String>
     var usable = true
     var noWay = false
     val standing = mutableSetOf<Pair<Int, Position>>()
-    val plans = ArrayDeque<CompletableFuture<WebWalkPlan?>>()
+    var talking = false
+    var talkedOn = 0
+    var teleported: TeleportStarted? = null
+    var options = emptyList<String>()
+    var crewNear = true
+    val talkedTo = mutableListOf<Pair<Set<Int>, Position>>()
+    val said = mutableListOf<Said>()
+    val teleports = mutableListOf<TeleportDefinition>()
+    val plans = ArrayDeque<CompletableFuture<TripPlanning>>()
     val planned = mutableListOf<List<Position>>()
     val walks = mutableListOf<Position>()
     val used = mutableListOf<Triple<Int, Position, String?>>()
@@ -29,9 +42,9 @@ class FakeTraveller(var position: Position, private val log: MutableList<String>
 
     override fun isBusy(): Boolean = busy
 
-    override fun plan(destinations: List<Position>): CompletableFuture<WebWalkPlan?> {
+    override fun plan(destinations: List<Position>): CompletableFuture<TripPlanning> {
         planned += destinations
-        return plans.removeFirstOrNull() ?: CompletableFuture.completedFuture(if (noWay) null else plainWalk(destinations.first()))
+        return plans.removeFirstOrNull() ?: CompletableFuture.completedFuture(if (noWay) NoTrip() else PlannedTrip(plainWalk(destinations.first())))
     }
 
     private fun plainWalk(to: Position) = WebWalkPlan(listOf(PlanLeg(EdgeType.WALK, position, to, cost = 1.0)), cost = 1.0)
@@ -53,6 +66,30 @@ class FakeTraveller(var position: Position, private val log: MutableList<String>
 
     override fun choose(option: Int) {
         chosen += option
+    }
+
+    override fun options(): List<String> = options
+
+    override fun talkTo(ids: Set<Int>, near: Position): Boolean {
+        talkedTo += ids to near
+        return crewNear
+    }
+
+    override fun talking(): Boolean = talking
+
+    override fun talkOn() {
+        talkedOn++
+    }
+
+    override fun teleport(teleport: TeleportDefinition, starting: (TeleportStarted) -> Unit): TeleportStarted? {
+        teleports += teleport
+        teleported?.let(starting)
+        return teleported
+    }
+
+    override fun say(said: Said) {
+        this.said += said
+        log += "say $said"
     }
 
     override fun interrupt() {

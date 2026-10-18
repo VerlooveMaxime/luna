@@ -105,13 +105,16 @@ object BankPlanner {
         return BankPlan(deposits, takes, stuck)
     }
 
-    /** [moved] says whether anything moved at the booth already: stuck after that, the step took what it could. */
-    fun decide(view: BankView, plan: BankPlan, moved: Boolean, ifStuck: IfStuck): BankDecision =
+    /**
+     * [moved] says whether anything moved at the booth already: stuck after that, the step took what it could. No booth
+     * found is [noWay], which may name the Travel choice a trip there needs.
+     */
+    fun decide(view: BankView, plan: BankPlan, moved: Boolean, ifStuck: IfStuck, noWay: Reason = Reason.NoWay(Place.BANK)): BankDecision =
         when {
             view.bankOpen && plan.deposits.isNotEmpty() -> Deposit(plan.deposits)
             view.bankOpen && plan.takes.isNotEmpty() -> Withdraw(plan.takes)
             view.bankOpen -> Close
-            plan.canMove && !view.boothFound -> Settled(StepOutcome.Blocked(Reason.NoWay(Place.BANK)))
+            plan.canMove && !view.boothFound -> Settled(StepOutcome.Blocked(noWay))
             plan.canMove && view.boothUsableFromHere -> Open
             plan.canMove -> WalkToBooth
             plan.stuck == null || moved -> Settled(StepOutcome.Finished)

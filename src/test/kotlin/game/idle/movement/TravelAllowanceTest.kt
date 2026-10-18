@@ -1,9 +1,12 @@
 package game.idle.movement
 
+import api.bot.webwalk.model.EdgeType
+import api.bot.webwalk.model.Requirements
 import api.bot.webwalk.model.TeleportDefinition
 import api.bot.webwalk.model.TeleportKind
 import api.bot.webwalk.plan.CapabilitySnapshot
 import api.bot.webwalk.plan.CapabilitySnapshot.Companion.COINS
+import api.bot.webwalk.plan.PlanLeg
 import api.bot.webwalk.plan.Spend
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -43,6 +46,18 @@ class TravelAllowanceTest {
     @Test
     fun `a flow allows nothing to be spent unless it says so`() {
         assertEquals(TravelAllowance(coins = false, runes = false, charges = false), TravelAllowance.NONE)
+    }
+
+    @Test
+    fun `each Travel choice is allowed by its own switch`() {
+        val allowance = TravelAllowance(coins = true, runes = false, charges = true)
+
+        assertEquals(listOf(true, false, true), TravelChoice.entries.map(allowance::allows))
+    }
+
+    @Test
+    fun `everything allowed is every choice`() {
+        assertEquals(listOf(true, true, true), TravelChoice.entries.map(TravelAllowance.ALL::allows))
     }
 
     @Test
@@ -109,5 +124,59 @@ class TravelAllowanceTest {
     fun `levels, unlocks and the wilderness level are the player's own`() {
         val restricted = restrict(TravelAllowance.NONE)
         assertEquals(Triple(carried.skillLevels, carried.flags, 2), Triple(restricted.skillLevels, restricted.flags, restricted.wildernessLevel))
+    }
+
+    private fun snapshot(items: Map<Int, Int> = emptyMap(), usable: Set<String> = emptySet(), charges: Map<String, Int> = emptyMap()) =
+        CapabilitySnapshot(items = items, usableTeleports = usable, charges = charges)
+
+    @Test
+    fun `what everything allowed would spend is looked at when the flow keeps coins back`() {
+        assertEquals(mapOf(COINS to 40), TravelAllowance.NONE.beyond(snapshot(items = mapOf(COINS to 40)), Spend.NONE, teleports)?.items)
+    }
+
+    @Test
+    fun `what everything allowed would spend is looked at when the flow keeps a teleport back`() {
+        assertEquals(setOf("varrock"), TravelAllowance.NONE.beyond(snapshot(usable = setOf("varrock")), Spend.NONE, teleports)?.usableTeleports)
+    }
+
+    @Test
+    fun `what everything allowed would spend is looked at when the flow keeps charges back`() {
+        assertEquals(mapOf("AMULET_OF_GLORY" to 4), TravelAllowance.NONE.beyond(snapshot(charges = mapOf("AMULET_OF_GLORY" to 4)), Spend.NONE, teleports)?.charges)
+    }
+
+    @Test
+    fun `nothing kept back that the player could pay with is no reason to look further`() {
+        assertEquals(null, TravelAllowance(coins = true).beyond(snapshot(items = mapOf(COINS to 40, law to 3)), Spend.NONE, teleports))
+    }
+
+    @Test
+    fun `what a reflex holds back is held back either way`() {
+        assertEquals(null, TravelAllowance.NONE.beyond(snapshot(items = mapOf(COINS to 10)), Spend(items = mapOf(COINS to 10)), teleports))
+    }
+
+    private fun leg(type: EdgeType, teleport: TeleportDefinition? = null, coins: Int = 0) =
+        PlanLeg(type, Position(3200, 3200), Position(3210, 3200), cost = 1.0, teleport = teleport, requirements = Requirements(coins = coins))
+
+    @Test
+    fun `a toll and a fare are paid with coins`() {
+        assertEquals(listOf(TravelChoice.COINS, TravelChoice.COINS), listOf(TravelChoice.of(leg(EdgeType.CROSSING, coins = 10)), TravelChoice.of(leg(EdgeType.SHIP, coins = 30))))
+    }
+
+    @Test
+    fun `a free ship costs nothing`() {
+        assertEquals(null, TravelChoice.of(leg(EdgeType.SHIP)))
+    }
+
+    @Test
+    fun `a spell is cast with runes, jewellery rubbed for a charge`() {
+        assertEquals(
+            listOf(TravelChoice.RUNES, TravelChoice.CHARGES),
+            listOf(TravelChoice.of(leg(EdgeType.TELEPORT, teleports[0])), TravelChoice.of(leg(EdgeType.TELEPORT, teleports[1]))),
+        )
+    }
+
+    @Test
+    fun `walks, passages and the home teleport cost nothing`() {
+        assertEquals(listOf(null, null, null), listOf(TravelChoice.of(leg(EdgeType.WALK)), TravelChoice.of(leg(EdgeType.DOOR)), TravelChoice.of(leg(EdgeType.TELEPORT, teleports[2]))))
     }
 }

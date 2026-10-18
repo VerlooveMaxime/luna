@@ -21,6 +21,7 @@ import game.idle.flow.option.FakeNames
 import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionContext
 import game.idle.location.Tile
+import game.idle.movement.TravelAllowance
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -1311,6 +1312,15 @@ class BuilderScreenTest {
 
         assertEquals(BuilderAnswer.Show(message = BuilderScreen.STOP_FIRST), click(player, BuilderWidgets.stopChoice(1)))
         assertEquals(StopSettings(), stops(player))
+    }
+
+    @Test
+    fun `clear drops what the flow's trips may spend too`() {
+        val player = player(chop).apply { idleState = idleState.copy(travel = TravelAllowance(runes = true)) }
+
+        click(player, BuilderWidgets.CLEAR)
+
+        assertEquals(TravelAllowance.NONE, player.idleState.travel)
     }
 
     @Test

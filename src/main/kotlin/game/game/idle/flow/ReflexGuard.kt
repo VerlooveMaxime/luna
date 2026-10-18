@@ -55,15 +55,17 @@ interface ReflexBody {
     /**
      * Whether Luna would teleport the player to [destination] now (S13 part 5): not locked, not tele-blocked, not
      * deeper in the wilderness than the teleport works from; a spell on the player's spellbook, its level and runes as
-     * Luna counts them, the spellbook's click throttle passed; a jewellery with a charged piece in the bag.
+     * Luna counts them, the spellbook's click throttle passed; a jewellery with a charged piece in the bag, or worn with
+     * room in the bag to take it off into (web-walker movement Part 3c).
      */
     fun canTeleport(destination: TeleportDestination): Boolean
 
     /**
-     * Starts the teleport to [destination] as the spellbook's button or the jewellery's menu would; true when Luna
-     * took it, the player then held until they land.
+     * Starts the teleport to [destination] as the spellbook's button or the jewellery's menu would, a worn piece taken
+     * off first, telling [starting] how it starts the moment before it does; how it started, null when Luna turned it
+     * down. The player is then held until they land.
      */
-    fun teleport(destination: TeleportDestination): Boolean
+    fun teleport(destination: TeleportDestination, starting: (TeleportStarted) -> Unit): TeleportStarted?
 
     /** Whether a teleport under way still holds the player. */
     fun teleporting(): Boolean
@@ -108,6 +110,9 @@ sealed interface ReflexOutcome {
     data class Jump(val index: Int, override val number: Int, override val fired: Fired) : ReflexOutcome
 }
 
+/** Reflex [number] took worn jewellery off to rub it to [destination] (Maxime, 2026-10-18), which the player is told. */
+data class TookOff(val number: Int, val destination: TeleportDestination.Jewellery)
+
 /**
  * The running [step]'s activity with the [reflexes] attached to it, in its order (S07c). At each decision the first
  * reflex whose When holds and whose Do can be done fires, else the step acts as usual; the step is not busy while one
@@ -122,13 +127,14 @@ sealed interface ReflexOutcome {
  * teleport is a stop or a jump whose flight is the teleport itself (S13 part 5, Maxime 2026-10-16): once Luna takes it
  * the step waits for the landing, then the outcome follows at once, unless something attacks the player where they
  * land, which Q15's rule meets by running clear first; a teleport Luna turns down after all goes on as a plain stop or
- * jump.
+ * jump. Worn jewellery taken off to rub it is told through [tookOff] the moment before, ahead of Luna's own lines.
  */
 class ReflexGuard(
     private val step: StepActivity,
     private val reflexes: List<ResolvedReflex>,
     private val body: ReflexBody,
     private val hold: PrayerHold,
+    private val tookOff: (TookOff) -> Unit,
 ) : StepActivity {
 
     private var leaving: Leaving? = null
@@ -240,14 +246,21 @@ class ReflexGuard(
         if (!body.teleporting()) runClear(firing)
     }
 
-    /** A teleport Luna takes is the flight; one it turns down, or no teleport at all, runs clear. */
+    /**
+     * A teleport Luna takes is the flight; one it turns down, or no teleport at all, runs clear. Worn jewellery taken off
+     * to rub it is told the moment before (Maxime, 2026-10-18).
+     */
     private fun leave(firing: Firing.Leave) {
-        val destination = firing.teleport
-        if (destination != null && body.teleport(destination)) {
+        val started = firing.teleport?.let { destination -> body.teleport(destination) { tellTakingOff(firing.number, it) } }
+        if (started != null) {
             leaving = Leaving.InFlight(firing)
             return
         }
         runClear(firing)
+    }
+
+    private fun tellTakingOff(number: Int, started: TeleportStarted) {
+        if (started is TeleportStarted.Rubbed && started.tookOff) tookOff(TookOff(number, started.destination))
     }
 
     private fun runClear(firing: Firing.Leave) {

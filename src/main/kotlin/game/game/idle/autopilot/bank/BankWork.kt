@@ -7,6 +7,8 @@ import game.idle.autopilot.bank.BankDecision.Settled
 import game.idle.autopilot.bank.BankDecision.WalkToBooth
 import game.idle.autopilot.bank.BankDecision.Withdraw
 import game.idle.flow.Meter
+import game.idle.flow.Place
+import game.idle.flow.Reason
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
 
@@ -45,7 +47,12 @@ interface Banker {
  * nothing only approach it. It counts nothing. The walk to the booth is the trip [toBooth] (none without a bank), then
  * the banker's last steps into the booth's reach should the trip end beside a tile it is used from.
  */
-class BankWork(private val banker: Banker, private val order: BankOrder, private val toBooth: StepWork?) : StepWork {
+class BankWork(
+    private val banker: Banker,
+    private val order: BankOrder,
+    private val toBooth: StepWork?,
+    private val noWay: Reason = Reason.NoWay(Place.BANK),
+) : StepWork {
 
     private var tries = BankTries()
 
@@ -60,7 +67,7 @@ class BankWork(private val banker: Banker, private val order: BankOrder, private
     override fun act(left: Int?): StepOutcome {
         val view = banker.look()
         val plan = BankPlanner.plan(view, order, tries, banker::stacks)
-        return carryOut(BankPlanner.decide(view, plan, tries.moved, order.ifStuck))
+        return carryOut(BankPlanner.decide(view, plan, tries.moved, order.ifStuck, noWay))
     }
 
     private fun carryOut(decision: BankDecision): StepOutcome =

@@ -5,6 +5,7 @@ import game.idle.flow.FlowStops
 import game.idle.flow.ReflexSettings
 import game.idle.flow.StepSettings
 import game.idle.flow.StopSettings
+import game.idle.movement.TravelAllowance
 import game.idle.ui.SearchPrompt
 
 /** The endpoint table. `GET /` lists it, so an agent can discover the API from the server itself. */
@@ -73,7 +74,7 @@ fun harnessRoutes(api: HarnessApi): List<Route> {
                 StepSettings(step.string("kind"), settings(step), step.int("id", FlowIds.NONE), step.ints("reflexes"))
             }
             val reflexes = body.optionalObjects("reflexes").map { reflex -> ReflexSettings(reflex.int("id", FlowIds.NONE), settings(reflex)) }
-            api.replaceFlow(call.path("name"), steps, reflexes, stop(body))
+            api.replaceFlow(call.path("name"), steps, reflexes, stop(body), travel(body))
         },
     )
     val index = Route("GET", "/") { endpoints.map { "${it.method} ${it.pattern}" } }
@@ -88,3 +89,22 @@ private fun stop(body: RequestBody): StopSettings {
     val stop = body.strings("stop")
     return StopSettings(stop["kind"] ?: FlowStops.NEVER, stop["after"].orEmpty())
 }
+
+/**
+ * What a posted flow's trips may spend: `{"coins": true, "runes": false, "charges": true}`, each read as text and off
+ * when left out, as is a missing object.
+ */
+private fun travel(body: RequestBody): TravelAllowance {
+    val travel = body.strings("travel")
+    val unknown = travel.keys - TRAVEL_CHOICES
+    if (unknown.isNotEmpty()) throw HarnessException(400, "field 'travel' takes ${TRAVEL_CHOICES.joinToString()}, not '${unknown.first()}'")
+    fun allowed(choice: String): Boolean =
+        when (travel[choice]?.lowercase()) {
+            null, "false" -> false
+            "true" -> true
+            else -> throw HarnessException(400, "travel's '$choice' must be true or false")
+        }
+    return TravelAllowance(coins = allowed("coins"), runes = allowed("runes"), charges = allowed("charges"))
+}
+
+private val TRAVEL_CHOICES = listOf("coins", "runes", "charges")

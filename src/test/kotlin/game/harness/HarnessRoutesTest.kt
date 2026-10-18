@@ -3,6 +3,7 @@ package game.harness
 import game.idle.flow.StopSettings
 import game.idle.flow.ReflexSettings
 import game.idle.flow.StepSettings
+import game.idle.movement.TravelAllowance
 import game.idle.ui.SearchPrompt
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -292,5 +293,34 @@ class HarnessRoutesTest {
         post("/player/agent_a/flow", """{"steps": []}""")
 
         assertEquals(listOf(StopSettings()), api.replacedStops)
+    }
+
+    @Test
+    fun `a posted flow carries what its trips may spend, read as text`() {
+        post("/player/agent_a/flow", """{"steps": [], "travel": {"coins": true, "runes": "false", "charges": "TRUE"}}""")
+
+        assertEquals(listOf(TravelAllowance(coins = true, runes = false, charges = true)), api.replacedTravel)
+    }
+
+    @Test
+    fun `a flow posted without travel spends nothing on its trips`() {
+        post("/player/agent_a/flow", """{"steps": [], "travel": {"runes": true}}""")
+        post("/player/agent_a/flow", """{"steps": []}""")
+
+        assertEquals(listOf(TravelAllowance(runes = true), TravelAllowance.NONE), api.replacedTravel)
+    }
+
+    @Test
+    fun `a posted travel choice that is not true or false answers 400`() {
+        val response = post("/player/agent_a/flow", """{"steps": [], "travel": {"coins": "yes"}}""")
+
+        assertEquals(HarnessResponse(400, ErrorView("travel's 'coins' must be true or false")), response)
+    }
+
+    @Test
+    fun `a posted travel choice the flow does not have answers 400`() {
+        val response = post("/player/agent_a/flow", """{"steps": [], "travel": {"ships": true}}""")
+
+        assertEquals(HarnessResponse(400, ErrorView("field 'travel' takes coins, runes, charges, not 'ships'")), response)
     }
 }

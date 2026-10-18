@@ -1,6 +1,6 @@
 package game.idle.autopilot.bank
 
-import api.bot.webwalk.plan.WebWalkPlan
+import game.idle.autopilot.travel.TripPlanning
 import game.idle.autopilot.travel.Traveller
 import game.idle.location.Bank
 import game.idle.movement.TravelWeb
@@ -22,5 +22,5 @@ class LunaBankTrips(private val world: World, private val traveller: Traveller, 
     }
 
     /** Waits for the plan when it is made off the game thread: the bank is picked when the step starts. */
-    override fun plan(ends: List<Position>): WebWalkPlan? = traveller.plan(ends).join()
+    override fun plan(ends: List<Position>): TripPlanning = traveller.plan(ends).join()
 }

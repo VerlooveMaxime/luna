@@ -1,16 +1,20 @@
 package game.idle.flow
 
+import game.idle.movement.TravelChoice
+
 /**
  * What a run has done so far (S12), saved in the player's state so a relog resumes the run as it was (Maxime,
  * 2026-10-15): the [totals] each step counted over the laps since Run, by step index; the steps whose goal is [met],
  * skipped for the rest of the run; when the run started ([startedAt], wall-clock milliseconds, which a Time goal and
- * the After-time stop count from); and, by bank step index, the withdrawals the player was [toldLeftOut] (S13).
+ * the After-time stop count from); by bank step index, the withdrawals the player was [toldLeftOut] (S13); and the
+ * Travel choices a trip went the long way round for, which the player was [toldLongWay] (web-walker movement Part 3c).
  */
 data class RunProgress(
     val totals: Map<Int, Int> = emptyMap(),
     val met: Set<Int> = emptySet(),
     val startedAt: Long = 0,
     val toldLeftOut: Map<Int, Set<Int>> = emptyMap(),
+    val toldLongWay: Set<TravelChoice> = emptySet(),
 ) {
 
     fun total(index: Int): Int = totals[index] ?: 0
@@ -25,6 +29,11 @@ data class RunProgress(
 
     /** With the player told the bank step at [index] leaves out [items]. */
     fun telling(index: Int, items: Set<Int>): RunProgress = copy(toldLeftOut = toldLeftOut + (index to toldLeftOut[index].orEmpty() + items))
+
+    /** Whether the player was told this run that a trip went the long way round for want of [choice]. */
+    fun toldLongWay(choice: TravelChoice): Boolean = choice in toldLongWay
+
+    fun tellingLongWay(choice: TravelChoice): RunProgress = copy(toldLongWay = toldLongWay + choice)
 }
 
 /** The time of day a run reads (a boundary): wall-clock milliseconds. */

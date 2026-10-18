@@ -1,6 +1,7 @@
 package game.idle.flow
 
 import engine.combat.prayer.CombatPrayer
+import game.content.sailing.ShipRoute
 import game.idle.autopilot.firemaking.LightStepType
 import game.idle.autopilot.fishing.FishingMethod
 import game.idle.autopilot.making.LunaRecipes
@@ -9,6 +10,7 @@ import game.idle.autopilot.smithing.SmithStepType
 import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.flow.option.LunaGameNames
 import game.idle.font.ClientFont
+import game.idle.movement.TravelChoice
 import game.idle.ui.BuilderWidgets
 import game.testworld.TestWorld
 import io.luna.game.model.def.ItemDefinition
@@ -64,6 +66,7 @@ class StepWordsFitTest {
             Target.entries.map { Reason.NoneInReach(it) } +
             listOf(Reason.CannotMake, Reason.WrongWindow) +
             Place.entries.map { Reason.NoWay(it) } +
+            Place.entries.flatMap { place -> TravelChoice.entries.map { Reason.NoWay(place, it) } } +
             Passage.entries.map { Reason.Impassable(it) } +
             listOf(Reason.BagFull(emptyList()), Reason.NoneLeftInBank(longestNamedItem()), Reason.BankFull) +
             listOf(Reason.RunningClear(), Reason.RunningClear(toStep = 99))
@@ -90,7 +93,20 @@ class StepWordsFitTest {
                 StepWords.NO_GOALS,
                 words.stoppedAfterLaps(Int.MAX_VALUE),
                 words.stoppedAfterMinutes(Int.MAX_VALUE),
-            ) + goals().flatMap { listOf(words.goalMet(99, it), words.goalStops(99, it)) }
+            ) + goals().flatMap { listOf(words.goalMet(99, it), words.goalStops(99, it)) } + travelLines()
+    }
+
+    /** Every spend and long way a trip can tell (web-walker movement Part 3c): each teleport with all it lists, each piece taken off. */
+    private fun travelLines(): List<String> {
+        val teleports = Teleports.all.flatMap { destination ->
+            when (destination) {
+                is TeleportDestination.Spell -> listOf(TeleportStarted.Cast(destination, Teleports.listed(destination.spell.requirements, worn = emptySet())))
+                is TeleportDestination.Jewellery -> listOf(TeleportStarted.Rubbed(destination, tookOff = false), TeleportStarted.Rubbed(destination, tookOff = true))
+            }
+        }
+        val tookOff = Teleports.all.filterIsInstance<TeleportDestination.Jewellery>().map { words.tookOff(TookOff(99, it)) }
+        return teleports.map { words.said(99, Said.Teleported(it)) } + tookOff + words.said(99, Said.PaidToll(10)) +
+            TravelChoice.entries.map { words.said(99, Said.LongWay(it)) } + ShipRoute.entries.map { words.said(99, Said.Fare(it.fare, it.place)) }
     }
 
     /** Every kind of goal with the longest words the data can put in it. */

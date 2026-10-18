@@ -6,8 +6,8 @@ import api.attr.setValue
 import api.combat.specialAttack.SpecialAttackHandler
 import engine.combat.prayer.CombatPrayer
 import engine.combat.status.StatusEffectType
-import engine.controllers.WildernessLocatableController.wildernessLevel
 import game.idle.autopilot.LunaClicks
+import game.idle.autopilot.LunaTeleports
 import game.idle.autopilot.travel.Flight
 import game.idle.autopilot.travel.FlightTerrain
 import game.idle.autopilot.travel.LunaTraveller
@@ -16,7 +16,7 @@ import game.idle.flow.Health
 import game.idle.flow.Passage
 import game.idle.flow.ReflexBody
 import game.idle.flow.TeleportDestination
-import game.idle.flow.Teleports
+import game.idle.flow.TeleportStarted
 import game.idle.flow.UnderWay
 import game.idle.flow.WornSpecial
 import game.idle.movement.Doorway
@@ -25,16 +25,9 @@ import game.idle.movement.FleePlanner
 import game.idle.movement.Step
 import game.idle.movement.TravelWebs
 import game.idle.movement.reachingTiles
-import game.item.degradable.jewellery.JewelleryTeleports
-import game.item.degradable.jewellery.TeleportJewellery
 import game.obj.doors.DoorType
 import game.obj.doors.Doors
 import game.player.item.consume.food.Food
-import game.skill.magic.Magic
-import game.skill.magic.teleportSpells.TeleportAction
-import game.skill.magic.teleportSpells.TeleportAction.Companion.teleportDelay
-import game.skill.magic.teleportSpells.TeleportSpell
-import game.skill.magic.teleportSpells.TeleportSpellAction
 import io.luna.game.event.impl.ItemClickEvent.ItemFirstClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.EntityType
@@ -53,9 +46,8 @@ fun healthOf(player: Player): Health = Health(player.health, player.skill(Skill.
  * [ReflexBody] for a logged-in player. Eating and drinking use the same event as the client's click, so Luna's
  * consumables run unchanged (their separate delays included) and the fight in progress goes on. Praying goes through
  * Luna's prayer set as the tab's buttons do (varps, sounds, head icon, drain), never to its state directly, and the
- * special attack through the bar as its button does (the varp, the drain, the special on the next hit). A teleport
- * submits the action the spellbook's button or the jewellery's menu would, so Luna's own checks, lines, runes, charges
- * and experience apply. A flight goes through the [doorways] of the travel web and shuts a door by the open leaf Luna's
+ * special attack through the bar as its button does (the varp, the drain, the special on the next hit). A teleport goes
+ * through [LunaTeleports], as a trip's does. A flight goes through the [doorways] of the travel web and shuts a door by the open leaf Luna's
  * doors put in its place, as its [doorTypes] (by a closed door's id) name it.
  */
 class LunaReflexBody(
@@ -130,54 +122,13 @@ class LunaReflexBody(
         return player.combat.specialBar.isActivated
     }
 
-    /**
-     * Luna's refusals, read before asking: a refused action would still say why in the chat box. The click throttle is
-     * read without restarting it, which `ready` does.
-     */
-    override fun canTeleport(destination: TeleportDestination): Boolean {
-        if (player.isLocked || player.status.isTeleBlocked() || player.wildernessLevel > Teleports.wildernessLimit(destination)) return false
-        return when (destination) {
-            is TeleportDestination.Spell -> {
-                val spell = destination.spell
-                player.spellbook == spell.style.spellbook && throttlePassed() && Magic.canCast(player, spell.level, spell.requirements)
-            }
-            is TeleportDestination.Jewellery -> charged(destination.jewellery) != null
-        }
-    }
+    /** Luna's refusals, read before asking: a refused action would still say why in the chat box. */
+    override fun canTeleport(destination: TeleportDestination): Boolean = LunaTeleports.canTeleport(player, destination)
 
-    private fun throttlePassed(): Boolean {
-        val delay = player.teleportDelay
-        return !delay.isRunning || delay.durationTicks >= TeleportAction.CLICK_THROTTLE
-    }
-
-    /** Luna's action locks the player as it starts and only unlocks them once they land or it turns them down. */
-    override fun teleport(destination: TeleportDestination): Boolean =
-        when (destination) {
-            is TeleportDestination.Spell -> cast(destination.spell)
-            is TeleportDestination.Jewellery -> rub(destination)
-        }
-
-    /** As the spellbook's button: a click within the throttle is dropped. */
-    private fun cast(spell: TeleportSpell): Boolean {
-        if (player.teleportDelay.ready(TeleportAction.CLICK_THROTTLE)) player.submitAction(TeleportSpellAction(player, spell))
-        return player.isLocked
-    }
-
-    /** As the jewellery's menu, the destination already picked: Luna's rub line, then its teleport by the bag slot. */
-    private fun rub(destination: TeleportDestination.Jewellery): Boolean {
-        val (slot, index) = charged(destination.jewellery) ?: return false
-        player.sendMessage(destination.jewellery.rub)
-        JewelleryTeleports.teleport(player, destination.destination, slot, index, destination.jewellery)
-        return player.isLocked
-    }
+    override fun teleport(destination: TeleportDestination, starting: (TeleportStarted) -> Unit): TeleportStarted? =
+        LunaTeleports.teleport(player, destination, starting)
 
     override fun teleporting(): Boolean = player.isLocked
-
-    /** The bag slot of the first charged piece of [jewellery] and its place among the charges, null for none. */
-    private fun charged(jewellery: TeleportJewellery): Pair<Int, Int>? =
-        (0 until player.inventory.capacity()).firstNotNullOfOrNull { slot ->
-            player.inventory[slot]?.let { jewellery.items.indexOf(it.id) }?.takeIf { it >= 0 }?.let { slot to it }
-        }
 
     override fun underAttack(): Boolean = threats().isNotEmpty()
 

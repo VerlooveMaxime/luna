@@ -11,6 +11,7 @@ import game.idle.movement.approachTiles
 import game.testworld.TestWorld
 import io.luna.game.action.ActionType
 import io.luna.game.event.impl.ButtonClickEvent
+import io.luna.game.event.impl.NpcClickEvent.NpcFirstClickEvent
 import io.luna.game.event.impl.ObjectClickEvent
 import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
 import io.luna.game.event.impl.ObjectClickEvent.ObjectSecondClickEvent
@@ -677,5 +678,65 @@ class LunaClicksTest {
         LunaClicks.postClosing(player, ButtonClickEvent(player, button))
 
         assertEquals(true to emptyList<Int>(), windowOpen(player) to pressed)
+    }
+
+    private val sailor = 376
+
+    private fun talks(): MutableList<Int> {
+        val talked = mutableListOf<Int>()
+        TestWorld.listen(NpcFirstClickEvent::class.java) { talked += it.targetNpc.id }
+        return talked
+    }
+
+    @Test
+    fun `talking to an npc in reach clicks its first option`() {
+        val player = login()
+        val npc = TestWorld.spawnNpc(sailor, beside)
+        val talked = talks()
+
+        LunaClicks.talkTo(player, npc)
+        TestWorld.tick()
+
+        assertEquals(listOf(sailor), talked)
+    }
+
+    @Test
+    fun `talking to an npc out of reach walks up to it and talks on arrival, as the client does`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        val npc = TestWorld.spawnNpc(sailor, beside)
+        val talked = talks()
+
+        LunaClicks.talkTo(player, npc)
+        TestWorld.tick(12)
+
+        assertEquals(listOf(sailor), talked)
+    }
+
+    @Test
+    fun `a talk due on arrival at an npc gone since is not made`() {
+        val player = TestWorld.login("traveller", Position(3198, 3200))
+        val npc = TestWorld.spawnNpc(sailor, beside)
+        val talked = talks()
+        LunaClicks.talkTo(player, npc, async = false)
+        TestWorld.tick(3)
+
+        TestWorld.world.npcs.remove(npc)
+        TestWorld.tick(2)
+
+        assertEquals(emptyList<Int>() to false, talked to LunaClicks.isActing(player))
+    }
+
+    @Test
+    fun `a walk up to an npc cut short drops the talk`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        val npc = TestWorld.spawnNpc(sailor, beside)
+        val talked = talks()
+        LunaClicks.talkTo(player, npc)
+        TestWorld.tick()
+
+        LunaClicks.endWalk(player)
+        TestWorld.tick(8)
+
+        assertEquals(emptyList<Int>(), talked)
     }
 }

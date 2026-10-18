@@ -8,6 +8,7 @@ import game.idle.flow.RunProgress
 import game.idle.flow.StepSettings
 import game.idle.flow.StopSettings
 import game.idle.location.Tile
+import game.idle.movement.TravelAllowance
 import io.luna.game.model.mob.Player
 
 /**
@@ -24,7 +25,7 @@ import io.luna.game.model.mob.Player
  * transient, so a save never holds them, and cleared whenever the flow starts, stops or changes step. [progress] is
  * what the run did so far (S12: per-step totals, met goals, when it started), saved so a relog resumes it, kept after a
  * stop (the slots keep saying which goals were met) and cleared when a run starts afresh or the flow changes; [stop] is
- * the flow's stop condition, saved with the flow.
+ * the flow's stop condition and [travel] what its trips may spend (web-walker movement Q1), both saved with the flow.
  *
  * The flow was kept as typed lines under the name `flow` until 2026-10-07; a save still holding them loads with an
  * empty flow, which the next save makes final.
@@ -44,16 +45,25 @@ data class IdleState(
     val countBoostedLevels: Boolean = false,
     val progress: RunProgress = RunProgress(),
     val stop: StopSettings = StopSettings(),
+    val travel: TravelAllowance = TravelAllowance.NONE,
     @Transient val blocked: String? = null,
     @Transient val waiting: String? = null,
     @Transient val underWay: String? = null,
 ) {
     /**
-     * The flow as [steps] and [reflexes], the reflexes and the [stop] kept as they are unless given, stopped and from its
-     * first step.
+     * The flow as [steps] and [reflexes], the reflexes, the [stop] and the [travel] kept as they are unless given, stopped
+     * and from its first step.
      */
-    fun withFlow(steps: List<StepSettings>, reflexes: List<ReflexSettings> = this.reflexes, stop: StopSettings = this.stop): IdleState =
-        copy(steps = steps, reflexes = reflexes, stepIndex = 0, running = false, runTile = null, laps = 0, progress = RunProgress(), stop = stop, blocked = null, waiting = null, underWay = null)
+    fun withFlow(
+        steps: List<StepSettings>,
+        reflexes: List<ReflexSettings> = this.reflexes,
+        stop: StopSettings = this.stop,
+        travel: TravelAllowance = this.travel,
+    ): IdleState =
+        copy(
+            steps = steps, reflexes = reflexes, stepIndex = 0, running = false, runTile = null, laps = 0, progress = RunProgress(), stop = stop,
+            travel = travel, blocked = null, waiting = null, underWay = null,
+        )
 
     fun atStep(index: Int): IdleState = copy(stepIndex = index, blocked = null, waiting = null, underWay = null)
 
@@ -75,13 +85,14 @@ data class IdleState(
     }
 }
 
-/** A flow the player saved under [name] in saved-flow slot [slot], its stop condition with it (S12). */
+/** A flow the player saved under [name] in saved-flow slot [slot], its stop condition (S12) and its travel allowance with it. */
 data class SavedFlow(
     val slot: Int = 0,
     val name: String = "",
     val steps: List<StepSettings> = emptyList(),
     val reflexes: List<ReflexSettings> = emptyList(),
     val stop: StopSettings = StopSettings(),
+    val travel: TravelAllowance = TravelAllowance.NONE,
 )
 
 var Player.idleState by Attr.obj { IdleState() }.persist("idle_state")

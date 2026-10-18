@@ -94,11 +94,15 @@ class FakeFlowPlayer(override val body: FakeReflexBody = FakeReflexBody()) : Flo
     /** The bank steps started, each with the withdrawals it was asked to leave out. */
     val leftOut = mutableListOf<Set<Int>>()
 
+    /** What each step started was given to speak through, the last step's last. */
+    val speeches = mutableListOf<Speech>()
+
     override fun tell(message: String) {
         told += message
     }
 
-    override fun activity(step: ResolvedStep): StepActivity {
+    override fun activity(step: ResolvedStep, speech: Speech): StepActivity {
+        speeches += speech
         if (step is FakeBankStep) leftOut += step.leftOut
         return FakeStepActivity(step.toString(), log).also { started += it }
     }
@@ -257,7 +261,7 @@ fun described(fields: List<StepField>): List<String> =
  * ("eat 3", "pray thick_skin"). Prayers are [lit] as Luna's set would light them (one of a group at a time, none below
  * [prayerLevel], without [prayerPoints] or while [prayersDisabled]); [refused] is one Luna turns down all the same. A
  * teleport to one of [teleportable] can be done; Luna takes it unless [teleportRefused], the player then [teleporting]
- * until a test lands them.
+ * until a test lands them; jewellery is rubbed from the bag, or taken off first while [wornJewellery].
  */
 class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
 
@@ -280,6 +284,7 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
     val teleportable = mutableSetOf<TeleportDestination>()
     var teleportRefused = false
     var teleporting = false
+    var wornJewellery = false
     var flightBusy = false
     var flightUnderWay: UnderWay? = null
     var shutBehind: Passage? = null
@@ -335,11 +340,16 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
 
     override fun canTeleport(destination: TeleportDestination): Boolean = destination in teleportable
 
-    override fun teleport(destination: TeleportDestination): Boolean {
+    override fun teleport(destination: TeleportDestination, starting: (TeleportStarted) -> Unit): TeleportStarted? {
         done += "teleport ${Teleports.key(destination)}"
-        if (teleportRefused) return false
+        if (teleportRefused) return null
         teleporting = true
-        return true
+        val started = when (destination) {
+            is TeleportDestination.Spell -> TeleportStarted.Cast(destination, spent = emptyMap())
+            is TeleportDestination.Jewellery -> TeleportStarted.Rubbed(destination, tookOff = wornJewellery)
+        }
+        starting(started)
+        return started
     }
 
     override fun teleporting(): Boolean = teleporting

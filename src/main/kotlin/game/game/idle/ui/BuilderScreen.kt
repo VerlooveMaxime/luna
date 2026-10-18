@@ -21,6 +21,7 @@ import game.idle.flow.option.InputSource
 import game.idle.flow.option.OptionContext
 import game.idle.flow.option.StepOption
 import game.idle.location.Tile
+import game.idle.movement.TravelAllowance
 
 /** What the game shows after a click on the builder's screens or the Idle tab. */
 sealed interface BuilderAnswer {
@@ -335,11 +336,11 @@ class BuilderScreen<P : AutopilotPlayer>(
         return say("stopped.")
     }
 
-    /** A cleared flow is a new one: no step, no reflex, no stop. */
+    /** A cleared flow is a new one: no step, no reflex, no stop, nothing its trips may spend. */
     private fun clear(player: P): BuilderAnswer {
         if (autopilot.isRunning(player)) return BuilderAnswer.Show(message = STOP_FIRST)
         if (player.idleState.steps.isEmpty() && player.idleState.reflexes.isEmpty()) return BuilderAnswer.Show()
-        player.idleState = player.idleState.withFlow(emptyList(), emptyList(), StopSettings())
+        player.idleState = player.idleState.withFlow(emptyList(), emptyList(), StopSettings(), TravelAllowance.NONE)
         return say("flow cleared.")
     }
 

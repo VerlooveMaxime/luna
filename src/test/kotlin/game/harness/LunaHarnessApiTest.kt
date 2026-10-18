@@ -14,6 +14,7 @@ import game.idle.flow.StepTypes
 import game.idle.flow.StopSettings
 import game.idle.font.ClientFont
 import game.idle.idleState
+import game.idle.movement.TravelAllowance
 import game.testworld.TestWorld
 import io.luna.game.action.Action
 import io.luna.game.action.ActionType
@@ -873,7 +874,9 @@ class LunaHarnessApiTest {
             FlowStepView(2, "drop", emptyMap(), emptyList(), emptyList(), null, null, false, 0, emptyList()),
         )
         assertEquals(
-            FlowView("agent_a", running = false, stepIndex = 1, laps = 0, blocked = null, waiting = null, underWay = null, stop = FlowStopView("never", ""), steps = steps, reflexes = listOf(FlowReflexView(3, mapOf("do" to "stop")))),
+            FlowView("agent_a", running = false, stepIndex = 1, laps = 0, blocked = null, waiting = null, underWay = null, stop = FlowStopView("never", ""), travel = FlowTravelView(coins = false, runes = false, charges = false), steps = steps,
+                reflexes = listOf(FlowReflexView(3, mapOf("do" to "stop"))),
+            ),
             view,
         )
     }
@@ -903,16 +906,32 @@ class LunaHarnessApiTest {
     fun `replacing a flow takes its stop`() {
         val player = agent()
 
-        api().replaceFlow("agent_a", listOf(step("drop")), emptyList(), StopSettings("time", "30"))
+        api().replaceFlow("agent_a", listOf(step("drop")), emptyList(), StopSettings("time", "30"), TravelAllowance.NONE)
 
         assertEquals(StopSettings("time", "30"), player.idleState.stop)
+    }
+
+    @Test
+    fun `replacing a flow takes what its trips may spend`() {
+        val player = agent()
+
+        api().replaceFlow("agent_a", listOf(step("drop")), emptyList(), StopSettings(), TravelAllowance(coins = true, charges = true))
+
+        assertEquals(TravelAllowance(coins = true, charges = true), player.idleState.travel)
+    }
+
+    @Test
+    fun `a flow reads what its trips may spend`() {
+        agent().idleState = IdleState(steps = listOf(step("drop")), travel = TravelAllowance(runes = true))
+
+        assertEquals(FlowTravelView(coins = false, runes = true, charges = false), api().flow("agent_a").travel)
     }
 
     @Test
     fun `a flow with a stop the builder would refuse is a 400 with the reason`() {
         agent()
 
-        val thrown = assertThrows<HarnessException> { api().replaceFlow("agent_a", listOf(step("drop")), emptyList(), StopSettings("laps", "0")) }
+        val thrown = assertThrows<HarnessException> { api().replaceFlow("agent_a", listOf(step("drop")), emptyList(), StopSettings("laps", "0"), TravelAllowance.NONE) }
 
         assertEquals(400 to "Laps take 1 or more, not '0'", thrown.status to thrown.message)
     }
@@ -938,7 +957,7 @@ class LunaHarnessApiTest {
         val player = agent()
         player.idleState = IdleState(steps = listOf(step("drop")), stepIndex = 1, laps = 3, stage = 2)
 
-        val view = api().replaceFlow("agent_a", listOf(step("chop", "oak").copy(id = 1), step("drop").copy(id = 2)), emptyList(), StopSettings())
+        val view = api().replaceFlow("agent_a", listOf(step("chop", "oak").copy(id = 1), step("drop").copy(id = 2)), emptyList(), StopSettings(), TravelAllowance.NONE)
 
         assertEquals(IdleState(steps = listOf(step("chop", "oak").copy(id = 1), step("drop").copy(id = 2)), stage = 2), player.idleState)
         assertEquals(listOf(listOf("oak"), emptyList()), view.steps.map { it.lines })
@@ -949,7 +968,7 @@ class LunaHarnessApiTest {
         val player = agent()
         val fight = step("chop").copy(reflexes = listOf(1))
 
-        api().replaceFlow("agent_a", listOf(fight, step("drop").copy(id = 1)), listOf(ReflexSettings()), StopSettings())
+        api().replaceFlow("agent_a", listOf(fight, step("drop").copy(id = 1)), listOf(ReflexSettings()), StopSettings(), TravelAllowance.NONE)
 
         assertEquals(listOf(2, 1), player.idleState.steps.map { it.id })
         assertEquals(listOf(1), player.idleState.reflexes.map { it.id })
@@ -960,7 +979,7 @@ class LunaHarnessApiTest {
         agent()
 
         val thrown = assertThrows<HarnessException> {
-            api().replaceFlow("agent_a", listOf(step("drop")), listOf(ReflexSettings(1, mapOf("do" to "dance"))), StopSettings())
+            api().replaceFlow("agent_a", listOf(step("drop")), listOf(ReflexSettings(1, mapOf("do" to "dance"))), StopSettings(), TravelAllowance.NONE)
         }
 
         assertEquals(400 to "Reflex 1: 'dance' is not something a reflex does", thrown.status to thrown.message)
@@ -970,14 +989,14 @@ class LunaHarnessApiTest {
     fun `a running flow is not replaced`() {
         agent().idleState = IdleState(steps = listOf(step("drop")), running = true)
 
-        assertEquals(409, status { api().replaceFlow("agent_a", emptyList(), emptyList(), StopSettings()) })
+        assertEquals(409, status { api().replaceFlow("agent_a", emptyList(), emptyList(), StopSettings(), TravelAllowance.NONE) })
     }
 
     @Test
     fun `a flow the builder would refuse is a 400 with the reason`() {
         val player = agent()
 
-        val thrown = assertThrows<HarnessException> { api().replaceFlow("agent_a", listOf(step("chop", "bad")), emptyList(), StopSettings()) }
+        val thrown = assertThrows<HarnessException> { api().replaceFlow("agent_a", listOf(step("chop", "bad")), emptyList(), StopSettings(), TravelAllowance.NONE) }
 
         assertEquals(400 to "Step 1: 'bad' is refused", thrown.status to thrown.message)
         assertEquals(IdleState(), player.idleState)
@@ -987,7 +1006,7 @@ class LunaHarnessApiTest {
     fun `a bot has no flow to replace`() {
         TestWorld.bot("botty", spawn)
 
-        assertEquals(409, status { api().replaceFlow("botty", emptyList(), emptyList(), StopSettings()) })
+        assertEquals(409, status { api().replaceFlow("botty", emptyList(), emptyList(), StopSettings(), TravelAllowance.NONE) })
     }
 
     @Test

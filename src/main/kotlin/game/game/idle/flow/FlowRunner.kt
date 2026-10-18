@@ -8,7 +8,8 @@ interface FlowPlayer {
     /** What the flow's reflexes see and do for the player, and whether they died. */
     val body: ReflexBody
 
-    fun activity(step: ResolvedStep): StepActivity
+    /** The activity of [step], whose trips say what they do through [speech]. */
+    fun activity(step: ResolvedStep, speech: Speech): StepActivity
 
     fun saveStep(index: Int)
 
@@ -152,7 +153,7 @@ class FlowRunner(
         tellShut()
         activity.prayed().forEach { player.tell(words.prayed(it)) }
         activity.used().forEach { player.tell(words.usedSpecial(it)) }
-        activity.said()?.let { player.tell(words.said(index + 1, it)) }
+        activity.said()?.let(::tell)
         activity.jump()?.let { jump(activity, it) }
     }
 
@@ -194,10 +195,20 @@ class FlowRunner(
     private fun startStep(): ReflexGuard {
         val step = steps[index]
         val run = if (step is BankMoves) step.without(leaveOut(step)) else step
-        val started = ReflexGuard(player.activity(run), flow.reflexes[index], player.body, hold)
+        val started = ReflexGuard(player.activity(run, Speech(::tell)), flow.reflexes[index], player.body, hold) { player.tell(words.tookOff(it)) }
         current = started
         ending = false
         return started
+    }
+
+    /** What the step or its trips say; a long way round once a run for each Travel choice, a relog included (Maxime, 2026-10-18). */
+    private fun tell(said: Said) {
+        if (said is Said.LongWay) {
+            if (progress.toldLongWay(said.choice)) return
+            progress = progress.tellingLongWay(said.choice)
+            player.saveProgress(progress)
+        }
+        player.tell(words.said(index + 1, said))
     }
 
     /** What the bank step at [index] leaves out, each told the first time this run, a relog included. */

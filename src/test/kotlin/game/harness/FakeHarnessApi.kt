@@ -4,6 +4,7 @@ import com.google.gson.JsonElement
 import game.idle.flow.ReflexSettings
 import game.idle.flow.StepSettings
 import game.idle.flow.StopSettings
+import game.idle.movement.TravelAllowance
 
 /** Records every call and answers with fixed views, so route tests can check what reached the API. */
 class FakeHarnessApi : HarnessApi {
@@ -60,8 +61,10 @@ class FakeHarnessApi : HarnessApi {
         return contentAuditView
     }
 
-    val flowView = FlowView("agent_a", running = false, stepIndex = 0, laps = 0, blocked = null, waiting = null, underWay = null, stop = FlowStopView("never", ""), steps = emptyList(), reflexes = emptyList())
+    val flowView = FlowView("agent_a", running = false, stepIndex = 0, laps = 0, blocked = null, waiting = null, underWay = null, stop = FlowStopView("never", ""), travel = FlowTravelView(coins = false, runes = false, charges = false), steps = emptyList(), reflexes = emptyList())
     val replacedStops = mutableListOf<StopSettings>()
+
+    val replacedTravel = mutableListOf<TravelAllowance>()
 
     val replacedFlows = mutableListOf<Pair<String, List<StepSettings>>>()
 
@@ -72,8 +75,9 @@ class FakeHarnessApi : HarnessApi {
         return flowView
     }
 
-    override fun replaceFlow(name: String, steps: List<StepSettings>, reflexes: List<ReflexSettings>, stop: StopSettings): FlowView {
+    override fun replaceFlow(name: String, steps: List<StepSettings>, reflexes: List<ReflexSettings>, stop: StopSettings, travel: TravelAllowance): FlowView {
         replacedStops += stop
+        replacedTravel += travel
         replacedFlows += name to steps
         replacedReflexes += reflexes
         return flowView

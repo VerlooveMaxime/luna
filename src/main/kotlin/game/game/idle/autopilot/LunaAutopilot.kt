@@ -2,6 +2,7 @@ package game.idle.autopilot
 
 import game.idle.IdleState
 import game.idle.autopilot.reflex.LunaReflexBody
+import game.idle.autopilot.travel.stepSpeech
 import game.idle.autopilot.travel.tripTo
 import game.idle.flow.Counts
 import game.idle.flow.Gathers
@@ -10,6 +11,7 @@ import game.idle.flow.OwnSpot
 import game.idle.flow.Place
 import game.idle.flow.ReflexBody
 import game.idle.flow.ResolvedStep
+import game.idle.flow.Speech
 import game.idle.flow.RunProgress
 import game.idle.flow.SpotWalk
 import game.idle.flow.StepActivity
@@ -76,10 +78,12 @@ class LunaAutopilotPlayer(val player: Player, private val ui: IdleUi) : Autopilo
     /**
      * A flow is started before its first activity, so the run tile is set; the player's tile only guards a gap. A step
      * with its own work spot starting outside its area walks there first (S07e). The one place a step's turn is put
-     * together: the kind's work inside [StepTurn].
+     * together: the kind's work inside [StepTurn]. Its trips, made now or later in the turn, speak through [speech].
      */
-    override fun activity(step: ResolvedStep): StepActivity =
-        SpotWalk.of(tile, (step as? OwnSpot)?.ownArea, ::walkToSpot) { turn(step) }
+    override fun activity(step: ResolvedStep, speech: Speech): StepActivity {
+        player.stepSpeech = speech
+        return SpotWalk.of(tile, (step as? OwnSpot)?.ownArea, ::walkToSpot) { turn(step) }
+    }
 
     private fun turn(step: ResolvedStep): StepTurn =
         StepTurn(

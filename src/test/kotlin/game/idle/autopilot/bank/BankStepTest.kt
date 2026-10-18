@@ -3,12 +3,16 @@ package game.idle.autopilot.bank
 import api.bot.webwalk.model.EdgeType
 import api.bot.webwalk.plan.PlanLeg
 import api.bot.webwalk.plan.WebWalkPlan
+import game.idle.autopilot.travel.NoTrip
+import game.idle.autopilot.travel.PlannedTrip
+import game.idle.autopilot.travel.TripPlanning
 import game.idle.flow.Place
 import game.idle.flow.Reason
 import game.idle.flow.StepItem
 import game.idle.flow.StepOutcome
 import game.idle.location.Bank
 import game.idle.location.Tile
+import game.idle.movement.TravelChoice
 import game.testworld.TestWorld
 import io.luna.game.model.Position
 import io.luna.game.model.item.Item
@@ -37,18 +41,18 @@ class BankStepTest {
     private val ends = mapOf(acrossFence to listOf(acrossEnd), thisSide to listOf(thisSideEnd))
 
     /** Trips by [trip], which picks the end the cheapest trip reaches; [planned] records what was asked. */
-    private class FakeBankTrips(private val usable: Map<Bank, List<Position>>, private val trip: (List<Position>) -> WebWalkPlan?) : BankTrips {
+    private class FakeBankTrips(private val usable: Map<Bank, List<Position>>, private val trip: (List<Position>) -> TripPlanning) : BankTrips {
         val planned = mutableListOf<List<Position>>()
 
         override fun usableFrom(bank: Bank): List<Position> = usable[bank].orEmpty()
 
-        override fun plan(ends: List<Position>): WebWalkPlan? {
+        override fun plan(ends: List<Position>): TripPlanning {
             planned += ends
             return trip(ends)
         }
     }
 
-    private fun walkTo(end: Position) = WebWalkPlan(listOf(PlanLeg(EdgeType.WALK, here, end, cost = 40.0)), cost = 40.0)
+    private fun walkTo(end: Position) = PlannedTrip(WebWalkPlan(listOf(PlanLeg(EdgeType.WALK, here, end, cost = 40.0)), cost = 40.0))
 
     @Test
     fun `the nearest bank is the one the cheapest trip reaches, not the nearest in a straight line`() {
@@ -56,7 +60,7 @@ class BankStepTest {
 
         val nearest = BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(here, FakeBankTrips(ends) { trip })
 
-        assertEquals(BankTrip(thisSide, thisSideEnd, trip), nearest)
+        assertEquals(BankReach(BankTrip(thisSide, thisSideEnd, trip)), nearest)
     }
 
     @Test
@@ -74,21 +78,28 @@ class BankStepTest {
 
         val nearest = BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(here, trips)
 
-        assertEquals(null to 0, nearest to trips.planned.size)
+        assertEquals(BankReach(trip = null) to 0, nearest to trips.planned.size)
     }
 
     @Test
     fun `with no trip to a bank there is none to take`() {
-        assertNull(BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(here, FakeBankTrips(ends) { null }))
+        assertEquals(BankReach(trip = null), BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(here, FakeBankTrips(ends) { NoTrip() }))
+    }
+
+    @Test
+    fun `with no trip to a bank but one the flow's Travel setting would allow, the choice is named`() {
+        val nearest = BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(here, FakeBankTrips(ends) { NoTrip(TravelChoice.COINS) })
+
+        assertEquals(BankReach(trip = null, TravelChoice.COINS), nearest)
     }
 
     @Test
     fun `a player already standing where a booth is used from takes that bank`() {
-        val standing = WebWalkPlan(emptyList(), cost = 0.0)
+        val standing = PlannedTrip(WebWalkPlan(emptyList(), cost = 0.0))
 
         val nearest = BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(thisSideEnd, FakeBankTrips(ends) { standing })
 
-        assertEquals(BankTrip(thisSide, thisSideEnd, standing), nearest)
+        assertEquals(BankReach(BankTrip(thisSide, thisSideEnd, standing)), nearest)
     }
 
     @Test

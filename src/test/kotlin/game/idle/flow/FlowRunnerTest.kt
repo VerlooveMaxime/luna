@@ -1,6 +1,8 @@
 package game.idle.flow
 
 import engine.combat.prayer.CombatPrayer.THICK_SKIN
+import game.idle.movement.TravelChoice
+import game.item.degradable.jewellery.TeleportJewellery
 import game.skill.magic.teleportSpells.TeleportSpell
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -18,6 +20,7 @@ class FlowRunnerTest {
     private val stuck = StepStop.Stuck(Reason.NoneLeftInBank(1521))
 
     private val clock = FakeClock()
+    private val edgeville = TeleportDestination.Jewellery(TeleportJewellery.AMULET_OF_GLORY, 0)
 
     private fun runner(vararg names: String, startAt: Int = 0) = runner(ResolvedFlow(names.map { FakeStep(it) }), startAt)
 
@@ -354,6 +357,83 @@ class FlowRunnerTest {
         runner.act()
 
         assertEquals(emptyList<String>(), player.told)
+    }
+
+    @Test
+    fun `a long way round is told once a run for each Travel choice`() {
+        val runner = runner("walk")
+        runner.act()
+        player.started.single().said = Said.LongWay(TravelChoice.COINS)
+        runner.act()
+        player.started.single().said = Said.LongWay(TravelChoice.COINS)
+        runner.act()
+        player.started.single().said = Said.LongWay(TravelChoice.RUNES)
+
+        runner.act()
+
+        assertEquals(
+            listOf(
+                "Autopilot: step 1 takes the long way: tolls and fares are off in Travel.",
+                "Autopilot: step 1 takes the long way: teleport spells are off in Travel.",
+            ),
+            player.told,
+        )
+    }
+
+    @Test
+    fun `a long way round told is saved with the run`() {
+        val runner = runner("walk")
+        runner.act()
+        player.started.single().said = Said.LongWay(TravelChoice.CHARGES)
+
+        runner.act()
+
+        assertEquals(setOf(TravelChoice.CHARGES), player.savedProgress.last().toldLongWay)
+    }
+
+    @Test
+    fun `a run resumed after a relog does not tell a long way round again`() {
+        val runner = runner(ResolvedFlow(listOf(FakeStep("walk"))), progress = RunProgress(toldLongWay = setOf(TravelChoice.COINS)))
+        runner.act()
+        player.started.single().said = Said.LongWay(TravelChoice.COINS)
+
+        runner.act()
+
+        assertEquals(emptyList<String>(), player.told)
+    }
+
+    @Test
+    fun `what a step's trips say is told at once, worded with its number`() {
+        val runner = runner("walk", "bank", startAt = 1)
+        runner.act()
+
+        player.speeches.last().say(Said.PaidToll(10))
+
+        assertEquals(listOf("Autopilot: step 2 pays the 10-coin toll at the Al Kharid gate."), player.told)
+    }
+
+    @Test
+    fun `a long way round a trip tells at once is told once a run too`() {
+        val runner = runner("walk")
+        runner.act()
+
+        player.speeches.last().say(Said.LongWay(TravelChoice.RUNES))
+        player.speeches.last().say(Said.LongWay(TravelChoice.RUNES))
+
+        assertEquals(1, player.told.size)
+    }
+
+    @Test
+    fun `a trip's spend is told every time`() {
+        val runner = runner("walk")
+        runner.act()
+        player.started.single().said = Said.PaidToll(10)
+        runner.act()
+        player.started.single().said = Said.PaidToll(10)
+
+        runner.act()
+
+        assertEquals(2, player.told.size)
     }
 
     @Test
@@ -736,6 +816,19 @@ class FlowRunnerTest {
         runner(ResolvedFlow(steps, listOf(listOf(special)))).act()
 
         assertEquals(listOf("Autopilot: reflex 1 used the special attack."), player.told)
+    }
+
+    @Test
+    fun `a reflex that took worn jewellery off to rub it says so`() {
+        hurt()
+        body.wornJewellery = true
+        body.teleportable += edgeville
+        val teleport = ResolvedReflex(1, ReflexTrigger.HitpointsBelow(50), ReflexAction.Teleport(edgeville, jumpTo = null))
+        val steps = listOf(FakeStep("fight"))
+
+        runner(ResolvedFlow(steps, listOf(listOf(teleport)))).act()
+
+        assertEquals(listOf("Autopilot: reflex 1 takes off the item 1712 to rub it to Edgeville."), player.told)
     }
 
     @Test

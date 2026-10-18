@@ -126,7 +126,7 @@ class Flight(private val traveller: Traveller) {
             return
         }
         // The place is never said: no block shows while the player runs clear.
-        val walk = TripWork(traveller, Tile.of(route.tile), Place.WORK_SPOT, WalkUps.plan(here, route.doors, route.tile), arriveWithin = 0)
+        val walk = TripWork(traveller, Tile.of(route.tile), Place.WORK_SPOT, PlannedTrip(WalkUps.plan(here, route.doors, route.tile)), arriveWithin = 0)
         trip = walk
         val outcome = walk.act(left = null)
         underWay = (outcome as? StepOutcome.OnTheWay)?.underWay

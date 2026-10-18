@@ -126,11 +126,14 @@ data class FlowReflexView(val id: Int, val values: Map<String, String>)
 /** A flow's stop condition as its settings keep it (S12): its kind (never, laps, time, goals) and the number typed after it. */
 data class FlowStopView(val kind: String, val after: String)
 
+/** What a flow's trips may spend (web-walker movement Q1): coins for tolls and fares, teleport runes, jewellery charges. */
+data class FlowTravelView(val coins: Boolean, val runes: Boolean, val charges: Boolean)
+
 /**
  * A player's flow; [blocked] is why its running step cannot go on, as the overlay shows it, null while it can, and
  * [waiting] what it waits for the world to supply, null for nothing, and [underWay] what its trip does on its way
- * ("Opening the door"), the overlay's white line; [laps] counts the laps since Run and [stop] is when the flow stops
- * (S12).
+ * ("Opening the door"), the overlay's white line; [laps] counts the laps since Run, [stop] is when the flow stops
+ * (S12) and [travel] what its trips may spend.
  */
 data class FlowView(
     val player: String,
@@ -141,6 +144,7 @@ data class FlowView(
     val waiting: String?,
     val underWay: String?,
     val stop: FlowStopView,
+    val travel: FlowTravelView,
     val steps: List<FlowStepView>,
     val reflexes: List<FlowReflexView>,
 )

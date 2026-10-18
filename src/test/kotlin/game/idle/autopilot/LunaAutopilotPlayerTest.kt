@@ -49,6 +49,7 @@ import game.idle.flow.StepOutcome
 import game.idle.flow.StepTurn
 import game.idle.flow.StepWork
 import game.idle.flow.WorkSpot
+import game.idle.flow.Speech
 import game.idle.idleState
 import game.idle.location.Bank
 import game.idle.location.Tile
@@ -75,6 +76,8 @@ import java.util.ArrayDeque
 
 class LunaAutopilotPlayerTest {
 
+    private val silent = Speech {}
+
     private val logs = 1511
     private val bronzeAxe = 1351
     private val runTile = Tile(3190, 3190)
@@ -90,7 +93,7 @@ class LunaAutopilotPlayerTest {
     }
 
     /** The work inside a step's turn. */
-    private fun workOf(step: ResolvedStep): StepWork = (autopilotPlayer().activity(step) as StepTurn).work
+    private fun workOf(step: ResolvedStep): StepWork = (autopilotPlayer().activity(step, silent) as StepTurn).work
 
     private val ui = IdleUi(status(FakeStepType("chop"), FakeStepType("drop")), idleTab())
 
@@ -112,7 +115,7 @@ class LunaAutopilotPlayerTest {
         autopilot.player.idleState = IdleState(runTile = runTile)
         val step = RecordingStep()
 
-        autopilot.activity(step)
+        autopilot.activity(step, silent)
 
         assertEquals(runTile, step.runTile)
     }
@@ -121,7 +124,7 @@ class LunaAutopilotPlayerTest {
     fun `a step of a flow without a run tile starts from the player's tile`() {
         val step = RecordingStep()
 
-        autopilotPlayer().activity(step)
+        autopilotPlayer().activity(step, silent)
 
         assertEquals(Tile(3200, 3200), step.runTile)
     }
@@ -362,7 +365,7 @@ class LunaAutopilotPlayerTest {
 
     @Test
     fun `a step's turn checks what it needs before it looks`() {
-        val turn = autopilotPlayer().activity(ChopStep(Tree.NORMAL, radius = 10, WorkSpot.RunTile))
+        val turn = autopilotPlayer().activity(ChopStep(Tree.NORMAL, radius = 10, WorkSpot.RunTile), silent)
 
         turn.act()
 
@@ -374,7 +377,7 @@ class LunaAutopilotPlayerTest {
         val autopilot = autopilotPlayer()
         autopilot.player.inventory.add(Item(bronzeAxe))
         autopilot.player.inventory.add(Item(logs, 27))
-        val turn = autopilot.activity(ChopStep(Tree.NORMAL, radius = 10, WorkSpot.RunTile))
+        val turn = autopilot.activity(ChopStep(Tree.NORMAL, radius = 10, WorkSpot.RunTile), silent)
 
         turn.act()
 
@@ -385,7 +388,7 @@ class LunaAutopilotPlayerTest {
     fun `a counting step's turn ends at its amount`() {
         val autopilot = autopilotPlayer()
         autopilot.player.inventory.add(Item(bronzeAxe))
-        val turn = autopilot.activity(ChopStep(Tree.NORMAL, radius = 10, WorkSpot.RunTile, amount = 1))
+        val turn = autopilot.activity(ChopStep(Tree.NORMAL, radius = 10, WorkSpot.RunTile, amount = 1), silent)
         turn.act()
         autopilot.player.inventory.add(Item(logs))
 
@@ -397,7 +400,7 @@ class LunaAutopilotPlayerTest {
     @Test
     fun `a step with its own spot starting outside its area walks to the spot first`() {
         val autopilot = autopilotPlayer()
-        val activity = autopilot.activity(ChopStep(Tree.NORMAL, radius = 5, WorkSpot.Own(Tile(3220, 3200))))
+        val activity = autopilot.activity(ChopStep(Tree.NORMAL, radius = 5, WorkSpot.Own(Tile(3220, 3200))), silent)
 
         activity.act()
 
@@ -408,13 +411,13 @@ class LunaAutopilotPlayerTest {
     fun `a step with its own spot starting inside its area works at once`() {
         val step = ChopStep(Tree.NORMAL, radius = 5, WorkSpot.Own(Tile(3205, 3200)))
 
-        assertInstanceOf(StepTurn::class.java, autopilotPlayer().activity(step))
+        assertInstanceOf(StepTurn::class.java, autopilotPlayer().activity(step, silent))
     }
 
     /** No stairs of the web reach floor 3 around TestWorld's map, so no trip there leaves the ground. */
     @Test
     fun `a step's walk to its own spot blocks on the spot when it cannot get there`() {
-        val activity = autopilotPlayer().activity(ChopStep(Tree.NORMAL, radius = 5, WorkSpot.Own(Tile(3220, 3200, 3))))
+        val activity = autopilotPlayer().activity(ChopStep(Tree.NORMAL, radius = 5, WorkSpot.Own(Tile(3220, 3200, 3))), silent)
 
         activity.act()
 

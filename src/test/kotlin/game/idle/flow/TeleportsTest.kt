@@ -1,5 +1,7 @@
 package game.idle.flow
 
+import api.bot.webwalk.model.TeleportDefinition
+import api.bot.webwalk.model.TeleportKind
 import game.idle.flow.option.FakeNames
 import game.item.degradable.jewellery.TeleportJewellery
 import game.skill.magic.EquipmentRequirement
@@ -197,5 +199,93 @@ class TeleportsTest {
     @Test
     fun `Kharyrll is spelt as the place is`() {
         assertEquals("Kharyrll", Teleports.named(TeleportDestination.Spell(TeleportSpell.KHARYRLL)))
+    }
+
+    private fun webTeleport(kind: TeleportKind, key: String?, option: Int? = null) =
+        TeleportDefinition("teleport", kind, key, option, Position(3200, 3200), "node", cost = 5)
+
+    @Test
+    fun `a spell of the travel web is the reflexes' spell`() {
+        assertEquals(varrock, Teleports.of(webTeleport(TeleportKind.SPELL, "VARROCK")))
+    }
+
+    @Test
+    fun `a jewellery destination of the travel web is its menu's, counted from 1`() {
+        assertEquals(castleWars, Teleports.of(webTeleport(TeleportKind.JEWELLERY, "DUELING_RING", option = 2)))
+    }
+
+    @Test
+    fun `the home teleport is no reflex's`() {
+        assertNull(Teleports.of(webTeleport(TeleportKind.HOME, key = null)))
+    }
+
+    @Test
+    fun `a spell landing in the wilderness is no reflex's`() {
+        assertNull(Teleports.of(webTeleport(TeleportKind.SPELL, "ANNAKARL")))
+    }
+
+    @Test
+    fun `a spell Luna does not have is none`() {
+        assertNull(Teleports.of(webTeleport(TeleportKind.SPELL, "ZANARIS")))
+    }
+
+    @Test
+    fun `jewellery Luna does not have is none`() {
+        assertNull(Teleports.of(webTeleport(TeleportKind.JEWELLERY, "SKILLS_NECKLACE", option = 1)))
+    }
+
+    @Test
+    fun `jewellery without a destination is none`() {
+        assertNull(Teleports.of(webTeleport(TeleportKind.JEWELLERY, "AMULET_OF_GLORY", option = null)))
+    }
+
+    private fun reflex(id: Int, vararg values: Pair<String, String>) = ReflexSettings(id, mapOf(*values))
+
+    @Test
+    fun `a trip keeps back the teleports of the reflexes attached to a step, once each`() {
+        val steps = listOf(StepSettings("chop", reflexes = listOf(1, 2, 3)), StepSettings("drop", reflexes = listOf(4)))
+        val reflexes = listOf(
+            reflex(1, "do" to "teleport", "destination" to "varrock"),
+            reflex(2, "do" to "eat"),
+            reflex(3, "do" to "teleport", "destination" to "amulet_of_glory:edgeville"),
+            reflex(4, "do" to "teleport", "destination" to "varrock"),
+            reflex(5, "do" to "teleport", "destination" to "falador"),
+        )
+
+        assertEquals(listOf(varrock, edgeville), Teleports.reserved(steps, reflexes))
+    }
+
+    @Test
+    fun `a teleport reflex going nowhere it can keeps nothing back`() {
+        val steps = listOf(StepSettings("chop", reflexes = listOf(1, 2)))
+
+        assertEquals(emptyList<TeleportDestination>(), Teleports.reserved(steps, listOf(reflex(1, "do" to "teleport"), reflex(2, "do" to "teleport", "destination" to "dareeyak"))))
+    }
+
+    private val law = Rune.LAW.id
+    private val air = Rune.AIR.id
+    private val fire = Rune.FIRE.id
+    private val smoke = 4697
+
+    @Test
+    fun `what a cast used up reads in the order the spell lists it, a combination rune with its first rune`() {
+        val requirements = listOf(RuneRequirement(Rune.AIR, 3), RuneRequirement(Rune.FIRE, 1), RuneRequirement(Rune.LAW, 1))
+
+        assertEquals(listOf(air to 2, smoke to 1, law to 1), Teleports.inSpellOrder(requirements, mapOf(law to 1, air to 2, smoke to 1)).toList())
+    }
+
+    @Test
+    fun `items a cast used up follow its runes as the spell lists them, anything it does not list last`() {
+        val requirements = listOf(RuneRequirement(Rune.FIRE, 2), ItemRequirement(banana), EquipmentRequirement(2415))
+
+        assertEquals(listOf(fire to 2, banana to 1, 995 to 1), Teleports.inSpellOrder(requirements, mapOf(995 to 1, banana to 1, fire to 2)).toList())
+    }
+
+    @Test
+    fun `what a spell lists is each rune no worn staff gives and each item`() {
+        val requirements = listOf(RuneRequirement(Rune.AIR, 3), RuneRequirement(Rune.LAW, 1), ItemRequirement(banana, 2), EquipmentRequirement(2415))
+        val staffOfAir = 1381
+
+        assertEquals(mapOf(law to 1, banana to 2), Teleports.listed(requirements, worn = setOf(staffOfAir)))
     }
 }

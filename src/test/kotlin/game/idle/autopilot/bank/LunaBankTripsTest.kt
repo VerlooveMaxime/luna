@@ -6,6 +6,7 @@ import api.bot.webwalk.model.NodeKind
 import api.bot.webwalk.model.WebWalkGraph
 import api.bot.webwalk.model.WebWalkNode
 import api.bot.webwalk.plan.StraightLineWalkEstimator
+import game.idle.autopilot.travel.PlannedTrip
 import game.idle.autopilot.travel.FakeTraveller
 import game.idle.location.Bank
 import game.idle.location.Tile
@@ -61,6 +62,6 @@ class LunaBankTripsTest {
     @Test
     fun `the trip to the banks is the traveller's`() {
         val trip = trips(web = null).plan(listOf(Position(3199, 3200)))
-        assertEquals(listOf(listOf(Position(3199, 3200))) to Position(3199, 3200), traveller.planned to trip?.destination)
+        assertEquals(listOf(listOf(Position(3199, 3200))) to Position(3199, 3200), traveller.planned to (trip as? PlannedTrip)?.plan?.destination)
     }
 }

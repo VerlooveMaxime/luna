@@ -19,6 +19,7 @@ import game.idle.flow.StepSettings
 import game.idle.flow.StopSettings
 import game.idle.flow.option.LunaGameNames
 import game.idle.idleState
+import game.idle.movement.TravelAllowance
 import game.idle.movement.navigateToReach
 import game.idle.ui.ChatboxPrompt
 import game.idle.ui.NamePrompt
@@ -117,7 +118,7 @@ class LunaHarnessApi(
     override fun flow(name: String): FlowView = gameThread.run { flowView(online(name)) }
 
     /** The autopilot owns a running flow's state, so a running flow is never replaced under it. */
-    override fun replaceFlow(name: String, steps: List<StepSettings>, reflexes: List<ReflexSettings>, stop: StopSettings): FlowView = gameThread.run {
+    override fun replaceFlow(name: String, steps: List<StepSettings>, reflexes: List<ReflexSettings>, stop: StopSettings, travel: TravelAllowance): FlowView = gameThread.run {
         val player = online(name)
         if (player.isBot) throw HarnessException(409, "${player.username} is a bot and has no flow")
         if (player.idleState.running) throw HarnessException(409, "${player.username}'s flow is running: click Stop first")
@@ -128,7 +129,7 @@ class LunaHarnessApi(
         } catch (e: FlowError) {
             throw HarnessException(400, e.message)
         }
-        player.idleState = player.idleState.withFlow(identified, identifiedReflexes, stop)
+        player.idleState = player.idleState.withFlow(identified, identifiedReflexes, stop, travel)
         flowView(player)
     }
 
@@ -144,6 +145,7 @@ class LunaHarnessApi(
         }
         return FlowView(
             player.username, state.running, state.stepIndex, state.laps, state.blocked, state.waiting, state.underWay, FlowStopView(state.stop.kind, state.stop.after),
+            FlowTravelView(state.travel.coins, state.travel.runes, state.travel.charges),
             steps, state.reflexes.map { FlowReflexView(it.id, it.values) },
         )
     }

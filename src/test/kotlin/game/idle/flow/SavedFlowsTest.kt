@@ -3,6 +3,7 @@ package game.idle.flow
 import game.idle.IdleState
 import game.idle.SavedFlow
 import game.idle.flow.FakeStepType.Companion.step
+import game.idle.movement.TravelAllowance
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -283,5 +284,36 @@ class SavedFlowsTest {
     @Test
     fun `a flow whose stop changed since it was saved has changed`() {
         assertEquals("Oaks (changed)", saved.label(saved.save(current, slot = 0, name = "Oaks").copy(stop = laps5)))
+    }
+
+    private val coins = TravelAllowance(coins = true)
+
+    @Test
+    fun `saving keeps what the flow's trips may spend with it`() {
+        assertEquals(coins, saved.save(current.copy(travel = coins), slot = 0, name = "Oaks").savedFlows.single().travel)
+    }
+
+    @Test
+    fun `loading takes what the saved flow's trips may spend`() {
+        val before = current.copy(savedFlows = listOf(SavedFlow(0, "Fish", fishFlow, travel = coins)))
+
+        assertEquals(coins, saved.load(before, slot = 0).travel)
+    }
+
+    @Test
+    fun `a new flow's trips spend nothing`() {
+        assertEquals(TravelAllowance.NONE, saved.startNew(current.copy(travel = coins), slot = 1).travel)
+    }
+
+    @Test
+    fun `emptying the current flow's slot drops what its trips may spend too`() {
+        val state = saved.save(current.copy(travel = coins), slot = 0, name = "Oaks")
+
+        assertEquals(TravelAllowance.NONE, saved.empty(state, slot = 0).travel)
+    }
+
+    @Test
+    fun `a flow whose travel changed since it was saved has changed`() {
+        assertEquals("Oaks (changed)", saved.label(saved.save(current, slot = 0, name = "Oaks").copy(travel = coins)))
     }
 }

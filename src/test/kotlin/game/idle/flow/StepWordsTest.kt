@@ -5,6 +5,10 @@ import engine.combat.prayer.CombatPrayer
 import game.idle.flow.option.FakeNames
 import game.idle.font.EVEN_FONT
 import game.idle.location.Tile
+import game.idle.movement.TravelChoice
+import game.item.degradable.jewellery.TeleportJewellery
+import game.skill.magic.Rune
+import game.skill.magic.teleportSpells.TeleportSpell
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -174,6 +178,69 @@ class StepWordsTest {
         assertEquals("Autopilot: could not resume your flow. Check it in the flow builder.", StepWords.CANNOT_RESUME)
     }
 
+    private val glory = 1712
+    private val spender = words(FakeNames(mapOf(Rune.AIR.id to "Air rune", Rune.FIRE.id to "Fire rune", Rune.LAW.id to "Law rune", Rune.EARTH.id to "Earth rune", glory to "Amulet of glory(4)")))
+    private val varrock = TeleportDestination.Spell(TeleportSpell.VARROCK)
+    private val edgeville = TeleportDestination.Jewellery(TeleportJewellery.AMULET_OF_GLORY, 0)
+
+    @Test
+    fun `a trip's cast says what it used up, as the reflexes' list notes a spell's runes`() {
+        val cast = TeleportStarted.Cast(varrock, mapOf(Rune.AIR.id to 3, Rune.FIRE.id to 1, Rune.LAW.id to 1))
+
+        assertEquals("Autopilot: step 1 casts the Varrock teleport: 3 air, 1 fire, 1 law.", spender.said(1, Said.Teleported(cast)))
+    }
+
+    @Test
+    fun `a cast that used nothing up says only the spell`() {
+        assertEquals("Autopilot: step 1 casts the Varrock teleport.", spender.said(1, Said.Teleported(TeleportStarted.Cast(varrock, emptyMap()))))
+    }
+
+    @Test
+    fun `a spell named with its article is cast without a second one`() {
+        val cast = TeleportStarted.Cast(TeleportDestination.Spell(TeleportSpell.WATCHTOWER), mapOf(Rune.EARTH.id to 2, Rune.LAW.id to 2))
+
+        assertEquals("Autopilot: step 3 casts the Watchtower teleport: 2 earth, 2 law.", spender.said(3, Said.Teleported(cast)))
+    }
+
+    @Test
+    fun `a trip's rub names the jewellery and where it goes`() {
+        assertEquals("Autopilot: step 2 rubs the amulet of glory to Edgeville.", spender.said(2, Said.Teleported(TeleportStarted.Rubbed(edgeville, tookOff = false))))
+    }
+
+    @Test
+    fun `a trip that takes worn jewellery off to rub it says so`() {
+        assertEquals(
+            "Autopilot: step 2 takes off the amulet of glory to rub it to Edgeville.",
+            spender.said(2, Said.Teleported(TeleportStarted.Rubbed(edgeville, tookOff = true))),
+        )
+    }
+
+    @Test
+    fun `a reflex that takes worn jewellery off to rub it says so`() {
+        assertEquals("Autopilot: reflex 2 takes off the amulet of glory to rub it to Edgeville.", spender.tookOff(TookOff(2, edgeville)))
+    }
+
+    @Test
+    fun `a paid toll says what it cost and where`() {
+        assertEquals("Autopilot: step 1 pays the 10-coin toll at the Al Kharid gate.", words.said(1, Said.PaidToll(10)))
+    }
+
+    @Test
+    fun `a ship's fare says what it costs and where the ship sails`() {
+        assertEquals("Autopilot: step 1 pays the 30-coin fare to Karamja.", words.said(1, Said.Fare(30, "Karamja")))
+    }
+
+    @Test
+    fun `a free ship says it is taken`() {
+        assertEquals("Autopilot: step 2 takes the ship to Entrana.", words.said(2, Said.Fare(0, "Entrana")))
+    }
+
+    @ParameterizedTest(name = "{1}")
+    @MethodSource("longWays")
+    fun `a long way round names the Travel row that would allow the quicker trip`(choice: TravelChoice, text: String) {
+        assertEquals(text, words.said(1, Said.LongWay(choice)))
+    }
+
     @ParameterizedTest(name = "{1}")
     @MethodSource("underWayWords")
     fun `what a trip does on its way is said in a few words`(underWay: UnderWay, text: String) {
@@ -181,6 +248,13 @@ class StepWordsTest {
     }
 
     companion object {
+        @JvmStatic
+        fun longWays(): List<Arguments> = listOf(
+            Arguments.of(TravelChoice.COINS, "Autopilot: step 1 takes the long way: tolls and fares are off in Travel."),
+            Arguments.of(TravelChoice.RUNES, "Autopilot: step 1 takes the long way: teleport spells are off in Travel."),
+            Arguments.of(TravelChoice.CHARGES, "Autopilot: step 1 takes the long way: teleport jewellery is off in Travel."),
+        )
+
         @JvmStatic
         fun underWayWords(): List<Arguments> = listOf(
             Arguments.of(UnderWay.Opening(Passage.DOOR), "Opening the door"),
@@ -193,6 +267,11 @@ class StepWordsTest {
             Arguments.of(UnderWay.Passing(Passage.TRAPDOOR), "Climbing down the trapdoor"),
             Arguments.of(UnderWay.Closing(Passage.DOOR), "Closing the door"),
             Arguments.of(UnderWay.Closing(Passage.CURTAIN), "Closing the curtain"),
+            Arguments.of(UnderWay.Teleporting(TeleportDestination.Spell(TeleportSpell.VARROCK)), "Teleporting to Varrock"),
+            Arguments.of(UnderWay.Teleporting(TeleportDestination.Spell(TeleportSpell.WATCHTOWER)), "Teleporting to the Watchtower"),
+            Arguments.of(UnderWay.Teleporting(TeleportDestination.Jewellery(TeleportJewellery.AMULET_OF_GLORY, 0)), "Teleporting to Edgeville"),
+            Arguments.of(UnderWay.PayingToll, "Paying the toll"),
+            Arguments.of(UnderWay.Sailing("Port Sarim"), "Sailing to Port Sarim"),
         )
 
         @JvmStatic
@@ -210,6 +289,9 @@ class StepWordsTest {
             Arguments.of(Reason.NoWay(Place.TILE), "No way there from here"),
             Arguments.of(Reason.NoWay(Place.WORK_SPOT), "No way to the work spot from here"),
             Arguments.of(Reason.NoWay(Place.BANK), "No way to the bank from here"),
+            Arguments.of(Reason.NoWay(Place.TILE, TravelChoice.COINS), "No way with tolls and fares off"),
+            Arguments.of(Reason.NoWay(Place.WORK_SPOT, TravelChoice.RUNES), "No way with teleport spells off"),
+            Arguments.of(Reason.NoWay(Place.BANK, TravelChoice.CHARGES), "No way with teleport jewellery off"),
             Arguments.of(Reason.Impassable(Passage.DOOR), "No way through the door"),
             Arguments.of(Reason.Impassable(Passage.GATE), "No way through the gate"),
             Arguments.of(Reason.Impassable(Passage.CURTAIN), "No way through the curtain"),

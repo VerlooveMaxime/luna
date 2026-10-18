@@ -12,6 +12,7 @@ import game.idle.flow.StepOutcome.Finished
 import game.idle.flow.StepOutcome.Worked
 import game.idle.flow.StepWork
 import game.idle.flow.UnderWay
+import game.idle.movement.TravelChoice
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -25,7 +26,8 @@ class BankWorkTest {
     private val bagOfLogs = listOf<Held?>(Held(logs, 1), Held(logs, 1)) + List(26) { null }
     private val banker = FakeBanker(BankView(boothFound = true, boothUsableFromHere = true, bankOpen = false, bagOfLogs, emptyMap()))
 
-    private fun work(order: BankOrder = EVERYTHING, toBooth: StepWork? = null) = BankWork(banker, order, toBooth)
+    private fun work(order: BankOrder = EVERYTHING, toBooth: StepWork? = null, noWay: Reason.NoWay = Reason.NoWay(Place.BANK)) =
+        BankWork(banker, order, toBooth, noWay)
 
     private fun withdrawing(ifStuck: IfStuck) = BankOrder(DepositRule.Only(emptySet()), listOf(StepItem(oak)), ifStuck)
 
@@ -223,5 +225,13 @@ class BankWorkTest {
         banker.view = banker.view.copy(boothFound = false)
 
         assertEquals(StepOutcome.Blocked(Reason.NoWay(Place.BANK)), work().act(left = null))
+    }
+
+    @Test
+    fun `no trip to a booth but one the flow's Travel setting would allow names the choice`() {
+        banker.view = banker.view.copy(boothFound = false)
+        val noWay = Reason.NoWay(Place.BANK, TravelChoice.COINS)
+
+        assertEquals(StepOutcome.Blocked(noWay), work(noWay = noWay).act(left = null))
     }
 }

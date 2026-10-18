@@ -90,6 +90,9 @@ public final class GameService extends AbstractScheduledService {
             // Players won't be able to log in until startup tasks are complete, so it's fine to block the game thread.
             runKotlinTasks(ServerLaunchEvent::new, "Waiting for Kotlin startup tasks to complete...");
 
+            // What the launch tasks handed to the game thread (the NPC spawns) has to be in the world for the next tasks.
+            runSynchronizationTasks();
+
             // Runs once every launch listener is done, so that these tasks can rely on the world that they have set up.
             runKotlinTasks(ServerReadyEvent::new, "Waiting for Kotlin post-launch tasks to complete...");
 
