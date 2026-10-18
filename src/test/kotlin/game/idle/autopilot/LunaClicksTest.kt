@@ -301,6 +301,60 @@ class LunaClicksTest {
     }
 
     @Test
+    fun `an idle player is clicking nothing`() {
+        assertFalse(LunaClicks.clicking(player()))
+    }
+
+    @Test
+    fun `a walk is no click`() {
+        val player = player()
+        player.walking.addStep(Direction.WEST)
+
+        assertFalse(LunaClicks.clicking(player))
+    }
+
+    @Test
+    fun `a click on its way to its target is a click under way`() {
+        val player = TestWorld.login("clicker", Position(3195, 3200))
+        recordBoothClicks()
+
+        clickBooth(player)
+
+        assertTrue(LunaClicks.clicking(player))
+    }
+
+    @Test
+    fun `a click waiting for the walk up to its object is a click under way`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+
+        LunaClicks.use(player, door, beside, option = null, from = here)
+
+        assertTrue(LunaClicks.clicking(player))
+    }
+
+    @Test
+    fun `a walk found on the game thread is under way from the next tick`() {
+        val player = player()
+
+        LunaClicks.walk(player, walkTarget, async = false)
+        TestWorld.tick()
+
+        assertFalse(player.walking.isEmpty)
+    }
+
+    @Test
+    fun `a walk up found on the game thread is under way from the next tick`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+
+        LunaClicks.use(player, door, beside, option = null, from = here, async = false)
+        TestWorld.tick()
+
+        assertFalse(player.walking.isEmpty)
+    }
+
+    @Test
     fun `walking heads for a free tile`() {
         val player = player()
 

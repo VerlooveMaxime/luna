@@ -207,4 +207,71 @@ class LunaTravellerTest {
         TestWorld.tick()
         assertFalse(LunaClicks.isActing(player))
     }
+
+    private fun fleeing(player: Player) = LunaTraveller(player, web = null, fleeing = true)
+
+    @Test
+    fun `a fleeing player on the run is not held up`() {
+        val player = login()
+        player.walking.addStep(Direction.EAST)
+
+        assertFalse(fleeing(player).isBusy())
+    }
+
+    @Test
+    fun `a fleeing player's click waiting for the walk up holds them`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+        val traveller = fleeing(player)
+
+        traveller.use(door, beside, option = null, from = here)
+
+        assertTrue(traveller.isBusy())
+    }
+
+    @Test
+    fun `a fleeing walk is under way from the next tick`() {
+        val player = login()
+
+        fleeing(player).walk(Position(3205, 3200))
+        TestWorld.tick()
+
+        assertFalse(player.walking.isEmpty)
+    }
+
+    @Test
+    fun `a fleeing walk breaks off what the player was doing`() {
+        val player = login()
+        player.submitAction(EndlessAction(player))
+        TestWorld.tick()
+
+        fleeing(player).walk(Position(3205, 3200))
+        TestWorld.tick()
+
+        assertNull(player.actions.first(EndlessAction::class.java))
+    }
+
+    @Test
+    fun `a fleeing walk up to a door is under way from the next tick`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+
+        fleeing(player).use(door, beside, option = null, from = here)
+        TestWorld.tick()
+
+        assertFalse(player.walking.isEmpty)
+    }
+
+    @Test
+    fun `a fleeing click breaks off what the player was doing`() {
+        val player = TestWorld.login("traveller", Position(3195, 3200))
+        TestWorld.place(door, beside)
+        player.submitAction(EndlessAction(player))
+        TestWorld.tick()
+
+        fleeing(player).use(door, beside, option = null, from = here)
+        TestWorld.tick()
+
+        assertNull(player.actions.first(EndlessAction::class.java))
+    }
 }

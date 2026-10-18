@@ -218,7 +218,7 @@ class WalkUpsTest {
     fun `the route walks to each door's near side, through it and on to the target`() {
         val second = DoorStep(Doorway(1531, Position(3203, 3201), EdgeType.GATE), from = Position(3203, 3200), to = Position(3203, 3201), shut = false)
 
-        val legs = WalkUps.plan(here, tree(listOf(door, second))).legs
+        val legs = WalkUps.plan(here, listOf(door, second), approach).legs
 
         val expected = listOf(
             Triple(EdgeType.WALK, here, Position(3201, 3200)),
@@ -232,14 +232,14 @@ class WalkUpsTest {
 
     @Test
     fun `a door leg names the door's object, to click`() {
-        val leg = WalkUps.plan(here, tree(listOf(door))).legs[1]
+        val leg = WalkUps.plan(here, listOf(door), approach).legs[1]
 
         assertEquals(1530 to Position(3202, 3200), leg.action?.objectId to leg.action?.objectPosition)
     }
 
     @Test
     fun `from a door's near side the route starts with the door`() {
-        val legs = WalkUps.plan(Position(3201, 3200), tree(listOf(door))).legs
+        val legs = WalkUps.plan(Position(3201, 3200), listOf(door), approach).legs
 
         assertTrue(legs.first().type == EdgeType.DOOR)
     }

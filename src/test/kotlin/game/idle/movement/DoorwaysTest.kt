@@ -131,4 +131,52 @@ class DoorwaysTest {
 
         assertNull(Doorways.of(graphOf(edge)).between(west, east))
     }
+
+    /** A double door in a wall running north to south, its leaves on y 3220 and 3221, crossed from x 3220 to 3221. */
+    private fun leaf(y: Int, id: Int, type: EdgeType = EdgeType.DOOR) = Doorway(id, Position(3221, y), type)
+
+    private fun wallOf(vararg leaves: Doorway) = Doorways(leaves.associateBy { Position(3220, it.position.y) to it.position })
+
+    @Test
+    fun `a single door is its own one leaf`() {
+        assertEquals(setOf(door), doorways.leavesOf(door))
+    }
+
+    @Test
+    fun `a double door shuts with its other leaf`() {
+        val left = leaf(3220, 1516)
+        val right = leaf(3221, 1519)
+
+        assertEquals(setOf(left, right), wallOf(left, right).leavesOf(left))
+    }
+
+    @Test
+    fun `a gate shuts with its other leaf, along a fence running west to east`() {
+        val hinge = Doorway(1551, Position(3230, 3231), EdgeType.GATE)
+        val far = Doorway(1553, Position(3231, 3231), EdgeType.GATE)
+        val fence = Doorways(mapOf((Position(3230, 3230) to hinge.position) to hinge, (Position(3231, 3230) to far.position) to far))
+
+        assertEquals(setOf(hinge, far), fence.leavesOf(far))
+    }
+
+    @Test
+    fun `two doors of one id side by side open apart`() {
+        val first = leaf(3220, 1530)
+
+        assertEquals(setOf(first), wallOf(first, leaf(3221, 1530)).leavesOf(first))
+    }
+
+    @Test
+    fun `a gate beside a door is no leaf of it`() {
+        val first = leaf(3220, 1516)
+
+        assertEquals(setOf(first), wallOf(first, leaf(3221, 1553, EdgeType.GATE)).leavesOf(first))
+    }
+
+    @Test
+    fun `a doorway the web does not know is its own one leaf`() {
+        val unknown = Doorway(1530, Position(3300, 3300), EdgeType.DOOR)
+
+        assertEquals(setOf(unknown), doorways.leavesOf(unknown))
+    }
 }

@@ -17,11 +17,14 @@ enum class Passage(val way: Way) {
 
 /**
  * What a trip is doing on its way while it lasts, in white on the overlay and the running slot (Q7, Maxime 2026-10-17):
- * opening a door, gate, curtain or trapdoor, or getting past a passage.
+ * opening a door, gate, curtain or trapdoor, getting past a passage, or shutting a door behind a flight (web-walker
+ * movement Part 5).
  */
 sealed interface UnderWay {
 
     data class Opening(val passage: Passage) : UnderWay
 
     data class Passing(val passage: Passage) : UnderWay
+
+    data class Closing(val passage: Passage) : UnderWay
 }

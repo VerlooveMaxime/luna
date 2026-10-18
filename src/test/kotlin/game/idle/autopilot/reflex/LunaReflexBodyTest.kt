@@ -1,5 +1,6 @@
 package game.idle.autopilot.reflex
 
+import api.bot.webwalk.model.EdgeType
 import api.combat.specialAttack.SpecialAttackHandler
 import engine.combat.prayer.CombatPrayer.PROTECT_FROM_MELEE
 import engine.combat.prayer.CombatPrayer.ROCK_SKIN
@@ -9,9 +10,14 @@ import engine.controllers.WildernessController
 import engine.controllers.WildernessLocatableController.wildernessLevel
 import game.idle.autopilot.EndlessAction
 import game.idle.flow.Health
+import game.idle.flow.Passage
 import game.idle.flow.TeleportDestination
+import game.idle.flow.UnderWay
 import game.idle.flow.WornSpecial
+import game.idle.movement.Doorway
+import game.idle.movement.Doorways
 import game.item.degradable.jewellery.TeleportJewellery
+import game.obj.doors.DoorType
 import game.skill.magic.teleportSpells.TeleportAction
 import game.skill.magic.teleportSpells.TeleportAction.Companion.teleportDelay
 import game.skill.magic.teleportSpells.TeleportSpell
@@ -19,6 +25,7 @@ import game.testworld.TestWorld
 import io.luna.Luna
 import io.luna.LunaSettings
 import io.luna.game.event.impl.ItemClickEvent.ItemFirstClickEvent
+import io.luna.game.event.impl.ObjectClickEvent.ObjectFirstClickEvent
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
 import io.luna.game.model.item.Equipment
@@ -29,6 +36,9 @@ import io.luna.game.model.mob.PlayerRights
 import io.luna.game.model.mob.Skill
 import io.luna.game.model.mob.Spellbook
 import io.luna.game.model.mob.combat.SpecialAttackType
+import io.luna.game.model.`object`.GameObject
+import io.luna.game.model.`object`.ObjectDirection
+import io.luna.game.model.`object`.ObjectType
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -213,6 +223,127 @@ class LunaReflexBodyTest {
         LunaReflexBody(player).calm()
 
         assertFalse(player.isRunning)
+    }
+
+    @Test
+    fun `a flight on the run holds no decision back`() {
+        val player = login()
+        attackedBy(player, Position(3199, 3200))
+        val body = LunaReflexBody(player)
+
+        body.flee()
+
+        assertFalse(body.flightBusy())
+    }
+
+    private val door = 1530
+    private val openDoor = 1531
+
+    /** A room of dead trees east of the player, inside x 3203 to 3205 and y 3199 to 3201, its one way in a door here. */
+    private val doorTile = Position(3202, 3200)
+    private val roomDoorways = Doorways(mapOf((Position(3201, 3200) to doorTile) to Doorway(door, doorTile, EdgeType.DOOR)))
+
+    private fun buildRoom() =
+        (3202..3206).flatMap { x -> (3198..3202).map { y -> Position(x, y) } }
+            .filter { (it.x == 3202 || it.x == 3206 || it.y == 3198 || it.y == 3202) && it != doorTile }
+            .forEach { TestWorld.place(deadTree, it) }
+
+    private fun shutDoor(): GameObject = TestWorld.place(door, doorTile, ObjectType.STRAIGHT_WALL, ObjectDirection.WEST)
+
+    /** The door standing open: Luna's doors swap it for this leaf. */
+    private fun openLeaf(): GameObject = TestWorld.place(openDoor, doorTile, ObjectType.STRAIGHT_WALL, ObjectDirection.NORTH)
+
+    private val doorType = DoorType(door, openDoor, side = null, openSound = null, closeSound = null, duration = null)
+
+    private fun roomBody(player: Player) = LunaReflexBody(player, doorways = { roomDoorways }, doorTypes = { if (it == door) doorType else null })
+
+    private fun doorClicks(): MutableList<Int> {
+        val clicked = mutableListOf<Int>()
+        TestWorld.listen(ObjectFirstClickEvent::class.java) { clicked += it.gameObject.id }
+        return clicked
+    }
+
+    @Test
+    fun `a flight to the room that shelters the player opens its door on the way`() {
+        val player = login()
+        attackedBy(player, Position(3197, 3200))
+        buildRoom()
+        shutDoor()
+        val clicked = doorClicks()
+        val body = roomBody(player)
+
+        body.flee()
+        TestWorld.tick(5)
+
+        assertEquals(listOf(door) to UnderWay.Opening(Passage.DOOR), clicked to body.flightUnderWay())
+    }
+
+    @Test
+    fun `a flight holds the next decision while its click on a door lands`() {
+        val player = login()
+        attackedBy(player, Position(3197, 3200))
+        buildRoom()
+        shutDoor()
+        val body = roomBody(player)
+
+        body.flee()
+
+        assertTrue(body.flightBusy())
+    }
+
+    /** The player went through the open door of the room and stands just inside, the attacker still outside. */
+    private fun inside(body: (Player) -> LunaReflexBody = { roomBody(it) }, leaf: Boolean = true): Pair<Player, LunaReflexBody> {
+        val player = TestWorld.login("reflexes", Position(3201, 3200))
+        attackedBy(player, Position(3197, 3200))
+        buildRoom()
+        if (leaf) openLeaf()
+        val flying = body(player)
+        flying.flee()
+        player.move(doorTile)
+        return player to flying
+    }
+
+    @Test
+    fun `through the door with the attacker beyond it, the flight shuts it`() {
+        val clicked = doorClicks()
+        val (_, body) = inside()
+
+        body.flee()
+        TestWorld.tick(3)
+
+        assertEquals(listOf(openDoor) to UnderWay.Closing(Passage.DOOR), clicked to body.flightUnderWay())
+    }
+
+    @Test
+    fun `a door the flight shut is told once the flight is over`() {
+        val (_, body) = inside()
+        val leaf = TestWorld.world.objects.findAll(doorTile).filter { it.id == openDoor }.findFirst().orElseThrow()
+        body.flee()
+        TestWorld.tick(3)
+        TestWorld.world.objects.unregister(leaf)
+        shutDoor()
+
+        body.calm()
+
+        assertEquals(Passage.DOOR, body.shutBehind())
+    }
+
+    @Test
+    fun `a door Luna's doors do not know is not shut`() {
+        val (_, body) = inside(body = { LunaReflexBody(it, doorways = { roomDoorways }) })
+
+        body.flee()
+
+        assertFalse(body.flightUnderWay() is UnderWay.Closing)
+    }
+
+    @Test
+    fun `a door whose open leaf is nowhere beside it is not shut`() {
+        val (_, body) = inside(leaf = false)
+
+        body.flee()
+
+        assertFalse(body.flightUnderWay() is UnderWay.Closing)
     }
 
     @Test

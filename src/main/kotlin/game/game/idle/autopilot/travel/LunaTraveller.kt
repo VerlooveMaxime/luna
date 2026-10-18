@@ -24,7 +24,8 @@ import java.util.concurrent.Executor
  * a trip across the map takes 10 to 45 ms to plan (measured 2026-10-17), once per walk, and every decision then sees
  * its plan. Without the web (its data not generated yet) a trip is the plain walk it was before. Every click goes
  * through the same event and interaction action as the client's, so Luna's doors, ladders and stairs answer it
- * unchanged.
+ * unchanged. A [fleeing] player's walks are found on the game thread and break off what they were doing first, so they
+ * are on the move from the next tick and do not turn to fight back; only a click holds them up.
  */
 class LunaTraveller(
     private val player: Player,
@@ -32,12 +33,13 @@ class LunaTraveller(
     private val allowance: TravelAllowance = TravelAllowance.NONE,
     private val reserved: Spend = Spend.NONE,
     private val planning: Executor = Executor(Runnable::run),
+    private val fleeing: Boolean = false,
 ) : Traveller {
 
     override fun position(): Position = player.position
 
     /** The up-or-down dialogue a climb opens is the trip's own window, which it answers; a click on arrival holds the trip. */
-    override fun isBusy(): Boolean = LunaClicks.busyBesides(player, ownWindowOpen = choosing())
+    override fun isBusy(): Boolean = if (fleeing) LunaClicks.clicking(player) else LunaClicks.busyBesides(player, ownWindowOpen = choosing())
 
     override fun plan(destinations: List<Position>): CompletableFuture<WebWalkPlan?> {
         val start = player.position
@@ -52,12 +54,23 @@ class LunaTraveller(
         return WebWalkPlan(listOf(PlanLeg(EdgeType.WALK, start, nearest, cost = 0.0)), cost = 0.0)
     }
 
-    override fun walk(to: Position) = LunaClicks.walk(player, to)
+    override fun walk(to: Position) {
+        breakOffForFlight()
+        LunaClicks.walk(player, to, async = !fleeing)
+    }
 
     override fun standing(id: Int, at: Position): Boolean = LunaClicks.objectOn(player, id, at) != null
 
     /** [LunaClicks.use]: out of reach, the player walks up to the object first and clicks on arrival. */
-    override fun use(id: Int, at: Position, option: String?, from: Position): Boolean = LunaClicks.use(player, id, at, option, from)
+    override fun use(id: Int, at: Position, option: String?, from: Position): Boolean {
+        breakOffForFlight()
+        return LunaClicks.use(player, id, at, option, from, async = !fleeing)
+    }
+
+    /** A flight breaks off what the player was doing first, a fight they turned to as they were hit included. */
+    private fun breakOffForFlight() {
+        if (fleeing) player.actions.interruptWeak()
+    }
 
     override fun choosing(): Boolean = dialogue() != null
 

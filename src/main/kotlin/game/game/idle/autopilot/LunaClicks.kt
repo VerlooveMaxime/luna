@@ -69,8 +69,10 @@ object LunaClicks {
      * runs their listener as soon as the target is reached), so no skill action follows for the kind to watch, and
      * combat's own action is WEAK and lingers after the kill.
      */
-    fun interacting(player: Player): Boolean =
-        !player.walking.isEmpty || player.heldClick != null || player.actions.first(InteractionAction::class.java) != null
+    fun interacting(player: Player): Boolean = !player.walking.isEmpty || clicking(player)
+
+    /** About to click on arrival, or a click's interaction action still queued: what a flight waits for, never its walks. */
+    fun clicking(player: Player): Boolean = player.heldClick != null || player.actions.first(InteractionAction::class.java) != null
 
     /**
      * Breaks off what the autopilot has the player doing: the action in progress as a player's own click would, leaving
@@ -96,10 +98,11 @@ object LunaClicks {
 
     /**
      * Walks [player] to [tile] as a click would: windows closed first without interrupting the action in progress, then
-     * the navigator. A tile something stands on is swapped for the nearest free tile next to it, because a path to a
-     * blocked tile makes the pathfinder search its whole node budget before giving up.
+     * the navigator, its path found off the game thread unless not [async]. A tile something stands on is swapped for the
+     * nearest free tile next to it, because a path to a blocked tile makes the pathfinder search its whole node budget
+     * before giving up.
      */
-    fun walk(player: Player, tile: Position) {
+    fun walk(player: Player, tile: Position, async: Boolean = true) {
         val collision = player.world.collisionManager
         val goal = if (canStandOn(collision, tile)) {
             tile
@@ -107,13 +110,13 @@ object LunaClicks {
             approachTiles(tile, width = 1, height = 1, from = player.position).firstOrNull { canStandOn(collision, it) } ?: tile
         }
         player.overlays.closeWindows(false)
-        player.navigator.navigate(goal, true)
+        player.navigator.navigate(goal, async)
     }
 
     /**
      * Whether collision lets a player step from [from] in [direction]: a closed door is a wall here, as it is to the
-     * navigator. The reach scans step through doors by [reachSteps]; what looks for a free tile rather than a way walks
-     * by this (where to light a fire; the flee until web-walker movement Part 5).
+     * navigator. The reach scans and the flight step through doors by [reachSteps]; what looks for a free tile rather
+     * than a way walks by this (where to light a fire).
      */
     fun canStep(world: World, from: Position, direction: Direction): Boolean =
         world.collisionManager.traversable(from, EntityType.PLAYER, direction)
@@ -132,10 +135,10 @@ object LunaClicks {
      * a door clicked from two tiles inside said "I can't reach that!"), and a click interrupts a walk queued with it. So
      * out of reach the player walks to the tile it is used from nearest [from] first and the click follows in the tick
      * after they get there, the player [isActing] until it lands. A walk cut short (another walk), an [interrupt] (a
-     * Stop) or the object gone by then (a door someone else opened) drops the click. False when the object is not there,
-     * has no such option or no tile reaches it.
+     * Stop) or the object gone by then (a door someone else opened) drops the click. The walk's path is found off the
+     * game thread unless not [async]. False when the object is not there, has no such option or no tile reaches it.
      */
-    fun use(player: Player, id: Int, at: Position, option: String?, from: Position): Boolean {
+    fun use(player: Player, id: Int, at: Position, option: String?, from: Position, async: Boolean = true): Boolean {
         val target = objectOn(player, id, at) ?: return false
         val number = if (option == null) 1 else WebWalkExecutor.optionNumber(target.def().actions, option) ?: return false
         val collision = player.world.collisionManager
@@ -146,7 +149,7 @@ object LunaClicks {
         val tile = reachingTiles(collision, target, from).firstOrNull() ?: return false
         val held = HeldClick(id, at, number)
         player.heldClick = held
-        player.navigator.navigate(tile, true).whenComplete { result, _ ->
+        player.navigator.navigate(tile, async).whenComplete { result, _ ->
             if (result == NavigationResult.REACHED) {
                 player.world.scheduleOnce(1) { arrived(player, held) }
             } else {

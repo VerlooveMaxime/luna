@@ -95,6 +95,11 @@ class StepWordsTest {
     }
 
     @Test
+    fun `a door a flight shut behind the player is said`() {
+        assertEquals("Autopilot: closed the door behind you.", words.shutBehind(Passage.DOOR))
+    }
+
+    @Test
     fun `a walk up that could not get through a door says which and where`() {
         assertEquals("Autopilot: step 2 could not get through the gate at 3101, 3509.", words.said(2, Said.DoorShut(Passage.GATE, Tile(3101, 3509))))
     }
@@ -186,6 +191,8 @@ class StepWordsTest {
             Arguments.of(UnderWay.Passing(Passage.LADDER_UP), "Climbing up the ladder"),
             Arguments.of(UnderWay.Passing(Passage.STAIRS_DOWN), "Climbing down the stairs"),
             Arguments.of(UnderWay.Passing(Passage.TRAPDOOR), "Climbing down the trapdoor"),
+            Arguments.of(UnderWay.Closing(Passage.DOOR), "Closing the door"),
+            Arguments.of(UnderWay.Closing(Passage.CURTAIN), "Closing the curtain"),
         )
 
         @JvmStatic

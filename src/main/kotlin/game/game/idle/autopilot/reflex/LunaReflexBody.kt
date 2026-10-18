@@ -8,14 +8,27 @@ import engine.combat.prayer.CombatPrayer
 import engine.combat.status.StatusEffectType
 import engine.controllers.WildernessLocatableController.wildernessLevel
 import game.idle.autopilot.LunaClicks
+import game.idle.autopilot.travel.Flight
+import game.idle.autopilot.travel.FlightTerrain
+import game.idle.autopilot.travel.LunaTraveller
+import game.idle.autopilot.travel.OpenLeaf
 import game.idle.flow.Health
+import game.idle.flow.Passage
 import game.idle.flow.ReflexBody
 import game.idle.flow.TeleportDestination
 import game.idle.flow.Teleports
+import game.idle.flow.UnderWay
 import game.idle.flow.WornSpecial
+import game.idle.movement.Doorway
+import game.idle.movement.Doorways
 import game.idle.movement.FleePlanner
+import game.idle.movement.Step
+import game.idle.movement.TravelWebs
+import game.idle.movement.reachingTiles
 import game.item.degradable.jewellery.JewelleryTeleports
 import game.item.degradable.jewellery.TeleportJewellery
+import game.obj.doors.DoorType
+import game.obj.doors.Doors
 import game.player.item.consume.food.Food
 import game.skill.magic.Magic
 import game.skill.magic.teleportSpells.TeleportAction
@@ -42,11 +55,18 @@ fun healthOf(player: Player): Health = Health(player.health, player.skill(Skill.
  * Luna's prayer set as the tab's buttons do (varps, sounds, head icon, drain), never to its state directly, and the
  * special attack through the bar as its button does (the varp, the drain, the special on the next hit). A teleport
  * submits the action the spellbook's button or the jewellery's menu would, so Luna's own checks, lines, runes, charges
- * and experience apply.
+ * and experience apply. A flight goes through the [doorways] of the travel web and shuts a door by the open leaf Luna's
+ * doors put in its place, as its [doorTypes] (by a closed door's id) name it.
  */
-class LunaReflexBody(private val player: Player) : ReflexBody {
+class LunaReflexBody(
+    private val player: Player,
+    private val doorways: () -> Doorways = { TravelWebs.SERVER.doorwaysOf(player.world) },
+    private val doorTypes: (Int) -> DoorType? = Doors::typeOf,
+) : ReflexBody {
 
     private val world get() = player.world
+
+    private val flight = Flight(LunaTraveller(player, web = null, fleeing = true))
 
     override fun health(): Health = healthOf(player)
 
@@ -162,23 +182,54 @@ class LunaReflexBody(private val player: Player) : ReflexBody {
     override fun underAttack(): Boolean = threats().isNotEmpty()
 
     /**
-     * The walk is found on the game thread, not another, so the player is on the move from the next tick and does not
-     * turn to fight back; the reflex runs again at each decision until nothing attacks. Running is turned on once, at
-     * the flight's start and only with energy left (Maxime, 2026-10-10: no loop of turning it on); once Luna turns it
-     * off, the energy gone, the flight walks.
+     * The [Flight] takes one decision's worth, its walks found on the game thread (`LunaTraveller`'s fleeing mode); the
+     * reflex runs again at each decision until nothing attacks. Running is turned on once, at the flight's start and only
+     * with energy left (Maxime, 2026-10-10: no loop of turning it on); once Luna turns it off, the energy gone, the
+     * flight walks.
      */
     override fun flee() {
-        val tile = FleePlanner.pick(player.position, threats().map { it.position }, ::canStep) ?: return
+        val threats = threats()
+        if (threats.isEmpty()) return
         if (player.runToggleBeforeFlight == null) {
             player.runToggleBeforeFlight = player.isRunning
             if (player.runEnergy > 0.0) player.isRunning = true
         }
-        player.actions.interruptWeak()
-        player.overlays.closeWindows(false)
-        player.navigator.navigate(tile, false)
+        flight.flee(threats.map { it.position }, terrain())
+    }
+
+    override fun flightBusy(): Boolean = flight.isBusy()
+
+    override fun flightUnderWay(): UnderWay? = flight.underWay()
+
+    override fun shutBehind(): Passage? = flight.shut()
+
+    /** The world as the flight sees it now: the web's doorways, the player's steps through them, the npcs' own walls. */
+    private fun terrain(): FlightTerrain {
+        val known = doorways()
+        val steps = LunaClicks.reachSteps(world, known)
+        return object : FlightTerrain {
+            override val doorways: Doorways = known
+
+            override fun step(from: Position, direction: Direction): Step? = steps.step(from, direction)
+
+            override fun npcStep(from: Position, direction: Direction): Boolean = npcCanStep(from, direction)
+
+            override fun onto(from: Position, direction: Direction): Boolean = canStep(from, direction)
+
+            override fun openLeaf(door: Doorway): OpenLeaf? = openLeafOf(door)
+        }
+    }
+
+    /** Luna's doors swap an opened door for its open leaf on the door's tile or one beside it. */
+    private fun openLeafOf(door: Doorway): OpenLeaf? {
+        val open = doorTypes(door.id)?.open ?: return null
+        val around = (-1..1).flatMap { dx -> (-1..1).map { dy -> door.position.translate(dx, dy) } }
+        val leaf = around.firstNotNullOfOrNull { LunaClicks.objectOn(player, open, it) } ?: return null
+        return OpenLeaf(open, leaf.position, reachingTiles(world.collisionManager, leaf, player.position))
     }
 
     override fun calm() {
+        flight.calm()
         val before = player.runToggleBeforeFlight ?: return
         player.isRunning = before
         player.runToggleBeforeFlight = null
@@ -189,9 +240,10 @@ class LunaReflexBody(private val player: Player) : ReflexBody {
     /** Npcs fighting the player that can walk up to them. */
     private fun threats(): List<Npc> =
         world.locator.findNpcs(player.position, FleePlanner.THREAT_RANGE) { npc ->
-            npc.isAlive && npc.combat.target == player && FleePlanner.canGetAt(npc.position, player.position, ::npcCanStep)
+            npc.isAlive && npc.combat.target == player && FleePlanner.canGetAt(npc.position, player.position, ::npcCanStep, ::canStep)
         }.toList()
 
+    /** A player's step: walls, objects and the floor stop it, never a mob. */
     private fun canStep(from: Position, direction: Direction): Boolean = LunaClicks.canStep(world, from, direction)
 
     private fun npcCanStep(from: Position, direction: Direction): Boolean =

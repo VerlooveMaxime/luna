@@ -41,7 +41,11 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
                 Way.UP -> "Climbing up the ${noun(underWay.passage)}"
                 Way.DOWN -> "Climbing down the ${noun(underWay.passage)}"
             }
+            is UnderWay.Closing -> "Closing the ${noun(underWay.passage)}"
         }
+
+    /** A flight shut [passage] behind the player (web-walker movement Part 5, Q4): "Autopilot: closed the door behind you." */
+    fun shutBehind(passage: Passage): String = "${PREFIX}closed the ${noun(passage)} behind you."
 
     /** What step [number] tells the player: "Autopilot: step 2 ended, the bag is full: bones, cowhide left lying." */
     fun said(number: Int, said: Said): String =

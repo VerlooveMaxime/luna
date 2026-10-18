@@ -20,6 +20,9 @@ class Doorways(crossings: Map<Pair<Position, Position>, Doorway>) {
     /** Every tile beside a doorway, so that most steps are answered without a lookup of the pair. */
     private val sides: Set<Position> = byStep.keys.map { it.first }.toSet()
 
+    /** The two tiles each doorway stands between, one way across. */
+    private val crossings: Map<Doorway, Pair<Position, Position>> = crossings.entries.associate { (step, doorway) -> doorway to step }
+
     /** The doorway between [a] and [b], two tiles side by side, in either order. */
     fun between(a: Position, b: Position): Doorway? = if (a in sides) byStep[a to b] else null
 
@@ -33,6 +36,17 @@ class Doorways(crossings: Map<Pair<Position, Position>, Doorway>) {
         val sideways = Position(to.x, from.y, from.z)
         val ahead = Position(from.x, to.y, from.z)
         return between(from, sideways) ?: between(sideways, to) ?: between(from, ahead) ?: between(ahead, to)
+    }
+
+    /**
+     * [door] and the leaf Luna shuts with it (web-walker movement Part 5): a double door's or a gate's other half, the
+     * doorway of another id beside it, crossed the same way one tile along the wall.
+     */
+    fun leavesOf(door: Doorway): Set<Doorway> {
+        val (from, to) = crossings[door] ?: return setOf(door)
+        val along = if (from.x == to.x) listOf(1 to 0, -1 to 0) else listOf(0 to 1, 0 to -1)
+        val beside = along.mapNotNull { (dx, dy) -> between(from.translate(dx, dy), to.translate(dx, dy)) }
+        return setOf(door) + beside.filter { it.type == door.type && it.id != door.id }
     }
 
     companion object {

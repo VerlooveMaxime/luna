@@ -280,6 +280,9 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
     val teleportable = mutableSetOf<TeleportDestination>()
     var teleportRefused = false
     var teleporting = false
+    var flightBusy = false
+    var flightUnderWay: UnderWay? = null
+    var shutBehind: Passage? = null
 
     override fun health(): Health = health
 
@@ -346,6 +349,12 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
     override fun flee() {
         done += "flee"
     }
+
+    override fun flightBusy(): Boolean = flightBusy
+
+    override fun flightUnderWay(): UnderWay? = flightUnderWay
+
+    override fun shutBehind(): Passage? = shutBehind.also { shutBehind = null }
 
     override fun calm() {
         done += "calm"

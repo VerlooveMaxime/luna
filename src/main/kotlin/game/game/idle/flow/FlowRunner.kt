@@ -100,9 +100,11 @@ class FlowRunner(
 
     /**
      * Busy while the current step is, unless the flow has a reason to stop, the time is up or the step's goal is
-     * reached: the kind's action would hold the player, so the next decision is taken at once to end the turn.
+     * reached: the kind's action would hold the player, so the next decision is taken at once to end the turn. Running
+     * clear before the flow stops, only while the flight clicks a door.
      */
-    override fun isBusy(): Boolean = stopping() == null && !timeUp() && (ending || reached() == null) && current?.isBusy() ?: false
+    override fun isBusy(): Boolean =
+        if (stopping() != null) fleeing && player.body.flightBusy() else !timeUp() && (ending || reached() == null) && current?.isBusy() ?: false
 
     override fun stopReason(): String? = if (player.body.dead()) StepWords.DIED else stopped
 
@@ -112,13 +114,19 @@ class FlowRunner(
     /** What the current step waits for, in the block's words, or running clear before the flow stops. */
     override fun waiting(): String? = (if (fleeing) Reason.RunningClear() else current?.waiting())?.let(words::block)
 
-    /** What the current step's trip does on its way; none while the player runs clear before the flow stops. */
-    override fun underWay(): String? = if (fleeing) null else current?.underWay()?.let(words::underWay)
+    /** What the current step's trip does on its way, or the flight's doors while the player runs clear before the flow stops. */
+    override fun underWay(): String? = (if (fleeing) player.body.flightUnderWay() else current?.underWay())?.let(words::underWay)
 
     override fun act() {
         if (steps.isEmpty()) return
         if (stopping() == null) step()
         stopping()?.let(::leave)
+        tellShut()
+    }
+
+    /** A door a flight shut behind the player is told once, before the stop or the jump it led to. */
+    private fun tellShut() {
+        player.body.shutBehind()?.let { player.tell(words.shutBehind(it)) }
     }
 
     /** The run is over, whatever ended it: the prayers it lit go out, each said. */
@@ -141,6 +149,7 @@ class FlowRunner(
             activity.endTurn()
         }
         activity.act()
+        tellShut()
         activity.prayed().forEach { player.tell(words.prayed(it)) }
         activity.used().forEach { player.tell(words.usedSpecial(it)) }
         activity.said()?.let { player.tell(words.said(index + 1, it)) }

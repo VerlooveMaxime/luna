@@ -245,6 +245,74 @@ class FlowRunnerTest {
     }
 
     @Test
+    fun `while a stop waits what the flight does on its way is the flow's, in words`() {
+        val runner = runner("fight")
+        runner.act()
+        player.started.single().stop = stuck
+        body.attacked = true
+        runner.act()
+
+        body.flightUnderWay = UnderWay.Closing(Passage.DOOR)
+
+        assertEquals("Closing the door", runner.underWay())
+    }
+
+    @Test
+    fun `while a stop waits the flow holds its next decision as the flight clicks a door`() {
+        val runner = runner("fight")
+        runner.act()
+        player.started.single().stop = stuck
+        body.attacked = true
+        runner.act()
+
+        body.flightBusy = true
+
+        assertTrue(runner.isBusy())
+    }
+
+    @Test
+    fun `while a stop waits on a plain run the flow acts at each decision`() {
+        val runner = runner("fight")
+        runner.act()
+        player.started.single().stop = stuck
+        body.attacked = true
+        runner.act()
+
+        player.started.single().busy = true
+
+        assertFalse(runner.isBusy())
+    }
+
+    @Test
+    fun `a door the flight shut behind the player is said before the flow stops`() {
+        val runner = runner("fight")
+        runner.act()
+        player.started.single().stop = stuck
+        body.attacked = true
+        runner.act()
+        body.attacked = false
+        body.shutBehind = Passage.DOOR
+
+        runner.act()
+
+        assertEquals(listOf<Any?>(listOf("Autopilot: closed the door behind you."), "Autopilot: stopped, step 1 is stuck: no item 1521 left in the bank."), listOf(player.told, runner.stopReason()))
+    }
+
+    @Test
+    fun `a door the flight shut behind the player is said before the jump it led to`() {
+        hurt()
+        body.attacked = true
+        val runner = jumping("fight", "bank", to = 1)
+        runner.act()
+        body.attacked = false
+        body.shutBehind = Passage.GATE
+
+        runner.act()
+
+        assertEquals(listOf("Autopilot: closed the gate behind you.", "Autopilot: reflex 1 fired at 4/20 hitpoints, jumping to step 2."), player.told)
+    }
+
+    @Test
     fun `nothing is waited for between two steps`() {
         val runner = runner("chop", "drop")
         runner.act()

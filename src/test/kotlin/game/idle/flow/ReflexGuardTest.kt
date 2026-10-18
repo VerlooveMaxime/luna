@@ -239,6 +239,30 @@ class ReflexGuardTest {
     }
 
     @Test
+    fun `running clear shows what the flight does on its way`() {
+        val guard = guard(stop())
+        body.attacked = true
+        hurt()
+        guard.act()
+
+        body.flightUnderWay = UnderWay.Closing(Passage.DOOR)
+
+        assertEquals(UnderWay.Closing(Passage.DOOR), guard.underWay())
+    }
+
+    @Test
+    fun `running clear holds the next decision while the flight clicks a door`() {
+        val guard = guard(stop())
+        body.attacked = true
+        hurt()
+        guard.act()
+
+        body.flightBusy = true
+
+        assertTrue(guard.isBusy())
+    }
+
+    @Test
     fun `what the step's trip does on its way is the guard's`() {
         step.underWay = UnderWay.Passing(Passage.LADDER_DOWN)
 
@@ -922,6 +946,16 @@ class ReflexGuardTest {
         guard.act()
 
         assertEquals(listOf<Any?>(null, null), listOf(guard.waiting(), guard.blocked()))
+    }
+
+    @Test
+    fun `in flight nothing is under way of the flow's own`() {
+        val guard = ready()
+        guard.act()
+
+        body.flightUnderWay = UnderWay.Passing(Passage.DOOR)
+
+        assertNull(guard.underWay())
     }
 
     @Test

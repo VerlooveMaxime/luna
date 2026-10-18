@@ -73,9 +73,19 @@ interface ReflexBody {
 
     /**
      * Runs from what attacks the player, running while run energy lasts (Maxime, 2026-10-10); stays put when no tile
-     * gets farther from them.
+     * gets farther from them. Behind a door that keeps every attacker out once shut first, shut once the player is
+     * through (web-walker movement Part 5).
      */
     fun flee()
+
+    /** Whether the flight is in the middle of a click (a door opened or shut), which the next decision would cut short. */
+    fun flightBusy(): Boolean
+
+    /** What the flight does on its way while it lasts (opening, going through or shutting a door), null on a plain run. */
+    fun flightUnderWay(): UnderWay?
+
+    /** The passage the flight shut behind the player since last asked, once; null for none. */
+    fun shutBehind(): Passage?
 
     /** The flight is over: running goes back to the player's own run toggle. */
     fun calm()
@@ -126,7 +136,13 @@ class ReflexGuard(
     private val changes = mutableListOf<PrayerChange>()
     private val used = mutableListOf<Int>()
 
-    override fun isBusy(): Boolean = step.isBusy() && leaving == null && firing() == null && !hold.pending(body, ::wanted)
+    /** While running clear, only a door the flight clicks holds the next decision back: the run is looked at again as attackers move. */
+    override fun isBusy(): Boolean =
+        when (leaving) {
+            null -> step.isBusy() && firing() == null && !hold.pending(body, ::wanted)
+            is Leaving.RunningClear -> body.flightBusy()
+            is Leaving.InFlight -> false
+        }
 
     /** A stop or a jump under way owns the step: a turn the step ends meanwhile never passes the flow on without it. */
     override fun isDone(): Boolean = leaving == null && step.isDone()
@@ -149,8 +165,13 @@ class ReflexGuard(
             is Leaving.InFlight -> null
         }
 
-    /** Hidden while the player runs clear or a teleport is under way, as the step's block is. */
-    override fun underWay(): UnderWay? = if (leaving != null) null else step.underWay()
+    /** The flight's doors while the player runs clear (Maxime, 2026-10-18: as any trip's); none while a teleport is under way. */
+    override fun underWay(): UnderWay? =
+        when (leaving) {
+            null -> step.underWay()
+            is Leaving.RunningClear -> body.flightUnderWay()
+            is Leaving.InFlight -> null
+        }
 
     override fun amountDone(): Int = step.amountDone()
 

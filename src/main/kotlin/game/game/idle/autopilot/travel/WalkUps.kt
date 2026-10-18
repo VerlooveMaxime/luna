@@ -46,7 +46,7 @@ class WalkUps(private val traveller: Traveller) {
     /** Walks one decision's worth towards [target]; a trip that gets nowhere is the retry rule's to judge, not a block. */
     fun walkTo(target: Candidate): StepOutcome {
         // The place is never said: a walk up's block goes to the retry rule.
-        val walk = TripWork(traveller, Tile.of(target.approach), Place.WORK_SPOT, plan(traveller.position(), target), arriveWithin = 0)
+        val walk = TripWork(traveller, Tile.of(target.approach), Place.WORK_SPOT, plan(traveller.position(), target.doors, target.approach), arriveWithin = 0)
         trip = walk
         val outcome = walk.act(left = null)
         val opening = outcome is StepOutcome.Blocked || (outcome as? StepOutcome.OnTheWay)?.underWay is UnderWay.Opening
@@ -72,25 +72,25 @@ class WalkUps(private val traveller: Traveller) {
     companion object {
 
         /**
-         * The legs of a walk from [here] up to [target] along its route: a walk to each door's near side, the door from
-         * there to its far side, and a walk on to the tile [target] is used from.
+         * The legs of a walk from [here] to [to] through [doors], a route a local search found: a walk to each door's
+         * near side, the door from there to its far side, and a walk on to [to]. A flight walks the same way.
          */
-        fun plan(here: Position, target: Candidate): WebWalkPlan {
+        fun plan(here: Position, doors: List<DoorStep>, to: Position): WebWalkPlan {
             var at = here
             val legs = mutableListOf<PlanLeg>()
-            for (door in target.doors) {
+            for (door in doors) {
                 if (at != door.from) legs += PlanLeg(EdgeType.WALK, at, door.from, cost = 0.0)
                 legs += doorLeg(door)
                 at = door.to
             }
-            legs += PlanLeg(EdgeType.WALK, at, target.approach, cost = 0.0)
+            legs += PlanLeg(EdgeType.WALK, at, to, cost = 0.0)
             return WebWalkPlan(legs, cost = 0.0)
         }
 
         private fun doorLeg(door: DoorStep): PlanLeg =
             PlanLeg(door.doorway.type, door.from, door.to, cost = 0.0, EdgeAction(objectId = door.doorway.id, objectPosition = door.doorway.position))
 
-        private fun passageOf(type: EdgeType): Passage =
+        fun passageOf(type: EdgeType): Passage =
             when (type) {
                 EdgeType.GATE -> Passage.GATE
                 EdgeType.CURTAIN -> Passage.CURTAIN
