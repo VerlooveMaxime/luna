@@ -35,4 +35,10 @@ interface StepWork {
 
     /** A line the last decision has for the chat box, once: a door a walk up could not get through. */
     fun said(): Said? = null
+
+    /**
+     * Whether the work took the player somewhere, when that is the step's own work (the walk step's trip), which then
+     * counts as work done: a lap of walks that move the player is no idle lap (Maxime, 2026-10-20).
+     */
+    fun travelled(): Boolean = false
 }

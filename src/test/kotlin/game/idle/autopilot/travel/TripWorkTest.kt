@@ -66,6 +66,18 @@ class TripWorkTest {
     }
 
     @Test
+    fun `a trip that took the player elsewhere travelled`() {
+        traveller.position = Position(3201, 3200)
+
+        assertTrue(trip.travelled())
+    }
+
+    @Test
+    fun `a trip with the player where it began has not travelled`() {
+        assertFalse(trip.travelled())
+    }
+
+    @Test
     fun `a trip told to arrive on its target is not over beside it`() {
         traveller.position = Position(3229, 3201)
         val onTarget = TripWork(traveller, target, Place.TILE, arriveWithin = 0)

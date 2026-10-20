@@ -34,7 +34,7 @@ interface StepActivity {
     /** How much of what its Amount counts the step did this turn, 0 for a step that counts nothing. */
     fun amountDone(): Int
 
-    /** Whether the step's own work started this turn (a chop, a drop, a rest). */
+    /** Whether the step's own work started this turn (a chop, a drop, a rest, a walk step's move). */
     fun worked(): Boolean
 
     /** Ends the turn as reaching the Amount does: the unit in progress settles, the action is broken off, the step is over. */

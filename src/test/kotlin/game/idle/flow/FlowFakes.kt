@@ -207,6 +207,7 @@ class FakeStepWork(vararg outcomes: StepOutcome, meter: ((() -> Int) -> Meter)? 
     var busy = false
     var finishing = false
     var reading = 0
+    var travelled = false
     private var acts = 0
 
     override val meter: Meter = meter?.invoke { reading } ?: Meter.None
@@ -223,6 +224,8 @@ class FakeStepWork(vararg outcomes: StepOutcome, meter: ((() -> Int) -> Meter)? 
         done += "act $left"
         return outcomes[minOf(acts++, outcomes.lastIndex)]
     }
+
+    override fun travelled(): Boolean = travelled
 }
 
 /** What the player has on them in a test: the level in [levels] (1 without one), the [bag] and [worn] item ids, [full]. */

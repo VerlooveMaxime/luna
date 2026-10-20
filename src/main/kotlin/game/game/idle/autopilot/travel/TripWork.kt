@@ -124,6 +124,7 @@ class TripWork(
      */
     private data class Attempt(val leg: Int, val from: Position, val move: Move, val line: Int = 0)
 
+    private val start = traveller.position()
     private var pending: CompletableFuture<TripPlanning>? = null
     private var legs: List<PlanLeg>? = plan?.plan?.legs
     private var index = 0
@@ -171,6 +172,9 @@ class TripWork(
     }
 
     override fun interrupt() = traveller.interrupt()
+
+    /** The player stands elsewhere than where the trip began. */
+    override fun travelled(): Boolean = traveller.position() != start
 
     override fun act(left: Int?): StepOutcome {
         val here = traveller.position()

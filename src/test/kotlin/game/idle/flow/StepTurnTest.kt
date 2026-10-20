@@ -42,6 +42,17 @@ class StepTurnTest {
     }
 
     @Test
+    fun `a work whose own work is to travel counts as worked once it moved the player`() {
+        val work = FakeStepWork(StepOutcome.Approached)
+        work.travelled = true
+        val turn = turn(work)
+
+        turn.act()
+
+        assertTrue(turn.worked())
+    }
+
+    @Test
     fun `an approach clears the block but is no work`() {
         val work = FakeStepWork(StepOutcome.Blocked(Reason.NoneInReach(Target.TREE)), StepOutcome.Approached)
         val turn = turn(work)

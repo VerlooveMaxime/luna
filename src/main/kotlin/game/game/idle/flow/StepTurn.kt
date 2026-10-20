@@ -53,7 +53,7 @@ class StepTurn(
         return tally.total()
     }
 
-    override fun worked(): Boolean = worked
+    override fun worked(): Boolean = worked || work.travelled()
 
     override fun endTurn() {
         ending = true
