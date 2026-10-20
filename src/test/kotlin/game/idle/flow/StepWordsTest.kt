@@ -99,13 +99,19 @@ class StepWordsTest {
     }
 
     @Test
+    fun `an entrance whose whole name does not fit the slot's lines is named by its last word`() {
+        val entrance = EntrancePassage("enter", Way.THROUGH, wayNamed = false, "underwater cavern entrance")
+        assertEquals("No way through the entrance", words.block(Reason.Impassable(entrance)))
+    }
+
+    @Test
     fun `a door a flight shut behind the player is said`() {
-        assertEquals("Autopilot: closed the door behind you.", words.shutBehind(Passage.DOOR))
+        assertEquals("Autopilot: closed the door behind you.", words.shutBehind(Structure.DOOR))
     }
 
     @Test
     fun `a walk up that could not get through a door says which and where`() {
-        assertEquals("Autopilot: step 2 could not get through the gate at 3101, 3509.", words.said(2, Said.DoorShut(Passage.GATE, Tile(3101, 3509))))
+        assertEquals("Autopilot: step 2 could not get through the gate at 3101, 3509.", words.said(2, Said.DoorShut(Structure.GATE, Tile(3101, 3509))))
     }
 
     @Test
@@ -267,16 +273,21 @@ class StepWordsTest {
 
         @JvmStatic
         fun underWayWords(): List<Arguments> = listOf(
-            Arguments.of(UnderWay.Opening(Passage.DOOR), "Opening the door"),
-            Arguments.of(UnderWay.Opening(Passage.GATE), "Opening the gate"),
-            Arguments.of(UnderWay.Opening(Passage.TRAPDOOR), "Opening the trapdoor"),
-            Arguments.of(UnderWay.Passing(Passage.DOOR), "Going through the door"),
-            Arguments.of(UnderWay.Passing(Passage.CURTAIN), "Going through the curtain"),
-            Arguments.of(UnderWay.Passing(Passage.LADDER_UP), "Climbing up the ladder"),
-            Arguments.of(UnderWay.Passing(Passage.STAIRS_DOWN), "Climbing down the stairs"),
-            Arguments.of(UnderWay.Passing(Passage.TRAPDOOR), "Climbing down the trapdoor"),
-            Arguments.of(UnderWay.Closing(Passage.DOOR), "Closing the door"),
-            Arguments.of(UnderWay.Closing(Passage.CURTAIN), "Closing the curtain"),
+            Arguments.of(UnderWay.Opening(Structure.DOOR), "Opening the door"),
+            Arguments.of(UnderWay.Opening(Structure.GATE), "Opening the gate"),
+            Arguments.of(UnderWay.Opening(Structure.TRAPDOOR), "Opening the trapdoor"),
+            Arguments.of(UnderWay.Passing(Structure.DOOR), "Going through the door"),
+            Arguments.of(UnderWay.Passing(Structure.CURTAIN), "Going through the curtain"),
+            Arguments.of(UnderWay.Passing(Structure.LADDER_UP), "Climbing up the ladder"),
+            Arguments.of(UnderWay.Passing(Structure.STAIRS_DOWN), "Climbing down the stairs"),
+            Arguments.of(UnderWay.Passing(Structure.TRAPDOOR), "Climbing down the trapdoor"),
+            Arguments.of(UnderWay.Passing(EntrancePassage("enter", Way.THROUGH, wayNamed = false, "cave entrance")), "Entering the cave entrance"),
+            Arguments.of(UnderWay.Passing(EntrancePassage("crawl", Way.THROUGH, wayNamed = true, "cart tunnel")), "Crawling through the cart tunnel"),
+            Arguments.of(UnderWay.Passing(EntrancePassage("climb", Way.UP, wayNamed = true, "rope")), "Climbing up the rope"),
+            Arguments.of(UnderWay.Passing(EntrancePassage("leave", Way.THROUGH, wayNamed = false, "cave exit")), "Leaving the cave exit"),
+            Arguments.of(UnderWay.Passing(EntrancePassage("flee", Way.THROUGH, wayNamed = false, "hole")), "Fleeing the hole"),
+            Arguments.of(UnderWay.Closing(Structure.DOOR), "Closing the door"),
+            Arguments.of(UnderWay.Closing(Structure.CURTAIN), "Closing the curtain"),
             Arguments.of(UnderWay.Teleporting(TeleportDestination.Spell(TeleportSpell.VARROCK)), "Teleporting to Varrock"),
             Arguments.of(UnderWay.Teleporting(TeleportDestination.Spell(TeleportSpell.WATCHTOWER)), "Teleporting to the Watchtower"),
             Arguments.of(UnderWay.Teleporting(TeleportDestination.Jewellery(TeleportJewellery.AMULET_OF_GLORY, 0)), "Teleporting to Edgeville"),
@@ -302,14 +313,16 @@ class StepWordsTest {
             Arguments.of(Reason.NoWay(Place.TILE, TravelChoice.COINS), "No way with tolls and fares off"),
             Arguments.of(Reason.NoWay(Place.WORK_SPOT, TravelChoice.RUNES), "No way with teleport spells off"),
             Arguments.of(Reason.NoWay(Place.BANK, TravelChoice.CHARGES), "No way with teleport jewellery off"),
-            Arguments.of(Reason.Impassable(Passage.DOOR), "No way through the door"),
-            Arguments.of(Reason.Impassable(Passage.GATE), "No way through the gate"),
-            Arguments.of(Reason.Impassable(Passage.CURTAIN), "No way through the curtain"),
-            Arguments.of(Reason.Impassable(Passage.LADDER_UP), "No way up the ladder"),
-            Arguments.of(Reason.Impassable(Passage.LADDER_DOWN), "No way down the ladder"),
-            Arguments.of(Reason.Impassable(Passage.STAIRS_UP), "No way up the stairs"),
-            Arguments.of(Reason.Impassable(Passage.STAIRS_DOWN), "No way down the stairs"),
-            Arguments.of(Reason.Impassable(Passage.TRAPDOOR), "No way down the trapdoor"),
+            Arguments.of(Reason.Impassable(Structure.DOOR), "No way through the door"),
+            Arguments.of(Reason.Impassable(Structure.GATE), "No way through the gate"),
+            Arguments.of(Reason.Impassable(Structure.CURTAIN), "No way through the curtain"),
+            Arguments.of(Reason.Impassable(Structure.LADDER_UP), "No way up the ladder"),
+            Arguments.of(Reason.Impassable(Structure.LADDER_DOWN), "No way down the ladder"),
+            Arguments.of(Reason.Impassable(Structure.STAIRS_UP), "No way up the stairs"),
+            Arguments.of(Reason.Impassable(Structure.STAIRS_DOWN), "No way down the stairs"),
+            Arguments.of(Reason.Impassable(Structure.TRAPDOOR), "No way down the trapdoor"),
+            Arguments.of(Reason.Impassable(EntrancePassage("enter", Way.THROUGH, wayNamed = false, "cave entrance")), "No way through the cave entrance"),
+            Arguments.of(Reason.Impassable(EntrancePassage("climb", Way.OVER, wayNamed = true, "mud pile")), "No way over the mud pile"),
             Arguments.of(Reason.RunningClear(), "Running clear before stopping"),
             Arguments.of(Reason.RunningClear(toStep = 2), "Running clear to jump to step 2"),
             Arguments.of(Reason.BagFull(emptyList()), "The bag is full"),

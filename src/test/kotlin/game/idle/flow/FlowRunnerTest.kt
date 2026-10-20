@@ -217,7 +217,7 @@ class FlowRunnerTest {
         val runner = runner("chop")
         runner.act()
 
-        player.started.single().underWay = UnderWay.Opening(Passage.DOOR)
+        player.started.single().underWay = UnderWay.Opening(Structure.DOOR)
 
         assertEquals("Opening the door", runner.underWay())
     }
@@ -226,7 +226,7 @@ class FlowRunnerTest {
     fun `nothing is under way between two steps`() {
         val runner = runner("chop", "drop")
         runner.act()
-        player.started.single().underWay = UnderWay.Opening(Passage.DOOR)
+        player.started.single().underWay = UnderWay.Opening(Structure.DOOR)
         player.started.single().done = true
 
         runner.act()
@@ -239,7 +239,7 @@ class FlowRunnerTest {
         val runner = runner("fight")
         runner.act()
         player.started.single().stop = stuck
-        player.started.single().underWay = UnderWay.Opening(Passage.DOOR)
+        player.started.single().underWay = UnderWay.Opening(Structure.DOOR)
         body.attacked = true
 
         runner.act()
@@ -255,7 +255,7 @@ class FlowRunnerTest {
         body.attacked = true
         runner.act()
 
-        body.flightUnderWay = UnderWay.Closing(Passage.DOOR)
+        body.flightUnderWay = UnderWay.Closing(Structure.DOOR)
 
         assertEquals("Closing the door", runner.underWay())
     }
@@ -294,7 +294,7 @@ class FlowRunnerTest {
         body.attacked = true
         runner.act()
         body.attacked = false
-        body.shutBehind = Passage.DOOR
+        body.shutBehind = Structure.DOOR
 
         runner.act()
 
@@ -308,7 +308,7 @@ class FlowRunnerTest {
         val runner = jumping("fight", "bank", to = 1)
         runner.act()
         body.attacked = false
-        body.shutBehind = Passage.GATE
+        body.shutBehind = Structure.GATE
 
         runner.act()
 

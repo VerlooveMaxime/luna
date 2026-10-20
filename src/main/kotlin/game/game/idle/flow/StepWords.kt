@@ -13,9 +13,9 @@ import io.luna.game.model.mob.Skill
  * works on), on at most [SLOT_LINES] of the slot's lines. A chat line is a sentence naming the step by its number:
  * "Autopilot: step N ended, <cause>." and "Autopilot: step N skipped this lap: <cause>.", "Autopilot: stopped,
  * <cause>." for every stop. Items are named with [names]; a list of them is cut to the chat box's width in its
- * [chat] font.
+ * [chat] font. A block is measured as the slot shows it, after its "! ", in the [slot] font on lines of [slotRoom] px.
  */
-class StepWords(private val names: GameNames, private val chat: ClientFont) {
+class StepWords(private val names: GameNames, private val chat: ClientFont, private val slot: ClientFont, private val slotRoom: Int) {
 
     /** Why a step cannot go on, as the red line under it. */
     fun block(reason: Reason): String =
@@ -26,7 +26,7 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
             Reason.CannotMake -> "Cannot make it yet"
             Reason.WrongWindow -> "Another make window is open"
             is Reason.NoWay -> reason.off?.let { "No way with ${travelRow(it)} off" } ?: noWay(reason.place)
-            is Reason.Impassable -> "No way ${way(reason.passage.way)} the ${noun(reason.passage)}"
+            is Reason.Impassable -> impassable(reason.passage)
             is Reason.BagFull -> "The bag is full"
             is Reason.NoneLeftInBank -> "No ${item(reason.item)} left in the bank"
             Reason.BankFull -> "The bank is full"
@@ -37,11 +37,7 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
     fun underWay(underWay: UnderWay): String =
         when (underWay) {
             is UnderWay.Opening -> "Opening the ${noun(underWay.passage)}"
-            is UnderWay.Passing -> when (underWay.passage.way) {
-                Way.THROUGH -> "Going through the ${noun(underWay.passage)}"
-                Way.UP -> "Climbing up the ${noun(underWay.passage)}"
-                Way.DOWN -> "Climbing down the ${noun(underWay.passage)}"
-            }
+            is UnderWay.Passing -> passing(underWay.passage)
             is UnderWay.Closing -> "Closing the ${noun(underWay.passage)}"
             is UnderWay.Teleporting -> "Teleporting to ${Teleports.named(underWay.destination)}"
             UnderWay.PayingToll -> "Paying the toll"
@@ -191,14 +187,37 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
             Target.FREE_TILE -> "No free tile for a fire"
         }
 
+    /**
+     * "No way up the ladder"; an entrance whose whole name does not fit the slot's lines is named by its last word (Maxime,
+     * 2026-10-20): "No way through the exit" for the underground pass exit.
+     */
+    private fun impassable(passage: Passage): String {
+        val whole = "No way ${way(passage.way)} the ${noun(passage)}"
+        if (passage !is EntrancePassage || fitsSlot(whole)) return whole
+        return "No way ${way(passage.way)} the ${passage.name.substringAfterLast(' ')}"
+    }
+
+    private fun fitsSlot(block: String): Boolean = slot.wrap("! $block", slotRoom, SLOT_LINES).joinToString(" ") == "! $block"
+
+    /** "Going through the door", "Climbing up the ladder"; an entrance by its option, "Crawling through the cart tunnel". */
+    private fun passing(passage: Passage): String =
+        when (passage) {
+            is Structure -> if (passage.way == Way.THROUGH) "Going through the ${noun(passage)}" else "Climbing ${way(passage.way)} the ${noun(passage)}"
+            is EntrancePassage -> capitalised(listOfNotNull(ing(passage.verb), way(passage.way).takeIf { passage.wayNamed }, "the", passage.name).joinToString(" "))
+        }
+
+    /** A verb with -ing, its silent e dropped: "leave", "leaving". */
+    private fun ing(verb: String): String = (if (verb.endsWith("e") && !verb.endsWith("ee")) verb.dropLast(1) else verb) + "ing"
+
     private fun noun(passage: Passage): String =
         when (passage) {
-            Passage.DOOR -> "door"
-            Passage.GATE -> "gate"
-            Passage.CURTAIN -> "curtain"
-            Passage.LADDER_UP, Passage.LADDER_DOWN -> "ladder"
-            Passage.STAIRS_UP, Passage.STAIRS_DOWN -> "stairs"
-            Passage.TRAPDOOR -> "trapdoor"
+            Structure.DOOR -> "door"
+            Structure.GATE -> "gate"
+            Structure.CURTAIN -> "curtain"
+            Structure.LADDER_UP, Structure.LADDER_DOWN -> "ladder"
+            Structure.STAIRS_UP, Structure.STAIRS_DOWN -> "stairs"
+            Structure.TRAPDOOR -> "trapdoor"
+            is EntrancePassage -> passage.name
         }
 
     private fun way(way: Way): String =
@@ -206,6 +225,7 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
             Way.THROUGH -> "through"
             Way.UP -> "up"
             Way.DOWN -> "down"
+            Way.OVER -> "over"
         }
 
     private fun noWay(place: Place): String =

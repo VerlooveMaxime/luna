@@ -2,7 +2,6 @@ package game.idle.autopilot.bank
 
 import game.idle.flow.FakeStepWork
 import game.idle.flow.Meter
-import game.idle.flow.Passage
 import game.idle.flow.Place
 import game.idle.flow.Reason
 import game.idle.flow.StepItem
@@ -11,6 +10,7 @@ import game.idle.flow.StepOutcome.Approached
 import game.idle.flow.StepOutcome.Finished
 import game.idle.flow.StepOutcome.Worked
 import game.idle.flow.StepWork
+import game.idle.flow.Structure
 import game.idle.flow.UnderWay
 import game.idle.movement.TravelChoice
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -58,11 +58,11 @@ class BankWorkTest {
     @Test
     fun `out of the booth's reach the walk to it is the trip's`() {
         banker.view = banker.view.copy(boothUsableFromHere = false)
-        val trip = FakeStepWork(StepOutcome.OnTheWay(UnderWay.Opening(Passage.DOOR)))
+        val trip = FakeStepWork(StepOutcome.OnTheWay(UnderWay.Opening(Structure.DOOR)))
 
         val outcome = work(toBooth = trip).act(left = null)
 
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Passage.DOOR)) to emptyList<String>(), outcome to banker.steps)
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Structure.DOOR)) to emptyList<String>(), outcome to banker.steps)
     }
 
     @Test

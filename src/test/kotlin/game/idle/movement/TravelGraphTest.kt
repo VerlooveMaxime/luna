@@ -2,9 +2,11 @@ package game.idle.movement
 
 import api.bot.webwalk.model.BankDefinition
 import api.bot.webwalk.model.BankLink
+import api.bot.webwalk.model.EdgeAction
 import api.bot.webwalk.model.EdgeType
 import api.bot.webwalk.model.FairyRing
 import api.bot.webwalk.model.NodeKind
+import api.bot.webwalk.model.Requirements
 import api.bot.webwalk.model.TeleportDefinition
 import api.bot.webwalk.model.TeleportKind
 import api.bot.webwalk.model.WebWalkEdge
@@ -75,8 +77,33 @@ class TravelGraphTest {
     }
 
     @Test
-    fun `a cave entrance outside the wilderness is left out`() {
-        assertEquals(emptyList<WebWalkEdge>(), edgesKept(edge(east, south, EdgeType.ENTRANCE)))
+    fun `a cave entrance outside the wilderness is kept`() {
+        val entrance = edge(east, south, EdgeType.ENTRANCE)
+        assertEquals(listOf(entrance), edgesKept(entrance))
+    }
+
+    /** An entrance over the object of [id], in a graph where only the object [changing] changes form. */
+    private fun entranceOver(id: Int, changing: Int = boulder): WebWalkEdge {
+        val entrance = edge(east, south, EdgeType.ENTRANCE).copy(action = EdgeAction(objectId = id, objectPosition = south.position))
+        return travelGraph(WebWalkGraph(nodes, listOf(entrance), emptyList(), emptyList()), wilderness) { it == changing }.edges.single()
+    }
+
+    private val boulder = 11045
+
+    @Test
+    fun `an edge over an object that changes form needs the player to see an option on it`() {
+        assertEquals(setOf(shownFlag(boulder)), entranceOver(boulder).requirements.flags)
+    }
+
+    @Test
+    fun `an edge over an object that keeps its form needs nothing more`() {
+        assertEquals(Requirements.NONE, entranceOver(4499).requirements)
+    }
+
+    @Test
+    fun `an edge over no object needs nothing more`() {
+        val walk = edge(east, south)
+        assertEquals(listOf(walk), travelGraph(WebWalkGraph(nodes, listOf(walk), emptyList(), emptyList()), wilderness) { true }.edges)
     }
 
     @Test

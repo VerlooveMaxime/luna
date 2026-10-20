@@ -455,7 +455,7 @@ class StepTurnContractTest {
 
         turn.act()
 
-        assertEquals(UnderWay.Opening(Passage.DOOR), turn.underWay())
+        assertEquals(UnderWay.Opening(Structure.DOOR), turn.underWay())
     }
 
     @ParameterizedTest(name = "{0}")
@@ -466,7 +466,7 @@ class StepTurnContractTest {
 
         turn.act()
 
-        assertEquals(UnderWay.Passing(Passage.DOOR), turn.underWay())
+        assertEquals(UnderWay.Passing(Structure.DOOR), turn.underWay())
     }
 
     @ParameterizedTest(name = "{0}")
@@ -502,7 +502,7 @@ class StepTurnContractTest {
 
         turn.act()
 
-        assertEquals(Said.DoorShut(Passage.DOOR, Tile(3203, 3200)), turn.said())
+        assertEquals(Said.DoorShut(Structure.DOOR, Tile(3203, 3200)), turn.said())
     }
 
     companion object {

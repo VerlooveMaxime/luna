@@ -103,16 +103,16 @@ class StepTurnTest {
 
     @Test
     fun `what a trip does on its way is reported apart from a block and a wait`() {
-        val turn = turn(FakeStepWork(StepOutcome.OnTheWay(UnderWay.Opening(Passage.DOOR))))
+        val turn = turn(FakeStepWork(StepOutcome.OnTheWay(UnderWay.Opening(Structure.DOOR))))
 
         turn.act()
 
-        assertEquals(Triple(UnderWay.Opening(Passage.DOOR), null, null), Triple(turn.underWay(), turn.blocked(), turn.waiting()))
+        assertEquals(Triple(UnderWay.Opening(Structure.DOOR), null, null), Triple(turn.underWay(), turn.blocked(), turn.waiting()))
     }
 
     @Test
     fun `a trip on its way is no work`() {
-        val turn = turn(FakeStepWork(StepOutcome.OnTheWay(UnderWay.Opening(Passage.DOOR))))
+        val turn = turn(FakeStepWork(StepOutcome.OnTheWay(UnderWay.Opening(Structure.DOOR))))
 
         turn.act()
 
@@ -121,7 +121,7 @@ class StepTurnTest {
 
     @Test
     fun `a plain walk ends what a trip did on its way`() {
-        val turn = turn(FakeStepWork(StepOutcome.OnTheWay(UnderWay.Opening(Passage.DOOR)), StepOutcome.Approached))
+        val turn = turn(FakeStepWork(StepOutcome.OnTheWay(UnderWay.Opening(Structure.DOOR)), StepOutcome.Approached))
         turn.act()
 
         turn.act()
@@ -131,7 +131,7 @@ class StepTurnTest {
 
     @Test
     fun `a block ends what a trip did on its way`() {
-        val turn = turn(FakeStepWork(StepOutcome.OnTheWay(UnderWay.Opening(Passage.DOOR)), StepOutcome.Blocked(Reason.NoWay(Place.TILE))))
+        val turn = turn(FakeStepWork(StepOutcome.OnTheWay(UnderWay.Opening(Structure.DOOR)), StepOutcome.Blocked(Reason.NoWay(Place.TILE))))
         turn.act()
 
         turn.act()
@@ -141,7 +141,7 @@ class StepTurnTest {
 
     @Test
     fun `a wait ends what a trip did on its way`() {
-        val turn = turn(FakeStepWork(StepOutcome.OnTheWay(UnderWay.Opening(Passage.DOOR)), StepOutcome.Waiting(Reason.NoneInReach(Target.ROCK))))
+        val turn = turn(FakeStepWork(StepOutcome.OnTheWay(UnderWay.Opening(Structure.DOOR)), StepOutcome.Waiting(Reason.NoneInReach(Target.ROCK))))
         turn.act()
 
         turn.act()
@@ -263,11 +263,11 @@ class StepTurnTest {
 
     @Test
     fun `what the walk back does on its way is the step's`() {
-        val turn = turn(FakeStepWork(StepOutcome.Away(anchor)), walkBack = StepOutcome.OnTheWay(UnderWay.Passing(Passage.STAIRS_UP)))
+        val turn = turn(FakeStepWork(StepOutcome.Away(anchor)), walkBack = StepOutcome.OnTheWay(UnderWay.Passing(Structure.STAIRS_UP)))
 
         turn.act()
 
-        assertEquals(UnderWay.Passing(Passage.STAIRS_UP), turn.underWay())
+        assertEquals(UnderWay.Passing(Structure.STAIRS_UP), turn.underWay())
     }
 
     @Test

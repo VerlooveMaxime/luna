@@ -12,6 +12,7 @@ import api.bot.webwalk.plan.Spend
 import api.bot.webwalk.plan.WebWalkPlan
 import game.idle.autopilot.LunaClicks
 import game.idle.autopilot.LunaTeleports
+import game.idle.flow.EntrancePassage
 import game.idle.flow.Place
 import game.idle.flow.Said
 import game.idle.flow.Speech
@@ -20,10 +21,12 @@ import game.idle.flow.TeleportStarted
 import game.idle.flow.Teleports
 import game.idle.idleState
 import game.idle.location.Tile
+import game.idle.movement.ObjectForms
 import game.idle.movement.TravelAllowance
 import game.idle.movement.TravelChoice
 import game.idle.movement.TravelWeb
 import game.idle.movement.TravelWebs
+import game.idle.movement.shownFlag
 import io.luna.game.event.impl.ButtonClickEvent
 import io.luna.game.event.impl.ContinueDialogueEvent
 import io.luna.game.model.Position
@@ -39,8 +42,9 @@ import java.util.concurrent.Executor
  * a trip across the map takes 10 to 45 ms to plan (measured 2026-10-17), once per walk, and every decision then sees
  * its plan. While the allowance keeps back something the player could pay with, a second plan with everything allowed
  * says which choices a quicker trip would have needed (the long way round, Q6). Jewellery counts as [LunaTeleports]
- * rubs it. Without the web (its data not generated yet) a trip is the plain walk it was before. Every click goes
- * through the same event and interaction action as the client's, so Luna's doors, ladders, stairs and toll gate answer
+ * rubs it; an object that changes form is planned through only when the player sees an option on it ([ObjectForms]).
+ * Without the web (its data not generated yet) a trip is the plain walk it was before. Every click goes through the
+ * same event and interaction action as the client's, so Luna's doors, ladders, stairs, entrances and toll gate answer
  * it unchanged. What the trip says goes to [speech] at once. A [fleeing] player's walks are found on the game thread and
  * break off what they were doing first, so they are on the move from the next tick and do not turn to fight back; only a
  * click holds them up.
@@ -67,7 +71,8 @@ class LunaTraveller(
         val start = player.position
         val web = web ?: return CompletableFuture.completedFuture(plainWalk(start, destinations)?.let(::PlannedTrip) ?: NoTrip())
         val teleports = web.graph.teleports
-        val snapshot = BotCapabilities.snapshot(player, teleports)
+        val shown = web.formObjects.filter(ObjectForms.SERVER::showsOption).map(::shownFlag).toSet()
+        val snapshot = BotCapabilities.snapshot(player, teleports, flags = shown)
         val carried = CapabilitySnapshot(
             snapshot.skillLevels, snapshot.items, snapshot.flags, snapshot.wildernessLevel, snapshot.usableTeleports, LunaTeleports.charges(player),
             snapshot.teleportSpends,
@@ -105,6 +110,8 @@ class LunaTraveller(
     }
 
     override fun standing(id: Int, at: Position): Boolean = LunaClicks.objectOn(player, id, at) != null
+
+    override fun entrance(id: Int, at: Position): EntrancePassage? = LunaEntrances.passage(id, at)
 
     /** [LunaClicks.use]: out of reach, the player walks up to the object first and clicks on arrival. */
     override fun use(id: Int, at: Position, option: String?, from: Position): Boolean {

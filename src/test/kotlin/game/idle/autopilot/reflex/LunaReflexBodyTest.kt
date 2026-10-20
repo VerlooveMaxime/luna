@@ -10,7 +10,7 @@ import engine.controllers.WildernessController
 import engine.controllers.WildernessLocatableController.wildernessLevel
 import game.idle.autopilot.EndlessAction
 import game.idle.flow.Health
-import game.idle.flow.Passage
+import game.idle.flow.Structure
 import game.idle.flow.TeleportDestination
 import game.idle.flow.TeleportStarted
 import game.idle.flow.UnderWay
@@ -276,7 +276,7 @@ class LunaReflexBodyTest {
         body.flee()
         TestWorld.tick(5)
 
-        assertEquals(listOf(door) to UnderWay.Opening(Passage.DOOR), clicked to body.flightUnderWay())
+        assertEquals(listOf(door) to UnderWay.Opening(Structure.DOOR), clicked to body.flightUnderWay())
     }
 
     @Test
@@ -312,7 +312,7 @@ class LunaReflexBodyTest {
         body.flee()
         TestWorld.tick(3)
 
-        assertEquals(listOf(openDoor) to UnderWay.Closing(Passage.DOOR), clicked to body.flightUnderWay())
+        assertEquals(listOf(openDoor) to UnderWay.Closing(Structure.DOOR), clicked to body.flightUnderWay())
     }
 
     @Test
@@ -326,7 +326,7 @@ class LunaReflexBodyTest {
 
         body.calm()
 
-        assertEquals(Passage.DOOR, body.shutBehind())
+        assertEquals(Structure.DOOR, body.shutBehind())
     }
 
     @Test

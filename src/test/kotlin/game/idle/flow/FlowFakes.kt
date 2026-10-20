@@ -7,6 +7,7 @@ import game.idle.flow.option.InputSource
 import game.idle.flow.option.StepTarget
 import game.idle.font.EVEN_FONT
 import game.idle.location.Tile
+import game.idle.ui.BuilderWidgets
 import io.luna.game.model.mob.Player
 
 /**
@@ -145,8 +146,8 @@ data class FakeBankStep(
     override fun toString(): String = "bank"
 }
 
-/** Words over [EVEN_FONT], where every glyph is 5 px wide, so widths are easy to reckon in a test. */
-fun words(names: GameNames = FakeNames()): StepWords = StepWords(names, EVEN_FONT)
+/** Words over [EVEN_FONT], where every glyph is 5 px wide, so widths are easy to reckon in a test; slot lines as the client's. */
+fun words(names: GameNames = FakeNames()): StepWords = StepWords(names, EVEN_FONT, EVEN_FONT, BuilderWidgets.LINE_ROOM)
 
 /**
  * Records acts as `<name>:<n>`; [done] ends the step, [amountDone] is what its Amount counts so far, [said] is given

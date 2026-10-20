@@ -1,6 +1,6 @@
 package game.idle.autopilot.travel
 
-import game.idle.flow.Passage
+import game.idle.flow.Structure
 import game.idle.flow.UnderWay
 import game.idle.movement.Doorway
 import game.idle.movement.Doorways
@@ -57,7 +57,7 @@ class FlightTest {
 
         flight.flee(attacker, shut)
 
-        assertEquals(listOf(Triple(door.id, door.position, null)) to UnderWay.Opening(Passage.DOOR), traveller.used to flight.underWay())
+        assertEquals(listOf(Triple(door.id, door.position, null)) to UnderWay.Opening(Structure.DOOR), traveller.used to flight.underWay())
     }
 
     @Test
@@ -84,7 +84,7 @@ class FlightTest {
 
         flight.flee(attacker, openRoom())
 
-        assertEquals(UnderWay.Passing(Passage.DOOR), flight.underWay())
+        assertEquals(UnderWay.Passing(Structure.DOOR), flight.underWay())
     }
 
     @Test
@@ -94,7 +94,7 @@ class FlightTest {
 
         flight.flee(attacker, shut)
 
-        assertEquals(2 to UnderWay.Opening(Passage.DOOR), traveller.used.size to flight.underWay())
+        assertEquals(2 to UnderWay.Opening(Structure.DOOR), traveller.used.size to flight.underWay())
     }
 
     @Test
@@ -135,7 +135,7 @@ class FlightTest {
     fun `an open door on the way is gone through`() {
         flight.flee(attacker, openRoom())
 
-        assertEquals(listOf(door.position) to UnderWay.Passing(Passage.DOOR), traveller.walks to flight.underWay())
+        assertEquals(listOf(door.position) to UnderWay.Passing(Structure.DOOR), traveller.walks to flight.underWay())
     }
 
     @Test
@@ -153,7 +153,7 @@ class FlightTest {
 
         flight.flee(attacker, terrain)
 
-        assertEquals(listOf(Triple(openLeaf.id, openLeaf.position, null)) to UnderWay.Closing(Passage.DOOR), traveller.used to flight.underWay())
+        assertEquals(listOf(Triple(openLeaf.id, openLeaf.position, null)) to UnderWay.Closing(Structure.DOOR), traveller.used to flight.underWay())
     }
 
     @Test
@@ -190,7 +190,7 @@ class FlightTest {
 
         flight.flee(attacker, terrain)
 
-        assertEquals(emptyList<Triple<Int, Position, String?>>() to UnderWay.Passing(Passage.DOOR), traveller.used to flight.underWay())
+        assertEquals(emptyList<Triple<Int, Position, String?>>() to UnderWay.Passing(Structure.DOOR), traveller.used to flight.underWay())
     }
 
     @Test
@@ -229,7 +229,7 @@ class FlightTest {
 
         flight.calm()
 
-        assertEquals(Passage.DOOR, flight.shut())
+        assertEquals(Structure.DOOR, flight.shut())
     }
 
     @Test

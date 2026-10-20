@@ -7,15 +7,17 @@ import api.bot.webwalk.model.TeleportKind
 import api.bot.webwalk.plan.PlanLeg
 import api.bot.webwalk.plan.WebWalkPlan
 import game.content.sailing.ShipRoute
+import game.idle.flow.EntrancePassage
 import game.idle.flow.Meter
-import game.idle.flow.Passage
 import game.idle.flow.Place
 import game.idle.flow.Reason
 import game.idle.flow.Said
 import game.idle.flow.StepOutcome
+import game.idle.flow.Structure
 import game.idle.flow.TeleportDestination
 import game.idle.flow.TeleportStarted
 import game.idle.flow.UnderWay
+import game.idle.flow.Way
 import game.idle.location.Tile
 import game.idle.movement.TravelChoice
 import game.item.degradable.jewellery.TeleportJewellery
@@ -322,7 +324,7 @@ class TripWorkTest {
         traveller.position = doorTile
         traveller.standing += door to doorTile
         planned(doorLeg())
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Passage.DOOR)), trip.act(null))
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Structure.DOOR)), trip.act(null))
     }
 
     @Test
@@ -337,7 +339,7 @@ class TripWorkTest {
     fun `going through an open door says so`() {
         traveller.position = doorTile
         planned(doorLeg())
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Passage.DOOR)), trip.act(null))
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Structure.DOOR)), trip.act(null))
     }
 
     @Test
@@ -353,7 +355,7 @@ class TripWorkTest {
         traveller.position = doorTile
         traveller.standing += door to doorTile
         planned(doorLeg(EdgeType.GATE))
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Passage.GATE)), trip.act(null))
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Structure.GATE)), trip.act(null))
     }
 
     @Test
@@ -361,7 +363,7 @@ class TripWorkTest {
         traveller.position = doorTile
         traveller.standing += door to doorTile
         planned(doorLeg(EdgeType.CURTAIN))
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Passage.CURTAIN)), trip.act(null))
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Structure.CURTAIN)), trip.act(null))
     }
 
     @Test
@@ -370,7 +372,7 @@ class TripWorkTest {
         traveller.standing += door to doorTile
         planned(doorLeg())
         trip.act(null)
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR)), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.DOOR)), trip.act(null))
     }
 
     @Test
@@ -378,7 +380,7 @@ class TripWorkTest {
         traveller.position = doorTile
         planned(doorLeg())
         trip.act(null)
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR)), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.DOOR)), trip.act(null))
     }
 
     @Test
@@ -387,28 +389,28 @@ class TripWorkTest {
         traveller.standing += door to doorTile
         traveller.usable = false
         planned(doorLeg())
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR)), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.DOOR)), trip.act(null))
     }
 
     @Test
     fun `a door leg with no object blocks at its start`() {
         traveller.position = doorTile
         planned(PlanLeg(EdgeType.DOOR, doorTile, pastDoor, cost = 1.0))
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR)), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.DOOR)), trip.act(null))
     }
 
     @Test
     fun `a door leg with nothing to click blocks`() {
         traveller.position = doorTile
         planned(PlanLeg(EdgeType.DOOR, doorTile, pastDoor, cost = 1.0, action = EdgeAction()))
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR)), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.DOOR)), trip.act(null))
     }
 
     @Test
     fun `a door leg with no object tile blocks at its start`() {
         traveller.position = doorTile
         planned(leg(EdgeType.DOOR, doorTile, pastDoor, id = door))
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.DOOR)), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.DOOR)), trip.act(null))
     }
 
     @Test
@@ -421,27 +423,27 @@ class TripWorkTest {
     @Test
     fun `climbing up a ladder says so`() {
         planned(upstairs())
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Passage.LADDER_UP)), trip.act(null))
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Structure.LADDER_UP)), trip.act(null))
     }
 
     @Test
     fun `climbing down a ladder says so`() {
         traveller.position = Position(3200, 3200, 1)
         planned(downstairs())
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Passage.LADDER_DOWN)), trip.act(null))
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Structure.LADDER_DOWN)), trip.act(null))
     }
 
     @Test
     fun `climbing up the stairs says so`() {
         planned(upstairs(EdgeType.STAIR))
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Passage.STAIRS_UP)), trip.act(null))
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Structure.STAIRS_UP)), trip.act(null))
     }
 
     @Test
     fun `climbing down the stairs says so`() {
         traveller.position = Position(3200, 3200, 1)
         planned(downstairs(EdgeType.STAIR))
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Passage.STAIRS_DOWN)), trip.act(null))
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Structure.STAIRS_DOWN)), trip.act(null))
     }
 
     @Test
@@ -473,7 +475,7 @@ class TripWorkTest {
     fun `answering the up-or-down question says so`() {
         traveller.choosing = true
         planned(upstairs())
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Passage.LADDER_UP)), trip.act(null))
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Structure.LADDER_UP)), trip.act(null))
     }
 
     @Test
@@ -481,20 +483,20 @@ class TripWorkTest {
         traveller.choosing = true
         planned(upstairs())
         trip.act(null)
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.LADDER_UP)), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.LADDER_UP)), trip.act(null))
     }
 
     @Test
     fun `a ladder that would not take the player up blocks, naming it`() {
         planned(upstairs())
         trip.act(null)
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.LADDER_UP)), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.LADDER_UP)), trip.act(null))
     }
 
     @Test
     fun `a climb leg with no object blocks at its start`() {
         planned(PlanLeg(EdgeType.LADDER, start, Position(3200, 3200, 1), cost = 1.0))
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.LADDER_UP)), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.LADDER_UP)), trip.act(null))
     }
 
     @Test
@@ -517,7 +519,7 @@ class TripWorkTest {
     fun `opening a trapdoor says so`() {
         traveller.standing += 1568 to Position(3201, 3200)
         planned(leg(EdgeType.TRAPDOOR, start, Position(3201, 9600), 1568, Position(3201, 3200)))
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Passage.TRAPDOOR)), trip.act(null))
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Structure.TRAPDOOR)), trip.act(null))
     }
 
     @Test
@@ -530,19 +532,92 @@ class TripWorkTest {
     @Test
     fun `a trapdoor that never shuts is climbed down`() {
         planned(leg(EdgeType.TRAPDOOR, start, Position(3007, 9549), 9472, Position(3201, 3200)))
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Passage.TRAPDOOR)), trip.act(null))
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Structure.TRAPDOOR)), trip.act(null))
     }
 
     @Test
     fun `a trapdoor Luna does not know blocks`() {
         planned(leg(EdgeType.TRAPDOOR, start, Position(3201, 9600), 1, Position(3201, 3200)))
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.TRAPDOOR)), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.TRAPDOOR)), trip.act(null))
     }
 
     @Test
     fun `a trapdoor leg with no object blocks at its start`() {
         planned(PlanLeg(EdgeType.TRAPDOOR, start, Position(3201, 9600), cost = 1.0))
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.TRAPDOOR)), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.TRAPDOOR)), trip.act(null))
+    }
+
+    private val caveEntrance = 4499
+    private val caveAt = Position(3201, 3200)
+    private val cave = EntrancePassage("enter", Way.THROUGH, wayNamed = false, "cave entrance")
+    private val inside = Position(3208, 9602)
+
+    private fun entranceLeg(to: Position = inside) = leg(EdgeType.ENTRANCE, start, to, caveEntrance, caveAt)
+
+    /** The cave entrance beside the start, which the player sees an option on. */
+    private fun seenCave() {
+        traveller.entrances[caveEntrance to caveAt] = cave
+    }
+
+    @Test
+    fun `an entrance is clicked by its first option from the side the trip comes from`() {
+        seenCave()
+        planned(entranceLeg())
+        trip.act(null)
+        assertEquals(listOf(Triple(caveEntrance, caveAt, null as String?)), traveller.used)
+        assertEquals(listOf(start), traveller.sides)
+    }
+
+    @Test
+    fun `going through an entrance says so in its own words`() {
+        seenCave()
+        planned(entranceLeg())
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(cave)), trip.act(null))
+    }
+
+    @Test
+    fun `an entrance the player sees no option on has no way`() {
+        planned(entranceLeg())
+        assertEquals(StepOutcome.Blocked(Reason.NoWay(Place.TILE)), trip.act(null))
+    }
+
+    @Test
+    fun `an entrance leg with no object has no way`() {
+        planned(PlanLeg(EdgeType.ENTRANCE, start, inside, cost = 1.0))
+        assertEquals(StepOutcome.Blocked(Reason.NoWay(Place.TILE)), trip.act(null))
+    }
+
+    @Test
+    fun `an entrance that would not take the player blocks, naming it`() {
+        seenCave()
+        planned(entranceLeg())
+        trip.act(null)
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(cave)), trip.act(null))
+    }
+
+    @Test
+    fun `an entrance is over once the player lands near its end`() {
+        planned(entranceLeg(), walkLeg(inside, Position(3215, 9602)))
+        traveller.position = Position(3203, 9605)
+        trip.act(null)
+        assertEquals(listOf(Position(3215, 9602)), traveller.walks)
+    }
+
+    @Test
+    fun `an entrance to another floor is over once the player lands near its end`() {
+        val upstairs = Position(3208, 9602, 1)
+        planned(entranceLeg(upstairs), walkLeg(upstairs, Position(3215, 9602, 1)))
+        traveller.position = Position(3203, 9605, 1)
+        trip.act(null)
+        assertEquals(listOf(Position(3215, 9602, 1)), traveller.walks)
+    }
+
+    @Test
+    fun `an entrance that moves the player a few tiles is not over where it starts`() {
+        seenCave()
+        planned(entranceLeg(Position(3200, 3204)))
+        trip.act(null)
+        assertEquals(listOf(caveEntrance), traveller.used.map { it.first })
     }
 
     private val landing = Position(3212, 3423)
@@ -695,7 +770,7 @@ class TripWorkTest {
         planned(tollLeg())
         traveller.choosing = true
         traveller.options = listOf("Climb up", "Climb down")
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.GATE)) to emptyList<Int>(), trip.act(null) to traveller.chosen)
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.GATE)) to emptyList<Int>(), trip.act(null) to traveller.chosen)
     }
 
     @Test
@@ -705,7 +780,7 @@ class TripWorkTest {
         val talky = TripWork(traveller, target, Place.TILE, PlannedTrip(WebWalkPlan(listOf(tollLeg()), cost = 8.0)), dialogueLines = 2)
         talky.act(null)
         talky.act(null)
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.GATE)) to 2, talky.act(null) to traveller.talkedOn)
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.GATE)) to 2, talky.act(null) to traveller.talkedOn)
     }
 
     @Test
@@ -725,7 +800,7 @@ class TripWorkTest {
         traveller.position = eastOfGate
         planned(tollLeg())
         trip.act(null)
-        assertEquals(StepOutcome.Blocked(Reason.Impassable(Passage.GATE)), trip.act(null))
+        assertEquals(StepOutcome.Blocked(Reason.Impassable(Structure.GATE)), trip.act(null))
     }
 
     @Test

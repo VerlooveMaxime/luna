@@ -31,6 +31,7 @@ class TravelWebTest {
     private val doorEast = WebWalkNode("door_east", Position(111, 100), NodeKind.OBSTACLE)
     private val east = WebWalkNode("east", Position(120, 100), NodeKind.WAYPOINT)
     private val far = WebWalkNode("far", Position(400, 400), NodeKind.TELEPORT_DEST)
+    private val boulder = 11045
 
     private fun both(from: WebWalkNode, to: WebWalkNode, type: EdgeType = EdgeType.WALK) =
         listOf(WebWalkEdge(from.id, to.id, type), WebWalkEdge(to.id, from.id, type))
@@ -71,6 +72,30 @@ class TravelWebTest {
     @Test
     fun `a trip goes through the door of the web`() {
         assertEquals(listOf(EdgeType.WALK, EdgeType.DOOR, EdgeType.WALK), legTypes(pastTheDoor))
+    }
+
+    /** The house with a boulder in the door's place, an entrance over an object that changes form. */
+    private val boulderWeb: TravelWeb by lazy {
+        val over = EdgeAction(objectId = boulder, objectPosition = doorEast.position)
+        val entrance = WebWalkEdge(doorWest.id, doorEast.id, EdgeType.ENTRANCE, action = over)
+        val graph = WebWalkGraph(listOf(west, doorWest, doorEast, east), both(west, doorWest) + entrance + both(doorEast, east), emptyList(), emptyList())
+        TravelWeb(graph, { false }, { walls }, Random(1), changesForm = { it == boulder })
+    }
+
+    @Test
+    fun `a trip goes through an object that changes form for a player who sees an option on it`() {
+        val seen = CapabilitySnapshot(flags = setOf(shownFlag(boulder)))
+        assertEquals(listOf(EdgeType.WALK, EdgeType.ENTRANCE, EdgeType.WALK), boulderWeb.plan(start, listOf(pastTheDoor), seen)?.legs?.map { it.type })
+    }
+
+    @Test
+    fun `a trip never goes through an object that changes form for a player who sees no option on it`() {
+        assertNull(boulderWeb.plan(start, listOf(pastTheDoor), CapabilitySnapshot()))
+    }
+
+    @Test
+    fun `the objects of the web that change form are listed`() {
+        assertEquals(setOf(boulder), boulderWeb.formObjects)
     }
 
     @Test

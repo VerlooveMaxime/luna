@@ -4,6 +4,7 @@ import api.bot.webwalk.model.EdgeType
 import api.bot.webwalk.model.TeleportDefinition
 import api.bot.webwalk.plan.PlanLeg
 import api.bot.webwalk.plan.WebWalkPlan
+import game.idle.flow.EntrancePassage
 import game.idle.flow.Said
 import game.idle.flow.TeleportDestination
 import game.idle.flow.TeleportStarted
@@ -15,7 +16,7 @@ import java.util.concurrent.CompletableFuture
  * queued a plain walk to the first destination, none when [noWay]. Each walk is written to [log] too, as `walk to x,y`,
  * so a kind's test reads its walks among its adapter's steps. A dialogue line shows while [talking]; a teleport starts as
  * [teleported] says, none when it is null; what the trip [said] is logged in order with the walks. A question offers
- * [options]; a ship's crew is found while [crewNear].
+ * [options]; a ship's crew is found while [crewNear]; an entrance reads as [entrances] words it, none when absent.
  */
 class FakeTraveller(var position: Position, private val log: MutableList<String> = mutableListOf()) : Traveller {
     var busy = false
@@ -23,6 +24,7 @@ class FakeTraveller(var position: Position, private val log: MutableList<String>
     var usable = true
     var noWay = false
     val standing = mutableSetOf<Pair<Int, Position>>()
+    val entrances = mutableMapOf<Pair<Int, Position>, EntrancePassage>()
     var talking = false
     var talkedOn = 0
     var teleported: TeleportStarted? = null
@@ -58,6 +60,8 @@ class FakeTraveller(var position: Position, private val log: MutableList<String>
     }
 
     override fun standing(id: Int, at: Position): Boolean = id to at in standing
+
+    override fun entrance(id: Int, at: Position): EntrancePassage? = entrances[id to at]
 
     override fun use(id: Int, at: Position, option: String?, from: Position): Boolean {
         used += Triple(id, at, option)

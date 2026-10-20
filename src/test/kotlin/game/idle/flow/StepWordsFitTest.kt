@@ -7,12 +7,15 @@ import game.idle.autopilot.fishing.FishingMethod
 import game.idle.autopilot.making.LunaRecipes
 import game.idle.autopilot.mining.MineStepType
 import game.idle.autopilot.smithing.SmithStepType
+import game.idle.autopilot.travel.LunaEntrances
 import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.flow.option.LunaGameNames
 import game.idle.font.ClientFont
 import game.idle.movement.TravelChoice
 import game.idle.ui.BuilderWidgets
+import game.obj.entrances.Entrance
 import game.testworld.TestWorld
+import io.luna.game.model.Position
 import io.luna.game.model.def.ItemDefinition
 import io.luna.game.model.mob.Skill
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -39,7 +42,7 @@ class StepWordsFitTest {
         val cache = TestWorld.context.cache
         small = ClientFont.fromCache(cache)
         plain = ClientFont.fromCache(cache, ClientFont.PLAIN)
-        words = StepWords(LunaGameNames, plain)
+        words = StepWords(LunaGameNames, plain, small, BuilderWidgets.LINE_ROOM)
     }
 
     @ParameterizedTest(name = "{0}")
@@ -67,9 +70,16 @@ class StepWordsFitTest {
             listOf(Reason.CannotMake, Reason.WrongWindow) +
             Place.entries.map { Reason.NoWay(it) } +
             Place.entries.flatMap { place -> TravelChoice.entries.map { Reason.NoWay(place, it) } } +
-            Passage.entries.map { Reason.Impassable(it) } +
+            Structure.entries.map { Reason.Impassable(it) } +
+            entrances().map { Reason.Impassable(it) } +
             listOf(Reason.BagFull(emptyList()), Reason.NoneLeftInBank(longestNamedItem()), Reason.BankFull) +
             listOf(Reason.RunningClear(), Reason.RunningClear(toStep = 99))
+
+    /**
+     * Every cave and dungeon entrance of Luna's in the words a trip says them with, the form at value 0 of one that
+     * changes form; one that leads the same way from everywhere is looked up from any tile.
+     */
+    private fun entrances(): List<EntrancePassage> = Entrance.entries.mapNotNull { LunaEntrances.passage(it.id, it.position ?: Position(0, 0)) }
 
     /** Every end, skip and stop a step can say, the bag-full one with two of the longest-named item left lying. */
     fun chatLines(): List<String> {

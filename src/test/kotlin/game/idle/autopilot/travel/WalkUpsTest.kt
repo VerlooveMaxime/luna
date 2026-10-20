@@ -2,9 +2,9 @@ package game.idle.autopilot.travel
 
 import api.bot.webwalk.model.EdgeType
 import game.idle.autopilot.Candidate
-import game.idle.flow.Passage
 import game.idle.flow.Said
 import game.idle.flow.StepOutcome
+import game.idle.flow.Structure
 import game.idle.flow.UnderWay
 import game.idle.location.Tile
 import game.idle.movement.DoorStep
@@ -78,14 +78,14 @@ class WalkUpsTest {
 
         val outcome = walkUps.walkTo(tree(listOf(door)))
 
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Passage.DOOR)) to listOf(Triple(1530, Position(3202, 3200), null)), outcome to traveller.used)
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Structure.DOOR)) to listOf(Triple(1530, Position(3202, 3200), null)), outcome to traveller.used)
     }
 
     @Test
     fun `a walk up goes through an open door on the way`() {
         val outcome = walkUps.walkTo(tree(listOf(door)))
 
-        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Passage.DOOR)) to listOf(Position(3202, 3200)), outcome to traveller.walks)
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(Structure.DOOR)) to listOf(Position(3202, 3200)), outcome to traveller.walks)
     }
 
     @Test
@@ -121,7 +121,7 @@ class WalkUpsTest {
 
         walkUps.setAside(target.aim)
 
-        assertEquals(Said.DoorShut(Passage.DOOR, Tile(3202, 3200)), walkUps.said())
+        assertEquals(Said.DoorShut(Structure.DOOR, Tile(3202, 3200)), walkUps.said())
     }
 
     @Test
@@ -133,7 +133,7 @@ class WalkUpsTest {
 
         walkUps.setAside(target.aim)
 
-        assertEquals(Said.DoorShut(Passage.DOOR, Tile(3202, 3200)), walkUps.said())
+        assertEquals(Said.DoorShut(Structure.DOOR, Tile(3202, 3200)), walkUps.said())
     }
 
     @Test
@@ -144,7 +144,7 @@ class WalkUpsTest {
 
         walkUps.setAside(target.aim)
 
-        assertEquals(Said.DoorShut(Passage.GATE, Tile(3202, 3200)), walkUps.said())
+        assertEquals(Said.DoorShut(Structure.GATE, Tile(3202, 3200)), walkUps.said())
     }
 
     @Test
@@ -155,7 +155,7 @@ class WalkUpsTest {
 
         walkUps.setAside(target.aim)
 
-        assertEquals(Said.DoorShut(Passage.CURTAIN, Tile(3202, 3200)), walkUps.said())
+        assertEquals(Said.DoorShut(Structure.CURTAIN, Tile(3202, 3200)), walkUps.said())
     }
 
     @Test

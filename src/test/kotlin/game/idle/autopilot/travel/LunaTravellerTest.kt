@@ -1,5 +1,6 @@
 package game.idle.autopilot.travel
 
+import api.bot.webwalk.model.EdgeAction
 import api.bot.webwalk.model.EdgeType
 import api.bot.webwalk.model.NodeKind
 import api.bot.webwalk.model.Requirements
@@ -14,9 +15,12 @@ import api.bot.webwalk.plan.WalkEstimator
 import api.bot.webwalk.plan.ticksForTiles
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
+import game.idle.flow.EntrancePassage
 import game.idle.flow.Said
 import game.idle.flow.TeleportDestination
 import game.idle.flow.TeleportStarted
+import game.idle.flow.Way
+import game.idle.movement.ObjectForms
 import game.idle.movement.TravelAllowance
 import game.idle.movement.TravelChoice
 import game.idle.movement.TravelWeb
@@ -60,15 +64,40 @@ class LunaTravellerTest {
 
     private fun login(name: String = "traveller"): Player = TestWorld.login(name, here)
 
+    private val wallWest = WebWalkNode("west", Position(3209, 3200), NodeKind.OBSTACLE)
+    private val wallEast = WebWalkNode("east", Position(3210, 3200), NodeKind.OBSTACLE)
+
+    /** Walks anywhere on one plane except across a wall at x 3210. */
+    private val wall = WalkEstimator { from, to ->
+        if (from.z != to.z || (from.x < 3210) != (to.x < 3210)) null else ticksForTiles(from.computeLongestDistance(to))
+    }
+
     /** A wall at x 3210 that only a toll gate of 10 coins crosses, from 3209 to 3210. */
     private val tollWeb: TravelWeb by lazy {
-        val west = WebWalkNode("west", Position(3209, 3200), NodeKind.OBSTACLE)
-        val east = WebWalkNode("east", Position(3210, 3200), NodeKind.OBSTACLE)
-        val toll = WebWalkEdge(west.id, east.id, EdgeType.CROSSING, requirements = Requirements(coins = 10))
-        val walls = WalkEstimator { from, to ->
-            if (from.z != to.z || (from.x < 3210) != (to.x < 3210)) null else ticksForTiles(from.computeLongestDistance(to))
-        }
-        TravelWeb(WebWalkGraph(listOf(west, east), listOf(toll), emptyList(), emptyList()), { false }, { walls }, Random(1))
+        val toll = WebWalkEdge(wallWest.id, wallEast.id, EdgeType.CROSSING, requirements = Requirements(coins = 10))
+        TravelWeb(WebWalkGraph(listOf(wallWest, wallEast), listOf(toll), emptyList(), emptyList()), { false }, { wall }, Random(1))
+    }
+
+    /** The legs of a trip past a wall at x 3210 that only an entrance over the object of [id] crosses, its forms the cache's. */
+    private fun entranceTrip(id: Int): List<EdgeType>? {
+        val entrance = WebWalkEdge(wallWest.id, wallEast.id, EdgeType.ENTRANCE, action = EdgeAction(objectId = id, objectPosition = wallEast.position))
+        val web = TravelWeb(WebWalkGraph(listOf(wallWest, wallEast), listOf(entrance), emptyList(), emptyList()), { false }, { wall }, Random(1), ObjectForms.SERVER::changesForm)
+        return (LunaTraveller(login(), web, planning = direct).plan(listOf(Position(3215, 3200))).join() as? PlannedTrip)?.plan?.legs?.map { it.type }
+    }
+
+    @Test
+    fun `a trip goes through an entrance whose form shows the player an option`() {
+        assertEquals(listOf(EdgeType.WALK, EdgeType.ENTRANCE, EdgeType.WALK), entranceTrip(6310))
+    }
+
+    @Test
+    fun `a trip finds no way through an entrance the player sees no option on`() {
+        assertNull(entranceTrip(6560))
+    }
+
+    @Test
+    fun `an entrance reads in the words of the form the player sees`() {
+        assertEquals(EntrancePassage("open", Way.THROUGH, wayNamed = false, "door"), LunaTraveller(login(), null).entrance(6310, Position(2720, 4913)))
     }
 
     private fun tollTrip(player: Player, allowance: TravelAllowance, reserved: Spend = Spend.NONE): List<EdgeType>? =

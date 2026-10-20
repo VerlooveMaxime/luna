@@ -18,16 +18,21 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Upstream's web-walker planner over [travelGraph] of [web], for the autopilot's trips. [estimator] links a trip's ends
- * to that graph and is given its doors, which such a walk never crosses on foot: the door's own edge does.
+ * to that graph and is given its doors, which such a walk never crosses on foot: the door's own edge does. Objects
+ * that [changesForm] are taken only by a player who sees an option on them.
  */
 class TravelWeb(
     web: WebWalkGraph,
     inWilderness: (Position) -> Boolean,
     estimator: (DoorCrossings) -> WalkEstimator,
     private val random: Random = Random(),
+    changesForm: (Int) -> Boolean = { false },
 ) {
 
-    val graph: WebWalkGraph = travelGraph(web, inWilderness)
+    val graph: WebWalkGraph = travelGraph(web, inWilderness, changesForm)
+
+    /** The objects of the web that change form, each the [shownFlag] of a player who sees an option on it. */
+    val formObjects: Set<Int> = graph.edges.mapNotNull { it.action?.objectId }.filter(changesForm).toSet()
 
     val doors: DoorCrossings = DoorCrossings.of(graph)
 
@@ -64,7 +69,10 @@ class TravelWebs(private val directory: Path) {
     private fun load(world: World): TravelWeb {
         // A player's route finder as Pathfinders.forPlayer builds it: one tile wide, held up by walls and objects only.
         val pathfinder = RoutePathfinder(world.collisionManager, 1, 0, RouteStrategy.NORMAL, 1.0)
-        return TravelWeb(WebWalkLoader.load(directory), ::inWilderness, { doors -> TravelEstimator(pathfinder, doors, ::inWilderness) })
+        return TravelWeb(
+            WebWalkLoader.load(directory), ::inWilderness, { doors -> TravelEstimator(pathfinder, doors, ::inWilderness) },
+            changesForm = ObjectForms.SERVER::changesForm,
+        )
     }
 
     companion object {

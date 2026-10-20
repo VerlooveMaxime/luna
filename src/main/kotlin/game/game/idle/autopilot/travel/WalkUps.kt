@@ -10,6 +10,7 @@ import game.idle.flow.Passage
 import game.idle.flow.Place
 import game.idle.flow.Said
 import game.idle.flow.StepOutcome
+import game.idle.flow.Structure
 import game.idle.flow.UnderWay
 import game.idle.location.Tile
 import game.idle.movement.DoorStep
@@ -91,9 +92,9 @@ class WalkUps(private val traveller: Traveller) {
 
         fun passageOf(type: EdgeType): Passage =
             when (type) {
-                EdgeType.GATE -> Passage.GATE
-                EdgeType.CURTAIN -> Passage.CURTAIN
-                else -> Passage.DOOR
+                EdgeType.GATE -> Structure.GATE
+                EdgeType.CURTAIN -> Structure.CURTAIN
+                else -> Structure.DOOR
             }
     }
 }

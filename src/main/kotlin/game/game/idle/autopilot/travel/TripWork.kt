@@ -10,6 +10,7 @@ import api.bot.webwalk.walk.crossing.BorderGateCrossing
 import api.bot.webwalk.walk.ship.ShipBoarding
 import game.content.sailing.ShipRoute
 import engine.obj.Trapdoor
+import game.idle.flow.EntrancePassage
 import game.idle.flow.Meter
 import game.idle.flow.Passage
 import game.idle.flow.Place
@@ -17,6 +18,7 @@ import game.idle.flow.Reason
 import game.idle.flow.Said
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
+import game.idle.flow.Structure
 import game.idle.flow.TeleportDestination
 import game.idle.flow.TeleportStarted
 import game.idle.flow.UnderWay
@@ -52,6 +54,9 @@ interface Traveller {
 
     /** Whether an object of [id] stands on [at]. */
     fun standing(id: Int, at: Position): Boolean
+
+    /** The entrance of [id] on [at] in the words of the form the player sees, null when they see no option on it. */
+    fun entrance(id: Int, at: Position): EntrancePassage?
 
     /**
      * Clicks [option] of the object of [id] on [at], its first one when null, walking first to the tile it is used from
@@ -97,9 +102,9 @@ interface Traveller {
 
 /**
  * A trip to [target] on the web-walker's plan, one decision at a time (web-walker movement Part 2): walks, doors, gates and
- * curtains opened when shut, ladders and stairs climbed, trapdoors opened and climbed down, each leg as a player's clicks;
- * and the legs that spend what the flow allows (Part 3c): teleports cast or rubbed, the Al Kharid toll gate paid, ships
- * boarded. The
+ * curtains opened when shut, ladders and stairs climbed, trapdoors opened and climbed down, cave and dungeon entrances
+ * gone through (2026-10-20), each leg as a player's clicks; and the legs that spend what the flow allows (Part 3c):
+ * teleports cast or rubbed, the Al Kharid toll gate paid, ships boarded. The
  * trip is done within [arriveWithin] tiles of the target, next to it as a walk is unless told otherwise (a walk up
  * to a step's target ends on the tile it is used from). It starts on [plan] when one was made already (the
  * bank step's, which picked the bank by it), and plans again when the player is off the plan (a reflex teleported them,
@@ -116,7 +121,7 @@ class TripWork(
     private val dialogueLines: Int = DIALOGUE_LINES,
 ) : StepWork {
 
-    private enum class Move { PLAN, WALK, OPEN, PASS, CLIMB, CHOOSE, TELEPORT, TALK, BOARD, LAND }
+    private enum class Move { PLAN, WALK, OPEN, PASS, CLIMB, ENTER, CHOOSE, TELEPORT, TALK, BOARD, LAND }
 
     /**
      * A move on the [leg]th leg from [from]; a dialogue's moves ([TALK] and its [CHOOSE]) count their [line], so several
@@ -216,6 +221,7 @@ class TripWork(
         when (leg.type) {
             EdgeType.WALK -> near(here, leg.to, if (last) arriveWithin else LEAD)
             EdgeType.LADDER, EdgeType.STAIR, EdgeType.TRAPDOOR, EdgeType.TELEPORT -> near(here, leg.to, LegContext.LANDING_SLACK)
+            EdgeType.ENTRANCE -> near(here, leg.to, entranceSlack(leg))
             EdgeType.SHIP -> near(here, leg.to, DOCK_SLACK)
             else -> here == leg.to
         }
@@ -229,12 +235,13 @@ class TripWork(
                 traveller.walk(leg.to)
                 StepOutcome.Approached
             }
-            EdgeType.DOOR -> door(leg, here, Passage.DOOR)
-            EdgeType.GATE -> door(leg, here, Passage.GATE)
-            EdgeType.CURTAIN -> door(leg, here, Passage.CURTAIN)
-            EdgeType.LADDER -> climb(leg, here, if (up(leg)) Passage.LADDER_UP else Passage.LADDER_DOWN)
-            EdgeType.STAIR -> climb(leg, here, if (up(leg)) Passage.STAIRS_UP else Passage.STAIRS_DOWN)
+            EdgeType.DOOR -> door(leg, here, Structure.DOOR)
+            EdgeType.GATE -> door(leg, here, Structure.GATE)
+            EdgeType.CURTAIN -> door(leg, here, Structure.CURTAIN)
+            EdgeType.LADDER -> climb(leg, here, if (up(leg)) Structure.LADDER_UP else Structure.LADDER_DOWN)
+            EdgeType.STAIR -> climb(leg, here, if (up(leg)) Structure.STAIRS_UP else Structure.STAIRS_DOWN)
             EdgeType.TRAPDOOR -> trapdoor(leg, here)
+            EdgeType.ENTRANCE -> entrance(leg, here)
             EdgeType.TELEPORT -> teleport(leg, here)
             EdgeType.CROSSING -> crossing(leg, here)
             EdgeType.SHIP -> ship(leg, here)
@@ -271,16 +278,34 @@ class TripWork(
 
     /** A shut trapdoor is opened first, then the open one climbed down, both by their first option. */
     private fun trapdoor(leg: PlanLeg, here: Position): StepOutcome {
-        val (id, at) = objectOf(leg) ?: return StepOutcome.Blocked(Reason.Impassable(Passage.TRAPDOOR))
-        val stuck = Reason.Impassable(Passage.TRAPDOOR)
+        val (id, at) = objectOf(leg) ?: return StepOutcome.Blocked(Reason.Impassable(Structure.TRAPDOOR))
+        val stuck = Reason.Impassable(Structure.TRAPDOOR)
         val trapdoor = Trapdoor.entries.firstOrNull { it.closed == id || it.open == id } ?: return StepOutcome.Blocked(stuck)
         val shut = trapdoor.closed?.takeIf { traveller.standing(it, at) }
         return if (shut != null) {
-            move(Attempt(index, here, Move.OPEN), stuck) { use(shut, at, null, leg.from, UnderWay.Opening(Passage.TRAPDOOR), stuck) }
+            move(Attempt(index, here, Move.OPEN), stuck) { use(shut, at, null, leg.from, UnderWay.Opening(Structure.TRAPDOOR), stuck) }
         } else {
-            move(Attempt(index, here, Move.CLIMB), stuck) { use(trapdoor.open, at, null, leg.from, UnderWay.Passing(Passage.TRAPDOOR), stuck) }
+            move(Attempt(index, here, Move.CLIMB), stuck) { use(trapdoor.open, at, null, leg.from, UnderWay.Passing(Structure.TRAPDOOR), stuck) }
         }
     }
+
+    /**
+     * A cave or dungeon entrance, clicked by its first option as every one of Luna's answers it, with no question asked
+     * (web-walker gaps, 2026-10-20). Its words are the form the player sees; one they see no option on has no way.
+     */
+    private fun entrance(leg: PlanLeg, here: Position): StepOutcome {
+        val (id, at) = objectOf(leg) ?: return StepOutcome.Blocked(Reason.NoWay(place))
+        val passage = traveller.entrance(id, at) ?: return StepOutcome.Blocked(Reason.NoWay(place))
+        val stuck = Reason.Impassable(passage)
+        return move(Attempt(index, here, Move.ENTER), stuck) { use(id, at, null, leg.from, UnderWay.Passing(passage), stuck) }
+    }
+
+    /**
+     * How near its end an entrance lands the player, as upstream's `LegContext.landingSlack` has it: anywhere in an area,
+     * but one that moves them a few tiles on the same floor only past where it starts.
+     */
+    private fun entranceSlack(leg: PlanLeg): Int =
+        if (leg.from.z != leg.to.z) LegContext.LANDING_SLACK else minOf(LegContext.LANDING_SLACK, maxOf(0, leg.from.computeLongestDistance(leg.to) - 1))
 
     /**
      * A teleport the plan takes, cast or rubbed as the reflexes do. One that cannot be done now (the spellbook's click
@@ -310,7 +335,7 @@ class TripWork(
     private fun crossing(leg: PlanLeg, here: Position): StepOutcome {
         if (leg.action?.handler != BorderGateCrossing.ID) return StepOutcome.Blocked(Reason.NoWay(place))
         val (id, at) = objectOf(leg) ?: return StepOutcome.Blocked(Reason.NoWay(place))
-        val stuck = Reason.Impassable(Passage.GATE)
+        val stuck = Reason.Impassable(Structure.GATE)
         return when {
             traveller.choosing() -> {
                 val agree = traveller.options().indexOf(TOLL_AGREED)
