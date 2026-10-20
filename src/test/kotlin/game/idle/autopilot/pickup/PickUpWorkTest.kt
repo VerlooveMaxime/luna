@@ -5,6 +5,7 @@ import game.idle.autopilot.travel.FakeTraveller
 import game.idle.autopilot.travel.WalkUps
 import game.idle.flow.Meter
 import game.idle.flow.StepOutcome
+import game.idle.location.Tile
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -79,12 +80,12 @@ class PickUpWorkTest {
     }
 
     @Test
-    fun `away from the area with nothing in reach the step walks there`() {
+    fun `away from the area with nothing in reach the step goes to its anchor`() {
         picker.view = PickUpView(atLocation = false, items = emptyList())
 
         val outcome = work.act(left = null)
 
-        assertEquals(StepOutcome.Approached to listOf("walk to location"), outcome to picker.steps)
+        assertEquals(StepOutcome.Away(Tile(3200, 3200)) to emptyList<String>(), outcome to picker.steps)
     }
 
     @Test
@@ -94,7 +95,7 @@ class PickUpWorkTest {
 
         val outcome = work.act(left = null)
 
-        assertEquals(StepOutcome.Finished to listOf("walk to location"), outcome to picker.steps)
+        assertEquals(StepOutcome.Finished to emptyList<String>(), outcome to picker.steps)
     }
 
     @Test
@@ -156,6 +157,6 @@ class PickUpWorkTest {
 
         work.act(left = null)
 
-        assertEquals(listOf("walk to location", "walk to 3203,3200"), picker.steps)
+        assertEquals(listOf("walk to 3203,3200"), picker.steps)
     }
 }

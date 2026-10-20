@@ -317,12 +317,8 @@ class LunaPickerTest {
     }
 
     @Test
-    fun `walking to the area heads for its anchor`() {
-        val player = login(Position(3220, 3200))
-
-        picker(player).walkToLocation()
-
-        assertEquals(anchor, player.navigator.currentTarget)
+    fun `a walk to the area goes to its anchor`() {
+        assertEquals(Tile(3200, 3200), picker(login(Position(3220, 3200))).anchor())
     }
 
     @Test

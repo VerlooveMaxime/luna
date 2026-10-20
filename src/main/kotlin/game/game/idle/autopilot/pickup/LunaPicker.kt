@@ -3,6 +3,7 @@ package game.idle.autopilot.pickup
 import game.idle.autopilot.Candidate
 import game.idle.autopilot.LunaClicks
 import game.idle.location.Area
+import game.idle.location.Tile
 import game.idle.movement.Doorways
 import game.idle.movement.ReachScan
 import io.luna.game.event.impl.GroundItemClickEvent.PickupItemEvent
@@ -49,7 +50,7 @@ class LunaPicker(private val player: Player, private val itemIds: Set<Int>, priv
         LunaClicks.interact(player, PickupItemEvent(player, ground), ground, PickupItemEvent::class.java)
     }
 
-    override fun walkToLocation() = LunaClicks.walk(player, anchor)
+    override fun anchor(): Tile = area.anchor
 
     /**
      * Counts the last take once it is over and the bag holds more of its item: someone faster gets nothing. Not by the

@@ -13,6 +13,7 @@ import game.idle.flow.RetrySkip
 import game.idle.flow.Said
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
+import game.idle.location.Tile
 
 /** What the pick-up step can see and do for one player. [LunaPicker] is the in-game one. */
 interface Picker {
@@ -25,7 +26,8 @@ interface Picker {
     /** Takes [item] from the tile the player stands on. */
     fun take(item: Candidate)
 
-    fun walkToLocation()
+    /** The anchor of the step's area, where its walk there goes. */
+    fun anchor(): Tile
 
     /** How many items the player took off the ground since the step began, a stack counting one (Maxime, 2026-10-11). */
     fun pickedUp(): Int
@@ -81,7 +83,8 @@ object PickUpPlanner {
 /**
  * The pick-up step's work (S07d): takes the items, its pickups the count, until none is left lying. An item aimed at
  * twice in a row with nothing picked up in between (out of reach after all, taken by someone else) is set aside for the
- * rest of the turn. Away from the area it walks there once, then ends; it is never walked back (Maxime, 2026-10-11).
+ * rest of the turn. Away from the area it walks there once, then ends (Maxime, 2026-10-11); the walk is every kind's
+ * walk back, a trip that blocks when it finds no way (Maxime, 2026-10-20).
  */
 class PickUpWork(private val picker: Picker, private val walkUps: WalkUps) : StepWork {
 
@@ -125,7 +128,6 @@ class PickUpWork(private val picker: Picker, private val walkUps: WalkUps) : Ste
     private fun walkToLocationOnce(): StepOutcome {
         if (walkedToLocation) return StepOutcome.Finished
         walkedToLocation = true
-        picker.walkToLocation()
-        return StepOutcome.Approached
+        return StepOutcome.Away(picker.anchor())
     }
 }
