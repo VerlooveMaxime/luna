@@ -111,7 +111,7 @@ object BuilderWidgets {
      */
     const val TRAVEL = 42600
     const val TRAVEL_ALWAYS = 42601
-    const val TRAVEL_ROWS = 3
+    const val TRAVEL_ROWS = 4
     const val TRAVEL_LINES = 3
     private const val TRAVEL_ROW_BASE = 42610
     private const val TRAVEL_ROW_STRIDE = 10

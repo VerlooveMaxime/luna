@@ -19,9 +19,9 @@ data class TravelRowView(val choice: TravelChoice, val allowed: Boolean, val lin
 /**
  * The builder's Travel tab (web-walker movement Part 3b, Maxime 2026-10-18): a row per [TravelChoice], named as the
  * long-way line names it, with No lit until the flow allows the choice; under each a grey note on what it spends, read
- * from Luna ([toll], [ships], [teleports]), then in white what the flow's teleport reflexes keep back from it, one
- * summed line (Q2's reserve: a spell's runes that no worn item stands for, a charge per jewellery teleport); last, the
- * grey line on what is always used. Lines are fitted to the client's small [font].
+ * from Luna ([toll], [ships], [teleports]), or for bank stops what they fetch, then in white what the flow's teleport
+ * reflexes keep back from it, one summed line (Q2's reserve: a spell's runes that no worn item stands for, a charge per
+ * jewellery teleport); last, the grey line on what is always used. Lines are fitted to the client's small [font].
  */
 class TravelPage(
     private val names: GameNames,
@@ -61,6 +61,7 @@ class TravelPage(
             TravelChoice.COINS -> tolls()
             TravelChoice.RUNES -> "${teleports.count { it is TeleportDestination.Spell }} spells, with the runes carried"
             TravelChoice.CHARGES -> "${teleports.count { it is TeleportDestination.Jewellery }} destinations, with jewellery carried"
+            TravelChoice.BANK -> BANK_STOPS
         }
 
     /**
@@ -110,6 +111,9 @@ class TravelPage(
     companion object {
         const val NO = "No"
 
+        /** What a bank stop may fetch (Maxime, 2026-10-20). */
+        const val BANK_STOPS = "Trips may go by the nearest bank first for the coins, runes and jewellery allowed above"
+
         /** Free passages need no choice (Q1, Maxime 2026-10-17); free ships said too (Maxime, 2026-10-18). */
         const val ALWAYS_USED = "Doors, gates, stairs, ladders, trapdoors and free ships are always used."
 
@@ -119,6 +123,7 @@ class TravelPage(
                 TravelChoice.COINS -> "Pay coins"
                 TravelChoice.RUNES -> "Use runes"
                 TravelChoice.CHARGES -> "Use charges"
+                TravelChoice.BANK -> "Use the bank"
             }
     }
 }

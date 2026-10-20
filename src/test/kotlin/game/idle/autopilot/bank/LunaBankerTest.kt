@@ -98,11 +98,21 @@ class LunaBankerTest {
     }
 
     @Test
-    fun `an open bank shows in the view`() {
+    fun `an open bank shows in the view at the step's booth`() {
+        placeBooth()
         val player = login()
         player.bank.open()
 
         assertTrue(LunaBanker(player, boothTile).look().bankOpen)
+    }
+
+    @Test
+    fun `a bank open away from the step's booth is not the step's, as a trip's stop on the way opens another`() {
+        placeBooth()
+        val player = login(awayFromBooth)
+        player.bank.open()
+
+        assertFalse(LunaBanker(player, boothTile).look().bankOpen)
     }
 
     @Test

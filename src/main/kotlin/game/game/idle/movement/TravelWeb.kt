@@ -3,11 +3,16 @@ package game.idle.movement
 import api.bot.webwalk.data.WebWalkLoader
 import api.bot.webwalk.generate.WebWalkDoorGenerator
 import api.bot.webwalk.model.WebWalkGraph
+import api.bot.webwalk.plan.BankAccess
 import api.bot.webwalk.plan.CapabilitySnapshot
 import api.bot.webwalk.plan.DoorCrossings
 import api.bot.webwalk.plan.WalkEstimator
 import api.bot.webwalk.plan.WebWalkPlan
 import api.bot.webwalk.plan.WebWalkPlanner
+import api.bot.webwalk.walk.BankStandPlan
+import api.bot.webwalk.walk.BankView
+import api.bot.webwalk.walk.TripPlan
+import api.bot.webwalk.walk.TripPlanner
 import io.luna.game.model.Position
 import io.luna.game.model.World
 import io.luna.game.model.path.route.RoutePathfinder
@@ -47,12 +52,44 @@ class TravelWeb(
 
     private val planner = WebWalkPlanner(graph, estimator(doors))
 
+    private val trips = TripPlanner(planner, graph.banks)
+
     /** The tile in front of the booth on [booth] of a bank the web knows, whose walks from the web are linked already. */
     fun bankStand(booth: Position): Position? = graph.banks.firstOrNull { it.booth == booth }?.stand
 
     /** The cheapest trip from [start] to the nearest of [destinations] that [snapshot] can take, null for none. */
     fun plan(start: Position, destinations: Collection<Position>, snapshot: CapabilitySnapshot): WebWalkPlan? =
         planner.planToNearest(start, destinations, snapshot, intelligence = 1.0, random = random)
+
+    /**
+     * Upstream's trip from [start] to [destination] on [means]: straight with what is carried, or by the nearest bank to
+     * take what the rest of it spends when that is quicker, counting the time at the booth (Maxime, 2026-10-20).
+     */
+    fun trip(start: Position, destination: Position, means: TripMeans): TripPlan =
+        trips.plan(start, destination, means.carried, means.tiers, means.view, intelligence = 1.0, random = random)
+
+    /** The trip on from the bank stand at [stand], with [tier] of [means]'s bank, and what it would take there; null for none. */
+    fun fromBank(stand: Position, destination: Position, tier: CapabilitySnapshot, means: TripMeans): BankStandPlan? =
+        trips.fromBank(stand, destination, tier, means.carried, means.view, random = random)
+}
+
+/**
+ * What a trip may count on (Maxime, 2026-10-20): what the player [carried] carries and the bank's [tiers] (none
+ * without bank stops), each under the flow's Travel rules, and the bag and the bank as a withdrawal reads them ([view]).
+ */
+class TripMeans(val carried: CapabilitySnapshot, val tiers: Map<BankAccess, CapabilitySnapshot>, val view: BankView) {
+
+    /** Whether [other] counts on the same: planning on it would find the same trips. The bag's room matters only with the bank. */
+    fun sameAs(other: TripMeans): Boolean =
+        alike(carried, other.carried) && tiers.keys == other.tiers.keys && tiers.all { (access, tier) -> alike(tier, other.tiers.getValue(access)) } &&
+            (tiers.isEmpty() || view == other.view)
+
+    companion object {
+
+        /** Whether [one] and [other] let a trip spend the same. */
+        fun alike(one: CapabilitySnapshot, other: CapabilitySnapshot): Boolean =
+            one.items == other.items && one.usableTeleports == other.usableTeleports && one.charges == other.charges && one.teleportSpends == other.teleportSpends
+    }
 }
 
 /**

@@ -1,8 +1,12 @@
 package game.idle.flow
 
+import api.bot.webwalk.plan.CapabilitySnapshot
 import game.idle.flow.option.GameNames
 import game.idle.font.ClientFont
 import game.idle.movement.TravelChoice
+import game.item.degradable.jewellery.TeleportJewellery
+import game.skill.magic.CombinationRune
+import game.skill.magic.Rune
 import io.luna.game.model.mob.Skill
 
 /**
@@ -42,6 +46,7 @@ class StepWords(private val names: GameNames, private val chat: ClientFont, priv
             is UnderWay.Teleporting -> "Teleporting to ${Teleports.named(underWay.destination)}"
             UnderWay.PayingToll -> "Paying the toll"
             is UnderWay.Sailing -> "Sailing to ${underWay.place}"
+            is UnderWay.Fetching -> "Fetching ${fetched(underWay.items)} from the bank"
         }
 
     /** A flight shut [passage] behind the player (web-walker movement Part 5, Q4): "Autopilot: closed the door behind you." */
@@ -57,8 +62,57 @@ class StepWords(private val names: GameNames, private val chat: ClientFont, priv
             is Said.NotWornAgain -> "${PREFIX}step $number ${notWornAgain(said.destination)}."
             is Said.PaidToll -> "${PREFIX}step $number pays the ${said.coins}-coin toll at the Al Kharid gate."
             is Said.Fare -> "${PREFIX}step $number ${if (said.coins > 0) "pays the ${said.coins}-coin fare" else "takes the ship"} to ${said.place}."
-            is Said.LongWay -> "${PREFIX}step $number takes the long way: ${offInTravel(said.choice)}."
+            is Said.LongWay -> "${PREFIX}step $number takes the long way: ${longWay(said.cause)}."
+            is Said.FromBank -> "${PREFIX}step $number withdraws ${takenFor(said.takenFor)}${Teleports.amounts(said.items, names)}."
         }
+
+    /**
+     * Why a trip went the long way, as its chat line says it after the colon: "teleport spells are off in Travel", "no
+     * room in the bag to withdraw", "the bank has too few law runes", "the bank did not open" (Maxime, 2026-10-18,
+     * 2026-10-20 and 2026-10-21).
+     */
+    fun longWay(cause: LongWayCause): String =
+        when (cause) {
+            is LongWayCause.Off -> offInTravel(cause.choice)
+            LongWayCause.NoRoom -> "no room in the bag to withdraw"
+            is LongWayCause.TooFew -> "the bank has too few ${plural(cause.item)}"
+            LongWayCause.NotOpened -> "the bank did not open"
+        }
+
+    /**
+     * What a withdrawal is for, before its amounts (Maxime, 2026-10-21: the destination alone, so the longest fits the
+     * chat box): "for Varrock: ", "for the Al Kharid toll: ", "for the fare to Karamja: "; nothing for several spends.
+     */
+    private fun takenFor(takenFor: TakenFor): String =
+        when (takenFor) {
+            is TakenFor.Teleport -> "for ${Teleports.named(takenFor.destination)}: "
+            TakenFor.Toll -> "for the Al Kharid toll: "
+            is TakenFor.Fare -> "for the fare to ${takenFor.place}: "
+            TakenFor.Trip -> ""
+        }
+
+    /**
+     * What a bank stop fetches, by kind: runes, then coins, then each piece of jewellery and any other item by name:
+     * "runes and coins", "an amulet of glory".
+     */
+    private fun fetched(items: List<Int>): String {
+        val named = items.filterNot { it in RUNES || it == CapabilitySnapshot.COINS }.map(::piece).distinct()
+        val kinds = listOfNotNull("runes".takeIf { items.any(RUNES::contains) }, "coins".takeIf { CapabilitySnapshot.COINS in items }) +
+            named.map { "${Reasons.article(it)} $it" }
+        return if (kinds.size == 1) kinds.single() else "${kinds.dropLast(1).joinToString(", ")} and ${kinds.last()}"
+    }
+
+    /** Teleport jewellery by its name without charges, as the rub lines name it; anything else by its own name. */
+    private fun piece(id: Int): String =
+        TeleportJewellery.entries.firstOrNull { id in it.items }?.let { Teleports.jewelleryName(it, names) } ?: item(id)
+
+    /** "law runes", "coins", "amulets of glory", "games necklaces", "bananas". */
+    private fun plural(id: Int): String {
+        if (id == CapabilitySnapshot.COINS) return item(id)
+        val name = piece(id)
+        val parts = name.split(" of ", limit = 2)
+        return if (parts.size == 1) "${name}s" else "${parts[0]}s of ${parts[1]}"
+    }
 
     /**
      * What a reflex's teleport tells of worn jewellery: "Autopilot: reflex 2 takes off the amulet of glory to rub it to
@@ -94,7 +148,10 @@ class StepWords(private val names: GameNames, private val chat: ClientFont, priv
 
     private fun jewellery(destination: TeleportDestination.Jewellery): String = Teleports.jewelleryName(destination.jewellery, names)
 
-    /** The Travel tab's row that would allow it, as the player finds it there (Maxime, 2026-10-18): "tolls and fares are off in Travel". */
+    /**
+     * The Travel tab's row that would allow it, as the player finds it there (Maxime, 2026-10-18): "tolls and fares are
+     * off in Travel", "bank stops are off in Travel".
+     */
     private fun offInTravel(choice: TravelChoice): String = "${travelRow(choice)} ${if (choice == TravelChoice.CHARGES) "is" else "are"} off in Travel"
 
     /** Why the flow stopped at step [number]. */
@@ -260,13 +317,17 @@ class StepWords(private val names: GameNames, private val chat: ClientFont, priv
         /** What every chat line of the autopilot starts with, the builder's own lines included. */
         const val PREFIX = "Autopilot: "
 
-        /** A Travel choice by its row on the Travel tab, in a sentence: "tolls and fares", "teleport spells", "teleport jewellery". */
+        /** A Travel choice by its row on the Travel tab, in a sentence: "tolls and fares", "teleport spells", "teleport jewellery", "bank stops". */
         fun travelRow(choice: TravelChoice): String =
             when (choice) {
                 TravelChoice.COINS -> "tolls and fares"
                 TravelChoice.RUNES -> "teleport spells"
                 TravelChoice.CHARGES -> "teleport jewellery"
+                TravelChoice.BANK -> "bank stops"
             }
+
+        /** The runes and combination runes, which a bank stop's words call runes. */
+        private val RUNES: Set<Int> = (Rune.entries.map { it.id } + CombinationRune.entries.map { it.id }).toSet()
 
         const val DIED = "${PREFIX}stopped, you died."
 

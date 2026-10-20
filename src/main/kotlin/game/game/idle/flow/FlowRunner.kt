@@ -201,11 +201,12 @@ class FlowRunner(
         return started
     }
 
-    /** What the step or its trips say; a long way round once a run for each Travel choice, a relog included (Maxime, 2026-10-18). */
+    /** What the step or its trips say; a long way round once a run for each cause, a relog included (Maxime, 2026-10-18). */
     private fun tell(said: Said) {
         if (said is Said.LongWay) {
-            if (progress.toldLongWay(said.choice)) return
-            progress = progress.tellingLongWay(said.choice)
+            val cause = words.longWay(said.cause)
+            if (progress.toldLongWay(cause)) return
+            progress = progress.tellingLongWay(cause)
             player.saveProgress(progress)
         }
         player.tell(words.said(index + 1, said))

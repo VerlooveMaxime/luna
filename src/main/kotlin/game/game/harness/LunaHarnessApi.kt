@@ -167,7 +167,7 @@ class LunaHarnessApi(
         }
         return FlowView(
             player.username, state.running, state.stepIndex, state.laps, state.blocked, state.waiting, state.underWay, FlowStopView(state.stop.kind, state.stop.after),
-            FlowTravelView(state.travel.coins, state.travel.runes, state.travel.charges),
+            FlowTravelView(state.travel.coins, state.travel.runes, state.travel.charges, state.travel.bank),
             steps, state.reflexes.map { FlowReflexView(it.id, it.values) },
         )
     }

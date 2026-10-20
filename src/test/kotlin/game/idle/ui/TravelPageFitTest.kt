@@ -74,6 +74,11 @@ class TravelPageFitTest {
     }
 
     @Test
+    fun `the bank stops note fits a line`() {
+        assertTrue(small.width(page.note(TravelChoice.BANK)) <= BuilderWidgets.TRAVEL_LINE_ROOM)
+    }
+
+    @Test
     fun `the always-used line fits its line`() {
         assertTrue(small.width(TravelPage.ALWAYS_USED) <= BuilderWidgets.TRAVEL_ALWAYS_ROOM)
     }

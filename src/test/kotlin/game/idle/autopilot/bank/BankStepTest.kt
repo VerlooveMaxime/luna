@@ -64,6 +64,15 @@ class BankStepTest {
     }
 
     @Test
+    fun `a trip that stops at another bank on the way takes the bank it ends at`() {
+        val trip = walkTo(Position(3150, 3200)).copy(end = acrossEnd)
+
+        val nearest = BankStep(listOf(acrossFence, thisSide), EVERYTHING).nearest(here, FakeBankTrips(ends) { trip })
+
+        assertEquals(BankReach(BankTrip(acrossFence, acrossEnd, trip)), nearest)
+    }
+
+    @Test
     fun `one trip is planned to every tile the banks are used from`() {
         val trips = FakeBankTrips(ends) { walkTo(thisSideEnd) }
 

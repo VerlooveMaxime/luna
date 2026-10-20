@@ -9,6 +9,7 @@ import game.idle.flow.Said
 import game.idle.flow.TeleportDestination
 import game.idle.flow.TeleportStarted
 import io.luna.game.model.Position
+import io.luna.game.model.item.Item
 import java.util.concurrent.CompletableFuture
 
 /**
@@ -16,7 +17,9 @@ import java.util.concurrent.CompletableFuture
  * queued a plain walk to the first destination, none when [noWay]. Each walk is written to [log] too, as `walk to x,y`,
  * so a kind's test reads its walks among its adapter's steps. A dialogue line shows while [talking]; a teleport starts as
  * [teleported] says, none when it is null; what the trip [said] is logged in order with the walks. A question offers
- * [options]; a ship's crew is found while [crewNear]; an entrance reads as [entrances] words it, none when absent.
+ * [options]; a ship's crew is found while [crewNear]; an entrance reads as [entrances] words it, none when absent. At a
+ * bank stop the next of [atBanks] says what to do, none queued going on without the bank; a booth is found while
+ * [boothFound] and opens the bank while [boothOpens]; a withdrawal hands out [withdrawn], all asked for when null.
  */
 class FakeTraveller(var position: Position, private val log: MutableList<String> = mutableListOf()) : Traveller {
     var busy = false
@@ -42,13 +45,24 @@ class FakeTraveller(var position: Position, private val log: MutableList<String>
     val sides = mutableListOf<Position>()
     val chosen = mutableListOf<Int>()
     var interrupted = 0
+    val stopsAsked = mutableListOf<Boolean>()
+    val atBanks = ArrayDeque<CompletableFuture<AtBank>>()
+    val stopsAt = mutableListOf<Pair<BankStop, Position>>()
+    var bankOpen = false
+    var boothFound = true
+    var boothOpens = true
+    val booths = mutableListOf<Position>()
+    var withdrawn: Withdrawn? = null
+    val withdrawals = mutableListOf<List<Item>>()
+    var closed = 0
 
     override fun position(): Position = position
 
     override fun isBusy(): Boolean = busy
 
-    override fun plan(destinations: List<Position>): CompletableFuture<TripPlanning> {
+    override fun plan(destinations: List<Position>, stops: Boolean): CompletableFuture<TripPlanning> {
         planned += destinations
+        stopsAsked += stops
         return plans.removeFirstOrNull() ?: CompletableFuture.completedFuture(if (noWay) NoTrip() else PlannedTrip(plainWalk(destinations.first())))
     }
 
@@ -106,5 +120,30 @@ class FakeTraveller(var position: Position, private val log: MutableList<String>
 
     override fun interrupt() {
         interrupted++
+    }
+
+    override fun atBank(stop: BankStop, destination: Position): CompletableFuture<AtBank> {
+        stopsAt += stop to destination
+        return atBanks.removeFirstOrNull() ?: CompletableFuture.completedFuture(AtBank.Skip(onward = null))
+    }
+
+    override fun bankOpen(): Boolean = bankOpen
+
+    override fun openBank(booth: Position): Boolean {
+        booths += booth
+        if (boothFound && boothOpens) bankOpen = true
+        return boothFound
+    }
+
+    override fun withdraw(items: List<Item>): Withdrawn {
+        withdrawals += items
+        log += "withdraw ${items.joinToString { "${it.amount} x ${it.id}" }}"
+        return withdrawn ?: Withdrawn(items.associate { it.id to it.amount })
+    }
+
+    override fun closeBank() {
+        closed++
+        bankOpen = false
+        log += "close the bank"
     }
 }

@@ -140,8 +140,8 @@ data class FlowReflexView(val id: Int, val values: Map<String, String>)
 /** A flow's stop condition as its settings keep it (S12): its kind (never, laps, time, goals) and the number typed after it. */
 data class FlowStopView(val kind: String, val after: String)
 
-/** What a flow's trips may spend (web-walker movement Q1): coins for tolls and fares, teleport runes, jewellery charges. */
-data class FlowTravelView(val coins: Boolean, val runes: Boolean, val charges: Boolean)
+/** What a flow's trips may spend (web-walker movement Q1): coins for tolls and fares, teleport runes, jewellery charges; and stops at the bank. */
+data class FlowTravelView(val coins: Boolean, val runes: Boolean, val charges: Boolean, val bank: Boolean)
 
 /**
  * A player's flow; [blocked] is why its running step cannot go on, as the overlay shows it, null while it can, and

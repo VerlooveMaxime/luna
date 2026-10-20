@@ -57,7 +57,7 @@ class HarnessViewsTest {
     @Test
     fun `a flow`() {
         val step = FlowStepView(id = 1, kind = "chop", values = mapOf("tree" to "oak"), reflexes = listOf(2), lines = listOf("Oak tree", "5 per lap"), problem = null, goal = null, met = false, counted = 0, leftOut = emptyList())
-        val view = FlowView(player = "test", running = true, stepIndex = 0, laps = 2, blocked = "Needs an axe you can use", waiting = "No tree in reach", underWay = "Opening the door", stop = FlowStopView("laps", "5"), travel = FlowTravelView(coins = true, runes = false, charges = false), steps = listOf(step), reflexes = emptyList())
+        val view = FlowView(player = "test", running = true, stepIndex = 0, laps = 2, blocked = "Needs an axe you can use", waiting = "No tree in reach", underWay = "Opening the door", stop = FlowStopView("laps", "5"), travel = FlowTravelView(coins = true, runes = false, charges = false, bank = false), steps = listOf(step), reflexes = emptyList())
 
         assertEquals(setOf("player", "running", "step_index", "laps", "blocked", "waiting", "under_way", "stop", "travel", "steps", "reflexes"), keysOf(view))
     }
@@ -76,7 +76,7 @@ class HarnessViewsTest {
 
     @Test
     fun `what a flow's trips may spend`() {
-        assertEquals(setOf("coins", "runes", "charges"), keysOf(FlowTravelView(coins = true, runes = false, charges = false)))
+        assertEquals(setOf("coins", "runes", "charges", "bank"), keysOf(FlowTravelView(coins = true, runes = false, charges = false, bank = false)))
     }
 
     @Test

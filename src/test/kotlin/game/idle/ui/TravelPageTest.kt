@@ -36,17 +36,17 @@ class TravelPageTest {
 
     @Test
     fun `a row per Travel choice, tolls first`() {
-        assertEquals(listOf(TravelChoice.COINS, TravelChoice.RUNES, TravelChoice.CHARGES), narrow.rows(IdleState(), emptySet()).map { it.choice })
+        assertEquals(listOf(TravelChoice.COINS, TravelChoice.RUNES, TravelChoice.CHARGES, TravelChoice.BANK), narrow.rows(IdleState(), emptySet()).map { it.choice })
     }
 
     @Test
     fun `a new flow allows nothing`() {
-        assertEquals(listOf(false, false, false), narrow.rows(IdleState(), emptySet()).map { it.allowed })
+        assertEquals(listOf(false, false, false, false), narrow.rows(IdleState(), emptySet()).map { it.allowed })
     }
 
     @Test
     fun `a choice the flow allows shows allowed`() {
-        assertEquals(listOf(false, true, false), narrow.rows(IdleState(travel = TravelAllowance(runes = true)), emptySet()).map { it.allowed })
+        assertEquals(listOf(false, true, false, true), narrow.rows(IdleState(travel = TravelAllowance(runes = true, bank = true)), emptySet()).map { it.allowed })
     }
 
     @Test
@@ -84,6 +84,16 @@ class TravelPageTest {
     @Test
     fun `jewellery counts its destinations`() {
         assertEquals("7 destinations, with jewellery carried", narrow.note(TravelChoice.CHARGES))
+    }
+
+    @Test
+    fun `bank stops say what a stop may fetch`() {
+        assertEquals("Trips may go by the nearest bank first for the coins, runes and jewellery allowed above", narrow.note(TravelChoice.BANK))
+    }
+
+    @Test
+    fun `no reflex keeps anything back from bank stops`() {
+        assertEquals(listOf("@gry@${TravelPage.BANK_STOPS}"), lines(flow(teleport(4, "varrock")), TravelChoice.BANK))
     }
 
     @Test
@@ -215,7 +225,7 @@ class TravelPageTest {
         val sent = updates(IdleState())
 
         assertEquals(
-            listOf("Tolls and fares", "Teleport spells", "Teleport jewellery"),
+            listOf("Tolls and fares", "Teleport spells", "Teleport jewellery", "Bank stops"),
             (0 until BuilderWidgets.TRAVEL_ROWS).map { (sent.getValue(BuilderWidgets.travelLabel(it)) as WidgetUpdate.Text).text },
         )
     }
@@ -252,7 +262,7 @@ class TravelPageTest {
 
     @Test
     fun `each choice's Yes says what it spends`() {
-        assertEquals(listOf("Pay coins", "Use runes", "Use charges"), TravelChoice.entries.map(TravelPage::yes))
+        assertEquals(listOf("Pay coins", "Use runes", "Use charges", "Use the bank"), TravelChoice.entries.map(TravelPage::yes))
     }
 
     @Test

@@ -45,20 +45,20 @@ class TravelAllowanceTest {
 
     @Test
     fun `a flow allows nothing to be spent unless it says so`() {
-        assertEquals(TravelAllowance(coins = false, runes = false, charges = false), TravelAllowance.NONE)
+        assertEquals(TravelAllowance(coins = false, runes = false, charges = false, bank = false), TravelAllowance.NONE)
     }
 
     @Test
     fun `each Travel choice is allowed by its own switch`() {
-        val allowance = TravelAllowance(coins = true, runes = false, charges = true)
+        val allowance = TravelAllowance(coins = true, runes = false, charges = true, bank = false)
 
-        assertEquals(listOf(true, false, true), TravelChoice.entries.map(allowance::allows))
+        assertEquals(listOf(true, false, true, false), TravelChoice.entries.map(allowance::allows))
     }
 
     @Test
     fun `switching a choice on changes that choice alone`() {
         assertEquals(
-            listOf(TravelAllowance(coins = true), TravelAllowance(runes = true), TravelAllowance(charges = true)),
+            listOf(TravelAllowance(coins = true), TravelAllowance(runes = true), TravelAllowance(charges = true), TravelAllowance(bank = true)),
             TravelChoice.entries.map { TravelAllowance.NONE.with(it, allowed = true) },
         )
     }
@@ -66,14 +66,19 @@ class TravelAllowanceTest {
     @Test
     fun `switching a choice off changes that choice alone`() {
         assertEquals(
-            listOf(TravelAllowance(runes = true, charges = true), TravelAllowance(coins = true, charges = true), TravelAllowance(coins = true, runes = true)),
+            listOf(
+                TravelAllowance(runes = true, charges = true, bank = true),
+                TravelAllowance(coins = true, charges = true, bank = true),
+                TravelAllowance(coins = true, runes = true, bank = true),
+                TravelAllowance(coins = true, runes = true, charges = true),
+            ),
             TravelChoice.entries.map { TravelAllowance.ALL.with(it, allowed = false) },
         )
     }
 
     @Test
     fun `everything allowed is every choice`() {
-        assertEquals(listOf(true, true, true), TravelChoice.entries.map(TravelAllowance.ALL::allows))
+        assertEquals(listOf(true, true, true, true), TravelChoice.entries.map(TravelAllowance.ALL::allows))
     }
 
     @Test
@@ -140,34 +145,6 @@ class TravelAllowanceTest {
     fun `levels, unlocks and the wilderness level are the player's own`() {
         val restricted = restrict(TravelAllowance.NONE)
         assertEquals(Triple(carried.skillLevels, carried.flags, 2), Triple(restricted.skillLevels, restricted.flags, restricted.wildernessLevel))
-    }
-
-    private fun snapshot(items: Map<Int, Int> = emptyMap(), usable: Set<String> = emptySet(), charges: Map<String, Int> = emptyMap()) =
-        CapabilitySnapshot(items = items, usableTeleports = usable, charges = charges)
-
-    @Test
-    fun `what everything allowed would spend is looked at when the flow keeps coins back`() {
-        assertEquals(mapOf(COINS to 40), TravelAllowance.NONE.beyond(snapshot(items = mapOf(COINS to 40)), Spend.NONE, teleports)?.items)
-    }
-
-    @Test
-    fun `what everything allowed would spend is looked at when the flow keeps a teleport back`() {
-        assertEquals(setOf("varrock"), TravelAllowance.NONE.beyond(snapshot(usable = setOf("varrock")), Spend.NONE, teleports)?.usableTeleports)
-    }
-
-    @Test
-    fun `what everything allowed would spend is looked at when the flow keeps charges back`() {
-        assertEquals(mapOf("AMULET_OF_GLORY" to 4), TravelAllowance.NONE.beyond(snapshot(charges = mapOf("AMULET_OF_GLORY" to 4)), Spend.NONE, teleports)?.charges)
-    }
-
-    @Test
-    fun `nothing kept back that the player could pay with is no reason to look further`() {
-        assertEquals(null, TravelAllowance(coins = true).beyond(snapshot(items = mapOf(COINS to 40, law to 3)), Spend.NONE, teleports))
-    }
-
-    @Test
-    fun `what a reflex holds back is held back either way`() {
-        assertEquals(null, TravelAllowance.NONE.beyond(snapshot(items = mapOf(COINS to 10)), Spend(items = mapOf(COINS to 10)), teleports))
     }
 
     private fun leg(type: EdgeType, teleport: TeleportDefinition? = null, coins: Int = 0) =

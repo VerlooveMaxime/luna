@@ -360,14 +360,14 @@ class FlowRunnerTest {
     }
 
     @Test
-    fun `a long way round is told once a run for each Travel choice`() {
+    fun `a long way round is told once a run for each cause`() {
         val runner = runner("walk")
         runner.act()
-        player.started.single().said = Said.LongWay(TravelChoice.COINS)
+        player.started.single().said = Said.LongWay(LongWayCause.Off(TravelChoice.COINS))
         runner.act()
-        player.started.single().said = Said.LongWay(TravelChoice.COINS)
+        player.started.single().said = Said.LongWay(LongWayCause.Off(TravelChoice.COINS))
         runner.act()
-        player.started.single().said = Said.LongWay(TravelChoice.RUNES)
+        player.started.single().said = Said.LongWay(LongWayCause.Off(TravelChoice.RUNES))
 
         runner.act()
 
@@ -384,18 +384,18 @@ class FlowRunnerTest {
     fun `a long way round told is saved with the run`() {
         val runner = runner("walk")
         runner.act()
-        player.started.single().said = Said.LongWay(TravelChoice.CHARGES)
+        player.started.single().said = Said.LongWay(LongWayCause.Off(TravelChoice.CHARGES))
 
         runner.act()
 
-        assertEquals(setOf(TravelChoice.CHARGES), player.savedProgress.last().toldLongWay)
+        assertEquals(setOf("teleport jewellery is off in Travel"), player.savedProgress.last().toldLongWay)
     }
 
     @Test
     fun `a run resumed after a relog does not tell a long way round again`() {
-        val runner = runner(ResolvedFlow(listOf(FakeStep("walk"))), progress = RunProgress(toldLongWay = setOf(TravelChoice.COINS)))
+        val runner = runner(ResolvedFlow(listOf(FakeStep("walk"))), progress = RunProgress(toldLongWay = setOf("tolls and fares are off in Travel")))
         runner.act()
-        player.started.single().said = Said.LongWay(TravelChoice.COINS)
+        player.started.single().said = Said.LongWay(LongWayCause.Off(TravelChoice.COINS))
 
         runner.act()
 
@@ -417,8 +417,8 @@ class FlowRunnerTest {
         val runner = runner("walk")
         runner.act()
 
-        player.speeches.last().say(Said.LongWay(TravelChoice.RUNES))
-        player.speeches.last().say(Said.LongWay(TravelChoice.RUNES))
+        player.speeches.last().say(Said.LongWay(LongWayCause.Off(TravelChoice.RUNES)))
+        player.speeches.last().say(Said.LongWay(LongWayCause.Off(TravelChoice.RUNES)))
 
         assertEquals(1, player.told.size)
     }

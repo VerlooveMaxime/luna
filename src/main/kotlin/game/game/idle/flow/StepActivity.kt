@@ -75,8 +75,39 @@ sealed interface Said {
     /** A trip boards the ship to [place], for a fare of [coins] (none for Entrana's). */
     data class Fare(val coins: Int, val place: String) : Said
 
-    /** A trip went the long way: what [choice] allows would have been quicker, and the flow does not allow it. */
-    data class LongWay(val choice: TravelChoice) : Said
+    /** A trip went the long way: a quicker one needed what [cause] says. */
+    data class LongWay(val cause: LongWayCause) : Said
+
+    /** A trip took [items] (item id to amount, in the line's order) from the bank on its way, for what it is [takenFor] (Maxime, 2026-10-20). */
+    data class FromBank(val takenFor: TakenFor, val items: Map<Int, Int>) : Said
+}
+
+/**
+ * Why a trip went the long way round: a Travel choice the flow has [Off] (web-walker movement Q6), [NoRoom] in the bag
+ * for what the bank has, the bank holding [TooFew] of the item a stop came for, or a stop's bank that [NotOpened]
+ * (Maxime, 2026-10-20 and 2026-10-21).
+ */
+sealed interface LongWayCause {
+
+    data class Off(val choice: TravelChoice) : LongWayCause
+
+    data object NoRoom : LongWayCause
+
+    data class TooFew(val item: Int) : LongWayCause
+
+    data object NotOpened : LongWayCause
+}
+
+/** What a bank stop's withdrawal is for: one [Teleport], the [Toll] at the Al Kharid gate, one [Fare], or several spends of the [Trip]. */
+sealed interface TakenFor {
+
+    data class Teleport(val destination: TeleportDestination) : TakenFor
+
+    data object Toll : TakenFor
+
+    data class Fare(val place: String) : TakenFor
+
+    data object Trip : TakenFor
 }
 
 /** Why a step stops the flow: the step is [Stuck], or a [Reflex] of its ran away and stops the flow (S07c). */

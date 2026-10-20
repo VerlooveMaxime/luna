@@ -24,12 +24,14 @@ class LunaBanker(private val player: Player, private val boothTile: Position?) :
     /** The bank window is the point of this step, so only walking and actions count as busy. */
     override fun isBusy(): Boolean = LunaClicks.isActing(player)
 
+    /** The bank window is this step's only at its own booth: a trip's stop on the way there opens another bank's (2026-10-21). */
     override fun look(): BankView {
         val booth = booth()
+        val usable = booth != null && world.collisionManager.reached(player, booth, STANDARD_SIZE)
         return BankView(
             boothFound = booth != null,
-            boothUsableFromHere = booth != null && world.collisionManager.reached(player, booth, STANDARD_SIZE),
-            bankOpen = player.bank.isOpen,
+            boothUsableFromHere = usable,
+            bankOpen = usable && player.bank.isOpen,
             bag = (0 until player.inventory.capacity()).map { slot -> player.inventory[slot]?.let { Held(it.id, it.amount) } },
             bank = player.bank.filterNotNull().groupingBy { it.id }.fold(0) { total, item -> total + item.amount },
         )

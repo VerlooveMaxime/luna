@@ -1,7 +1,9 @@
 package game.idle.autopilot.travel
 
+import api.bot.webwalk.model.BankDefinition
 import api.bot.webwalk.model.EdgeType
 import api.bot.webwalk.model.TeleportDefinition
+import api.bot.webwalk.plan.BankAccess
 import api.bot.webwalk.plan.PlanLeg
 import api.bot.webwalk.plan.WebWalkPlan
 import api.bot.webwalk.walk.LegContext
@@ -11,6 +13,7 @@ import api.bot.webwalk.walk.ship.ShipBoarding
 import game.content.sailing.ShipRoute
 import engine.obj.Trapdoor
 import game.idle.flow.EntrancePassage
+import game.idle.flow.LongWayCause
 import game.idle.flow.Meter
 import game.idle.flow.Passage
 import game.idle.flow.Place
@@ -19,6 +22,7 @@ import game.idle.flow.Said
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
 import game.idle.flow.Structure
+import game.idle.flow.TakenFor
 import game.idle.flow.TeleportDestination
 import game.idle.flow.TeleportStarted
 import game.idle.flow.UnderWay
@@ -26,19 +30,46 @@ import game.idle.location.Tile
 import game.idle.movement.TravelChoice
 import game.npc.spawn.alKharid.BorderGate
 import io.luna.game.model.Position
+import io.luna.game.model.item.Item
 import java.util.concurrent.CompletableFuture
 
 /** What planning a trip found (web-walker movement Part 3c): a [PlannedTrip], or [NoTrip]. */
 sealed interface TripPlanning
 
 /**
- * A trip's [plan], and the Travel choices a quicker trip would have needed ([longWay]): what it would spend that the
- * flow does not allow, empty when this is the quickest the player could take.
+ * A trip's [plan], and why a quicker trip was not taken ([longWay], in the order told): a Travel choice the flow does not
+ * allow, or no room in the bag for what the bank has; empty when this is the quickest the player could take. With a
+ * [stop], the plan goes to that bank, and the trip goes on from there (Maxime, 2026-10-20) to its [end], null for a trip
+ * that has nowhere to go.
  */
-data class PlannedTrip(val plan: WebWalkPlan, val longWay: Set<TravelChoice> = emptySet()) : TripPlanning
+data class PlannedTrip(
+    val plan: WebWalkPlan,
+    val longWay: List<LongWayCause> = emptyList(),
+    val stop: BankStop? = null,
+    val end: Position? = plan.destination,
+) : TripPlanning
 
 /** No trip goes there; with [off], one would if the flow allowed that Travel choice. */
 data class NoTrip(val off: TravelChoice? = null) : TripPlanning
+
+/**
+ * A trip's stop at [bank] on its way, for the [items] it counted on with [access] of the bank when planned (upstream's
+ * withdrawal, a spare included); what it takes there is planned again at the bank ([AtBank]).
+ */
+data class BankStop(val bank: BankDefinition, val access: BankAccess, val items: List<Item>)
+
+/** What a trip does at its bank stop, planned again there with the bank as it is (upstream's rule). */
+sealed interface AtBank {
+
+    /** Takes [items] from the bank (in the order the chat line names them) for what they are [takenFor], then goes on by [onward]. */
+    data class Take(val items: List<Item>, val takenFor: TakenFor, val onward: WebWalkPlan) : AtBank
+
+    /** Goes on by [onward] without the bank, or plans again with what is carried when null; [cause] says why, when it is told. */
+    data class Skip(val onward: WebWalkPlan?, val cause: LongWayCause? = null) : AtBank
+}
+
+/** What a withdrawal put in the bag ([arrived], item id to amount, in order), and why it fell [short] of what it asked for. */
+data class Withdrawn(val arrived: Map<Int, Int>, val short: LongWayCause? = null)
 
 /** What a trip can see and do for one player. [LunaTraveller] is the in-game one. */
 interface Traveller {
@@ -47,8 +78,24 @@ interface Traveller {
 
     fun isBusy(): Boolean
 
-    /** The cheapest trip from where the player stands to the nearest of [destinations], or why none; planned off the game thread. */
-    fun plan(destinations: List<Position>): CompletableFuture<TripPlanning>
+    /**
+     * The cheapest trip from where the player stands to the nearest of [destinations], or why none; planned off the game
+     * thread. With [stops], it may go by the bank for what it spends (Maxime, 2026-10-20).
+     */
+    fun plan(destinations: List<Position>, stops: Boolean = true): CompletableFuture<TripPlanning>
+
+    /** What the trip on to [destination] does at [stop], where the player stands: planned again with the bank as it is now. */
+    fun atBank(stop: BankStop, destination: Position): CompletableFuture<AtBank>
+
+    fun bankOpen(): Boolean
+
+    /** Clicks the booth on [booth] open, walking up to it first; false when there is none. */
+    fun openBank(booth: Position): Boolean
+
+    /** Withdraws [items] in order from the open bank, as items, never notes. */
+    fun withdraw(items: List<Item>): Withdrawn
+
+    fun closeBank()
 
     fun walk(to: Position)
 
@@ -104,13 +151,15 @@ interface Traveller {
  * A trip to [target] on the web-walker's plan, one decision at a time (web-walker movement Part 2): walks, doors, gates and
  * curtains opened when shut, ladders and stairs climbed, trapdoors opened and climbed down, cave and dungeon entrances
  * gone through (2026-10-20), each leg as a player's clicks; and the legs that spend what the flow allows (Part 3c):
- * teleports cast or rubbed, the Al Kharid toll gate paid, ships boarded. The
+ * teleports cast or rubbed, the Al Kharid toll gate paid, ships boarded; and a stop at the bank on the way for what it
+ * spends (Maxime, 2026-10-20): walked to, the booth opened, the withdrawal told, the trip on taken from there. The
  * trip is done within [arriveWithin] tiles of the target, next to it as a walk is unless told otherwise (a walk up
  * to a step's target ends on the tile it is used from). It starts on [plan] when one was made already (the
  * bank step's, which picked the bank by it), and plans again when the player is off the plan (a reflex teleported them,
  * say) or through it without arriving; a plan made at once is taken in the same decision. The same move on the same leg
  * from the same tile twice found no way on, so it blocks, saying which [place] or which passage, and tries again once the
- * player stands elsewhere. Every spend is told, and so is a long way round for want of a Travel choice (Q6).
+ * player stands elsewhere. Every spend is told, and so is a long way round for want of a Travel choice (Q6). A trip
+ * told no [stops] (a walk up, a flight: Maxime, 2026-10-20) stops at no bank when it plans again.
  */
 class TripWork(
     private val traveller: Traveller,
@@ -119,9 +168,10 @@ class TripWork(
     plan: PlannedTrip? = null,
     private val arriveWithin: Int = 1,
     private val dialogueLines: Int = DIALOGUE_LINES,
+    stops: Boolean = true,
 ) : StepWork {
 
-    private enum class Move { PLAN, WALK, OPEN, PASS, CLIMB, ENTER, CHOOSE, TELEPORT, TALK, BOARD, LAND }
+    private enum class Move { PLAN, WALK, OPEN, PASS, CLIMB, ENTER, CHOOSE, TELEPORT, TALK, BOARD, LAND, BANK }
 
     /**
      * A move on the [leg]th leg from [from]; a dialogue's moves ([TALK] and its [CHOOSE]) count their [line], so several
@@ -138,6 +188,12 @@ class TripWork(
     private var lines = 0
     private var refused: Pair<Position, String>? = null
     private var noWay = Reason.NoWay(place)
+    private var stop: BankStop? = plan?.stop
+    private var atBank: CompletableFuture<AtBank>? = null
+    private var taking: AtBank.Take? = null
+
+    /** Whether the trip may still stop at the bank: not once a stop came to nothing, as upstream's bots go on with what they carry. */
+    private var stops = stops
 
     /** The legs of the plan under way whose spend was told: a toll or a fare once a leg. */
     private val told = mutableSetOf<Int>()
@@ -157,7 +213,7 @@ class TripWork(
     override fun isBusy(): Boolean = busyWhile(traveller.isBusy())
 
     /** [isBusy] with [playerBusy] for the player's own busy rule: a step's walk up keeps its kind's (fight's ignores combat's lingering action). */
-    fun busyWhile(playerBusy: Boolean): Boolean = pending?.isDone == false || (playerBusy && !clickingAhead())
+    fun busyWhile(playerBusy: Boolean): Boolean = pending?.isDone == false || atBank?.isDone == false || (playerBusy && !clickingAhead())
 
     private fun clickingAhead(): Boolean {
         val trip = legs ?: return false
@@ -173,10 +229,14 @@ class TripWork(
     override fun finishing(): Boolean = false
 
     private fun sayLongWay(trip: PlannedTrip) {
-        TravelChoice.entries.filter { it in trip.longWay }.forEach { traveller.say(Said.LongWay(it)) }
+        trip.longWay.forEach { traveller.say(Said.LongWay(it)) }
     }
 
-    override fun interrupt() = traveller.interrupt()
+    /** Breaks off the player's walk, and closes the bank a stop opened, which would hold every step up. */
+    override fun interrupt() {
+        if (taking != null && traveller.bankOpen()) traveller.closeBank()
+        traveller.interrupt()
+    }
 
     /** The player stands elsewhere than where the trip began. */
     override fun travelled(): Boolean = traveller.position() != start
@@ -198,21 +258,94 @@ class TripWork(
                 is PlannedTrip -> planning
             }
             sayLongWay(trip)
-            legs = trip.plan.legs
-            index = 0
-            told.clear()
+            follow(trip.plan, trip.stop)
         }
         val trip = legs ?: return plan(here)
         while (index < trip.size && done(trip[index], here, last = index == trip.lastIndex)) index++
         val leg = trip.getOrNull(index)
-        return if (leg == null || offPlan(leg, here)) plan(here) else take(leg, here)
+        val stop = stop
+        return when {
+            leg != null && !offPlan(leg, here) -> take(leg, here)
+            leg == null && stop != null && near(here, stop.bank.stand, arriveWithin) -> bank(here, stop)
+            else -> plan(here)
+        }
     }
+
+    private fun follow(plan: WebWalkPlan, stop: BankStop? = null) {
+        legs = plan.legs
+        index = 0
+        told.clear()
+        this.stop = stop
+        taking = null
+        atBank = null
+    }
+
+    /**
+     * At the bank stop: the trip on is planned again with the bank as it is, then the booth is opened, the items taken and
+     * told, the bank closed, and the trip on taken. "Fetching runes from the bank" throughout (Maxime, 2026-10-20).
+     */
+    private fun bank(here: Position, stop: BankStop): StepOutcome {
+        val fetching = fetching(stop)
+        val take = taking ?: return planAtBank(here, stop, fetching)
+        if (!traveller.bankOpen()) return openBank(here, stop, fetching)
+        val withdrawn = traveller.withdraw(take.items)
+        if (withdrawn.arrived.isNotEmpty()) traveller.say(Said.FromBank(take.takenFor, withdrawn.arrived))
+        traveller.closeBank()
+        val short = withdrawn.short
+        if (short != null) {
+            traveller.say(Said.LongWay(short))
+            return carryOn(here)
+        }
+        follow(take.onward)
+        return go(here)
+    }
+
+    private fun planAtBank(here: Position, stop: BankStop, fetching: StepOutcome): StepOutcome {
+        val planned = atBank ?: traveller.atBank(stop, target.toPosition()).also { atBank = it }
+        if (!planned.isDone) return fetching
+        atBank = null
+        return when (val turn = planned.join()) {
+            is AtBank.Take -> {
+                taking = turn
+                bank(here, stop)
+            }
+            is AtBank.Skip -> {
+                turn.cause?.let { traveller.say(Said.LongWay(it)) }
+                val onward = turn.onward ?: return carryOn(here)
+                follow(onward)
+                go(here)
+            }
+        }
+    }
+
+    /** A booth that is not there, or clicked twice from one tile without opening: the trip says so and goes on with what is carried. */
+    private fun openBank(here: Position, stop: BankStop, fetching: StepOutcome): StepOutcome {
+        val attempt = Attempt(NO_LEG, here, Move.BANK)
+        if (attempt != last) {
+            last = attempt
+            if (traveller.openBank(stop.bank.booth)) return fetching
+        }
+        traveller.say(Said.LongWay(LongWayCause.NotOpened))
+        return carryOn(here)
+    }
+
+    /** On with what the player carries, no more stops at the bank on this trip: a plan of its own, not the same move again. */
+    private fun carryOn(here: Position): StepOutcome {
+        stops = false
+        legs = null
+        stop = null
+        taking = null
+        last = null
+        return plan(here)
+    }
+
+    private fun fetching(stop: BankStop): StepOutcome = StepOutcome.OnTheWay(UnderWay.Fetching(stop.items.map { it.id }))
 
     private fun arrived(here: Position): Boolean = near(here, target.toPosition(), arriveWithin)
 
     private fun plan(here: Position): StepOutcome =
         move(Attempt(NO_LEG, here, Move.PLAN), noWay) {
-            pending = traveller.plan(listOf(target.toPosition()))
+            pending = traveller.plan(listOf(target.toPosition()), stops)
             go(here)
         }
 
@@ -233,7 +366,7 @@ class TripWork(
         when (leg.type) {
             EdgeType.WALK -> move(Attempt(index, here, Move.WALK), Reason.NoWay(place)) {
                 traveller.walk(leg.to)
-                StepOutcome.Approached
+                stop?.let(::fetching) ?: StepOutcome.Approached
             }
             EdgeType.DOOR -> door(leg, here, Structure.DOOR)
             EdgeType.GATE -> door(leg, here, Structure.GATE)

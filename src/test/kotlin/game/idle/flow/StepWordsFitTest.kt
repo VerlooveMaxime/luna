@@ -1,6 +1,7 @@
 package game.idle.flow
 
 import engine.combat.prayer.CombatPrayer
+import api.bot.webwalk.plan.CapabilitySnapshot.Companion.COINS
 import game.content.sailing.ShipRoute
 import game.idle.autopilot.firemaking.LightStepType
 import game.idle.autopilot.fishing.FishingMethod
@@ -14,6 +15,7 @@ import game.idle.font.ClientFont
 import game.idle.location.Tile
 import game.idle.movement.TravelChoice
 import game.idle.ui.BuilderWidgets
+import game.item.degradable.jewellery.TeleportJewellery
 import game.obj.entrances.Entrance
 import game.testworld.TestWorld
 import io.luna.game.model.Position
@@ -113,7 +115,8 @@ class StepWordsFitTest {
 
     /**
      * Every spend and long way a trip can tell (web-walker movement Part 3c): each teleport with all it lists, each piece
-     * taken off, each piece not worn again.
+     * taken off, each piece not worn again; each bank stop's withdrawal, a whole trip's with coins and the most runes a
+     * spell lists, and its long ways with every kind of thing fetched (2026-10-20).
      */
     private fun travelLines(): List<String> {
         val teleports = Teleports.all.flatMap { destination ->
@@ -126,7 +129,22 @@ class StepWordsFitTest {
         val reflexLines = jewellery.flatMap { listOf(ReflexSaid.TookOff(99, it), ReflexSaid.NotWornAgain(99, it)) }.map(words::reflexSaid)
         val notWornAgain = jewellery.map { words.said(99, Said.NotWornAgain(it)) }
         return teleports.map { words.said(99, Said.Teleported(it)) } + reflexLines + notWornAgain + words.said(99, Said.PaidToll(10)) +
-            TravelChoice.entries.map { words.said(99, Said.LongWay(it)) } + ShipRoute.entries.map { words.said(99, Said.Fare(it.fare, it.place)) }
+            TravelChoice.entries.map { words.said(99, Said.LongWay(LongWayCause.Off(it))) } + ShipRoute.entries.map { words.said(99, Said.Fare(it.fare, it.place)) } +
+            bankStopLines()
+    }
+
+    private fun bankStopLines(): List<String> {
+        val spells = Teleports.all.filterIsInstance<TeleportDestination.Spell>().map { it to Teleports.listed(it.spell.requirements, worn = emptySet()) }
+        val pieces = TeleportJewellery.entries.flatMap { it.items }
+        val takenForTeleports = spells.map { (spell, runes) -> Said.FromBank(TakenFor.Teleport(spell), runes) } +
+            Teleports.all.filterIsInstance<TeleportDestination.Jewellery>().flatMap { destination ->
+                destination.jewellery.items.map { Said.FromBank(TakenFor.Teleport(destination), mapOf(it to 1)) }
+            }
+        val most = spells.maxBy { (_, runes) -> runes.size }.second
+        val fares = ShipRoute.entries.map { Said.FromBank(TakenFor.Fare(it.place), mapOf(COINS to it.fare)) }
+        val trip = listOf(Said.FromBank(TakenFor.Trip, mapOf(COINS to 999) + most), Said.FromBank(TakenFor.Toll, mapOf(COINS to 10)))
+        val longWays = (listOf(LongWayCause.NoRoom, LongWayCause.NotOpened) + (most.keys + COINS + pieces).map(LongWayCause::TooFew)).map(Said::LongWay)
+        return (takenForTeleports + fares + trip + longWays).map { words.said(99, it) }
     }
 
     /** Every kind of goal with the longest words the data can put in it. */

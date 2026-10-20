@@ -1,6 +1,5 @@
 package game.idle.flow
 
-import game.idle.movement.TravelChoice
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
@@ -54,10 +53,10 @@ class RunProgressTest {
     }
 
     @Test
-    fun `a long way round told is remembered for its Travel choice alone`() {
-        val progress = RunProgress().tellingLongWay(TravelChoice.COINS)
+    fun `a long way round told is remembered for its cause alone`() {
+        val progress = RunProgress().tellingLongWay("tolls and fares are off in Travel")
 
-        assertEquals(listOf(true, false), listOf(progress.toldLongWay(TravelChoice.COINS), progress.toldLongWay(TravelChoice.RUNES)))
+        assertEquals(listOf(true, false), listOf(progress.toldLongWay("tolls and fares are off in Travel"), progress.toldLongWay("bank stops are off in Travel")))
     }
 
     private fun feeder(name: String, vararg inputs: Int) = FakeStep(name, needs = listOf(StepNeeds(inputs = inputs.toList())))

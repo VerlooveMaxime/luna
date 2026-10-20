@@ -1,19 +1,23 @@
 package game.idle.autopilot.travel
 
+import api.bot.webwalk.model.BankDefinition
 import api.bot.webwalk.model.EdgeAction
 import api.bot.webwalk.model.EdgeType
 import api.bot.webwalk.model.TeleportDefinition
 import api.bot.webwalk.model.TeleportKind
+import api.bot.webwalk.plan.BankAccess
 import api.bot.webwalk.plan.PlanLeg
 import api.bot.webwalk.plan.WebWalkPlan
 import game.content.sailing.ShipRoute
 import game.idle.flow.EntrancePassage
+import game.idle.flow.LongWayCause
 import game.idle.flow.Meter
 import game.idle.flow.Place
 import game.idle.flow.Reason
 import game.idle.flow.Said
 import game.idle.flow.StepOutcome
 import game.idle.flow.Structure
+import game.idle.flow.TakenFor
 import game.idle.flow.TeleportDestination
 import game.idle.flow.TeleportStarted
 import game.idle.flow.UnderWay
@@ -23,6 +27,7 @@ import game.idle.movement.TravelChoice
 import game.item.degradable.jewellery.TeleportJewellery
 import game.skill.magic.teleportSpells.TeleportSpell
 import io.luna.game.model.Position
+import io.luna.game.model.item.Item
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -1001,16 +1006,17 @@ class TripWorkTest {
     }
 
     @Test
-    fun `a trip that took the long way round tells each choice a quicker one needed`() {
-        traveller.plans += CompletableFuture.completedFuture(PlannedTrip(WebWalkPlan(listOf(walkLeg(start, target.toPosition())), cost = 1.0), setOf(TravelChoice.RUNES, TravelChoice.COINS)))
+    fun `a trip that took the long way round tells each cause in order`() {
+        val causes = listOf(LongWayCause.Off(TravelChoice.COINS), LongWayCause.Off(TravelChoice.RUNES), LongWayCause.NoRoom)
+        traveller.plans += CompletableFuture.completedFuture(PlannedTrip(WebWalkPlan(listOf(walkLeg(start, target.toPosition())), cost = 1.0), causes))
         trip.act(null)
-        assertEquals(listOf(Said.LongWay(TravelChoice.COINS), Said.LongWay(TravelChoice.RUNES)), traveller.said)
+        assertEquals(causes.map(Said::LongWay), traveller.said)
     }
 
     @Test
     fun `a trip given a long way round tells it`() {
-        TripWork(traveller, target, Place.TILE, PlannedTrip(WebWalkPlan(listOf(walkLeg(start, target.toPosition())), cost = 1.0), setOf(TravelChoice.CHARGES)))
-        assertEquals(listOf(Said.LongWay(TravelChoice.CHARGES)), traveller.said)
+        TripWork(traveller, target, Place.TILE, PlannedTrip(WebWalkPlan(listOf(walkLeg(start, target.toPosition())), cost = 1.0), listOf(LongWayCause.Off(TravelChoice.CHARGES))))
+        assertEquals(listOf(Said.LongWay(LongWayCause.Off(TravelChoice.CHARGES))), traveller.said)
     }
 
     @Test
@@ -1074,5 +1080,242 @@ class TripWorkTest {
     @Test
     fun `a trip counts nothing and has nothing to settle`() {
         assertEquals(Meter.None to false, trip.meter to trip.finishing())
+    }
+
+    private val law = 563
+    private val air = 556
+    private val stand = Position(3210, 3210)
+    private val booth = Position(3210, 3211)
+    private val taken = listOf(Item(law, 1), Item(air, 3))
+    private val stop = BankStop(BankDefinition("varrock_0", booth, stand), BankAccess.ALL, taken)
+    private val forVarrock = TakenFor.Teleport(TeleportDestination.Spell(TeleportSpell.VARROCK))
+    private val onward = WebWalkPlan(listOf(walkLeg(stand, target.toPosition())), cost = 1.0)
+    private val fetching = StepOutcome.OnTheWay(UnderWay.Fetching(listOf(law, air)))
+
+    /** A trip by the bank, set off from [start] with the walk to its stand. */
+    private fun byTheBank(legs: List<PlanLeg> = listOf(walkLeg(start, stand))) = TripWork(traveller, target, Place.TILE, PlannedTrip(WebWalkPlan(legs, cost = 1.0), stop = stop))
+
+    /** At the stand of a trip by the bank, the trip on from it planned again as [turn]. */
+    private fun atTheBank(turn: AtBank = AtBank.Take(taken, forVarrock, onward)): TripWork {
+        traveller.atBanks += CompletableFuture.completedFuture(turn)
+        return byTheBank().also { traveller.position = stand }
+    }
+
+    @Test
+    fun `a trip plans with stops at the bank allowed`() {
+        trip.act(null)
+        assertEquals(listOf(true), traveller.stopsAsked)
+    }
+
+    @Test
+    fun `a trip by the bank walks there fetching what it takes`() {
+        assertEquals(fetching to listOf(stand), byTheBank().act(null) to traveller.walks)
+    }
+
+    @Test
+    fun `a passage on the way to the bank says its own words`() {
+        traveller.standing += door to doorTile
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Opening(Structure.DOOR)), byTheBank(listOf(doorLeg(), walkLeg(pastDoor, stand))).act(null))
+    }
+
+    @Test
+    fun `a trip planned by the bank takes the stop it was planned with`() {
+        traveller.plans += CompletableFuture.completedFuture(PlannedTrip(WebWalkPlan(listOf(walkLeg(start, stand)), cost = 1.0), stop = stop))
+        assertEquals(fetching, trip.act(null))
+    }
+
+    @Test
+    fun `at the bank the trip on is planned again with the bank as it is`() {
+        atTheBank().act(null)
+        assertEquals(listOf(stop to target.toPosition()), traveller.stopsAt)
+    }
+
+    @Test
+    fun `a trip waits while its plan at the bank is made`() {
+        traveller.atBanks += CompletableFuture()
+        val trip = byTheBank().also { traveller.position = stand }
+        assertEquals(fetching to true, trip.act(null) to trip.isBusy())
+    }
+
+    @Test
+    fun `a trip whose plan at the bank is made is no longer busy for it`() {
+        val making = CompletableFuture<AtBank>()
+        traveller.atBanks += making
+        val trip = byTheBank().also { traveller.position = stand }
+        trip.act(null)
+        making.complete(AtBank.Skip(onward))
+        assertFalse(trip.isBusy())
+    }
+
+    @Test
+    fun `a plan at the bank made later is taken at a later decision`() {
+        val making = CompletableFuture<AtBank>()
+        traveller.atBanks += making
+        val trip = byTheBank().also { traveller.position = stand }
+        trip.act(null)
+        making.complete(AtBank.Take(taken, forVarrock, onward))
+        trip.act(null)
+        assertEquals(listOf(booth), traveller.booths)
+    }
+
+    @Test
+    fun `the booth is opened for what the stop takes`() {
+        assertEquals(fetching to listOf(booth), atTheBank().act(null) to traveller.booths)
+    }
+
+    @Test
+    fun `once the bank is open what the stop takes is withdrawn`() {
+        val trip = atTheBank()
+        trip.act(null)
+        trip.act(null)
+        assertEquals(listOf(taken), traveller.withdrawals)
+    }
+
+    @Test
+    fun `what arrived is told with what it is for, then the bank closed`() {
+        val log = mutableListOf<String>()
+        val traveller = FakeTraveller(stand, log).apply { atBanks += CompletableFuture.completedFuture(AtBank.Take(taken, forVarrock, onward)) }
+        val trip = TripWork(traveller, target, Place.TILE, PlannedTrip(WebWalkPlan(listOf(walkLeg(start, stand)), cost = 1.0), stop = stop))
+        trip.act(null)
+        traveller.withdrawn = Withdrawn(mapOf(air to 3, law to 1))
+        trip.act(null)
+        assertEquals(
+            listOf("withdraw 1 x 563, 3 x 556", "say ${Said.FromBank(forVarrock, mapOf(air to 3, law to 1))}", "close the bank", "walk to 3230,3200"),
+            log,
+        )
+    }
+
+    @Test
+    fun `a bank already open is withdrawn from at once`() {
+        traveller.bankOpen = true
+        atTheBank().act(null)
+        assertEquals(emptyList<Position>() to listOf(taken), traveller.booths to traveller.withdrawals)
+    }
+
+    @Test
+    fun `after the bank the trip on is taken at once`() {
+        val trip = atTheBank()
+        trip.act(null)
+        assertEquals(StepOutcome.Approached to listOf(target.toPosition()), trip.act(null) to traveller.walks)
+    }
+
+    @Test
+    fun `a withdrawal that fell short says why and the trip goes on with what is carried`() {
+        val trip = atTheBank()
+        trip.act(null)
+        traveller.withdrawn = Withdrawn(mapOf(law to 1), LongWayCause.NoRoom)
+        trip.act(null)
+        assertEquals(
+            listOf(Said.FromBank(forVarrock, mapOf(law to 1)), Said.LongWay(LongWayCause.NoRoom)) to listOf(false),
+            traveller.said to traveller.stopsAsked,
+        )
+    }
+
+    @Test
+    fun `a withdrawal that brought nothing tells only why`() {
+        val trip = atTheBank()
+        trip.act(null)
+        traveller.withdrawn = Withdrawn(emptyMap(), LongWayCause.TooFew(law))
+        trip.act(null)
+        assertEquals(listOf(Said.LongWay(LongWayCause.TooFew(law))), traveller.said)
+    }
+
+    @Test
+    fun `a stop that needs nothing from the bank now goes on by the trip from it`() {
+        atTheBank(AtBank.Skip(onward)).act(null)
+        assertEquals(listOf(target.toPosition()) to emptyList<Said>(), traveller.walks to traveller.said)
+    }
+
+    @Test
+    fun `a stop whose items are gone from the bank says so`() {
+        atTheBank(AtBank.Skip(onward, LongWayCause.TooFew(law))).act(null)
+        assertEquals(listOf(Said.LongWay(LongWayCause.TooFew(law))), traveller.said)
+    }
+
+    @Test
+    fun `a stop with no trip on from the bank plans again with what is carried`() {
+        atTheBank(AtBank.Skip(onward = null)).act(null)
+        assertEquals(listOf(false), traveller.stopsAsked)
+    }
+
+    @Test
+    fun `a stop planned from the bank itself that comes to nothing still plans again from there`() {
+        traveller.position = stand
+        traveller.plans += CompletableFuture.completedFuture(PlannedTrip(WebWalkPlan(emptyList(), cost = 0.0), stop = stop))
+        assertEquals(StepOutcome.Approached to listOf(target.toPosition()), trip.act(null) to traveller.walks)
+    }
+
+    @Test
+    fun `a booth that is not there leaves the trip to go on with what is carried, saying so`() {
+        traveller.boothFound = false
+        atTheBank().act(null)
+        assertEquals(listOf(false) to listOf(Said.LongWay(LongWayCause.NotOpened)), traveller.stopsAsked to traveller.said)
+    }
+
+    @Test
+    fun `a booth clicked from one tile twice without opening leaves the trip to go on with what is carried`() {
+        traveller.boothOpens = false
+        val trip = atTheBank()
+        trip.act(null)
+        trip.act(null)
+        assertEquals(listOf(listOf(booth), listOf(false), listOf(Said.LongWay(LongWayCause.NotOpened))), listOf(traveller.booths, traveller.stopsAsked, traveller.said))
+    }
+
+    @Test
+    fun `a booth that did not open is clicked again from another tile`() {
+        traveller.boothOpens = false
+        val trip = atTheBank()
+        trip.act(null)
+        traveller.position = Position(3211, 3210)
+        trip.act(null)
+        assertEquals(listOf(booth, booth), traveller.booths)
+    }
+
+    @Test
+    fun `a trip told no stops plans none`() {
+        TripWork(traveller, target, Place.TILE, stops = false).act(null)
+        assertEquals(listOf(false), traveller.stopsAsked)
+    }
+
+    @Test
+    fun `a stop is made only at the bank's stand, so a player taken elsewhere plans again`() {
+        val trip = atTheBank()
+        trip.act(null)
+        traveller.position = Position(3100, 3100)
+        trip.act(null)
+        assertEquals(listOf(booth) to listOf(true), traveller.booths to traveller.stopsAsked)
+    }
+
+    @Test
+    fun `interrupting a trip at the open bank closes it`() {
+        val trip = atTheBank()
+        trip.act(null)
+        trip.interrupt()
+        assertEquals(1 to 1, traveller.closed to traveller.interrupted)
+    }
+
+    @Test
+    fun `interrupting a trip whose booth did not open closes nothing`() {
+        traveller.boothOpens = false
+        val trip = atTheBank()
+        trip.act(null)
+        trip.interrupt()
+        assertEquals(0, traveller.closed)
+    }
+
+    @Test
+    fun `interrupting a trip on its way to the bank closes nothing`() {
+        traveller.bankOpen = true
+        byTheBank().interrupt()
+        assertEquals(0, traveller.closed)
+    }
+
+    @Test
+    fun `a trip that went on with what is carried stops at no bank when it plans again`() {
+        val trip = atTheBank(AtBank.Skip(onward = null))
+        trip.act(null)
+        traveller.position = Position(3200, 3300)
+        trip.act(null)
+        assertEquals(listOf(false, false), traveller.stopsAsked)
     }
 }

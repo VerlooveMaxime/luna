@@ -318,9 +318,9 @@ class HarnessRoutesTest {
 
     @Test
     fun `a posted flow carries what its trips may spend, read as text`() {
-        post("/player/agent_a/flow", """{"steps": [], "travel": {"coins": true, "runes": "false", "charges": "TRUE"}}""")
+        post("/player/agent_a/flow", """{"steps": [], "travel": {"coins": true, "runes": "false", "charges": "TRUE", "bank": "true"}}""")
 
-        assertEquals(listOf(TravelAllowance(coins = true, runes = false, charges = true)), api.replacedTravel)
+        assertEquals(listOf(TravelAllowance(coins = true, runes = false, charges = true, bank = true)), api.replacedTravel)
     }
 
     @Test
@@ -342,6 +342,6 @@ class HarnessRoutesTest {
     fun `a posted travel choice the flow does not have answers 400`() {
         val response = post("/player/agent_a/flow", """{"steps": [], "travel": {"ships": true}}""")
 
-        assertEquals(HarnessResponse(400, ErrorView("field 'travel' takes coins, runes, charges, not 'ships'")), response)
+        assertEquals(HarnessResponse(400, ErrorView("field 'travel' takes coins, runes, charges, bank, not 'ships'")), response)
     }
 }

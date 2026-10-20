@@ -94,8 +94,8 @@ private fun stop(body: RequestBody): StopSettings {
 }
 
 /**
- * What a posted flow's trips may spend: `{"coins": true, "runes": false, "charges": true}`, each read as text and off
- * when left out, as is a missing object.
+ * What a posted flow's trips may spend: `{"coins": true, "runes": false, "charges": true, "bank": true}`, each read as
+ * text and off when left out, as is a missing object.
  */
 private fun travel(body: RequestBody): TravelAllowance {
     val travel = body.strings("travel")
@@ -107,7 +107,7 @@ private fun travel(body: RequestBody): TravelAllowance {
             "true" -> true
             else -> throw HarnessException(400, "travel's '$choice' must be true or false")
         }
-    return TravelAllowance(coins = allowed("coins"), runes = allowed("runes"), charges = allowed("charges"))
+    return TravelAllowance(coins = allowed("coins"), runes = allowed("runes"), charges = allowed("charges"), bank = allowed("bank"))
 }
 
-private val TRAVEL_CHOICES = listOf("coins", "runes", "charges")
+private val TRAVEL_CHOICES = listOf("coins", "runes", "charges", "bank")

@@ -56,7 +56,8 @@ data class EntrancePassage(val verb: String, override val way: Way, val wayNamed
 /**
  * What a trip is doing on its way while it lasts, in white on the overlay and the running slot (Q7, Maxime 2026-10-17):
  * opening a door, gate, curtain or trapdoor, getting past a passage, shutting a door behind a flight (web-walker
- * movement Part 5), teleporting, paying the toll or sailing to [Sailing.place] (Part 3c).
+ * movement Part 5), teleporting, paying the toll or sailing to [Sailing.place] (Part 3c); fetching [Fetching.items] from
+ * the bank on the way (Maxime, 2026-10-20).
  */
 sealed interface UnderWay {
 
@@ -71,4 +72,6 @@ sealed interface UnderWay {
     data object PayingToll : UnderWay
 
     data class Sailing(val place: String) : UnderWay
+
+    data class Fetching(val items: List<Int>) : UnderWay
 }

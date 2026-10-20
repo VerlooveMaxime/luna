@@ -218,7 +218,7 @@ data class BankStep(val candidates: List<Bank>, val order: BankOrder) : Resolved
             is PlannedTrip -> planning
         }
         // A trip from one of the ends has no legs and so no destination: the player stands at that end.
-        val end = trip.plan.destination ?: here
+        val end = trip.end ?: here
         return BankReach(BankTrip(bankByEnd.getValue(end), end, trip))
     }
 

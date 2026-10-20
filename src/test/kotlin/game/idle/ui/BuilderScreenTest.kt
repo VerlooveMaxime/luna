@@ -1333,7 +1333,7 @@ class BuilderScreenTest {
 
         click(player, BuilderWidgets.travelNo(0))
 
-        assertEquals(TravelAllowance(runes = true, charges = true), player.idleState.travel)
+        assertEquals(TravelAllowance(runes = true, charges = true, bank = true), player.idleState.travel)
     }
 
     @Test

@@ -1061,7 +1061,7 @@ class LunaHarnessApiTest {
             FlowStepView(2, "drop", emptyMap(), emptyList(), emptyList(), null, null, false, 0, emptyList()),
         )
         assertEquals(
-            FlowView("agent_a", running = false, stepIndex = 1, laps = 0, blocked = null, waiting = null, underWay = null, stop = FlowStopView("never", ""), travel = FlowTravelView(coins = false, runes = false, charges = false), steps = steps,
+            FlowView("agent_a", running = false, stepIndex = 1, laps = 0, blocked = null, waiting = null, underWay = null, stop = FlowStopView("never", ""), travel = FlowTravelView(coins = false, runes = false, charges = false, bank = false), steps = steps,
                 reflexes = listOf(FlowReflexView(3, mapOf("do" to "stop"))),
             ),
             view,
@@ -1109,9 +1109,9 @@ class LunaHarnessApiTest {
 
     @Test
     fun `a flow reads what its trips may spend`() {
-        agent().idleState = IdleState(steps = listOf(step("drop")), travel = TravelAllowance(runes = true))
+        agent().idleState = IdleState(steps = listOf(step("drop")), travel = TravelAllowance(runes = true, bank = true))
 
-        assertEquals(FlowTravelView(coins = false, runes = true, charges = false), api().flow("agent_a").travel)
+        assertEquals(FlowTravelView(coins = false, runes = true, charges = false, bank = true), api().flow("agent_a").travel)
     }
 
     @Test

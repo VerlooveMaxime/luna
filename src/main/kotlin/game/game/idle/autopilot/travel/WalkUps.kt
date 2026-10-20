@@ -48,7 +48,7 @@ class WalkUps(private val traveller: Traveller) {
     /** Walks one decision's worth towards [target]; a trip that gets nowhere is the retry rule's to judge, not a block. */
     fun walkTo(target: Candidate): StepOutcome {
         // The place is never said: a walk up's block goes to the retry rule.
-        val walk = TripWork(traveller, Tile.of(target.approach), Place.WORK_SPOT, PlannedTrip(plan(traveller.position(), target.crossings, target.approach)), arriveWithin = 0)
+        val walk = TripWork(traveller, Tile.of(target.approach), Place.WORK_SPOT, PlannedTrip(plan(traveller.position(), target.crossings, target.approach)), arriveWithin = 0, stops = false)
         trip = walk
         val outcome = walk.act(left = null)
         // A trip from here takes the first crossing of the route first: that is the one being clicked.

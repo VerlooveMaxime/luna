@@ -8,15 +8,17 @@ import api.bot.webwalk.plan.Spend
 
 /**
  * What the autopilot's trips may spend besides walking and free passages, which is nothing unless the flow allows it
- * (Q1, Maxime 2026-10-17): [coins] for tolls and fares, [runes] for teleport spells, [charges] of teleport jewellery.
+ * (Q1, Maxime 2026-10-17): [coins] for tolls and fares, [runes] for teleport spells, [charges] of teleport jewellery;
+ * and whether a trip may stop at the [bank] on the way for what those allow (Maxime, 2026-10-20).
  */
-data class TravelAllowance(val coins: Boolean = false, val runes: Boolean = false, val charges: Boolean = false) {
+data class TravelAllowance(val coins: Boolean = false, val runes: Boolean = false, val charges: Boolean = false, val bank: Boolean = false) {
 
     fun allows(choice: TravelChoice): Boolean =
         when (choice) {
             TravelChoice.COINS -> coins
             TravelChoice.RUNES -> runes
             TravelChoice.CHARGES -> charges
+            TravelChoice.BANK -> bank
         }
 
     /** This allowance with [choice] switched to [allowed], as the builder's Travel tab sets it (Part 3b). */
@@ -25,6 +27,7 @@ data class TravelAllowance(val coins: Boolean = false, val runes: Boolean = fals
             TravelChoice.COINS -> copy(coins = allowed)
             TravelChoice.RUNES -> copy(runes = allowed)
             TravelChoice.CHARGES -> copy(charges = allowed)
+            TravelChoice.BANK -> copy(bank = allowed)
         }
 
     /**
@@ -59,32 +62,24 @@ data class TravelAllowance(val coins: Boolean = false, val runes: Boolean = fals
         )
     }
 
-    /**
-     * [carried] as [ALL] would let a trip spend it, when that is more than this allows (less what [reserved] holds back
-     * either way): what a quicker trip than the flow's rules allow is looked for on (the long way round, Q6). Null when
-     * the rules keep nothing the player could pay with from the trip.
-     */
-    fun beyond(carried: CapabilitySnapshot, reserved: Spend, teleports: List<TeleportDefinition>): CapabilitySnapshot? {
-        val allowed = restrict(carried, reserved, teleports)
-        val everything = ALL.restrict(carried, reserved, teleports)
-        val more = everything.items != allowed.items || everything.usableTeleports != allowed.usableTeleports || everything.charges != allowed.charges
-        return everything.takeIf { more }
-    }
-
     companion object {
         /** What every flow allows until its Travel setting says otherwise. */
         val NONE = TravelAllowance()
 
-        /** Everything allowed: what a trip would do without the flow's rules, which the long-way line compares with. */
-        val ALL = TravelAllowance(coins = true, runes = true, charges = true)
+        /** Everything allowed: what a trip would do without the flow's rules, which the long-way lines compare with. */
+        val ALL = TravelAllowance(coins = true, runes = true, charges = true, bank = true)
     }
 }
 
-/** One choice of a flow's Travel setting: [COINS] for tolls and fares, [RUNES] for teleport spells, [CHARGES] for teleport jewellery. */
+/**
+ * One choice of a flow's Travel setting: [COINS] for tolls and fares, [RUNES] for teleport spells, [CHARGES] for teleport
+ * jewellery, [BANK] for stops at the bank on the way.
+ */
 enum class TravelChoice {
     COINS,
     RUNES,
     CHARGES,
+    BANK,
     ;
 
     companion object {

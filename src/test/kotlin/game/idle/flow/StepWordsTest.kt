@@ -26,7 +26,14 @@ class StepWordsTest {
     private val net = 303
     private val bait = 313
     private val bonesNoted = 527
-    private val words = words(FakeNames(mapOf(bones to "Bones", bonesNoted to "Bones", cowhide to "Cowhide", oakLogs to "Oak logs", net to "Small fishing net", bait to "Fishing bait")))
+    private val words = words(
+        FakeNames(
+            mapOf(
+                bones to "Bones", bonesNoted to "Bones", cowhide to "Cowhide", oakLogs to "Oak logs", net to "Small fishing net", bait to "Fishing bait",
+                LAW to "Law rune", AIR to "Air rune", FIRE to "Fire rune", COINS to "Coins", GLORY to "Amulet of glory(4)", BANANA to "Banana",
+            ),
+        ),
+    )
     private val axe = ToolNeed("axe", mapOf(1351 to 1, 1349 to 1), Skill.WOODCUTTING)
     private val hurt = Health(9, 20)
 
@@ -267,8 +274,14 @@ class StepWordsTest {
 
     @ParameterizedTest(name = "{1}")
     @MethodSource("longWays")
-    fun `a long way round names the Travel row that would allow the quicker trip`(choice: TravelChoice, text: String) {
-        assertEquals(text, words.said(1, Said.LongWay(choice)))
+    fun `a long way round says why the quicker trip was not taken`(cause: LongWayCause, text: String) {
+        assertEquals(text, words.said(1, Said.LongWay(cause)))
+    }
+
+    @ParameterizedTest(name = "{1}")
+    @MethodSource("fromBank")
+    fun `what a bank stop withdraws is said with what it is for`(said: Said.FromBank, text: String) {
+        assertEquals(text, words.said(1, said))
     }
 
     @ParameterizedTest(name = "{1}")
@@ -280,10 +293,43 @@ class StepWordsTest {
     companion object {
         @JvmStatic
         fun longWays(): List<Arguments> = listOf(
-            Arguments.of(TravelChoice.COINS, "Autopilot: step 1 takes the long way: tolls and fares are off in Travel."),
-            Arguments.of(TravelChoice.RUNES, "Autopilot: step 1 takes the long way: teleport spells are off in Travel."),
-            Arguments.of(TravelChoice.CHARGES, "Autopilot: step 1 takes the long way: teleport jewellery is off in Travel."),
+            Arguments.of(LongWayCause.Off(TravelChoice.COINS), "Autopilot: step 1 takes the long way: tolls and fares are off in Travel."),
+            Arguments.of(LongWayCause.Off(TravelChoice.RUNES), "Autopilot: step 1 takes the long way: teleport spells are off in Travel."),
+            Arguments.of(LongWayCause.Off(TravelChoice.CHARGES), "Autopilot: step 1 takes the long way: teleport jewellery is off in Travel."),
+            Arguments.of(LongWayCause.Off(TravelChoice.BANK), "Autopilot: step 1 takes the long way: bank stops are off in Travel."),
+            Arguments.of(LongWayCause.NoRoom, "Autopilot: step 1 takes the long way: no room in the bag to withdraw."),
+            Arguments.of(LongWayCause.TooFew(LAW), "Autopilot: step 1 takes the long way: the bank has too few law runes."),
+            Arguments.of(LongWayCause.TooFew(COINS), "Autopilot: step 1 takes the long way: the bank has too few coins."),
+            Arguments.of(LongWayCause.TooFew(GLORY), "Autopilot: step 1 takes the long way: the bank has too few amulets of glory."),
+            Arguments.of(LongWayCause.TooFew(BANANA), "Autopilot: step 1 takes the long way: the bank has too few bananas."),
+            Arguments.of(LongWayCause.NotOpened, "Autopilot: step 1 takes the long way: the bank did not open."),
         )
+
+        @JvmStatic
+        fun fromBank(): List<Arguments> = listOf(
+            Arguments.of(
+                Said.FromBank(TakenFor.Teleport(TeleportDestination.Spell(TeleportSpell.VARROCK)), mapOf(AIR to 3, FIRE to 1, LAW to 1)),
+                "Autopilot: step 1 withdraws for Varrock: 3 air, 1 fire, 1 law.",
+            ),
+            Arguments.of(
+                Said.FromBank(TakenFor.Teleport(TeleportDestination.Spell(TeleportSpell.WATCHTOWER)), mapOf(LAW to 2)),
+                "Autopilot: step 1 withdraws for the Watchtower: 2 law.",
+            ),
+            Arguments.of(
+                Said.FromBank(TakenFor.Teleport(TeleportDestination.Jewellery(TeleportJewellery.AMULET_OF_GLORY, 0)), mapOf(GLORY to 1)),
+                "Autopilot: step 1 withdraws for Edgeville: 1 amulet of glory(4).",
+            ),
+            Arguments.of(Said.FromBank(TakenFor.Toll, mapOf(COINS to 10)), "Autopilot: step 1 withdraws for the Al Kharid toll: 10 coins."),
+            Arguments.of(Said.FromBank(TakenFor.Fare("Karamja"), mapOf(COINS to 20)), "Autopilot: step 1 withdraws for the fare to Karamja: 20 coins."),
+            Arguments.of(Said.FromBank(TakenFor.Trip, mapOf(COINS to 20, AIR to 3, FIRE to 1, LAW to 1)), "Autopilot: step 1 withdraws 20 coins, 3 air, 1 fire, 1 law."),
+        )
+
+        private const val LAW = 563
+        private const val AIR = 556
+        private const val FIRE = 554
+        private const val COINS = 995
+        private const val GLORY = 1712
+        private const val BANANA = 1963
 
         @JvmStatic
         fun underWayWords(): List<Arguments> = listOf(
@@ -307,6 +353,11 @@ class StepWordsTest {
             Arguments.of(UnderWay.Teleporting(TeleportDestination.Jewellery(TeleportJewellery.AMULET_OF_GLORY, 0)), "Teleporting to Edgeville"),
             Arguments.of(UnderWay.PayingToll, "Paying the toll"),
             Arguments.of(UnderWay.Sailing("Port Sarim"), "Sailing to Port Sarim"),
+            Arguments.of(UnderWay.Fetching(listOf(LAW, AIR, FIRE)), "Fetching runes from the bank"),
+            Arguments.of(UnderWay.Fetching(listOf(COINS)), "Fetching coins from the bank"),
+            Arguments.of(UnderWay.Fetching(listOf(COINS, LAW)), "Fetching runes and coins from the bank"),
+            Arguments.of(UnderWay.Fetching(listOf(GLORY)), "Fetching an amulet of glory from the bank"),
+            Arguments.of(UnderWay.Fetching(listOf(LAW, BANANA)), "Fetching runes and a banana from the bank"),
         )
 
         @JvmStatic
@@ -327,6 +378,7 @@ class StepWordsTest {
             Arguments.of(Reason.NoWay(Place.TILE, TravelChoice.COINS), "No way with tolls and fares off"),
             Arguments.of(Reason.NoWay(Place.WORK_SPOT, TravelChoice.RUNES), "No way with teleport spells off"),
             Arguments.of(Reason.NoWay(Place.BANK, TravelChoice.CHARGES), "No way with teleport jewellery off"),
+            Arguments.of(Reason.NoWay(Place.TILE, TravelChoice.BANK), "No way with bank stops off"),
             Arguments.of(Reason.Impassable(Structure.DOOR), "No way through the door"),
             Arguments.of(Reason.Impassable(Structure.GATE), "No way through the gate"),
             Arguments.of(Reason.Impassable(Structure.CURTAIN), "No way through the curtain"),
