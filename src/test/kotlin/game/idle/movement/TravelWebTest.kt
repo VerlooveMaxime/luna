@@ -124,6 +124,29 @@ class TravelWebTest {
         assertEquals(Doorway(1530, doorEast.position, EdgeType.DOOR), web.doorways.between(doorWest.position, doorEast.position))
     }
 
+    /** The house with its door, 1530 on the door's east tile, gone from the world. */
+    private val emptyDoorway: TravelWeb by lazy {
+        val opens = EdgeAction(objectId = 1530, objectPosition = doorEast.position)
+        val door = listOf(WebWalkEdge(doorWest.id, doorEast.id, EdgeType.DOOR, action = opens), WebWalkEdge(doorEast.id, doorWest.id, EdgeType.DOOR, action = opens))
+        val graph = WebWalkGraph(listOf(west, doorWest, doorEast, east), both(west, doorWest) + door + both(doorEast, east), emptyList(), emptyList())
+        TravelWeb(graph, { false }, { walls }, Random(1), stands = { _, _ -> false })
+    }
+
+    @Test
+    fun `the doors gone from the world are listed`() {
+        assertEquals(setOf(Doorway(1530, doorEast.position, EdgeType.DOOR)), emptyDoorway.removedDoors)
+    }
+
+    @Test
+    fun `a trip walks through the doorway of a door gone from the world`() {
+        assertEquals(false, emptyDoorway.plan(start, listOf(pastTheDoor), CapabilitySnapshot())?.legs?.any { it.type == EdgeType.DOOR })
+    }
+
+    @Test
+    fun `the reach scans get no doorway for a door gone from the world`() {
+        assertNull(emptyDoorway.doorways.between(doorWest.position, doorEast.position))
+    }
+
     @Test
     fun `a trip teleports when the player may`() {
         val snapshot = CapabilitySnapshot(usableTeleports = setOf("varrock"))

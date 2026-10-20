@@ -76,10 +76,16 @@ class Doorways(crossings: Map<Pair<Position, Position>, Doorway>, entrances: Lis
         private fun crossing(graph: WebWalkGraph, edge: WebWalkEdge): Pair<Pair<Position, Position>, Doorway>? {
             val from = graph.node(edge.from) ?: return null
             val to = graph.node(edge.to) ?: return null
-            val action = edge.action ?: return null
-            val id = action.objectId ?: return null
-            val at = action.objectPosition ?: return null
-            return (from.position to to.position) to Doorway(id, at, edge.type)
+            val doorway = doorwayOf(edge) ?: return null
+            return (from.position to to.position) to doorway
         }
     }
+}
+
+/** The object [edge] goes through, null when it names no object or no tile for it. */
+fun doorwayOf(edge: WebWalkEdge): Doorway? {
+    val action = edge.action ?: return null
+    val id = action.objectId ?: return null
+    val at = action.objectPosition ?: return null
+    return Doorway(id, at, edge.type)
 }

@@ -106,6 +106,60 @@ class TravelGraphTest {
         assertEquals(listOf(walk), travelGraph(WebWalkGraph(nodes, listOf(walk), emptyList(), emptyList()), wilderness) { true }.edges)
     }
 
+    private val door = Doorway(1530, south.position, EdgeType.DOOR)
+
+    private fun doorEdge(from: WebWalkNode, to: WebWalkNode) =
+        edge(from, to, EdgeType.DOOR).copy(action = EdgeAction(objectId = door.id, objectPosition = door.position))
+
+    private fun withRemoved(vararg edges: WebWalkEdge): List<WebWalkEdge> =
+        travelGraph(WebWalkGraph(nodes, edges.toList(), emptyList(), emptyList()), wilderness, removed = setOf(door)).edges
+
+    @Test
+    fun `a removed door's edge is a walk through its empty doorway`() {
+        assertEquals(listOf(edge(east, south)), withRemoved(doorEdge(east, south)))
+    }
+
+    @Test
+    fun `a removed door from outside into the wilderness is still left out`() {
+        assertEquals(emptyList<WebWalkEdge>(), withRemoved(doorEdge(west, inside)))
+    }
+
+    @Test
+    fun `a door still standing keeps its edge`() {
+        val other = edge(east, south, EdgeType.DOOR).copy(action = EdgeAction(objectId = 1533, objectPosition = door.position))
+        assertEquals(listOf(other), withRemoved(other))
+    }
+
+    @Test
+    fun `an entrance over the removed door's object and tile stays an entrance`() {
+        val entrance = edge(east, south, EdgeType.ENTRANCE).copy(action = EdgeAction(objectId = door.id, objectPosition = door.position))
+        assertEquals(listOf(entrance), withRemoved(entrance))
+    }
+
+    private fun removedOf(vararg edges: WebWalkEdge, stands: (Int, Position) -> Boolean): Set<Doorway> =
+        removedDoors(WebWalkGraph(nodes, edges.toList(), emptyList(), emptyList()), stands)
+
+    @Test
+    fun `a door that stands nowhere is removed, once for both ways across`() {
+        assertEquals(setOf(door), removedOf(doorEdge(east, south), doorEdge(south, east)) { _, _ -> false })
+    }
+
+    @Test
+    fun `a door that stands is not removed`() {
+        assertEquals(emptySet<Doorway>(), removedOf(doorEdge(east, south)) { id, at -> id == door.id && at == door.position })
+    }
+
+    @Test
+    fun `only doors, gates and curtains are asked whether they stand`() {
+        val entrance = edge(east, south, EdgeType.ENTRANCE).copy(action = EdgeAction(objectId = 4499, objectPosition = south.position))
+        assertEquals(emptySet<Doorway>(), removedOf(entrance) { _, _ -> false })
+    }
+
+    @Test
+    fun `a door edge naming no object is not removed`() {
+        assertEquals(emptySet<Doorway>(), removedOf(edge(east, south, EdgeType.GATE)) { _, _ -> false })
+    }
+
     @Test
     fun `the nodes in the wilderness stay, so a trip can start from one`() {
         val graph = travelGraph(WebWalkGraph(nodes, emptyList(), emptyList(), emptyList()), wilderness)
