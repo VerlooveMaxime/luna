@@ -75,6 +75,11 @@ class TravelGraphTest {
     }
 
     @Test
+    fun `a cave entrance outside the wilderness is left out`() {
+        assertEquals(emptyList<WebWalkEdge>(), edgesKept(edge(east, south, EdgeType.ENTRANCE)))
+    }
+
+    @Test
     fun `the nodes in the wilderness stay, so a trip can start from one`() {
         val graph = travelGraph(WebWalkGraph(nodes, emptyList(), emptyList(), emptyList()), wilderness)
         assertEquals(nodes.map { it.id }.toSet(), graph.nodes.keys)

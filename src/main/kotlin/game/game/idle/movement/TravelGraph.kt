@@ -10,11 +10,12 @@ import io.luna.game.model.Position
  * Upstream's web-walker graph as the autopilot may travel it. Nothing enters the wilderness: no edge from outside it to
  * a node in it, no walk edge whose straight line steps into it (a walk along the border may cut a corner), no teleport
  * or fairy ring landing in it, no bank in it; a player already in it may still walk out. The home teleport is left out:
- * it is Luna's `::home` command, which 2006 had no spell for (Maxime, 2026-10-17).
+ * it is Luna's `::home` command, which 2006 had no spell for (Maxime, 2026-10-17). Cave and dungeon entrances are left
+ * out too, until a trip has a leg for them (Maxime, 2026-10-20).
  */
 fun travelGraph(graph: WebWalkGraph, inWilderness: (Position) -> Boolean): WebWalkGraph {
     val wild = graph.nodes.values.filter { inWilderness(it.position) }.map { it.id }.toSet()
-    val edges = graph.edges.filter { edge -> !enters(graph, edge, wild, inWilderness) }
+    val edges = graph.edges.filter { edge -> edge.type != EdgeType.ENTRANCE && !enters(graph, edge, wild, inWilderness) }
     val teleports = graph.teleports.filter { it.kind != TeleportKind.HOME && it.nodeId !in wild }
     val rings = graph.fairyRings.filter { it.nodeId !in wild }
     val banks = graph.banks.filter { !inWilderness(it.stand) }
