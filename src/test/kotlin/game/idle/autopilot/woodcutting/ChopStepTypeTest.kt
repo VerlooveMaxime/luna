@@ -49,11 +49,6 @@ class ChopStepTypeTest {
     }
 
     @Test
-    fun `a tree Luna has no standing objects for is rejected`() {
-        assertRejected("No teak trees in this world yet") { ChopStepType.resolve(chop("tree" to "teak"), FlowContext()) }
-    }
-
-    @Test
     fun `the configure screen searches the tree, types the amount, picks the work spot and the radius`() {
         assertEquals(
             listOf(

@@ -3,7 +3,6 @@ package game.idle.content.combat
 import api.bot.zone.Zone
 import game.idle.location.survey.CacheMap
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -72,9 +71,9 @@ class NpcCombatImporterTest {
 
     @Test
     fun `an unknown area is refused with the zones to choose from`() {
-        val error = assertThrows<IllegalArgumentException> { regionsOf(listOf("tutorial_island"), Zone.entries) }
+        val error = assertThrows<IllegalArgumentException> { regionsOf(listOf("tutorial_island"), listOf(Zone.DRAYNOR, Zone.LUMBRIDGE)) }
 
-        assertTrue(error.message.orEmpty().startsWith("'tutorial_island' is neither a region id nor a zone (draynor, "))
+        assertEquals("'tutorial_island' is neither a region id nor a zone (draynor, lumbridge)", error.message)
     }
 
     private fun sourcesDir(root: Path): Path {

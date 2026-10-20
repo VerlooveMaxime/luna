@@ -23,7 +23,6 @@ import io.luna.game.event.impl.ObjectClickEvent.ObjectSecondClickEvent
 import io.luna.game.event.impl.WidgetItemClickEvent
 import io.luna.game.event.impl.SkillChangeEvent
 import io.luna.game.action.Action
-import io.luna.game.action.ActionState
 import io.luna.game.event.impl.UseItemEvent.ItemOnObjectEvent
 import io.luna.game.model.Position
 import io.luna.game.model.World
@@ -146,9 +145,7 @@ class LunaTutorial(
         advance(player, script.goalProgress(step, PlayerProgress(flow, carried, player.isRunning)) ?: script.oreProgress(step, carried))
     }
 
-    /** An interrupted action stays queued until Luna's next pass over the queue, which comes after this check. */
-    private fun running(player: Player, type: Class<out Action<*>>): Boolean =
-        player.actions.getAll(type).any { it.state == ActionState.PROCESSING }
+    private fun running(player: Player, type: Class<out Action<*>>): Boolean = player.actions.getAll(type).isNotEmpty()
 
     private fun busyHelp(player: Player, activity: String): HelpBox {
         val help = script.busyHelp(activity)

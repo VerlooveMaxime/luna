@@ -27,7 +27,6 @@ import game.idle.location.Tile
 import game.idle.movement.TravelWebs
 import game.skill.woodcutting.cutTree.Axe
 import game.skill.woodcutting.cutTree.Tree
-import game.skill.woodcutting.cutTree.TreeStump
 import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 
@@ -36,8 +35,8 @@ object ChopStepType : StepType {
 
     const val TREE = "tree"
 
-    /** The kinds Luna has standing trees for, easiest first (teak and mahogany have none yet). */
-    val CUTTABLE: List<Tree> = Tree.entries.filter { !TreeStump.ALIVE_TREE_MAP.get(it).isEmpty() }.sortedBy { it.level }
+    /** Every kind of tree Luna cuts, easiest first. */
+    val CUTTABLE: List<Tree> = Tree.entries.sortedBy { it.level }
 
     /** Any axe, each with the Woodcutting level it takes; Luna's woodcutting takes one carried or wielded. */
     val AXE = ToolNeed("axe", Axe.entries.associate { it.id to it.level }, Skill.WOODCUTTING, worn = true)
@@ -69,9 +68,7 @@ object ChopStepType : StepType {
 
     override fun resolve(settings: StepSettings, context: FlowContext): ResolvedStep {
         val name = settings[TREE] ?: throw FlowError(Reasons.needs("Tree"))
-        val tree = Tree.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
-            ?: throw FlowError(Reasons.notA("Tree", name))
-        if (tree !in CUTTABLE) throw FlowError("No ${tree.name.lowercase()} trees in this world yet")
+        val tree = CUTTABLE.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: throw FlowError(Reasons.notA("Tree", name))
         return ChopStep(tree, StepRadius.read(settings), StepSpot.of(settings, context), StepAmount.read(settings))
     }
 }

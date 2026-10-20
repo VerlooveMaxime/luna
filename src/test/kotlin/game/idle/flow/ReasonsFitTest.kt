@@ -158,7 +158,6 @@ class ReasonsFitTest {
     fun brokenSteps(): List<Arguments> = listOf(
         "chop with no tree" to listOf(step("chop")),
         "chop of a tree that is not one" to listOf(step("chop", "tree" to "palm")),
-        "chop of a tree the world has none of" to listOf(step("chop", "tree" to "mahogany")),
         "chop with a count of nothing" to listOf(step("chop", "tree" to "normal", "amount" to "0")),
         "chop too far around" to listOf(step("chop", "tree" to "normal", "within" to "33")),
         "chop at a spot that is no tile" to listOf(step("chop", "tree" to "normal", "spot" to "3101")),

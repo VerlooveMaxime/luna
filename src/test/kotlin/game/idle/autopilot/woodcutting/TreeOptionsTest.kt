@@ -41,6 +41,6 @@ class TreeOptionsTest {
 
         val labels = TreeOptions(LunaGameNames).options(OptionContext()).map { it.label }
 
-        assertEquals(listOf("Tree", "Oak", "Willow"), labels.take(3))
+        assertEquals(listOf("Tree", "Achey Tree", "Oak"), labels.take(3))
     }
 }
