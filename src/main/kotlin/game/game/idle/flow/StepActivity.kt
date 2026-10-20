@@ -60,8 +60,8 @@ sealed interface Said {
 
     data class Skipped(val reason: Reason.Stuck) : Said
 
-    /** A walk up to a target could not get through [passage] on [tile], so the target was set aside (Part 4b). */
-    data class DoorShut(val passage: Passage, val tile: Tile) : Said
+    /** A walk up to a target could not get through [passage] on [tile], a door or an entrance, so the target was set aside (Part 4b). */
+    data class NotThrough(val passage: Passage, val tile: Tile) : Said
 
     /** A trip started a teleport (web-walker movement Part 3c). */
     data class Teleported(val started: TeleportStarted) : Said

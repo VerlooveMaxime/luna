@@ -34,6 +34,17 @@ class WalkingDistancesTest {
         }
     }
 
+    /** A tunnel through a wall along x = 12, used from 11 10, landing on [to] in [ticks]. */
+    private fun tunnel(to: Position = Position(13, 10, 0), from: Position = Position(11, 10, 0), ticks: Double = 2.0) =
+        EntranceStep(Doorway(6912, Position(12, 10, 0), EdgeType.ENTRANCE), from, to, ticks)
+
+    /** A walk that a wall along x = 12 stops at any y, through [entrances] too. */
+    private fun walledThrough(vararg entrances: EntranceStep): Walk = object : Walk {
+        override fun step(from: Position, direction: Direction): Step? = if (from.translate(1, direction).x != 12) Step.Plain else null
+
+        override fun entrances(from: Position): List<EntranceStep> = entrances.filter { it.from == from }
+    }
+
     @Test
     fun `the origin is zero steps away`() {
         val distances = WalkingDistances.from(origin, bounds) { _, _ -> true }
@@ -125,46 +136,46 @@ class WalkingDistancesTest {
         val distances = WalkingDistances.through(origin, bounds, corridor(mapOf(12 to true)))
 
         val door = DoorStep(doorway(12), from = Position(11, 10, 0), to = Position(12, 10, 0), shut = true)
-        assertEquals(listOf(door), distances.doorsOn(Position(13, 10, 0)))
+        assertEquals(listOf(door), distances.crossingsOn(Position(13, 10, 0)))
     }
 
     @Test
     fun `a walk through no door names none`() {
         val distances = WalkingDistances.through(origin, bounds, corridor(mapOf(12 to true)))
 
-        assertEquals(emptyList<DoorStep>(), distances.doorsOn(Position(9, 10, 0)))
+        assertEquals(emptyList<DoorStep>(), distances.crossingsOn(Position(9, 10, 0)))
     }
 
     @Test
     fun `the doors on the way are named in the order the walk goes through them`() {
         val distances = WalkingDistances.through(origin, bounds, corridor(mapOf(11 to false, 12 to true)))
 
-        assertEquals(listOf(doorway(11), doorway(12)), distances.doorsOn(Position(13, 10, 0)).map { it.doorway })
+        assertEquals(listOf(doorway(11), doorway(12)), distances.crossingsOn(Position(13, 10, 0)).map { it.doorway })
     }
 
     @Test
     fun `a walk round a shut door beats opening it, and names no door`() {
         val door = DoorStep(doorway(11), origin, Position(11, 10, 0), shut = true)
-        val distances = WalkingDistances.through(origin, bounds) { from, direction ->
+        val distances = WalkingDistances.through(origin, bounds, Walk { from, direction ->
             if (from == origin && direction == Direction.EAST) door else Step.Plain
-        }
+        })
 
-        assertEquals(2 to emptyList<DoorStep>(), distances[Position(11, 10, 0)] to distances.doorsOn(Position(11, 10, 0)))
+        assertEquals(2 to emptyList<DoorStep>(), distances[Position(11, 10, 0)] to distances.crossingsOn(Position(11, 10, 0)))
     }
 
     @Test
     fun `a dearer way through a shut door onto a tile already reached keeps the cheaper count`() {
         val onto = Position(11, 10, 0)
-        val distances = WalkingDistances.through(origin, bounds) { from, direction ->
+        val distances = WalkingDistances.through(origin, bounds, Walk { from, direction ->
             if (from.translate(1, direction) == onto) DoorStep(doorway(11), from, onto, shut = true) else Step.Plain
-        }
+        })
 
         assertEquals(7, distances[onto])
     }
 
     @Test
     fun `a walk through doors must start inside its bounds too`() {
-        assertThrows<IllegalArgumentException> { WalkingDistances.through(Position(0, 0, 0), bounds) { _, _ -> Step.Plain } }
+        assertThrows<IllegalArgumentException> { WalkingDistances.through(Position(0, 0, 0), bounds, Walk { _, _ -> Step.Plain }) }
     }
 
     @Test
@@ -210,5 +221,48 @@ class WalkingDistancesTest {
     @Test
     fun `bounds ending south of their start are rejected`() {
         assertThrows<IllegalArgumentException> { TileBounds(5, 5, 5, 4, 0) }
+    }
+
+    @Test
+    fun `an entrance takes the walk past a wall for its ticks at a run`() {
+        val distances = WalkingDistances.through(origin, bounds, walledThrough(tunnel()))
+
+        assertEquals(5, distances[Position(13, 10, 0)])
+    }
+
+    @Test
+    fun `a walk on from an entrance names it`() {
+        val distances = WalkingDistances.through(origin, bounds, walledThrough(tunnel()))
+
+        assertEquals(listOf(tunnel()), distances.crossingsOn(Position(13, 11, 0)))
+    }
+
+    @Test
+    fun `an entrance landing outside the bounds is not taken`() {
+        val distances = WalkingDistances.through(origin, bounds, walledThrough(tunnel(to = Position(14, 10, 0))))
+
+        assertNull(distances[Position(14, 10, 0)])
+    }
+
+    @Test
+    fun `an entrance may land past the bounds where its landings allow`() {
+        val distances = WalkingDistances.through(origin, bounds, walledThrough(tunnel(to = Position(15, 10, 0))), landings = TileBounds.around(origin, 6))
+
+        assertEquals(5, distances[Position(15, 10, 0)])
+    }
+
+    @Test
+    fun `the walk goes on from a landing past the bounds only into them`() {
+        val distances = WalkingDistances.through(origin, bounds, walledThrough(tunnel(to = Position(14, 10, 0))), landings = TileBounds.around(origin, 6))
+
+        assertEquals(listOf(6, null), listOf(distances[Position(13, 10, 0)], distances[Position(15, 10, 0)]))
+    }
+
+    @Test
+    fun `no entrance is used from a landing past the bounds`() {
+        val onwards = tunnel(from = Position(15, 10, 0), to = Position(16, 10, 0))
+        val distances = WalkingDistances.through(origin, bounds, walledThrough(tunnel(to = Position(15, 10, 0)), onwards), landings = TileBounds.around(origin, 6))
+
+        assertNull(distances[Position(16, 10, 0)])
     }
 }

@@ -2,6 +2,7 @@ package game.idle.autopilot
 
 import game.idle.location.Area
 import game.idle.movement.Doorways
+import game.idle.movement.EntranceStep
 import game.idle.movement.ReachScan
 import game.idle.movement.ReachTerrain
 import game.idle.movement.Step
@@ -16,7 +17,7 @@ import io.luna.game.model.`object`.GameObject
  * The objects of [objectIds] standing around a step's [area] that the player can see, as the step looks at them: each
  * with the walk to a tile it is used from, the reach checked against the object itself as the click's listener
  * checks it (a tree is cut from a tile beside it, never a diagonal one; a long range from its open side). The walk is
- * [LunaClicks.reachSteps]': through the shut ones of [doorways] too.
+ * [LunaClicks.reachSteps]': through the shut ones of [doorways] too, and their entrances.
  */
 class ObjectsAround(
     private val player: Player,
@@ -36,7 +37,7 @@ class ObjectsAround(
     /** Each object the player can walk up to, with how; none from too far off the area or another floor. */
     fun candidates(): List<Candidate> =
         scan.reachable(player.position, standing(), ::footprintOf, terrain = this)
-            .map { (obj, reach) -> Candidate(obj.id, obj.position, reach.distance, reach.usableFromHere, reach.approach, doors = reach.doors) }
+            .map { (obj, reach) -> Candidate(obj.id, obj.position, reach.distance, reach.usableFromHere, reach.approach, crossings = reach.crossings) }
 
     /**
      * The object [candidate] was, if it still stands there for the player: a tree cut down, a rock emptied or a fire
@@ -52,6 +53,8 @@ class ObjectsAround(
         world.locator.findObjects(anchor, area.radius) { it.id in objectIds && it.isVisibleTo(player) }.toList()
 
     override fun step(from: Position, direction: Direction): Step? = steps.step(from, direction)
+
+    override fun entrances(from: Position): List<EntranceStep> = steps.entrances(from)
 
     override fun reachedFrom(tile: Position, target: GameObject): Boolean = world.collisionManager.reached(tile, target, STANDARD_SIZE)
 }

@@ -341,6 +341,14 @@ class LunaClicksTest {
     }
 
     @Test
+    fun `a player held by what they clicked is still clicking it`() {
+        val player = player()
+        player.lock()
+
+        assertTrue(LunaClicks.clicking(player))
+    }
+
+    @Test
     fun `a click on its way to its target is a click under way`() {
         val player = TestWorld.login("clicker", Position(3195, 3200))
         recordBoothClicks()

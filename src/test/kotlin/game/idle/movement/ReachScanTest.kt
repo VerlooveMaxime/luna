@@ -24,6 +24,10 @@ class ReachScanTest {
     private val door =
         DoorStep(Doorway(1530, Position(3168, 3444, 0), EdgeType.DOOR), from = Position(3167, 3444, 0), to = Position(3168, 3444, 0), shut = true)
 
+    /** A tunnel through the wall along x = 3168, used from 3167 3444, landing on [to]. */
+    private fun tunnel(to: Position = Position(3169, 3444, 0)) =
+        EntranceStep(Doorway(6912, Position(3168, 3444, 0), EdgeType.ENTRANCE), from = Position(3167, 3444, 0), to, ticks = 2.0)
+
     /**
      * Targets block their own tiles. A fence along x = 3168 from y = 3440 to 3448 stops steps onto it; a [wall] there
      * stops them at any y. A target is used from an orthogonally adjacent tile. A [door] lets a walk through the fence.
@@ -112,6 +116,20 @@ class ReachScanTest {
     }
 
     @Test
+    fun `a target past an entrance is walked to through it, the entrance counted and named`() {
+        val found = reachable(Position(3165, 3444, 0), listOf(tree), Grid(listOf(tree), wall = true).through(tunnel()))
+
+        assertEquals(Reach(distance = 7, usableFromHere = false, approach = Position(3170, 3444, 0), listOf(tunnel())), found.single().second)
+    }
+
+    @Test
+    fun `an entrance landing outside the area is not taken`() {
+        val found = reachable(Position(3165, 3444, 0), listOf(tree), Grid(listOf(tree), wall = true).through(tunnel(to = Position(3181, 3444, 0))))
+
+        assertEquals(emptyList<Pair<Standing, Reach>>(), found)
+    }
+
+    @Test
     fun `a two by two target is approached at its footprint`() {
         val found = reachable(Position(3165, 3444, 0), listOf(oak), Grid(listOf(oak)))
 
@@ -158,19 +176,24 @@ class ReachScanTest {
 
     @Test
     fun `the distances from a tile near the area count the steps into it`() {
-        val distances = scan.distancesFrom(Position(3181, 3445, 0)) { _, _ -> Step.Plain }
+        val distances = scan.distancesFrom(Position(3181, 3445, 0), Walk { _, _ -> Step.Plain })
 
         assertEquals(16, distances?.get(anchor))
     }
 
     @Test
     fun `too far from the anchor there are no distances`() {
-        assertNull(scan.distancesFrom(Position(3196, 3445, 0)) { _, _ -> Step.Plain })
+        assertNull(scan.distancesFrom(Position(3196, 3445, 0), Walk { _, _ -> Step.Plain }))
     }
 
     @Test
     fun `on another floor there are no distances`() {
-        assertNull(scan.distancesFrom(Position(3165, 3445, 1)) { _, _ -> Step.Plain })
+        assertNull(scan.distancesFrom(Position(3165, 3445, 1), Walk { _, _ -> Step.Plain }))
+    }
+
+    /** The same ground, and [entrance] past what stands in the way. */
+    private fun ReachTerrain<Standing>.through(entrance: EntranceStep): ReachTerrain<Standing> = object : ReachTerrain<Standing> by this {
+        override fun entrances(from: Position): List<EntranceStep> = listOf(entrance).filter { it.from == from }
     }
 
     /** Nothing can be stepped onto except the origin's own tile. */

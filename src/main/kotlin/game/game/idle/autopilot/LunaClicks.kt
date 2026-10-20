@@ -95,8 +95,13 @@ object LunaClicks {
      */
     fun interacting(player: Player): Boolean = !player.walking.isEmpty || clicking(player)
 
-    /** About to click on arrival, or a click's interaction action still queued: what a flight waits for, never its walks. */
-    fun clicking(player: Player): Boolean = player.heldClick != null || player.actions.first(InteractionAction::class.java) != null
+    /**
+     * About to click on arrival, a click's interaction action still queued, or locked, when nothing the player clicks
+     * does anything (an entrance moving them after its delay, entrance legs Part 2; a teleport, a stun): what a flight
+     * waits for, never its walks.
+     */
+    fun clicking(player: Player): Boolean =
+        player.heldClick != null || player.actions.first(InteractionAction::class.java) != null || player.isLocked
 
     /**
      * Breaks off what the autopilot has the player doing: the action in progress as a player's own click would, leaving
@@ -145,7 +150,10 @@ object LunaClicks {
     fun canStep(world: World, from: Position, direction: Direction): Boolean =
         world.collisionManager.traversable(from, EntityType.PLAYER, direction)
 
-    /** The steps of a reach scan in [world]: [canStep]'s, and through the shut ones of [doorways], which a walk opens. */
+    /**
+     * The steps of a reach scan in [world]: [canStep]'s, through the shut ones of [doorways], which a walk opens, and
+     * through their entrances the player sees an option on.
+     */
     fun reachSteps(world: World, doorways: Doorways): ReachSteps =
         ReachSteps({ from, direction -> canStep(world, from, direction) }, doorways)
 

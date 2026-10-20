@@ -36,7 +36,7 @@ class TravelWeb(
 
     val doors: DoorCrossings = DoorCrossings.of(graph)
 
-    /** The same doors with their objects, for the reach scans' walks. */
+    /** The same doors with their objects, and the entrances that keep to one floor, for the reach scans' walks. */
     val doorways: Doorways = Doorways.of(graph)
 
     private val planner = WebWalkPlanner(graph, estimator(doors))

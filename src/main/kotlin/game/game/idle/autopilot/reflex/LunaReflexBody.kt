@@ -21,6 +21,7 @@ import game.idle.flow.UnderWay
 import game.idle.flow.WornSpecial
 import game.idle.movement.Doorway
 import game.idle.movement.Doorways
+import game.idle.movement.EntranceStep
 import game.idle.movement.FleePlanner
 import game.idle.movement.Step
 import game.idle.movement.TravelWebs
@@ -157,7 +158,10 @@ class LunaReflexBody(
 
     override fun shutBehind(): Passage? = flight.shut()
 
-    /** The world as the flight sees it now: the web's doorways, the player's steps through them, the npcs' own walls. */
+    /**
+     * The world as the flight sees it now: the web's doorways, the player's steps through them and its entrances, the npcs'
+     * own walls.
+     */
     private fun terrain(): FlightTerrain {
         val known = doorways()
         val steps = LunaClicks.reachSteps(world, known)
@@ -165,6 +169,8 @@ class LunaReflexBody(
             override val doorways: Doorways = known
 
             override fun step(from: Position, direction: Direction): Step? = steps.step(from, direction)
+
+            override fun entrances(from: Position): List<EntranceStep> = steps.entrances(from)
 
             override fun npcStep(from: Position, direction: Direction): Boolean = npcCanStep(from, direction)
 

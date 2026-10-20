@@ -52,7 +52,7 @@ class StepWords(private val names: GameNames, private val chat: ClientFont, priv
         when (said) {
             is Said.Ended -> line("${PREFIX}step $number ended, ", said.reason)
             is Said.Skipped -> line("${PREFIX}step $number skipped this lap: ", said.reason)
-            is Said.DoorShut -> "${PREFIX}step $number could not get through the ${noun(said.passage)} at ${said.tile.x}, ${said.tile.y}."
+            is Said.NotThrough -> notThrough(number, said)
             is Said.Teleported -> "${PREFIX}step $number ${teleported(said.started)}."
             is Said.NotWornAgain -> "${PREFIX}step $number ${notWornAgain(said.destination)}."
             is Said.PaidToll -> "${PREFIX}step $number pays the ${said.coins}-coin toll at the Al Kharid gate."
@@ -205,6 +205,19 @@ class StepWords(private val names: GameNames, private val chat: ClientFont, priv
             is Structure -> if (passage.way == Way.THROUGH) "Going through the ${noun(passage)}" else "Climbing ${way(passage.way)} the ${noun(passage)}"
             is EntrancePassage -> capitalised(listOfNotNull(ing(passage.verb), way(passage.way).takeIf { passage.wayNamed }, "the", passage.name).joinToString(" "))
         }
+
+    /**
+     * "Autopilot: step 1 could not get up the rocks at 3239, 9497."; an entrance whose whole name does not fit the chat box
+     * is named by its last word, as its red block is (Maxime, 2026-10-20): "... could not get through the entrance at
+     * 2949, 9516." for the Mogre camp's underwater cavern entrance.
+     */
+    private fun notThrough(number: Int, said: Said.NotThrough): String {
+        val passage = said.passage
+        val line = { name: String -> "${PREFIX}step $number could not get ${way(passage.way)} the $name at ${said.tile.x}, ${said.tile.y}." }
+        val whole = line(noun(passage))
+        if (passage !is EntrancePassage || chat.width(whole) <= CHAT_ROOM) return whole
+        return line(passage.name.substringAfterLast(' '))
+    }
 
     /** A verb with -ing, its silent e dropped: "leave", "leaving". */
     private fun ing(verb: String): String = (if (verb.endsWith("e") && !verb.endsWith("ee")) verb.dropLast(1) else verb) + "ing"

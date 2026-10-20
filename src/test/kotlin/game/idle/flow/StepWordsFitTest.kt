@@ -11,6 +11,7 @@ import game.idle.autopilot.travel.LunaEntrances
 import game.idle.autopilot.woodcutting.ChopStepType
 import game.idle.flow.option.LunaGameNames
 import game.idle.font.ClientFont
+import game.idle.location.Tile
 import game.idle.movement.TravelChoice
 import game.idle.ui.BuilderWidgets
 import game.obj.entrances.Entrance
@@ -103,8 +104,12 @@ class StepWordsFitTest {
                 StepWords.NO_GOALS,
                 words.stoppedAfterLaps(Int.MAX_VALUE),
                 words.stoppedAfterMinutes(Int.MAX_VALUE),
-            ) + goals().flatMap { listOf(words.goalMet(99, it), words.goalStops(99, it)) } + travelLines()
+            ) + goals().flatMap { listOf(words.goalMet(99, it), words.goalStops(99, it)) } + travelLines() + notThroughLines()
     }
+
+    /** Every door a walk up can be stuck at, and every entrance of Luna's in the words the player sees, at the widest tile. */
+    private fun notThroughLines(): List<String> =
+        (listOf(Structure.DOOR, Structure.GATE, Structure.CURTAIN) + entrances()).map { words.said(99, Said.NotThrough(it, Tile(9999, 9999))) }
 
     /**
      * Every spend and long way a trip can tell (web-walker movement Part 3c): each teleport with all it lists, each piece

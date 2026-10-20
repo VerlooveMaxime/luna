@@ -1,6 +1,5 @@
 package game.idle.movement
 
-import io.luna.game.model.Direction
 import io.luna.game.model.Position
 
 /** Something to walk up to: its south-west tile and the tiles it covers east and north of it. */
@@ -8,15 +7,12 @@ data class Footprint(val position: Position, val width: Int, val height: Int)
 
 /**
  * How a player gets to use a target: [distance] walking steps to [approach], zero when [usableFromHere], through
- * [doors] in that order.
+ * [crossings] (doors and entrances) in that order.
  */
-data class Reach(val distance: Int, val usableFromHere: Boolean, val approach: Position, val doors: List<DoorStep> = emptyList())
+data class Reach(val distance: Int, val usableFromHere: Boolean, val approach: Position, val crossings: List<Crossing> = emptyList())
 
-/** The collision answers a scan for targets of type [T] needs. */
-interface ReachTerrain<in T> {
-
-    /** The step from [from] in [direction], doors included, null when the walk cannot take it. */
-    fun step(from: Position, direction: Direction): Step?
+/** The collision answers a scan for targets of type [T] needs: the player's walk, doors and entrances included, and the reach. */
+interface ReachTerrain<in T> : Walk {
 
     /**
      * Whether a player standing on [tile] can use [target] without moving, by the same rule as the click's listener:
@@ -36,19 +32,20 @@ class ReachScan(private val anchor: Position, radius: Int, private val maxWalk: 
     fun atLocation(here: Position): Boolean = here in area
 
     /**
-     * Steps from [here] to every tile of the area a walk gets to, by [step]; none when the player stands on another
-     * floor or farther than [maxWalk] tiles from the anchor, where they walk back first.
+     * Steps from [here] to every tile of the area a walk gets to, by [walk], through entrances with both ends in it;
+     * none when the player stands on another floor or farther than [maxWalk] tiles from the anchor, where they walk back
+     * first.
      */
-    fun distancesFrom(here: Position, step: (Position, Direction) -> Step?): WalkingDistances? {
+    fun distancesFrom(here: Position, walk: Walk): WalkingDistances? {
         if (here.z != anchor.z || here.computeLongestDistance(anchor) > maxWalk) {
             return null
         }
-        return WalkingDistances.through(here, area.including(here), step)
+        return WalkingDistances.through(here, area.including(here), walk)
     }
 
     /** Each target the player can walk up to, with how; unreachable ones are left out. */
     fun <T> reachable(here: Position, targets: List<T>, footprint: (T) -> Footprint, terrain: ReachTerrain<T>): List<Pair<T, Reach>> {
-        val distances = distancesFrom(here, terrain::step) ?: return emptyList()
+        val distances = distancesFrom(here, terrain) ?: return emptyList()
         return targets.mapNotNull { target -> reach(here, target, footprint(target), distances, terrain)?.let { target to it } }
     }
 
@@ -62,7 +59,7 @@ class ReachScan(private val anchor: Position, radius: Int, private val maxWalk: 
             .mapNotNull { tile -> distances[tile]?.let { tile to it } }
             .minByOrNull { (_, steps) -> steps }
             ?: return null
-        return Reach(steps, usableFromHere = false, approach, distances.doorsOn(approach))
+        return Reach(steps, usableFromHere = false, approach, distances.crossingsOn(approach))
     }
 
     companion object {

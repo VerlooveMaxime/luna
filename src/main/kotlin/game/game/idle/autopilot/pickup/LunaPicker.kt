@@ -32,13 +32,13 @@ class LunaPicker(private val player: Player, private val itemIds: Set<Int>, priv
 
     override fun look(): PickUpView {
         val here = player.position
-        val distances = scan.distancesFrom(here, steps::step)
+        val distances = scan.distancesFrom(here, steps)
             ?: return PickUpView(atLocation = false, items = emptyList())
         val items = lying().mapNotNull { item ->
             distances[item.position]?.let { distance ->
                 val fits = player.inventory.hasSpaceFor(item.toItem())
-                val doors = distances.doorsOn(item.position)
-                Candidate(item.id, item.position, distance, usableFromHere = distance == 0, approach = item.position, fits = fits, doors = doors)
+                val crossings = distances.crossingsOn(item.position)
+                Candidate(item.id, item.position, distance, usableFromHere = distance == 0, approach = item.position, fits = fits, crossings = crossings)
             }
         }
         return PickUpView(atLocation = scan.atLocation(here), items = items)

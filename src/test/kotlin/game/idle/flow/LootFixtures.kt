@@ -70,7 +70,7 @@ class FightFixture : AreaFixture, SettlingFixture, ApproachFixture {
 
     override fun targetFarOff(doors: List<DoorStep>) {
         val farOff = man.copy(
-            position = Position(anchor.x + 6, anchor.y), distance = 12, usableFromHere = false, approach = Position(anchor.x + 5, anchor.y), doors = doors,
+            position = Position(anchor.x + 6, anchor.y), distance = 12, usableFromHere = false, approach = Position(anchor.x + 5, anchor.y), crossings = doors,
         )
         fighter.view = fighter.view.copy(targets = listOf(farOff))
     }
@@ -117,7 +117,7 @@ class PickUpFixture : AmountFixture, ApproachFixture {
 
     override fun targetFarOff(doors: List<DoorStep>) {
         val tile = Position(here.x + 5, here.y)
-        picker.view = picker.view.copy(items = listOf(bones.copy(position = tile, distance = 12, usableFromHere = false, approach = tile, doors = doors)))
+        picker.view = picker.view.copy(items = listOf(bones.copy(position = tile, distance = 12, usableFromHere = false, approach = tile, crossings = doors)))
     }
 
     override fun toString(): String = name

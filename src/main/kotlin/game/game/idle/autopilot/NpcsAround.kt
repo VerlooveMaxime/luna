@@ -2,6 +2,7 @@ package game.idle.autopilot
 
 import game.idle.location.Area
 import game.idle.movement.Doorways
+import game.idle.movement.EntranceStep
 import game.idle.movement.Footprint
 import game.idle.movement.ReachScan
 import game.idle.movement.ReachTerrain
@@ -16,8 +17,9 @@ import io.luna.game.model.mob.interact.InteractionPolicy
  * The npcs around a step's [area] the step [accepts] (a fishing spot of its method, an npc of its target nobody else
  * fights), as the step looks at them: each with the walk to a tile it is reached from under the [policy] of the
  * click (beside a spot or a melee target, in sight and range for a bow), [Candidate.attacking] when it fights the
- * player. The walk is [LunaClicks.reachSteps]': through the shut ones of [doorways] too. An npc is found again by its
- * index, since it may have moved; the step decides whether what stands in its slot is still what the look saw.
+ * player. The walk is [LunaClicks.reachSteps]': through the shut ones of [doorways] too, and their entrances. An npc is
+ * found again by its index, since it may have moved; the step decides whether what stands in its slot is still what
+ * the look saw.
  */
 class NpcsAround(
     private val player: Player,
@@ -41,7 +43,7 @@ class NpcsAround(
             .map { (npc, reach) ->
                 Candidate(
                     npc.index, npc.position, reach.distance, reach.usableFromHere, reach.approach,
-                    attacking = npc.combat.target == player, doors = reach.doors,
+                    attacking = npc.combat.target == player, crossings = reach.crossings,
                 )
             }
 
@@ -51,6 +53,8 @@ class NpcsAround(
     private fun around(): List<Npc> = world.locator.findNpcs(anchor, area.radius, accepts).toList()
 
     override fun step(from: Position, direction: Direction): Step? = steps.step(from, direction)
+
+    override fun entrances(from: Position): List<EntranceStep> = steps.entrances(from)
 
     override fun reachedFrom(tile: Position, target: Npc): Boolean = world.collisionManager.reached(tile, target, policy())
 }

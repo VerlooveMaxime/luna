@@ -29,7 +29,15 @@ class DoorwaysTest {
     private val inside = WebWalkNode("inside", east, NodeKind.OBSTACLE)
     private val opens = EdgeAction(objectId = 1530, objectPosition = east)
 
-    private fun graphOf(vararg edges: WebWalkEdge) = WebWalkGraph(listOf(outside, inside), edges.toList(), emptyList(), emptyList())
+    /** A tunnel's mouth and its landing on the same floor, and a cave below the mouth. */
+    private val mouth = WebWalkNode("mouth", Position(3224, 9600), NodeKind.OBSTACLE)
+    private val landing = WebWalkNode("landing", Position(3224, 9604), NodeKind.OBSTACLE)
+    private val below = WebWalkNode("below", Position(3224, 9600, 1), NodeKind.OBSTACLE)
+    private val squeezes = EdgeAction(objectId = 6912, objectPosition = Position(3224, 9601))
+    private val tunnel = Doorway(6912, Position(3224, 9601), EdgeType.ENTRANCE)
+
+    private fun graphOf(vararg edges: WebWalkEdge) =
+        WebWalkGraph(listOf(outside, inside, mouth, landing, below), edges.toList(), emptyList(), emptyList())
 
     @Test
     fun `a doorway is between its two tiles`() {
@@ -178,5 +186,45 @@ class DoorwaysTest {
         val unknown = Doorway(1530, Position(3300, 3300), EdgeType.DOOR)
 
         assertEquals(setOf(unknown), doorways.leavesOf(unknown))
+    }
+
+    @Test
+    fun `an entrance edge of the web is an entrance used from its first node`() {
+        val doorways = Doorways.of(graphOf(WebWalkEdge("mouth", "landing", EdgeType.ENTRANCE, cost = 5, action = squeezes)))
+
+        assertEquals(listOf(EntranceStep(tunnel, mouth.position, landing.position, ticks = 5.0)), doorways.entrancesFrom(mouth.position))
+    }
+
+    @Test
+    fun `an entrance edge that says no time takes the planner's`() {
+        val doorways = Doorways.of(graphOf(WebWalkEdge("mouth", "landing", EdgeType.ENTRANCE, action = squeezes)))
+
+        assertEquals(listOf(4.0), doorways.entrancesFrom(mouth.position).map { it.ticks })
+    }
+
+    @Test
+    fun `an entrance to another floor is left out`() {
+        val doorways = Doorways.of(graphOf(WebWalkEdge("mouth", "below", EdgeType.ENTRANCE, cost = 2, action = squeezes)))
+
+        assertEquals(emptyList<EntranceStep>(), doorways.entrancesFrom(mouth.position))
+    }
+
+    @Test
+    fun `an entrance edge with nothing to click is left out`() {
+        val doorways = Doorways.of(graphOf(WebWalkEdge("mouth", "landing", EdgeType.ENTRANCE, cost = 5)))
+
+        assertEquals(emptyList<EntranceStep>(), doorways.entrancesFrom(mouth.position))
+    }
+
+    @Test
+    fun `an entrance is no doorway between side-by-side tiles`() {
+        val doorways = Doorways.of(graphOf(WebWalkEdge("mouth", "landing", EdgeType.ENTRANCE, cost = 5, action = squeezes)))
+
+        assertNull(doorways.crossedBy(mouth.position, mouth.position.translate(0, 1)))
+    }
+
+    @Test
+    fun `no entrance is used from where the web has none`() {
+        assertEquals(emptyList<EntranceStep>(), doorways.entrancesFrom(west))
     }
 }

@@ -67,7 +67,7 @@ class LunaPickerTest {
 
         val items = picker(login(), doorways).look().items
 
-        assertEquals(listOf(Candidate(bones, Position(3207, 3200), 13, false, Position(3207, 3200), doors = listOf(WalledDoor.shut))), items)
+        assertEquals(listOf(Candidate(bones, Position(3207, 3200), 13, false, Position(3207, 3200), crossings = listOf(WalledDoor.shut))), items)
     }
 
     @Test

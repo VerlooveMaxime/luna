@@ -80,7 +80,7 @@ class ObjectsAroundTest {
 
         val found = trees(login(), doorways).candidates()
 
-        assertEquals(listOf(Candidate(normalTree, Position(3207, 3200), 12, false, Position(3206, 3200), doors = listOf(WalledDoor.shut))), found)
+        assertEquals(listOf(Candidate(normalTree, Position(3207, 3200), 12, false, Position(3206, 3200), crossings = listOf(WalledDoor.shut))), found)
     }
 
     @Test

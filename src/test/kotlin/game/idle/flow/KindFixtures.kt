@@ -135,7 +135,7 @@ abstract class SpotFixture(final override val name: String, final override val l
 
     /** [target] out of reach, a walk of twelve steps through [doors] to the tile five east of the anchor. */
     protected fun farOff(target: Candidate, doors: List<DoorStep>): Candidate =
-        target.copy(distance = 12, usableFromHere = false, approach = Position(anchor.x + 5, anchor.y), doors = doors)
+        target.copy(distance = 12, usableFromHere = false, approach = Position(anchor.x + 5, anchor.y), crossings = doors)
 
     override fun leaveArea() {
         standInArea(inside = false)

@@ -3,8 +3,8 @@ package game.idle.movement
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
 
-/** Where a flight runs to: [tile], through [doors] in the order the walk takes them. */
-data class FlightRoute(val tile: Position, val doors: List<DoorStep>)
+/** Where a flight runs to: [tile], through [crossings] (doors and entrances) in the order the walk takes them. */
+data class FlightRoute(val tile: Position, val crossings: List<Crossing>)
 
 /** Where a player runs to from npcs that attack them, and whether those npcs can still get at them. */
 object FleePlanner {
@@ -15,25 +15,33 @@ object FleePlanner {
     /** How far from the player an attacker is looked for, and how far its walk to them is followed. */
     const val THREAT_RANGE = 16
 
+    /** The longest entrance a flight goes through, its landing a flight's tile however far past [MAX_STEPS] (Maxime, 2026-10-20). */
+    const val MAX_ENTRANCE = 15
+
     /**
-     * Where the player runs from [threats] within [MAX_STEPS] tiles of [here], walking by [step] (doors included). First
-     * the nearest tile behind a door that [shutOut] says keeps every threat out once shut, among the tiles away from every
-     * threat (web-walker movement Part 5, Maxime 2026-10-18: a barrier beats distance). Failing that, the tile farthest
-     * from the nearest threat as the crow flies: first among the tiles away from every threat, so a run in the open never
-     * passes one; cornered that way, among every tile, the run going past a threat (npcs do not block tiles), as a player
-     * kept fleeing would (Maxime, 2026-10-10). Fewer steps first on a tie, a shut door counting its opening, then west to
-     * east and south to north; null when no tile gets farther from them than [here].
+     * Where the player runs from [threats] within [MAX_STEPS] tiles of [here], walking by [walk] (doors included), and
+     * through the entrances used there that are at most [MAX_ENTRANCE] tiles long. First the nearest tile behind a door
+     * that [shutOut] says keeps every threat out once shut, or past an entrance it says keeps them out (npcs never use
+     * one), among the tiles away from every threat (web-walker movement Part 5, Maxime 2026-10-18: a barrier beats
+     * distance). Failing that, the tile farthest from the nearest threat as the crow flies: first among the tiles away
+     * from every threat, so a run in the open never passes one; cornered that way, among every tile, the run going past a
+     * threat (npcs do not block tiles), as a player kept fleeing would (Maxime, 2026-10-10). Fewer steps first on a tie,
+     * a shut door counting its opening, then west to east and south to north; null when no tile gets farther from them
+     * than [here].
      */
-    fun pick(here: Position, threats: List<Position>, step: (Position, Direction) -> Step?, shutOut: ShutOut): FlightRoute? {
+    fun pick(here: Position, threats: List<Position>, walk: Walk, shutOut: ShutOut): FlightRoute? {
         if (threats.isEmpty()) return null
-        val distances = WalkingDistances.through(here, TileBounds.around(here, MAX_STEPS), step)
+        val short = object : Walk by walk {
+            override fun entrances(from: Position): List<EntranceStep> = walk.entrances(from).filter { it.length <= MAX_ENTRANCE }
+        }
+        val distances = WalkingDistances.through(here, TileBounds.around(here, MAX_STEPS), short, landings = TileBounds.around(here, MAX_STEPS + MAX_ENTRANCE))
         val nearest = compareBy<Position> { distances[it] }.thenBy { it.x }.thenBy { it.y }
         // The player's own tile is always reachable and away from every threat, so both sets have a best tile.
         val away = distances.reachable.filter { tile -> threats.all { away(here, tile, it) } }
-        val behindDoor = away.filter { tile -> distances.doorsOn(tile).any { shutOut.keepsOut(it.doorway, tile) } }.minWithOrNull(nearest)
+        val behindDoor = away.filter { tile -> distances.crossingsOn(tile).any { shutOut.keepsOut(it.doorway, tile) } }.minWithOrNull(nearest)
         val farthest = compareByDescending<Position> { safety(it, threats) }.then(nearest)
         val tile = behindDoor ?: listOf(away.minWith(farthest), distances.reachable.minWith(farthest)).firstOrNull { safety(it, threats) > safety(here, threats) }
-        return tile?.let { FlightRoute(it, distances.doorsOn(it)) }
+        return tile?.let { FlightRoute(it, distances.crossingsOn(it)) }
     }
 
     /**
@@ -71,7 +79,8 @@ private fun gotAt(target: Position, reached: Set<Position>, onto: (Position, Dir
  * Whether shutting a door would keep every one of [threats] from getting at a tile near [here] (web-walker movement Part
  * 5), as [FleePlanner.canGetAt] has it: their walks by [npcStep], the last step [onto] the tile, with the door's leaves
  * shut ([Doorways.leavesOf]), as far as a flight from [here] and an attacker's walk reach. Npcs open no doors, so a shut
- * door is a wall to them.
+ * door is a wall to them. An entrance has no leaves to shut: npcs never use one, so it keeps them out of a tile their
+ * walks do not get at as they stand (entrance legs Part 2).
  */
 class ShutOut(
     here: Position,

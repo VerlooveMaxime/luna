@@ -2,13 +2,17 @@ package game.idle.autopilot.travel
 
 import api.bot.webwalk.model.EdgeType
 import game.idle.autopilot.Candidate
+import game.idle.flow.EntrancePassage
 import game.idle.flow.Said
 import game.idle.flow.StepOutcome
 import game.idle.flow.Structure
 import game.idle.flow.UnderWay
+import game.idle.flow.Way
 import game.idle.location.Tile
+import game.idle.movement.Crossing
 import game.idle.movement.DoorStep
 import game.idle.movement.Doorway
+import game.idle.movement.EntranceStep
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -28,8 +32,17 @@ class WalkUpsTest {
     private val door = doorOfType(EdgeType.DOOR)
     private val shut = 1530 to Position(3202, 3200)
 
-    private fun tree(doors: List<DoorStep>, id: Int = 1276) =
-        Candidate(id, Position(3205, 3200), distance = 12, usableFromHere = false, approach, doors = doors)
+    private fun tree(doors: List<Crossing>, id: Int = 1276) =
+        Candidate(id, Position(3205, 3200), distance = 12, usableFromHere = false, approach, crossings = doors)
+
+    /** Rocks one tile east of the player, climbed from 3201 to 3203. */
+    private val rocks = EntranceStep(Doorway(6673, Position(3202, 3200), EdgeType.ENTRANCE), Position(3201, 3200), Position(3203, 3200), ticks = 5.0)
+    private val rocksWords = EntrancePassage("climb", Way.UP, wayNamed = true, "rocks")
+
+    /** The player sees the rocks' option, in [rocksWords]. */
+    private fun rocksShown() {
+        traveller.entrances[6673 to Position(3202, 3200)] = rocksWords
+    }
 
     private val traveller = FakeTraveller(here)
     private val walkUps = WalkUps(traveller)
@@ -89,6 +102,15 @@ class WalkUpsTest {
     }
 
     @Test
+    fun `a walk up goes through an entrance on the way`() {
+        rocksShown()
+
+        val outcome = walkUps.walkTo(tree(listOf(rocks)))
+
+        assertEquals(StepOutcome.OnTheWay(UnderWay.Passing(rocksWords)) to listOf(Triple(6673, Position(3202, 3200), null)), outcome to traveller.used)
+    }
+
+    @Test
     fun `a walk up whose door cannot be clicked is left to the retry rule, not a block`() {
         traveller.standing += shut
         traveller.usable = false
@@ -121,7 +143,7 @@ class WalkUpsTest {
 
         walkUps.setAside(target.aim)
 
-        assertEquals(Said.DoorShut(Structure.DOOR, Tile(3202, 3200)), walkUps.said())
+        assertEquals(Said.NotThrough(Structure.DOOR, Tile(3202, 3200)), walkUps.said())
     }
 
     @Test
@@ -133,7 +155,7 @@ class WalkUpsTest {
 
         walkUps.setAside(target.aim)
 
-        assertEquals(Said.DoorShut(Structure.DOOR, Tile(3202, 3200)), walkUps.said())
+        assertEquals(Said.NotThrough(Structure.DOOR, Tile(3202, 3200)), walkUps.said())
     }
 
     @Test
@@ -144,7 +166,7 @@ class WalkUpsTest {
 
         walkUps.setAside(target.aim)
 
-        assertEquals(Said.DoorShut(Structure.GATE, Tile(3202, 3200)), walkUps.said())
+        assertEquals(Said.NotThrough(Structure.GATE, Tile(3202, 3200)), walkUps.said())
     }
 
     @Test
@@ -155,7 +177,40 @@ class WalkUpsTest {
 
         walkUps.setAside(target.aim)
 
-        assertEquals(Said.DoorShut(Structure.CURTAIN, Tile(3202, 3200)), walkUps.said())
+        assertEquals(Said.NotThrough(Structure.CURTAIN, Tile(3202, 3200)), walkUps.said())
+    }
+
+    @Test
+    fun `a target set aside while its walk up went through an entrance tells it in the words the player sees`() {
+        rocksShown()
+        val target = tree(listOf(rocks))
+        walkUps.walkTo(target)
+
+        walkUps.setAside(target.aim)
+
+        assertEquals(Said.NotThrough(rocksWords, Tile(3202, 3200)), walkUps.said())
+    }
+
+    @Test
+    fun `a target set aside at an entrance the player sees no option on tells nothing`() {
+        val target = tree(listOf(rocks))
+        walkUps.walkTo(target)
+
+        walkUps.setAside(target.aim)
+
+        assertNull(walkUps.said())
+    }
+
+    @Test
+    fun `a target set aside while its walk up walked towards an entrance tells nothing`() {
+        rocksShown()
+        val far = EntranceStep(rocks.doorway, Position(3212, 3200), Position(3214, 3200), ticks = 5.0)
+        val target = tree(listOf(far))
+        walkUps.walkTo(target)
+
+        walkUps.setAside(target.aim)
+
+        assertNull(walkUps.said())
     }
 
     @Test
@@ -235,6 +290,18 @@ class WalkUpsTest {
         val leg = WalkUps.plan(here, listOf(door), approach).legs[1]
 
         assertEquals(1530 to Position(3202, 3200), leg.action?.objectId to leg.action?.objectPosition)
+    }
+
+    @Test
+    fun `the route walks to an entrance's near side, through it and on from its landing`() {
+        val legs = WalkUps.plan(here, listOf(rocks), approach).legs
+
+        val expected = listOf(
+            Triple(EdgeType.WALK, here, Position(3201, 3200)),
+            Triple(EdgeType.ENTRANCE, Position(3201, 3200), Position(3203, 3200)),
+            Triple(EdgeType.WALK, Position(3203, 3200), approach),
+        )
+        assertEquals(expected, legs.map { Triple(it.type, it.from, it.to) })
     }
 
     @Test

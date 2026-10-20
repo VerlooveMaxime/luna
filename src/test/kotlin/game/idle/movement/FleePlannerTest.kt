@@ -1,5 +1,6 @@
 package game.idle.movement
 
+import api.bot.webwalk.model.EdgeType
 import io.luna.game.model.Direction
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -28,6 +29,23 @@ class FleePlannerTest {
 
     /** A wall running north to south at [x], with no way round inside the planner's reach. */
     private fun wallAt(x: Int): Set<Position> = (3150..3250).map { Position(x, it) }.toSet()
+
+    /** A tunnel through a wall at x 3203, used from 3202 3200 and landing on [to]. */
+    private fun tunnel(to: Position) = EntranceStep(Doorway(5046, Position(3203, 3200), EdgeType.ENTRANCE), Position(3202, 3200), to, ticks = 2.0)
+
+    /** The flight from [threats] over [walls], through [entrance] too, the attackers walking alike but never through it. */
+    private fun pick(threats: List<Position>, walls: Set<Position>, entrance: EntranceStep): FlightRoute? {
+        val canStep = terrain(walls)
+        val walk = object : Walk {
+            override fun step(from: Position, direction: Direction): Step? = if (canStep(from, direction)) Step.Plain else null
+
+            override fun entrances(from: Position): List<EntranceStep> = listOf(entrance).filter { it.from == from }
+        }
+        return FleePlanner.pick(here, threats, walk, ShutOut(here, threats, canStep, canStep, Doorways.NONE))
+    }
+
+    /** A wall at x 3203 from y 3195 to 3205, which an attacker walks round. */
+    private val shortWall: Set<Position> = (3195..3205).map { Position(3203, it) }.toSet()
 
     @Test
     fun `the player runs away from the attacker`() {
@@ -99,21 +117,49 @@ class FleePlannerTest {
 
         val route = pick(room, listOf(Position(3197, 3200)))
 
-        assertEquals(room.door.position to listOf(room.door to false), route?.tile to route?.doors?.map { it.doorway to it.shut })
+        assertEquals(room.door.position to listOf(room.door to false), route?.tile to route?.crossings?.map { it.doorway to (it as DoorStep).shut })
     }
 
     @Test
     fun `a room the attacker can get into another way is no shelter`() {
         val route = pick(FleeRoom(backWay = true), listOf(Position(3197, 3200)))
 
-        assertEquals(3210 to emptyList<DoorStep>(), route?.tile?.x to route?.doors)
+        assertEquals(3210 to emptyList<DoorStep>(), route?.tile?.x to route?.crossings)
     }
 
     @Test
     fun `a door towards the attacker is no way out`() {
         val route = pick(FleeRoom(), listOf(Position(3201, 3199)))
 
-        assertEquals(emptyList<DoorStep>(), route?.doors)
+        assertEquals(emptyList<DoorStep>(), route?.crossings)
+    }
+
+    @Test
+    fun `the run goes through an entrance that keeps the attacker out`() {
+        val tunnel = tunnel(to = Position(3205, 3200))
+
+        assertEquals(FlightRoute(Position(3205, 3200), listOf(tunnel)), pick(listOf(Position(3199, 3200)), wallAt(3203), tunnel))
+    }
+
+    @Test
+    fun `an entrance the attacker walks round is no shelter`() {
+        val route = pick(listOf(Position(3199, 3200)), shortWall, tunnel(to = Position(3205, 3200)))
+
+        assertEquals(3210 to emptyList<Crossing>(), route?.tile?.x to route?.crossings)
+    }
+
+    @Test
+    fun `an entrance's landing past the run's ten tiles is a tile to run to`() {
+        val tunnel = tunnel(to = Position(3215, 3200))
+
+        assertEquals(FlightRoute(Position(3215, 3200), listOf(tunnel)), pick(listOf(Position(3199, 3200)), wallAt(3203), tunnel))
+    }
+
+    @Test
+    fun `an entrance longer than fifteen tiles is no way out`() {
+        val route = pick(listOf(Position(3199, 3200)), wallAt(3203), tunnel(to = Position(3218, 3200)))
+
+        assertEquals(3202 to emptyList<Crossing>(), route?.tile?.x to route?.crossings)
     }
 
     @Test

@@ -502,7 +502,7 @@ class StepTurnContractTest {
 
         turn.act()
 
-        assertEquals(Said.DoorShut(Structure.DOOR, Tile(3203, 3200)), turn.said())
+        assertEquals(Said.NotThrough(Structure.DOOR, Tile(3203, 3200)), turn.said())
     }
 
     companion object {

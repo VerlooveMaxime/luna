@@ -111,7 +111,21 @@ class StepWordsTest {
 
     @Test
     fun `a walk up that could not get through a door says which and where`() {
-        assertEquals("Autopilot: step 2 could not get through the gate at 3101, 3509.", words.said(2, Said.DoorShut(Structure.GATE, Tile(3101, 3509))))
+        assertEquals("Autopilot: step 2 could not get through the gate at 3101, 3509.", words.said(2, Said.NotThrough(Structure.GATE, Tile(3101, 3509))))
+    }
+
+    @Test
+    fun `a walk up that could not get past an entrance says it the way the player goes and by its name`() {
+        val rocks = EntrancePassage("climb", Way.UP, wayNamed = true, "rocks")
+
+        assertEquals("Autopilot: step 2 could not get up the rocks at 3239, 9497.", words.said(2, Said.NotThrough(rocks, Tile(3239, 9497))))
+    }
+
+    @Test
+    fun `a walk up stuck at an entrance whose whole name does not fit the chat box names its last word`() {
+        val entrance = EntrancePassage("enter", Way.THROUGH, wayNamed = false, "long and winding underwater cavern entrance")
+
+        assertEquals("Autopilot: step 2 could not get through the entrance at 2949, 9516.", words.said(2, Said.NotThrough(entrance, Tile(2949, 9516))))
     }
 
     @Test

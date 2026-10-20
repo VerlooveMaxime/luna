@@ -1,9 +1,13 @@
 package game.idle.autopilot.travel
 
+import api.bot.webwalk.model.EdgeType
+import game.idle.flow.EntrancePassage
 import game.idle.flow.Structure
 import game.idle.flow.UnderWay
+import game.idle.flow.Way
 import game.idle.movement.Doorway
 import game.idle.movement.Doorways
+import game.idle.movement.EntranceStep
 import game.idle.movement.FleeRoom
 import game.idle.movement.Step
 import io.luna.game.model.Direction
@@ -49,6 +53,98 @@ class FlightTest {
         flight.flee(attacker, terrain)
         traveller.position = door.position
         return terrain
+    }
+
+    /** A tunnel through a wall at x 3203 that runs past the flight's reach, used from 3202 3200, landing on 3205 3200. */
+    private val tunnel = EntranceStep(Doorway(5046, Position(3203, 3200), EdgeType.ENTRANCE), Position(3202, 3200), Position(3205, 3200), ticks = 3.0)
+    private val tunnelWords = EntrancePassage("enter", Way.THROUGH, wayNamed = false, "tunnel")
+
+    /** Open ground but for the wall at x 3203, which only the player gets through, by the tunnel. */
+    private inner class TunnelTerrain : FlightTerrain {
+        override val doorways: Doorways = Doorways.NONE
+
+        override fun step(from: Position, direction: Direction): Step? = if (npcStep(from, direction)) Step.Plain else null
+
+        override fun entrances(from: Position): List<EntranceStep> = listOf(tunnel).filter { it.from == from }
+
+        override fun npcStep(from: Position, direction: Direction): Boolean = from.translate(1, direction).x != 3203
+
+        override fun onto(from: Position, direction: Direction): Boolean = npcStep(from, direction)
+
+        override fun openLeaf(door: Doorway): OpenLeaf? = null
+    }
+
+    private val tunnelled = TunnelTerrain()
+
+    /** The player sees the tunnel's option. */
+    private fun tunnelShown() {
+        traveller.entrances[5046 to Position(3203, 3200)] = tunnelWords
+    }
+
+    @Test
+    fun `a flight goes through an entrance that keeps the attackers out`() {
+        tunnelShown()
+
+        flight.flee(attacker, tunnelled)
+
+        assertEquals(listOf(Triple(5046, Position(3203, 3200), null)) to UnderWay.Passing(tunnelWords), traveller.used to flight.underWay())
+    }
+
+    @Test
+    fun `an entrance the flight clicked that left the player on its near side is tried once more`() {
+        tunnelShown()
+        flight.flee(attacker, tunnelled)
+
+        flight.flee(attacker, tunnelled)
+
+        assertEquals(2, traveller.used.size)
+    }
+
+    @Test
+    fun `an entrance the flight clicked twice that left the player on its near side is not tried again`() {
+        tunnelShown()
+        flight.flee(attacker, tunnelled)
+        flight.flee(attacker, tunnelled)
+
+        flight.flee(attacker, tunnelled)
+
+        assertEquals(2, traveller.used.size)
+    }
+
+    @Test
+    fun `an entrance the flight went through counts no click against it`() {
+        tunnelShown()
+        flight.flee(attacker, tunnelled)
+        traveller.position = tunnel.to
+        flight.flee(attacker, tunnelled)
+        traveller.position = here
+        flight.flee(attacker, tunnelled)
+
+        flight.flee(attacker, tunnelled)
+
+        assertEquals(3, traveller.used.size)
+    }
+
+    @Test
+    fun `an entrance the flight could not click is not tried again`() {
+        tunnelShown()
+        traveller.usable = false
+        flight.flee(attacker, tunnelled)
+
+        flight.flee(attacker, tunnelled)
+
+        assertEquals(1, traveller.used.size)
+    }
+
+    @Test
+    fun `an entrance the flight went through is never shut behind`() {
+        tunnelShown()
+        flight.flee(attacker, tunnelled)
+        traveller.position = tunnel.to
+
+        flight.flee(attacker, tunnelled)
+
+        assertEquals(1 to null, traveller.used.size to flight.shut())
     }
 
     @Test
