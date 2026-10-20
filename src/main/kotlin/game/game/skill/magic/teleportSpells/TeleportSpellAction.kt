@@ -10,7 +10,7 @@ import io.luna.util.StringUtils
  *
  * @author lare96
  */
-class TeleportSpellAction(plr: Player, val spell: TeleportSpell) : TeleportAction(plr,
+open class TeleportSpellAction(plr: Player, val spell: TeleportSpell) : TeleportAction(plr,
                                                                                     spell.level,
                                                                                     spell.xp,
                                                                                     spell.destination,

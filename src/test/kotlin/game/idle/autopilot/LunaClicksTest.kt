@@ -114,6 +114,14 @@ class LunaClicksTest {
     }
 
     @Test
+    fun `a player putting back on what a rub took off is acting`() {
+        val player = player()
+        player.wearingAgain = true
+
+        assertTrue(LunaClicks.isActing(player))
+    }
+
+    @Test
     fun `a soft action alone does not keep a player acting`() {
         val player = player()
         player.submitAction(EndlessAction(player, ActionType.SOFT))

@@ -17,6 +17,7 @@ import game.idle.flow.Reason
 import game.idle.flow.Said
 import game.idle.flow.StepOutcome
 import game.idle.flow.StepWork
+import game.idle.flow.TeleportDestination
 import game.idle.flow.TeleportStarted
 import game.idle.flow.UnderWay
 import game.idle.location.Tile
@@ -78,10 +79,15 @@ interface Traveller {
     fun talkOn()
 
     /**
-     * Starts [teleport] as the spellbook or the jewellery would, telling [starting] how it starts the moment before it
-     * does; how it started, null when it cannot be done now.
+     * Starts [teleport] as the spellbook or the jewellery would, telling [starting] how it starts once the game takes it,
+     * before the game's own lines, and [notWornAgain] of a worn piece taken off to rub it that could not be worn again;
+     * how it started, null when it cannot be done now.
      */
-    fun teleport(teleport: TeleportDefinition, starting: (TeleportStarted) -> Unit): TeleportStarted?
+    fun teleport(
+        teleport: TeleportDefinition,
+        starting: (TeleportStarted) -> Unit,
+        notWornAgain: (TeleportDestination.Jewellery) -> Unit,
+    ): TeleportStarted?
 
     /** Tells the player what the trip does, at once: a spend before the game's own lines about it (Maxime, 2026-10-18). */
     fun say(said: Said)
@@ -279,7 +285,7 @@ class TripWork(
     private fun teleport(leg: PlanLeg, here: Position): StepOutcome {
         val teleport = leg.teleport ?: return StepOutcome.Blocked(Reason.NoWay(place))
         return move(Attempt(index, here, Move.TELEPORT), Reason.NoWay(place)) {
-            val started = traveller.teleport(teleport) { traveller.say(Said.Teleported(it)) }
+            val started = traveller.teleport(teleport, { traveller.say(Said.Teleported(it)) }) { traveller.say(Said.NotWornAgain(it)) }
             when {
                 started != null -> StepOutcome.OnTheWay(UnderWay.Teleporting(started.destination))
                 refused == here to teleport.id -> StepOutcome.Blocked(Reason.NoWay(place))

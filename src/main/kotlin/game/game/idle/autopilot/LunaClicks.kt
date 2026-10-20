@@ -66,9 +66,12 @@ object LunaClicks {
 
     private var Player.heldClick by Attr.nullableObj(HeldClick::class)
 
-    /** Walking, about to click on arrival or running a non-soft action; windows are the activity's own concern. */
+    /**
+     * Walking, about to click on arrival, putting back on what a rub took off, or running a non-soft action; windows are
+     * the activity's own concern.
+     */
     fun isActing(player: Player): Boolean =
-        !player.walking.isEmpty || player.heldClick != null || FOREGROUND_ACTIONS.any { player.actions.size(it) > 0 }
+        !player.walking.isEmpty || player.heldClick != null || player.wearingAgain || FOREGROUND_ACTIONS.any { player.actions.size(it) > 0 }
 
     /**
      * A window the player has open, which a real player would close before walking off. A level-up dialogue does not

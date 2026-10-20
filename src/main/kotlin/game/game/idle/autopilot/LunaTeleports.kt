@@ -1,5 +1,6 @@
 package game.idle.autopilot
 
+import api.attr.Attr
 import api.bot.webwalk.plan.Spend
 import api.predef.ext.scheduleOnce
 import engine.controllers.WildernessLocatableController.wildernessLevel
@@ -19,6 +20,12 @@ import io.luna.game.event.impl.EquipItemEvent
 import io.luna.game.event.impl.WidgetItemClickEvent.WidgetItemFirstClickEvent
 import io.luna.game.model.EntityState
 import io.luna.game.model.mob.Player
+
+/**
+ * A worn piece taken off to rub it is still to be worn again. Luna's wear interrupts weak actions, a walk's navigation
+ * among them, so the autopilot clicks nothing else until it is on.
+ */
+internal var Player.wearingAgain by Attr.boolean()
 
 /**
  * The autopilot's teleports, for the teleport reflex and a trip's teleport legs alike (web-walker movement Part 3c): a
@@ -54,13 +61,20 @@ object LunaTeleports {
     }
 
     /**
-     * Starts the teleport to [destination], telling [starting] how it starts the moment before Luna's own lines; how it
-     * started, null when Luna turned it down. Luna's action locks the player until they land.
+     * Starts the teleport to [destination]; how it started, null when Luna turned it down. [starting] hears how it starts
+     * once Luna's checks pass, before Luna's own lines, so never for a teleport Luna turns down (Maxime, 2026-10-20);
+     * [notWornAgain] hears of a worn piece taken off to rub it that could not be worn again. Luna's action locks the
+     * player until they land.
      */
-    fun teleport(player: Player, destination: TeleportDestination, starting: (TeleportStarted) -> Unit = {}): TeleportStarted? =
+    fun teleport(
+        player: Player,
+        destination: TeleportDestination,
+        starting: (TeleportStarted) -> Unit = {},
+        notWornAgain: (TeleportDestination.Jewellery) -> Unit = {},
+    ): TeleportStarted? =
         when (destination) {
             is TeleportDestination.Spell -> cast(player, destination, starting)
-            is TeleportDestination.Jewellery -> rub(player, destination, starting)
+            is TeleportDestination.Jewellery -> rub(player, destination, starting, notWornAgain)
         }
 
     /** As the spellbook's button: a click within the throttle is dropped. What it uses up is read before the cast takes it. */
@@ -68,13 +82,25 @@ object LunaTeleports {
         val spell = destination.spell
         val started = TeleportStarted.Cast(destination, Teleports.inSpellOrder(spell.requirements, cost(player, spell).orEmpty()))
         if (!player.teleportDelay.ready(TeleportAction.CLICK_THROTTLE)) return null
-        starting(started)
-        player.submitAction(TeleportSpellAction(player, spell))
+        player.submitAction(object : TeleportSpellAction(player, spell) {
+            override fun onTeleport() {
+                starting(started)
+                super.onTeleport()
+            }
+        })
         return started.takeIf { player.isLocked }
     }
 
-    /** As the jewellery's menu, the destination already picked: Luna's rub line, then its teleport by the bag slot. */
-    private fun rub(player: Player, destination: TeleportDestination.Jewellery, starting: (TeleportStarted) -> Unit): TeleportStarted? {
+    /**
+     * As the jewellery's menu, the destination already picked: Luna's rub line, then its teleport by the bag slot. The
+     * rub line waits for Luna's checks too, so the autopilot's line goes first.
+     */
+    private fun rub(
+        player: Player,
+        destination: TeleportDestination.Jewellery,
+        starting: (TeleportStarted) -> Unit,
+        notWornAgain: (TeleportDestination.Jewellery) -> Unit,
+    ): TeleportStarted? {
         val jewellery = destination.jewellery
         val piece = piece(player, jewellery) ?: return null
         val slot = when (piece) {
@@ -82,10 +108,14 @@ object LunaTeleports {
             is Piece.Worn -> takeOff(player, piece) ?: return null
         }
         val started = TeleportStarted.Rubbed(destination, tookOff = piece is Piece.Worn)
-        starting(started)
-        player.sendMessage(jewellery.rub)
-        JewelleryTeleports.teleport(player, destination.destination, slot, jewellery.items.indexOf(piece.id), jewellery)
-        if (piece is Piece.Worn) wearAgain(player, slot, jewellery, piece.equipmentIndex)
+        JewelleryTeleports.teleport(player, destination.destination, slot, jewellery.items.indexOf(piece.id), jewellery) {
+            starting(started)
+            player.sendMessage(jewellery.rub)
+        }
+        if (piece is Piece.Worn) {
+            player.wearingAgain = true
+            wearAgain(player, slot, jewellery, piece.equipmentIndex) { notWornAgain(destination) }
+        }
         return started.takeIf { player.isLocked }
     }
 
@@ -98,23 +128,29 @@ object LunaTeleports {
     /**
      * Wears again what was taken off to rub, now with a charge less (or none left), once the player is free to click:
      * after the landing, or at once when Luna turned the teleport down. Only into the slot it came from while that is
-     * still empty, and never for a player gone meanwhile.
+     * still empty, and never for a player gone meanwhile. A piece still in the bag after that is [notWornAgain]; one
+     * gone from its bag slot (a crumbled necklace) is not.
      */
-    private fun wearAgain(player: Player, slot: Int, jewellery: TeleportJewellery, equipmentIndex: Int) {
+    private fun wearAgain(player: Player, slot: Int, jewellery: TeleportJewellery, equipmentIndex: Int, notWornAgain: () -> Unit) {
         player.world.scheduleOnce(1) {
             when {
                 player.state != EntityState.ACTIVE -> Unit
-                player.isLocked -> wearAgain(player, slot, jewellery, equipmentIndex)
-                else -> wear(player, slot, jewellery, equipmentIndex)
+                player.isLocked -> wearAgain(player, slot, jewellery, equipmentIndex, notWornAgain)
+                else -> {
+                    player.wearingAgain = false
+                    wear(player, slot, jewellery, equipmentIndex, notWornAgain)
+                }
             }
         }
     }
 
-    private fun wear(player: Player, slot: Int, jewellery: TeleportJewellery, equipmentIndex: Int) {
+    private fun wear(player: Player, slot: Int, jewellery: TeleportJewellery, equipmentIndex: Int, notWornAgain: () -> Unit) {
         val item = player.inventory[slot] ?: return
-        if (player.equipment[equipmentIndex] == null && (item.id in jewellery.items || item.id == jewellery.emptyId)) {
+        if (item.id !in jewellery.items && item.id != jewellery.emptyId) return
+        if (player.equipment[equipmentIndex] == null) {
             LunaClicks.post(player, EquipItemEvent(player, slot, item.id, LunaClicks.INVENTORY))
         }
+        if (player.inventory[slot] != null) notWornAgain()
     }
 
     /** A piece of jewellery of [id] a rub can use: one in the bag, else a worn one while the bag has room to take it off into. */

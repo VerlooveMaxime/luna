@@ -817,7 +817,7 @@ class LunaReflexBodyTest {
     fun `once landed the spell can be cast again`() {
         val player = mage()
         val body = LunaReflexBody(player)
-        body.teleport(varrock) {}
+        body.teleport(varrock, {}) {}
         TestWorld.tick(6)
 
         assertTrue(body.canTeleport(varrock))
@@ -828,7 +828,7 @@ class LunaReflexBodyTest {
         val player = mage()
         player.teleportDelay.ready(TeleportAction.CLICK_THROTTLE)
 
-        val taken = LunaReflexBody(player).teleport(varrock) {}
+        val taken = LunaReflexBody(player).teleport(varrock, {}) {}
 
         assertEquals(listOf(null, false), listOf(taken, player.isLocked))
     }
@@ -837,7 +837,7 @@ class LunaReflexBodyTest {
     fun `casting a spell locks the player and says Luna took it`() {
         val player = mage()
 
-        val taken = LunaReflexBody(player).teleport(varrock) {}
+        val taken = LunaReflexBody(player).teleport(varrock, {}) {}
 
         assertEquals(listOf(true, true), listOf(taken is TeleportStarted.Cast, player.isLocked))
     }
@@ -845,7 +845,7 @@ class LunaReflexBodyTest {
     @Test
     fun `a cast spell lands the player at its destination, Luna's line said`() {
         val player = mage()
-        LunaReflexBody(player).teleport(varrock) {}
+        LunaReflexBody(player).teleport(varrock, {}) {}
 
         TestWorld.tick(6)
 
@@ -859,7 +859,7 @@ class LunaReflexBodyTest {
         player.controllers.register(WildernessController(player))
         player.wildernessLevel = 21
 
-        val taken = LunaReflexBody(player).teleport(varrock) {}
+        val taken = LunaReflexBody(player).teleport(varrock, {}) {}
 
         assertEquals(listOf<Any?>(null, false, here), listOf(taken, player.isLocked, player.position))
     }
@@ -868,7 +868,7 @@ class LunaReflexBodyTest {
     fun `the teleport holds the player until they land`() {
         val player = mage()
         val body = LunaReflexBody(player)
-        body.teleport(varrock) {}
+        body.teleport(varrock, {}) {}
         val during = body.teleporting()
 
         TestWorld.tick(6)
@@ -898,7 +898,7 @@ class LunaReflexBodyTest {
         player.inventory.set(3, Item(glory))
         val body = LunaReflexBody(player)
 
-        val taken = body.teleport(edgeville) {}
+        val taken = body.teleport(edgeville, {}) {}
         TestWorld.tick(6)
 
         assertEquals(
@@ -911,7 +911,7 @@ class LunaReflexBodyTest {
     fun `rubbing jewellery says Luna's lines`() {
         val player = login()
         player.inventory.add(Item(glory))
-        LunaReflexBody(player).teleport(edgeville) {}
+        LunaReflexBody(player).teleport(edgeville, {}) {}
 
         TestWorld.tick(6)
 
@@ -922,6 +922,6 @@ class LunaReflexBodyTest {
     fun `jewellery the bag no longer holds teleports nobody`() {
         val player = login()
 
-        assertNull(LunaReflexBody(player).teleport(edgeville) {})
+        assertNull(LunaReflexBody(player).teleport(edgeville, {}) {})
     }
 }

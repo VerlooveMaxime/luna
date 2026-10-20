@@ -66,6 +66,9 @@ sealed interface Said {
     /** A trip started a teleport (web-walker movement Part 3c). */
     data class Teleported(val started: TeleportStarted) : Said
 
+    /** What a trip took off to rub it to [destination] could not be worn again after the landing (Maxime, 2026-10-20). */
+    data class NotWornAgain(val destination: TeleportDestination.Jewellery) : Said
+
     /** A trip agreed to pay [coins] at the Al Kharid toll gate. */
     data class PaidToll(val coins: Int) : Said
 

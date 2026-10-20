@@ -5,6 +5,7 @@ import api.bot.webwalk.model.TeleportDefinition
 import api.bot.webwalk.plan.PlanLeg
 import api.bot.webwalk.plan.WebWalkPlan
 import game.idle.flow.Said
+import game.idle.flow.TeleportDestination
 import game.idle.flow.TeleportStarted
 import io.luna.game.model.Position
 import java.util.concurrent.CompletableFuture
@@ -25,6 +26,8 @@ class FakeTraveller(var position: Position, private val log: MutableList<String>
     var talking = false
     var talkedOn = 0
     var teleported: TeleportStarted? = null
+    /** A worn piece the teleport took off and could not wear again, told as soon as it starts. */
+    var notWornAgain: TeleportDestination.Jewellery? = null
     var options = emptyList<String>()
     var crewNear = true
     val talkedTo = mutableListOf<Pair<Set<Int>, Position>>()
@@ -81,9 +84,14 @@ class FakeTraveller(var position: Position, private val log: MutableList<String>
         talkedOn++
     }
 
-    override fun teleport(teleport: TeleportDefinition, starting: (TeleportStarted) -> Unit): TeleportStarted? {
+    override fun teleport(
+        teleport: TeleportDefinition,
+        starting: (TeleportStarted) -> Unit,
+        notWornAgain: (TeleportDestination.Jewellery) -> Unit,
+    ): TeleportStarted? {
         teleports += teleport
         teleported?.let(starting)
+        this.notWornAgain?.let(notWornAgain)
         return teleported
     }
 

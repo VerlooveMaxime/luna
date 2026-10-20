@@ -195,7 +195,7 @@ class FlowRunner(
     private fun startStep(): ReflexGuard {
         val step = steps[index]
         val run = if (step is BankMoves) step.without(leaveOut(step)) else step
-        val started = ReflexGuard(player.activity(run, Speech(::tell)), flow.reflexes[index], player.body, hold) { player.tell(words.tookOff(it)) }
+        val started = ReflexGuard(player.activity(run, Speech(::tell)), flow.reflexes[index], player.body, hold) { player.tell(words.reflexSaid(it)) }
         current = started
         ending = false
         return started

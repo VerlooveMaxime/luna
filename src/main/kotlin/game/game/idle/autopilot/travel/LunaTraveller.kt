@@ -15,6 +15,7 @@ import game.idle.autopilot.LunaTeleports
 import game.idle.flow.Place
 import game.idle.flow.Said
 import game.idle.flow.Speech
+import game.idle.flow.TeleportDestination
 import game.idle.flow.TeleportStarted
 import game.idle.flow.Teleports
 import game.idle.idleState
@@ -141,9 +142,13 @@ class LunaTraveller(
         player.plugins.post(ContinueDialogueEvent(player, dialogue.id))
     }
 
-    override fun teleport(teleport: TeleportDefinition, starting: (TeleportStarted) -> Unit): TeleportStarted? {
+    override fun teleport(
+        teleport: TeleportDefinition,
+        starting: (TeleportStarted) -> Unit,
+        notWornAgain: (TeleportDestination.Jewellery) -> Unit,
+    ): TeleportStarted? {
         val destination = Teleports.of(teleport)?.takeIf { LunaTeleports.canTeleport(player, it) } ?: return null
-        return LunaTeleports.teleport(player, destination, starting)
+        return LunaTeleports.teleport(player, destination, starting, notWornAgain)
     }
 
     override fun say(said: Said) = speech.say(said)

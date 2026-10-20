@@ -832,6 +832,19 @@ class FlowRunnerTest {
     }
 
     @Test
+    fun `a reflex that could not wear its jewellery again says so`() {
+        hurt()
+        body.notWornAgain = true
+        body.teleportable += edgeville
+        val teleport = ResolvedReflex(1, ReflexTrigger.HitpointsBelow(50), ReflexAction.Teleport(edgeville, jumpTo = null))
+        val steps = listOf(FakeStep("fight"))
+
+        runner(ResolvedFlow(steps, listOf(listOf(teleport)))).act()
+
+        assertEquals(listOf("Autopilot: reflex 1 could not wear the item 1712 again."), player.told)
+    }
+
+    @Test
     fun `what a reflex lit is said`() {
         hurt()
 

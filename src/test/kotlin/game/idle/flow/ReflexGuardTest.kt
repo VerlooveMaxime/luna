@@ -30,9 +30,9 @@ class ReflexGuardTest {
 
     private fun jump(index: Int, number: Int = 2) = ResolvedReflex(number, below(50), ReflexAction.JumpTo(index))
 
-    private val takenOff = mutableListOf<TookOff>()
+    private val told = mutableListOf<ReflexSaid>()
 
-    private fun guard(vararg reflexes: ResolvedReflex) = ReflexGuard(step, reflexes.toList(), body, hold, takenOff::add)
+    private fun guard(vararg reflexes: ResolvedReflex) = ReflexGuard(step, reflexes.toList(), body, hold, told::add)
 
     private val varrock = TeleportDestination.Spell(TeleportSpell.VARROCK)
 
@@ -932,7 +932,7 @@ class ReflexGuardTest {
 
         guard.act()
 
-        assertEquals(listOf(TookOff(2, edgeville)), takenOff)
+        assertEquals(listOf(ReflexSaid.TookOff(2, edgeville)), told)
     }
 
     @Test
@@ -943,7 +943,19 @@ class ReflexGuardTest {
 
         guard.act()
 
-        assertEquals(emptyList<TookOff>(), takenOff)
+        assertEquals(emptyList<ReflexSaid>(), told)
+    }
+
+    @Test
+    fun `a teleport reflex whose worn jewellery could not be worn again says so`() {
+        body.notWornAgain = true
+        body.teleportable += edgeville
+        hurt()
+        val guard = guard(ResolvedReflex(2, below(50), ReflexAction.Teleport(edgeville, jumpTo = null)))
+
+        guard.act()
+
+        assertEquals(listOf(ReflexSaid.NotWornAgain(2, edgeville)), told)
     }
 
     @Test

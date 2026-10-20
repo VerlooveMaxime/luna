@@ -125,8 +125,11 @@ class LunaReflexBody(
     /** Luna's refusals, read before asking: a refused action would still say why in the chat box. */
     override fun canTeleport(destination: TeleportDestination): Boolean = LunaTeleports.canTeleport(player, destination)
 
-    override fun teleport(destination: TeleportDestination, starting: (TeleportStarted) -> Unit): TeleportStarted? =
-        LunaTeleports.teleport(player, destination, starting)
+    override fun teleport(
+        destination: TeleportDestination,
+        starting: (TeleportStarted) -> Unit,
+        notWornAgain: (TeleportDestination.Jewellery) -> Unit,
+    ): TeleportStarted? = LunaTeleports.teleport(player, destination, starting, notWornAgain)
 
     override fun teleporting(): Boolean = player.isLocked
 

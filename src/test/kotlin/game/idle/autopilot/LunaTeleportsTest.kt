@@ -89,6 +89,18 @@ class LunaTeleportsTest {
     }
 
     @Test
+    fun `a worn piece taken off to rub it keeps the player acting until it is worn again`() {
+        equipmentTab()
+        val player = wearing(GLORY)
+        LunaTeleports.teleport(player, edgeville)
+        val waiting = player.wearingAgain
+
+        TestWorld.tick(8)
+
+        assertEquals(true to false, waiting to player.wearingAgain)
+    }
+
+    @Test
     fun `a worn piece whose last charge was used is worn again uncharged`() {
         equipmentTab()
         val player = wearing(GLORY_ONE)
@@ -188,6 +200,91 @@ class LunaTeleportsTest {
         TestWorld.tick(8)
 
         assertNull(player.equipment[Equipment.AMULET])
+    }
+
+    private val starts = mutableListOf<TeleportStarted>()
+
+    private val notWorn = mutableListOf<TeleportDestination.Jewellery>()
+
+    private fun inTheDeepWilderness(player: Player): Player = player.apply {
+        controllers.register(WildernessController(this))
+        wildernessLevel = 31
+    }
+
+    @Test
+    fun `a cast says it starts before Luna's own line`() {
+        val player = login()
+
+        LunaTeleports.teleport(player, varrock, starting = { player.sendMessage("started") })
+
+        assertEquals(listOf("started", "You teleport to Varrock."), TestWorld.chatbox(player))
+    }
+
+    @Test
+    fun `a cast Luna turns down says nothing of its start`() {
+        LunaTeleports.teleport(inTheDeepWilderness(login()), varrock, starting = { starts += it })
+
+        assertEquals(emptyList<TeleportStarted>(), starts)
+    }
+
+    @Test
+    fun `a rub says it starts before Luna's own lines`() {
+        val player = login().apply { inventory.add(Item(GLORY)) }
+
+        LunaTeleports.teleport(player, edgeville, starting = { player.sendMessage("started") })
+
+        assertEquals(listOf("started", TeleportJewellery.AMULET_OF_GLORY.rub), TestWorld.chatbox(player).take(2))
+    }
+
+    @Test
+    fun `a rub Luna turns down says nothing of its start`() {
+        val player = inTheDeepWilderness(login().apply { inventory.add(Item(GLORY)) })
+
+        LunaTeleports.teleport(player, edgeville, starting = { starts += it })
+
+        assertEquals(emptyList<TeleportStarted>(), starts)
+    }
+
+    @Test
+    fun `a piece worn again is not told`() {
+        equipmentTab()
+        LunaTeleports.teleport(wearing(GLORY), edgeville, notWornAgain = { notWorn += it })
+
+        TestWorld.tick(8)
+
+        assertEquals(emptyList<TeleportDestination.Jewellery>(), notWorn)
+    }
+
+    @Test
+    fun `a piece left off for what the player put on meanwhile is told`() {
+        equipmentTab()
+        val player = wearing(GLORY)
+        LunaTeleports.teleport(player, edgeville, notWornAgain = { notWorn += it })
+        player.equipment.set(Equipment.AMULET, Item(STRENGTH_AMULET))
+
+        TestWorld.tick(8)
+
+        assertEquals(listOf(edgeville), notWorn)
+    }
+
+    @Test
+    fun `a piece Luna would not put back on is told`() {
+        TestWorld.listen(WidgetItemFirstClickEvent::class.java) { if (it.widgetId == 1688) it.plr.equipment.unequip(it.index) }
+        LunaTeleports.teleport(wearing(GLORY), edgeville, notWornAgain = { notWorn += it })
+
+        TestWorld.tick(8)
+
+        assertEquals(listOf(edgeville), notWorn)
+    }
+
+    @Test
+    fun `a necklace that crumbles is not told`() {
+        equipmentTab()
+        LunaTeleports.teleport(wearing(GAMES_NECKLACE_ONE), burthorpe, notWornAgain = { notWorn += it })
+
+        TestWorld.tick(10)
+
+        assertEquals(emptyList<TeleportDestination.Jewellery>(), notWorn)
     }
 
     @Test

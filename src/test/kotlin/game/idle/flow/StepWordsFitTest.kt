@@ -96,7 +96,10 @@ class StepWordsFitTest {
             ) + goals().flatMap { listOf(words.goalMet(99, it), words.goalStops(99, it)) } + travelLines()
     }
 
-    /** Every spend and long way a trip can tell (web-walker movement Part 3c): each teleport with all it lists, each piece taken off. */
+    /**
+     * Every spend and long way a trip can tell (web-walker movement Part 3c): each teleport with all it lists, each piece
+     * taken off, each piece not worn again.
+     */
     private fun travelLines(): List<String> {
         val teleports = Teleports.all.flatMap { destination ->
             when (destination) {
@@ -104,8 +107,10 @@ class StepWordsFitTest {
                 is TeleportDestination.Jewellery -> listOf(TeleportStarted.Rubbed(destination, tookOff = false), TeleportStarted.Rubbed(destination, tookOff = true))
             }
         }
-        val tookOff = Teleports.all.filterIsInstance<TeleportDestination.Jewellery>().map { words.tookOff(TookOff(99, it)) }
-        return teleports.map { words.said(99, Said.Teleported(it)) } + tookOff + words.said(99, Said.PaidToll(10)) +
+        val jewellery = Teleports.all.filterIsInstance<TeleportDestination.Jewellery>()
+        val reflexLines = jewellery.flatMap { listOf(ReflexSaid.TookOff(99, it), ReflexSaid.NotWornAgain(99, it)) }.map(words::reflexSaid)
+        val notWornAgain = jewellery.map { words.said(99, Said.NotWornAgain(it)) }
+        return teleports.map { words.said(99, Said.Teleported(it)) } + reflexLines + notWornAgain + words.said(99, Said.PaidToll(10)) +
             TravelChoice.entries.map { words.said(99, Said.LongWay(it)) } + ShipRoute.entries.map { words.said(99, Said.Fare(it.fare, it.place)) }
     }
 

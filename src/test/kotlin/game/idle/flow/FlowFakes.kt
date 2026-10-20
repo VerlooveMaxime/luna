@@ -285,6 +285,8 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
     var teleportRefused = false
     var teleporting = false
     var wornJewellery = false
+    /** The worn piece a teleport takes off cannot be worn again, told as soon as the teleport starts. */
+    var notWornAgain = false
     var flightBusy = false
     var flightUnderWay: UnderWay? = null
     var shutBehind: Passage? = null
@@ -340,7 +342,11 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
 
     override fun canTeleport(destination: TeleportDestination): Boolean = destination in teleportable
 
-    override fun teleport(destination: TeleportDestination, starting: (TeleportStarted) -> Unit): TeleportStarted? {
+    override fun teleport(
+        destination: TeleportDestination,
+        starting: (TeleportStarted) -> Unit,
+        notWornAgain: (TeleportDestination.Jewellery) -> Unit,
+    ): TeleportStarted? {
         done += "teleport ${Teleports.key(destination)}"
         if (teleportRefused) return null
         teleporting = true
@@ -349,6 +355,7 @@ class FakeReflexBody(var health: Health = Health(20, 20)) : ReflexBody {
             is TeleportDestination.Jewellery -> TeleportStarted.Rubbed(destination, tookOff = wornJewellery)
         }
         starting(started)
+        if (this.notWornAgain && destination is TeleportDestination.Jewellery) notWornAgain(destination)
         return started
     }
 

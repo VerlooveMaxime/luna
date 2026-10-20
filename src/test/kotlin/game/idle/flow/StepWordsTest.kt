@@ -216,8 +216,18 @@ class StepWordsTest {
     }
 
     @Test
+    fun `a trip that could not wear its jewellery again says so`() {
+        assertEquals("Autopilot: step 2 could not wear the amulet of glory again.", spender.said(2, Said.NotWornAgain(edgeville)))
+    }
+
+    @Test
     fun `a reflex that takes worn jewellery off to rub it says so`() {
-        assertEquals("Autopilot: reflex 2 takes off the amulet of glory to rub it to Edgeville.", spender.tookOff(TookOff(2, edgeville)))
+        assertEquals("Autopilot: reflex 2 takes off the amulet of glory to rub it to Edgeville.", spender.reflexSaid(ReflexSaid.TookOff(2, edgeville)))
+    }
+
+    @Test
+    fun `a reflex that could not wear its jewellery again says so`() {
+        assertEquals("Autopilot: reflex 2 could not wear the amulet of glory again.", spender.reflexSaid(ReflexSaid.NotWornAgain(2, edgeville)))
     }
 
     @Test

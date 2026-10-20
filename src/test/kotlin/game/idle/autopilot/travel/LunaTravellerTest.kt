@@ -411,20 +411,20 @@ class LunaTravellerTest {
 
     @Test
     fun `a teleport of the web is cast as the reflexes cast it, saying what it takes`() {
-        val started = LunaTraveller(mage(), web = null).teleport(webTeleport(TeleportKind.SPELL, "VARROCK")) {}
+        val started = LunaTraveller(mage(), web = null).teleport(webTeleport(TeleportKind.SPELL, "VARROCK"), {}) {}
 
         assertEquals(TeleportStarted.Cast(TeleportDestination.Spell(TeleportSpell.VARROCK), mapOf(AIR to 3, FIRE to 1, LAW to 1)), started)
     }
 
     @Test
     fun `a teleport no reflex offers is not started`() {
-        assertNull(LunaTraveller(mage(), web = null).teleport(webTeleport(TeleportKind.HOME, key = null)) {})
+        assertNull(LunaTraveller(mage(), web = null).teleport(webTeleport(TeleportKind.HOME, key = null), {}) {})
     }
 
     @Test
     fun `a teleport the player cannot do now is not started`() {
         val player = mage().apply { lock() }
-        assertNull(LunaTraveller(player, web = null).teleport(webTeleport(TeleportKind.SPELL, "VARROCK")) {})
+        assertNull(LunaTraveller(player, web = null).teleport(webTeleport(TeleportKind.SPELL, "VARROCK"), {}) {})
     }
 
     @Test

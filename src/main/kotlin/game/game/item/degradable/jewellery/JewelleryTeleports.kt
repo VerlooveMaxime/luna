@@ -55,9 +55,11 @@ object JewelleryTeleports {
     }
 
     /**
-     * Teleports the player once a destination is picked. The charge is only used once the player lands.
+     * Teleports the player once a destination is picked. The charge is only used once the player lands. [onTeleport] is
+     * invoked once the teleport has passed every check, before its message.
      */
-    fun teleport(plr: Player, destination: JewelleryDestination, slot: Int, index: Int, jewellery: TeleportJewellery) {
+    fun teleport(plr: Player, destination: JewelleryDestination, slot: Int, index: Int, jewellery: TeleportJewellery,
+                 onTeleport: () -> Unit = {}) {
         if (!holdsRubbedItem(plr, slot, index, jewellery)) {
             return
         }
@@ -67,6 +69,7 @@ object JewelleryTeleports {
             useCharge(plr, slot, index, jewellery)
             jewellery.landMessage(chargesLeft)?.let { plr.sendMessage(it) }
         }) {
+            onTeleport()
             jewellery.castMessage(chargesLeft)?.let { plr.sendMessage(it) }
         }
     }

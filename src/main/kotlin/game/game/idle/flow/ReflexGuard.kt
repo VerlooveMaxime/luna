@@ -62,10 +62,15 @@ interface ReflexBody {
 
     /**
      * Starts the teleport to [destination] as the spellbook's button or the jewellery's menu would, a worn piece taken
-     * off first, telling [starting] how it starts the moment before it does; how it started, null when Luna turned it
-     * down. The player is then held until they land.
+     * off first, telling [starting] how it starts once Luna takes it, before Luna's own lines, and [notWornAgain] of a
+     * piece taken off that could not be worn again; how it started, null when Luna turned it down. The player is then
+     * held until they land.
      */
-    fun teleport(destination: TeleportDestination, starting: (TeleportStarted) -> Unit): TeleportStarted?
+    fun teleport(
+        destination: TeleportDestination,
+        starting: (TeleportStarted) -> Unit,
+        notWornAgain: (TeleportDestination.Jewellery) -> Unit,
+    ): TeleportStarted?
 
     /** Whether a teleport under way still holds the player. */
     fun teleporting(): Boolean
@@ -110,8 +115,17 @@ sealed interface ReflexOutcome {
     data class Jump(val index: Int, override val number: Int, override val fired: Fired) : ReflexOutcome
 }
 
-/** Reflex [number] took worn jewellery off to rub it to [destination] (Maxime, 2026-10-18), which the player is told. */
-data class TookOff(val number: Int, val destination: TeleportDestination.Jewellery)
+/** What reflex [number]'s teleport tells the player of worn jewellery. */
+sealed interface ReflexSaid {
+
+    val number: Int
+
+    /** The reflex took worn jewellery off to rub it to [destination] (Maxime, 2026-10-18). */
+    data class TookOff(override val number: Int, val destination: TeleportDestination.Jewellery) : ReflexSaid
+
+    /** What the reflex took off to rub it to [destination] could not be worn again (Maxime, 2026-10-20). */
+    data class NotWornAgain(override val number: Int, val destination: TeleportDestination.Jewellery) : ReflexSaid
+}
 
 /**
  * The running [step]'s activity with the [reflexes] attached to it, in its order (S07c). At each decision the first
@@ -127,14 +141,15 @@ data class TookOff(val number: Int, val destination: TeleportDestination.Jewelle
  * teleport is a stop or a jump whose flight is the teleport itself (S13 part 5, Maxime 2026-10-16): once Luna takes it
  * the step waits for the landing, then the outcome follows at once, unless something attacks the player where they
  * land, which Q15's rule meets by running clear first; a teleport Luna turns down after all goes on as a plain stop or
- * jump. Worn jewellery taken off to rub it is told through [tookOff] the moment before, ahead of Luna's own lines.
+ * jump. Worn jewellery taken off to rub it is told through [told] once Luna takes the teleport, ahead of Luna's own lines,
+ * and so is a piece that could not be worn again after the landing.
  */
 class ReflexGuard(
     private val step: StepActivity,
     private val reflexes: List<ResolvedReflex>,
     private val body: ReflexBody,
     private val hold: PrayerHold,
-    private val tookOff: (TookOff) -> Unit,
+    private val told: (ReflexSaid) -> Unit,
 ) : StepActivity {
 
     private var leaving: Leaving? = null
@@ -248,10 +263,12 @@ class ReflexGuard(
 
     /**
      * A teleport Luna takes is the flight; one it turns down, or no teleport at all, runs clear. Worn jewellery taken off
-     * to rub it is told the moment before (Maxime, 2026-10-18).
+     * to rub it is told as Luna takes it (Maxime, 2026-10-18), and a piece not worn again after (Maxime, 2026-10-20).
      */
     private fun leave(firing: Firing.Leave) {
-        val started = firing.teleport?.let { destination -> body.teleport(destination) { tellTakingOff(firing.number, it) } }
+        val started = firing.teleport?.let { destination ->
+            body.teleport(destination, { tellTakingOff(firing.number, it) }) { told(ReflexSaid.NotWornAgain(firing.number, it)) }
+        }
         if (started != null) {
             leaving = Leaving.InFlight(firing)
             return
@@ -260,7 +277,7 @@ class ReflexGuard(
     }
 
     private fun tellTakingOff(number: Int, started: TeleportStarted) {
-        if (started is TeleportStarted.Rubbed && started.tookOff) tookOff(TookOff(number, started.destination))
+        if (started is TeleportStarted.Rubbed && started.tookOff) told(ReflexSaid.TookOff(number, started.destination))
     }
 
     private fun runClear(firing: Firing.Leave) {

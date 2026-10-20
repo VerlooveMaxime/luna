@@ -58,13 +58,21 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
             is Said.Skipped -> line("${PREFIX}step $number skipped this lap: ", said.reason)
             is Said.DoorShut -> "${PREFIX}step $number could not get through the ${noun(said.passage)} at ${said.tile.x}, ${said.tile.y}."
             is Said.Teleported -> "${PREFIX}step $number ${teleported(said.started)}."
+            is Said.NotWornAgain -> "${PREFIX}step $number ${notWornAgain(said.destination)}."
             is Said.PaidToll -> "${PREFIX}step $number pays the ${said.coins}-coin toll at the Al Kharid gate."
             is Said.Fare -> "${PREFIX}step $number ${if (said.coins > 0) "pays the ${said.coins}-coin fare" else "takes the ship"} to ${said.place}."
             is Said.LongWay -> "${PREFIX}step $number takes the long way: ${offInTravel(said.choice)}."
         }
 
-    /** Reflex [TookOff.number] took worn jewellery off to rub it (Maxime, 2026-10-18): "Autopilot: reflex 2 takes off the amulet of glory to rub it to Edgeville." */
-    fun tookOff(tookOff: TookOff): String = "${PREFIX}reflex ${tookOff.number} ${takesOff(tookOff.destination)}."
+    /**
+     * What a reflex's teleport tells of worn jewellery: "Autopilot: reflex 2 takes off the amulet of glory to rub it to
+     * Edgeville." (Maxime, 2026-10-18), "Autopilot: reflex 2 could not wear the amulet of glory again." (2026-10-20).
+     */
+    fun reflexSaid(said: ReflexSaid): String =
+        when (said) {
+            is ReflexSaid.TookOff -> "${PREFIX}reflex ${said.number} ${takesOff(said.destination)}."
+            is ReflexSaid.NotWornAgain -> "${PREFIX}reflex ${said.number} ${notWornAgain(said.destination)}."
+        }
 
     /**
      * A trip's teleport, every spend worded (Q6, Maxime 2026-10-18): "casts the Varrock teleport: 3 air, 1 fire, 1 law",
@@ -85,6 +93,8 @@ class StepWords(private val names: GameNames, private val chat: ClientFont) {
         val start = "takes off the ${jewellery(destination)} to rub it to "
         return start + chat.fit(Teleports.named(destination), CHAT_ROOM - chat.width("${PREFIX}reflex 99 $start."))
     }
+
+    private fun notWornAgain(destination: TeleportDestination.Jewellery): String = "could not wear the ${jewellery(destination)} again"
 
     private fun jewellery(destination: TeleportDestination.Jewellery): String = Teleports.jewelleryName(destination.jewellery, names)
 

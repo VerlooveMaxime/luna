@@ -18,6 +18,7 @@ import game.idle.flow.TeleportStarted
 import game.idle.flow.UnderWay
 import game.idle.location.Tile
 import game.idle.movement.TravelChoice
+import game.item.degradable.jewellery.TeleportJewellery
 import game.skill.magic.teleportSpells.TeleportSpell
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -536,6 +537,7 @@ class TripWorkTest {
     private val varrockTeleport = TeleportDefinition("spell_varrock", TeleportKind.SPELL, "VARROCK", option = null, landing, "spell_varrock", cost = 5)
     private val varrock = TeleportDestination.Spell(TeleportSpell.VARROCK)
     private val cast = TeleportStarted.Cast(varrock, mapOf(556 to 3, 554 to 1, 563 to 1))
+    private val edgeville = TeleportDestination.Jewellery(TeleportJewellery.AMULET_OF_GLORY, 0)
 
     private fun teleportLeg() = PlanLeg(EdgeType.TELEPORT, start, landing, cost = 5.0, teleport = varrockTeleport)
 
@@ -560,6 +562,15 @@ class TripWorkTest {
         planned(teleportLeg())
         trip.act(null)
         assertEquals(listOf(Said.Teleported(cast)), traveller.said)
+    }
+
+    @Test
+    fun `a worn piece a teleport could not wear again is told`() {
+        traveller.teleported = TeleportStarted.Rubbed(edgeville, tookOff = true)
+        traveller.notWornAgain = edgeville
+        planned(teleportLeg())
+        trip.act(null)
+        assertEquals(Said.NotWornAgain(edgeville), traveller.said.last())
     }
 
     @Test
