@@ -1,9 +1,8 @@
 package game.bot.scripts.skills
 
-import api.bot.Suspendable.naturalDecisionDelay
 import api.bot.Suspendable.waitFor
-import api.bot.script.BotScriptData
 import api.bot.script.InventoryBotScript
+import api.bot.script.InventoryBotScript.Companion.InventoryScriptData
 import api.bot.script.ZonedBotScript.Companion.ZonedBotScriptData
 import api.bot.zone.SubZone
 import api.predef.*
@@ -20,6 +19,7 @@ import io.luna.game.model.mob.Npc
 import io.luna.game.model.mob.bot.Bot
 import io.luna.util.RandomUtils.roll
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Tans hides by interacting with a tanner NPC.
@@ -28,13 +28,26 @@ import kotlin.time.Duration
  * counts startup supplies across inventory and bank, then recalculates each withdrawal from bank stock after deposit.
  * It requests only missing hides or an unaffordable tanning fee, preserving existing wanted targets and metadata.
  * The script travels to a tanner, opens the tanning interface, and clicks the matching "tan all" button for the selected hide.
+ * Carried coins must cover every carried hide before tan-all is attempted; otherwise another bank visit balances
+ * the batch. Bank withdrawals use the inherited bounded, unnoted verification and must deliver both coins
+ * and hides. Shared production and banking budgets bound repeated failures and survive saves; only input
+ * consumption or a verified withdrawal resets the corresponding counter.
  *
  * @param bot The bot running this script.
  * @param duration How long this script should run before completing normally.
  * @author lare96
  */
-class TanHideBotScript(bot: Bot, duration: Duration) :
-    InventoryBotScript(bot, duration, mutableListOf(SubZone.AL_KHARID_BANK)) {
+class TanHideBotScript(
+    bot: Bot,
+    duration: Duration,
+    zones: MutableList<SubZone> = mutableListOf(SubZone.AL_KHARID_BANK)
+) : InventoryBotScript(bot, duration, zones) {
+    override val verifiedProductionWithdrawals = true
+    companion object {
+        /** Saved tanning session configuration and inherited retry counters. @author lare96 */
+        class TanningData : InventoryScriptData()
+    }
+
     // todo canifis tannery, crafting guild
     /**
      * Recreates a hide-tanning script from saved zone and duration data.
@@ -42,7 +55,9 @@ class TanHideBotScript(bot: Bot, duration: Duration) :
      * @param bot The bot that owns this script.
      * @param data The previously saved script data.
      */
-    constructor(bot: Bot, data: ZonedBotScriptData) : this(bot, data.duration)
+    constructor(bot: Bot, data: ZonedBotScriptData) : this(bot, data.duration, data.zones) {
+        if (data is InventoryScriptData) restoreInventoryState(data)
+    }
 
     /**
      * The hide type selected for the current tanning cycle.
@@ -55,21 +70,31 @@ class TanHideBotScript(bot: Bot, duration: Duration) :
     /**
      * The cached tanner NPC used by this script.
      *
-     * This avoids scanning the zone every cycle once a tanner has been found.
+     * This avoids scanning the zone every cycle once a tanner has been found. A failed interaction
+     * invalidates the reference so the next bounded retry searches for an available tanner.
      */
     private var tannerNpc: Npc? = null
 
     override suspend fun onInventoryBankRequested(): Boolean {
-        val tanning = tanning ?: return false
-        return tanning.hide !in bot.inventory
+        if (tanning == null) return false
+        return requestProductionBank(hasTanningSupplies())
+    }
+
+    /** The native tan-all handler requires coins for all carried hides, rather than just one conversion. */
+    private fun hasTanningSupplies(): Boolean {
+        val hide = tanning ?: return false
+        val amount = bot.inventory.computeAmountForId(hide.hide)
+        return amount > 0 && bot.inventory.computeAmountForId(995).toLong() >= hide.cost.toLong() * amount
     }
 
     override suspend fun onExecuteInZone(): Boolean {
+        if (tanning == null) { stop(); return true }
+        if (!productionReady(hasTanningSupplies())) return true
         val zone = activeZone!!
         if (tannerNpc == null) {
             tannerNpc = world.locator
                 .findNpcs(zone.area.centerPosition, zone.area.tileRadius) {
-                    it.id == 804 || it.id == 2824 || it.id == 1041
+                    it.id in TanInterface.TANNER_IDS
                 }
                 .firstOrNull()
         }
@@ -82,30 +107,19 @@ class TanHideBotScript(bot: Bot, duration: Duration) :
             stop()
             return false
         }
-        if (!bot.inventory.contains(tanning!!.hide)) {
-            forceBanking = true
-            return true
-        }
+        attemptProduction(tanning!!.hide) { startTanning(tanning!!, tanner) }
+        return true
+    }
+
+    /** Opens the normal tanning interface and selects its existing tan-all button; shared hooks verify progress. */
+    private suspend fun startTanning(hide: Hide, tanner: Npc): Boolean {
         if (!handler.interactions.interact(2, tanner)) {
-            bot.log("Could not interact with tanner NPC. Trying again next cycle.")
-            return true
+            tannerNpc = null
+            return false
         }
-
-        bot.log("Waiting for tanning interface to open.")
-        if (!waitFor { TanInterface::class in bot.overlays }) {
-            bot.log("Tanning interface was not opened. Trying again next cycle.")
-            return true
-        }
-
-        val button = TanInterface.hideToMakeAll[tanning]
-        if (button != null) {
-            bot.log("Clicking make all button [$button] for $tanning.")
-            output.clickButton(button)
-            bot.naturalDecisionDelay()
-        } else {
-            bot.log("No make all button found for $tanning, ending script.")
-            stop()
-        }
+        if (!waitFor(3.seconds) { TanInterface::class in bot.overlays }) return false
+        val button = TanInterface.hideToMakeAll[hide] ?: return false
+        output.clickButton(button)
         return true
     }
 
@@ -118,6 +132,7 @@ class TanHideBotScript(bot: Bot, duration: Duration) :
      * Cowhide defaults to soft leather; hard leather is considered only when its level and fee are available.
      */
     private fun withdrawBatch(bankOnly: Boolean): List<Item> {
+        if (!bankOnly && productionRetriesExhausted()) { stop(); return emptyList() }
         fun amount(id: Int) = if (bankOnly) bot.bank.computeAmountForId(id) else bot.itemTracker.count(id)
         val coins = amount(995)
         for ((id, configured) in Hide.HIDE_TO_HIDE) {
@@ -151,12 +166,11 @@ class TanHideBotScript(bot: Bot, duration: Duration) :
         if (bot.itemTracker.count(995) < minimumFee) bot.preferences.raiseWantedItemTarget(995, 100_000)
     }
 
-    override fun snapshot(): BotScriptData {
-        val data = ZonedBotScriptData()
-        data.duration = duration
-        data.zones = zones
-        return data
-    }
+    override fun snapshot(): TanningData = TanningData().also { saveInventoryState(it) }
+
+    override fun onPaused() { tannerNpc = null }
+
+    override suspend fun onNewActiveZone(lastZone: SubZone?) { tannerNpc = null }
 
     override suspend fun equipment(): BotGearLocator? {
         if (bot.personality.isIntelligent) {

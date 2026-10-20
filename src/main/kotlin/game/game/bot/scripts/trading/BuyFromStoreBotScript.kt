@@ -13,6 +13,9 @@ import io.luna.game.model.item.shop.Shop
 import io.luna.game.model.item.shop.ShopInterface
 import io.luna.game.model.mob.bot.Bot
 import io.luna.game.model.mob.bot.brain.BotActivity
+import kotlin.math.ln
+import kotlin.math.sqrt
+import kotlin.random.Random
 
 /**
  * Purchases wanted items and optional speculative stock from registered shops while the bot is at home.
@@ -42,6 +45,27 @@ class BuyFromStoreBotScript(bot: Bot) : DynamicBotScript(bot) {
         private val ORDINARY_BUDGET = 0.01..0.04
         private val MERCHANT_BUDGET = 0.07..0.10
         private val STRONG_MERCHANT_BUDGET = 0.12..0.15
+    }
+
+    /**
+     * Random purchase ordering that favors valuable items without excluding inexpensive alternatives.
+     *
+     * @author lare96
+     */
+    internal object ShopPurchaseSelection {
+
+        /**
+         * Square-root scaling keeps expensive items attractive without letting their raw GP value dominate.
+         */
+        fun weight(price: Double, priority: Int): Double = sqrt(price.coerceAtLeast(1.0)) * (1 + priority.coerceAtLeast(0))
+
+        /**
+         * Exponential races produce a weighted shuffle without replacement; equal weights are a uniform shuffle.
+         */
+        fun <T> order(items: List<T>, random: Random = Random.Default, weight: (T) -> Double): List<T> =
+            items.map { it to (-ln(1.0 - random.nextDouble()) / weight(it)) }
+                .sortedBy { it.second }
+                .map { it.first }
     }
 
     override suspend fun run(): Boolean {
@@ -90,9 +114,12 @@ class BuyFromStoreBotScript(bot: Bot) : DynamicBotScript(bot) {
         // purchased because every accessible shop is empty, too expensive, or inaccessible, block it for this trip.
         val blockedWantedItems = HashSet<Int>()
 
+        // Shop access depends only on the bot, so resolve it once per trip instead of once per wanted item.
+        val shops = accessibleShops()
+
         while (remainingBudget > 0) {
-            val wanted = nextWantedItem(blockedWantedItems) ?: break
-            val spent = buyWantedItem(wanted, remainingBudget)
+            val wanted = nextWantedItem(shops, blockedWantedItems, remainingBudget) ?: break
+            val spent = buyWantedItem(shops, wanted, remainingBudget)
 
             if (spent < 1) {
                 // Avoid selecting an impossible wanted item forever during this shopping trip.
@@ -111,7 +138,7 @@ class BuyFromStoreBotScript(bot: Bot) : DynamicBotScript(bot) {
 
         // Only start random shopping once no currently-purchasable wanted item remains.
         if (remainingBudget > 0) {
-            spendSpeculatively(remainingBudget)
+            spendSpeculatively(shops, remainingBudget)
         }
 
         bot.preferences.rebalanceWantedItems()
@@ -174,17 +201,34 @@ class BuyFromStoreBotScript(bot: Bot) : DynamicBotScript(bot) {
     /**
      * Returns the next wanted item that still needs ownership and is stocked by an accessible shop.
      */
-    private fun nextWantedItem(blocked: Set<Int>): WantedItemDefinition? {
-        return bot.preferences.wantedItemsToAcquire()
-            .asSequence()
-            .filterNot { it.id in blocked }
-            .firstOrNull { shopsFor(it.id).isNotEmpty() }
+    private fun nextWantedItem(shops: List<Shop>, blocked: Set<Int>, budget: Int): WantedItemDefinition? {
+        val candidates = bot.preferences.wantedItemsToAcquire()
+            .filterNot { it.id in blocked || it.id == COINS_ID }
+            .filter { wanted -> shopsFor(shops, wanted.id).any { canBuyOne(it, wanted.id, budget) } }
+        return ShopPurchaseSelection.order(candidates) { shoppingWeight(it.id) }.firstOrNull()
+    }
+
+    /**
+     * Uses current economy value and the bot's wanted priority as measures of desirability.
+     */
+    private fun shoppingWeight(id: Int): Double {
+        val wanted = bot.preferences.getWantedItem(id) ?: WantedItemDefinition.DEFAULT.get(id).orElse(null)
+        val priority = wanted?.priority?.level ?: WantedItemDefinition.DEFAULT_PRIORITY.level
+        return ShopPurchaseSelection.weight(world.economy.getRealPrice(id), priority)
+    }
+
+    /**
+     * Excludes unaffordable stock and items that cannot fit before rolling the purchase order.
+     */
+    private fun canBuyOne(shop: Shop, id: Int, budget: Int): Boolean {
+        val price = shop.computeBuyValue(id, 1)
+        return price.isPresent && price.asInt in 1..budget && bot.inventory.hasSpaceFor(Item(id))
     }
 
     /**
      * Attempts to complete one wanted-item target before moving to another wanted item.
      */
-    private suspend fun buyWantedItem(wanted: WantedItemDefinition, budget: Int): Int {
+    private suspend fun buyWantedItem(shops: List<Shop>, wanted: WantedItemDefinition, budget: Int): Int {
         var spent = 0
         val failedShops = HashSet<Shop>()
 
@@ -197,7 +241,7 @@ class BuyFromStoreBotScript(bot: Bot) : DynamicBotScript(bot) {
             }
 
             // Stock is mutable, so re-resolve matching shops each pass rather than caching the result for the trip.
-            val shop = shopsFor(wanted.id)
+            val shop = shopsFor(shops, wanted.id)
                 .filterNot { it in failedShops }
                 .randomOrNull() ?: break
 
@@ -235,27 +279,27 @@ class BuyFromStoreBotScript(bot: Bot) : DynamicBotScript(bot) {
      * - Average bots may buy one or several items.
      * - Intelligent bots deliberately spread their money across several different items.
      */
-    private suspend fun spendSpeculatively(budget: Int): Int {
+    private suspend fun spendSpeculatively(shops: List<Shop>, budget: Int): Int {
         val merchant = bot.preferences.likesActivity(BotActivity.MERCHANTING)
 
-        val shop = accessibleShops()
+        val candidates = shops
             .filter { it.isMerchantOnly == merchant }
-            .filter { candidate ->
-                candidate.items.any { item ->
-                    item != null && item.amount > 0 && item.id != COINS_ID
-                }
+            .associateWith { candidate ->
+                candidate.items.filterNotNull()
+                    .filter { it.amount > 0 && it.id != COINS_ID && canBuyOne(candidate, it.id, budget) }
+                    .map { it.id }.distinct()
             }
-            .randomOrNull() ?: return 0
+            .filterValues { it.isNotEmpty() }
+        // Weight shops by their most desirable affordable item, so cheap-only shops do not hide coveted stock.
+        val shop = ShopPurchaseSelection.order(candidates.keys.toList()) { candidate ->
+            candidates.getValue(candidate).maxOf { shoppingWeight(it) }
+        }.firstOrNull() ?: return 0
 
         if (!openShop(shop)) {
             return 0
         }
 
-        val stockIds = shop.items
-            .filterNotNull()
-            .filter { it.amount > 0 && it.id != COINS_ID }
-            .map { it.id }
-            .distinct()
+        val stockIds = candidates.getValue(shop)
 
         if (stockIds.isEmpty()) {
             return 0
@@ -277,7 +321,7 @@ class BuyFromStoreBotScript(bot: Bot) : DynamicBotScript(bot) {
             else -> 1
         }
 
-        val selectedItems = stockIds.shuffled().take(itemCount)
+        val selectedItems = ShopPurchaseSelection.order(stockIds) { shoppingWeight(it) }.take(itemCount)
 
         var remainingBudget = budget
         var totalSpent = 0
@@ -301,7 +345,8 @@ class BuyFromStoreBotScript(bot: Bot) : DynamicBotScript(bot) {
                 shop = shop,
                 id = id,
                 maxAmount = Int.MAX_VALUE,
-                budget = itemBudget.coerceAtMost(remainingBudget)
+                // Let an early expensive choice buy at least one before cheaper choices consume its budget.
+                budget = maxOf(itemBudget, shop.computeBuyValue(id, 1).orElse(0)).coerceAtMost(remainingBudget)
             )
 
             totalSpent += spent
@@ -315,7 +360,7 @@ class BuyFromStoreBotScript(bot: Bot) : DynamicBotScript(bot) {
         while (remainingBudget > 0 && madeProgress) {
             madeProgress = false
 
-            for (id in selectedItems.shuffled()) {
+            for (id in ShopPurchaseSelection.order(selectedItems) { shoppingWeight(it) }) {
                 if (remainingBudget < 1) {
                     break
                 }
@@ -429,11 +474,10 @@ class BuyFromStoreBotScript(bot: Bot) : DynamicBotScript(bot) {
     }
 
     /**
-     * Returns accessible shops that currently contain positive stock for [id].
+     * Returns the shops in [shops] that currently contain positive stock for [id].
      */
-    private fun shopsFor(id: Int): List<Shop> {
-        return accessibleShops()
-            .filter { it.stockAmount(id) > 0 }
+    private fun shopsFor(shops: List<Shop>, id: Int): List<Shop> {
+        return shops.filter { it.stockAmount(id) > 0 }
     }
 
     /**

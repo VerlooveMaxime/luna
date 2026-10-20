@@ -32,6 +32,7 @@ import io.luna.game.model.`object`.GameObject
  * - Ladders and stairs are climbed with the option that the plan says, and when that is "Climb" the bot also chooses up or
  *   down in the dialogue that asks.
  * - Trapdoors are opened if they are closed, then climbed down.
+ * - Cave and dungeon entrances are used with the option that the plan says, which never asks anything.
  * - Teleports are cast, rubbed or typed as a player would. Fairy rings are not supported yet, so a plan with one fails
  *   when it gets to it.
  * - Ships are boarded by talking to their crew and left by their gangplank, see
@@ -121,7 +122,7 @@ class WebWalkExecutor(private val bot: Bot,
                 EdgeType.WALK -> walk(leg.to, if (next?.type == EdgeType.WALK) WALK_SLACK else 0)
                 EdgeType.DOOR, EdgeType.GATE, EdgeType.CURTAIN -> crossDoor(leg)
                 EdgeType.CROSSING -> crossing(leg)
-                EdgeType.LADDER, EdgeType.STAIR -> climb(leg)
+                EdgeType.LADDER, EdgeType.STAIR, EdgeType.ENTRANCE -> climb(leg)
                 EdgeType.TRAPDOOR -> climbTrapdoor(leg)
                 EdgeType.TELEPORT -> teleport(leg)
                 EdgeType.SHIP -> ShipVoyage.sail(context, leg)
@@ -160,7 +161,8 @@ class WebWalkExecutor(private val bot: Bot,
 
     /**
      * Checks that the bot still meets the requirements of a leg, because it may have spent or dropped what it needed since
-     * the trip was planned.
+     * the trip was planned. Only what the bot carries counts, never its bank: a trip that was planned with the bank has
+     * withdrawn what it needs by now.
      *
      * @return `null` if it does, or why it doesn't.
      */
@@ -229,7 +231,7 @@ class WebWalkExecutor(private val bot: Bot,
     }
 
     /**
-     * Climbs a ladder or staircase.
+     * Climbs a ladder or staircase, or uses an entrance.
      *
      * @return `null` if the bot arrived, or why it didn't.
      */
@@ -243,6 +245,11 @@ class WebWalkExecutor(private val bot: Bot,
 
         if (!handler.interactions.interact(option, obj)) {
             return "could not reach the object $id at $position"
+        }
+        if (leg.type == EdgeType.ENTRANCE) {
+            // An entrance's "Climb" doesn't ask which way, and some only move the bot a few tiles.
+            return if (context.awaitArrival(leg, context.landingSlack(leg))) null else
+                "the bot did not arrive near ${leg.to}, it is at ${bot.position}"
         }
         if (name.equals("Climb", ignoreCase = true)) {
             // "Climb" asks which way, unless the bot is already on its way.

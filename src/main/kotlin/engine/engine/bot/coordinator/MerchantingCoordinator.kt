@@ -1,8 +1,8 @@
-
 package engine.bot.coordinator
 
 import api.bot.action.trading.BotTradePurpose
 import api.predef.*
+import api.bot.action.trading.BotMarketplace
 import api.predef.ext.*
 import game.bot.scripts.trading.BuyFromStoreBotScript
 import game.bot.scripts.trading.SellToStoreBotScript
@@ -54,14 +54,12 @@ object MerchantingCoordinator : BotCoordinator {
                 } else {
                     BotTradePurpose.SELL
                 }
-            val generalStore = world.shops.get("General Store")
-            val spaceLeft = generalStore?.items?.let { it.capacity() - it.size() } ?: 0
             val isDumbOrGreedy = bot.personality.isDumb || (bot.personality.isIntelligent && bot.emotions.isFeeling(
                 EmotionType.GREEDY))
-            if (generalStore != null && spaceLeft > 0 && randBoolean() && isDumbOrGreedy) {
+            if (randBoolean() && isDumbOrGreedy) {
                 bot.scriptStack.push(SellToStoreBotScript(bot))
             } else {
-                bot.scriptStack.push(TradeBotScript(bot, purpose))
+                bot.scriptStack.push(TradeBotScript(bot, purpose, BotMarketplace.select(bot)))
             }
         } else if (bot.preferences.wantedItemsToAcquire().isNotEmpty()) {
             // Start trading script, or buy items from store.
@@ -71,7 +69,13 @@ object MerchantingCoordinator : BotCoordinator {
                 } else {
                     BotTradePurpose.BUY
                 }
-            bot.scriptStack.push(TradeBotScript(bot, purpose))
+            val isShopper = bot.personality.isIntelligent && !bot.preferences.hatesActivity(BotActivity.MERCHANTING) ||
+                    bot.preferences.isMerchant
+            if (rand(3) == 0 || isShopper && randBoolean()) {
+                bot.scriptStack.push(BuyFromStoreBotScript(bot))
+            } else {
+                bot.scriptStack.push(TradeBotScript(bot, purpose, BotMarketplace.select(bot)))
+            }
         } else {
             // Otherwise make generic purchases from registered shops.
             bot.scriptStack.push(BuyFromStoreBotScript(bot))
