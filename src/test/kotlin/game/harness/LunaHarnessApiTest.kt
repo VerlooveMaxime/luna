@@ -1,5 +1,6 @@
 package game.harness
 
+import api.bot.webwalk.model.EdgeAction
 import api.bot.webwalk.model.EdgeType
 import api.bot.webwalk.model.NodeKind
 import api.bot.webwalk.model.Requirements
@@ -9,6 +10,7 @@ import api.bot.webwalk.model.WebWalkNode
 import api.bot.webwalk.plan.CapabilitySnapshot.Companion.COINS
 import api.bot.webwalk.plan.WalkEstimator
 import api.bot.webwalk.plan.ticksForTiles
+import api.bot.webwalk.walk.crossing.BorderGateCrossing
 import game.idle.IdleState
 import game.idle.flow.FakeBankStep
 import game.idle.flow.FakeStep
@@ -126,7 +128,7 @@ class LunaHarnessApiTest {
         val wall = WalkEstimator { from, to ->
             if (from.z != to.z || (from.x < 3210) != (to.x < 3210)) null else ticksForTiles(from.computeLongestDistance(to))
         }
-        val toll = WebWalkEdge(west.id, east.id, EdgeType.CROSSING, requirements = Requirements(coins = 10))
+        val toll = WebWalkEdge(west.id, east.id, EdgeType.CROSSING, requirements = Requirements(coins = 10), action = EdgeAction(handler = BorderGateCrossing.ID))
         TravelWeb(WebWalkGraph(listOf(west, east), listOf(toll), emptyList(), emptyList()), { false }, { wall }, Random(1))
     }
 

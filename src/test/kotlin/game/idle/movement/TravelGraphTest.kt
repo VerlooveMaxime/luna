@@ -12,6 +12,8 @@ import api.bot.webwalk.model.TeleportKind
 import api.bot.webwalk.model.WebWalkEdge
 import api.bot.webwalk.model.WebWalkGraph
 import api.bot.webwalk.model.WebWalkNode
+import api.bot.webwalk.walk.crossing.BorderGateCrossing
+import api.bot.webwalk.walk.crossing.CrossingHandlers
 import io.luna.game.model.Position
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -156,6 +158,11 @@ class TravelGraphTest {
     }
 
     @Test
+    fun `a crossing is not asked whether it stands`() {
+        assertEquals(emptySet<Doorway>(), removedOf(crossing(BorderGateCrossing.ID)) { _, _ -> false })
+    }
+
+    @Test
     fun `a door edge naming no object is not removed`() {
         assertEquals(emptySet<Doorway>(), removedOf(edge(east, south, EdgeType.GATE)) { _, _ -> false })
     }
@@ -177,10 +184,55 @@ class TravelGraphTest {
     }
 
     @Test
-    fun `a fairy ring in the wilderness is left out`() {
-        val rings = listOf(FairyRing("outside", "AIQ", east.position, east.id), FairyRing("wild", "DKR", inside.position, inside.id))
+    fun `fairy rings are left out while no leg takes one`() {
+        val rings = listOf(FairyRing("outside", "AIQ", east.position, east.id))
         val graph = travelGraph(WebWalkGraph(nodes, emptyList(), emptyList(), rings), wilderness)
-        assertEquals(listOf("outside"), graph.fairyRings.map { it.id })
+        assertEquals(emptyList<FairyRing>(), graph.fairyRings)
+    }
+
+    @Test
+    fun `an edge of a kind no leg takes is left out`() {
+        assertEquals(emptyList<WebWalkEdge>(), edgesKept(edge(east, south, EdgeType.FAIRY_RING)))
+    }
+
+    private fun crossing(handler: String?) =
+        edge(east, south, EdgeType.CROSSING).copy(action = EdgeAction(objectId = 2882, objectPosition = south.position, handler = handler))
+
+    @Test
+    fun `the toll gate's crossing is kept`() {
+        val toll = crossing(BorderGateCrossing.ID)
+        assertEquals(listOf(toll), edgesKept(toll))
+    }
+
+    @Test
+    fun `a crossing whose handler no leg takes is left out`() {
+        assertEquals(emptyList<WebWalkEdge>(), edgesKept(crossing("shantay_pass")))
+    }
+
+    @Test
+    fun `a crossing naming no handler is left out`() {
+        assertEquals(emptyList<WebWalkEdge>(), edgesKept(crossing(null)))
+    }
+
+    @Test
+    fun `a crossing with nothing to click is left out`() {
+        assertEquals(emptyList<WebWalkEdge>(), edgesKept(edge(east, south, EdgeType.CROSSING)))
+    }
+
+    @Test
+    fun `every kind of edge upstream's model has, a trip has a leg for, but fairy rings`() {
+        assertEquals(
+            setOf(EdgeType.FAIRY_RING), EdgeType.entries.toSet() - TRIP_EDGE_TYPES,
+            "an upstream merge brought a new kind of edge: write its leg in TripWork and add it to TRIP_EDGE_TYPES",
+        )
+    }
+
+    @Test
+    fun `every crossing handler upstream has, a trip has a leg for`() {
+        assertEquals(
+            CrossingHandlers.ids, TRIP_CROSSING_HANDLERS,
+            "an upstream merge brought a new crossing: write its leg in TripWork and add it to TRIP_CROSSING_HANDLERS",
+        )
     }
 
     @Test

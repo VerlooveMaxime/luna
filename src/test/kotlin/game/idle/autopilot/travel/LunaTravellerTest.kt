@@ -13,6 +13,7 @@ import api.bot.webwalk.plan.CapabilitySnapshot.Companion.COINS
 import api.bot.webwalk.plan.Spend
 import api.bot.webwalk.plan.WalkEstimator
 import api.bot.webwalk.plan.ticksForTiles
+import api.bot.webwalk.walk.crossing.BorderGateCrossing
 import game.idle.autopilot.EndlessAction
 import game.idle.autopilot.LunaClicks
 import game.idle.flow.EntrancePassage
@@ -72,9 +73,11 @@ class LunaTravellerTest {
         if (from.z != to.z || (from.x < 3210) != (to.x < 3210)) null else ticksForTiles(from.computeLongestDistance(to))
     }
 
+    private val tollGate = EdgeAction(handler = BorderGateCrossing.ID)
+
     /** A wall at x 3210 that only a toll gate of 10 coins crosses, from 3209 to 3210. */
     private val tollWeb: TravelWeb by lazy {
-        val toll = WebWalkEdge(wallWest.id, wallEast.id, EdgeType.CROSSING, requirements = Requirements(coins = 10))
+        val toll = WebWalkEdge(wallWest.id, wallEast.id, EdgeType.CROSSING, requirements = Requirements(coins = 10), action = tollGate)
         TravelWeb(WebWalkGraph(listOf(wallWest, wallEast), listOf(toll), emptyList(), emptyList()), { false }, { wall }, Random(1))
     }
 
@@ -334,7 +337,7 @@ class LunaTravellerTest {
         val gapWest = WebWalkNode("gapWest", Position(3209, 3230), NodeKind.WAYPOINT)
         val gapEast = WebWalkNode("gapEast", Position(3210, 3230), NodeKind.WAYPOINT)
         val edges = listOf(
-            WebWalkEdge(west.id, east.id, EdgeType.CROSSING, requirements = Requirements(coins = 10)),
+            WebWalkEdge(west.id, east.id, EdgeType.CROSSING, requirements = Requirements(coins = 10), action = tollGate),
             WebWalkEdge(west.id, gapWest.id, EdgeType.WALK),
             WebWalkEdge(gapWest.id, gapEast.id, EdgeType.WALK),
             WebWalkEdge(gapEast.id, east.id, EdgeType.WALK),
