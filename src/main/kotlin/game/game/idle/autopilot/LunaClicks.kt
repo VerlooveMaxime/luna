@@ -218,9 +218,9 @@ object LunaClicks {
         interact(player, event, target, event.javaClass)
     }
 
-    /** The checks the packet reader makes before dispatching a click. */
+    /** The checks the packet reader makes before dispatching a click: a stun stops clicks on the world, not eating or buttons. */
     fun mayAct(player: Player, event: ControllableEvent): Boolean =
-        !player.isLocked && player.controllers.checkEvent(event)
+        !player.isActionLocked && !(player.status.isStunned() && event is InteractableEvent) && player.controllers.checkEvent(event)
 
     /** Posts [event] to its listeners as the packet reader does, when the player may act. */
     fun <E> post(player: Player, event: E) where E : Event, E : ControllableEvent {

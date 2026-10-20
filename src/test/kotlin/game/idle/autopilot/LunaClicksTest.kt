@@ -8,6 +8,7 @@ import game.idle.movement.Doorway
 import game.idle.movement.Doorways
 import game.idle.movement.Step
 import game.idle.movement.approachTiles
+import game.skill.thieving.pickpocketNpc.PickpocketStun
 import game.testworld.TestWorld
 import io.luna.game.action.ActionType
 import io.luna.game.event.impl.ButtonClickEvent
@@ -135,6 +136,23 @@ class LunaClicksTest {
         player.lock()
 
         assertFalse(LunaClicks.mayAct(player, ObjectFirstClickEvent(player, booth)))
+    }
+
+    @Test
+    fun `a stunned player may not click on the world`() {
+        val player = player()
+        val booth = TestWorld.place(boothId, boothTile)
+        player.status.add(PickpocketStun(player, ticks = 5))
+
+        assertFalse(LunaClicks.mayAct(player, ObjectFirstClickEvent(player, booth)))
+    }
+
+    @Test
+    fun `a stunned player may still press a button`() {
+        val player = player()
+        player.status.add(PickpocketStun(player, ticks = 5))
+
+        assertTrue(LunaClicks.mayAct(player, ButtonClickEvent(player, 1)))
     }
 
     @Test
