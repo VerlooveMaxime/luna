@@ -95,6 +95,20 @@ data class NearbyView(
     val players: List<NearbyPlayerView>,
 )
 
+/**
+ * Whether a player can be put on [tile]: [ok] when it is [standable] (some neighbour steps onto it), no object covers it
+ * but ground decorations ([objects] lists every one whose footprint does) and it is [reachable] from where the player
+ * stands by a trip their flow's Travel tab allows; [problems] says in words what fails.
+ */
+data class TileView(
+    val tile: PositionView,
+    val ok: Boolean,
+    val standable: Boolean,
+    val objects: List<ObjectView>,
+    val reachable: Boolean,
+    val problems: List<String>,
+)
+
 data class MessagesView(val next: Long, val messages: List<RecordedMessage>)
 
 data class ActionView(val player: String, val action: String, val detail: String)

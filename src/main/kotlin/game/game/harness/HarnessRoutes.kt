@@ -30,6 +30,9 @@ fun harnessRoutes(api: HarnessApi): List<Route> {
                 includeInert = call.queryBoolean("all", default = false),
             )
         },
+        Route("GET", "/player/{name}/tile") { call ->
+            api.tile(call.path("name"), call.queryInt("x"), call.queryInt("y"), call.queryIntOrNull("z"))
+        },
         Route("GET", "/player/{name}/messages") { call ->
             api.messages(
                 name = call.path("name"),

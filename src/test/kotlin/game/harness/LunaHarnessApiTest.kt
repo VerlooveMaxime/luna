@@ -1,5 +1,14 @@
 package game.harness
 
+import api.bot.webwalk.model.EdgeType
+import api.bot.webwalk.model.NodeKind
+import api.bot.webwalk.model.Requirements
+import api.bot.webwalk.model.WebWalkEdge
+import api.bot.webwalk.model.WebWalkGraph
+import api.bot.webwalk.model.WebWalkNode
+import api.bot.webwalk.plan.CapabilitySnapshot.Companion.COINS
+import api.bot.webwalk.plan.WalkEstimator
+import api.bot.webwalk.plan.ticksForTiles
 import game.idle.IdleState
 import game.idle.flow.FakeBankStep
 import game.idle.flow.FakeStep
@@ -15,6 +24,7 @@ import game.idle.flow.StopSettings
 import game.idle.font.ClientFont
 import game.idle.idleState
 import game.idle.movement.TravelAllowance
+import game.idle.movement.TravelWeb
 import game.testworld.TestWorld
 import io.luna.game.action.Action
 import io.luna.game.action.ActionType
@@ -43,6 +53,8 @@ import io.luna.game.model.mob.Player
 import io.luna.game.model.mob.Skill
 import io.luna.game.model.mob.overlay.NumberInput
 import io.luna.game.model.mob.overlay.StandardInterface
+import io.luna.game.model.`object`.ObjectDirection
+import io.luna.game.model.`object`.ObjectType
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -53,6 +65,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.CompletableFuture
+import java.util.Random
 
 class LunaHarnessApiTest {
 
@@ -63,6 +76,9 @@ class LunaHarnessApiTest {
     private val normalTree = 1276
     private val man = 1
     private val bronzeAxe = 1351
+    private val wall = 1902
+    private val range = 3039
+    private val door = 1530
     private val logs = 1511
 
     private class Endless(player: Player) : Action<Player>(player, ActionType.WEAK) {
@@ -91,6 +107,34 @@ class LunaHarnessApiTest {
         flows,
         clock = Clock.fixed(Instant.parse("${date}T12:00:00Z"), ZoneOffset.UTC),
     )
+
+    /** Trips planned on [web]; with none, as before its data is generated, a plain walk on the player's floor, none off it. */
+    private fun withWeb(web: TravelWeb? = null) = LunaHarnessApi(
+        TestWorld.world,
+        LunaGameThread(TestWorld.context.game, Duration.ofSeconds(1)),
+        HeadlessPlayers(TestWorld.context, HarnessConfig()) { CompletableFuture.completedFuture(null) },
+        flows,
+        web = { web },
+    )
+
+    private fun tile(x: Int, y: Int, z: Int? = null): TileView = withWeb().tile("agent_a", x, y, z)
+
+    /** A wall at x 3210 that only a toll gate of 10 coins crosses, from 3209 to 3210. */
+    private val tollWeb: TravelWeb by lazy {
+        val west = WebWalkNode("west", Position(3209, 3200), NodeKind.OBSTACLE)
+        val east = WebWalkNode("east", Position(3210, 3200), NodeKind.OBSTACLE)
+        val wall = WalkEstimator { from, to ->
+            if (from.z != to.z || (from.x < 3210) != (to.x < 3210)) null else ticksForTiles(from.computeLongestDistance(to))
+        }
+        val toll = WebWalkEdge(west.id, east.id, EdgeType.CROSSING, requirements = Requirements(coins = 10))
+        TravelWeb(WebWalkGraph(listOf(west, east), listOf(toll), emptyList(), emptyList()), { false }, { wall }, Random(1))
+    }
+
+    /** The agent carrying the toll's 10 coins, with a flow whose trips may spend as [travel] says. */
+    private fun payingAgent(travel: TravelAllowance): Player = agent().apply {
+        inventory.add(Item(COINS, 10))
+        idleState = idleState.copy(travel = travel)
+    }
 
     private fun agent(position: Position = spawn): Player = TestWorld.login("agent_a", position)
 
@@ -408,6 +452,147 @@ class LunaHarnessApiTest {
         assertEquals(listOf(NearbyPlayerView("agent_b", other.index, false, PositionView(3203, 3200, 0), 3)), players)
     }
 
+
+    @Test
+    fun `open ground a walk gets to is a tile a player can be put on`() {
+        agent()
+
+        assertEquals(TileView(PositionView(3202, 3200, 0), ok = true, standable = true, objects = emptyList(), reachable = true, problems = emptyList()), tile(3202, 3200))
+    }
+
+    @Test
+    fun `the tile is read on the player's floor when none is given`() {
+        agent(Position(3200, 3200, 1))
+
+        assertEquals(PositionView(3202, 3200, 1), tile(3202, 3200).tile)
+    }
+
+    @Test
+    fun `a wall on the tile fails it, though a player can stand there`() {
+        agent()
+        TestWorld.place(door, Position(3202, 3200), ObjectType.STRAIGHT_WALL, ObjectDirection.WEST)
+
+        val view = tile(3202, 3200)
+
+        assertEquals(listOf(true, false, listOf("a wall stands on it: Door (straight wall)")), listOf(view.standable, view.ok, view.problems))
+    }
+
+    @Test
+    fun `a wall without a name is told by its kind alone`() {
+        agent()
+        TestWorld.place(wall, Position(3202, 3200), ObjectType.STRAIGHT_WALL, ObjectDirection.WEST)
+
+        assertEquals(listOf("a wall stands on it (straight wall)"), tile(3202, 3200).problems)
+    }
+
+    @Test
+    fun `an object covering the tile past its south-west tile is listed and blocks it`() {
+        agent()
+        TestWorld.place(range, Position(3201, 3200), direction = ObjectDirection.NORTH)
+
+        val view = tile(3202, 3200)
+
+        assertEquals(listOf(listOf(range), false), listOf(view.objects.map { it.id }, view.standable))
+    }
+
+    @Test
+    fun `the objects covering a tile are listed nearest south-west tile first`() {
+        agent()
+        TestWorld.place(range, Position(3201, 3200), direction = ObjectDirection.NORTH)
+        TestWorld.place(wall, Position(3202, 3200), ObjectType.STRAIGHT_WALL, ObjectDirection.WEST)
+
+        assertEquals(listOf(wall, range), tile(3202, 3200).objects.map { it.id })
+    }
+
+    @Test
+    fun `an object on the tile is shown as nearby shows it, its distance counted from the player`() {
+        agent()
+        TestWorld.place(booth, Position(3203, 3200))
+
+        val options = listOf(OptionView(1, "Use"), OptionView(2, "Use-quickly"))
+        assertEquals(listOf(ObjectView(booth, "Bank booth", PositionView(3203, 3200, 0), 3, "DEFAULT", options)), tile(3203, 3200).objects)
+    }
+
+    @Test
+    fun `an object on a tile far out of the player's view is still on it`() {
+        agent()
+        TestWorld.place(booth, Position(3250, 3200))
+
+        assertEquals(listOf(booth), tile(3250, 3200).objects.map { it.id })
+    }
+
+    @Test
+    fun `an object beside the tile is not on it`() {
+        agent()
+        TestWorld.place(booth, boothTile)
+
+        assertEquals(emptyList<ObjectView>(), tile(3202, 3200).objects)
+    }
+
+    @Test
+    fun `an object only another player sees is not on the tile`() {
+        agent()
+        TestWorld.placeFor(TestWorld.login("other", spawn), booth, Position(3202, 3200))
+
+        assertEquals(emptyList<ObjectView>(), tile(3202, 3200).objects)
+    }
+
+    @Test
+    fun `a tile no trip gets to fails it, saying where the trip would start`() {
+        agent()
+
+        val view = tile(3202, 3200, z = 1)
+
+        assertEquals(listOf(false, false, listOf("no trip from 3200, 3200 gets there with this flow's Travel settings")), listOf(view.reachable, view.ok, view.problems))
+    }
+
+    @Test
+    fun `a tile past a toll is reachable when the flow's Travel tab lets its trips pay`() {
+        payingAgent(TravelAllowance(coins = true))
+
+        assertTrue(withWeb(tollWeb).tile("agent_a", 3215, 3200, z = null).reachable)
+    }
+
+    @Test
+    fun `a tile past a toll is out of reach when the flow's Travel tab keeps its coins`() {
+        payingAgent(TravelAllowance.NONE)
+
+        assertEquals(false, withWeb(tollWeb).tile("agent_a", 3215, 3200, z = null).reachable)
+    }
+
+    @Test
+    fun `the tile check of a player not online is a 404`() {
+        assertEquals(404, status { tile(3202, 3200) })
+    }
+
+    @Test
+    fun `a move onto open ground is queued like any command`() {
+        agent()
+
+        val view = api().act("agent_a", PlayerAction.Command("::move 3202 3200"))
+
+        assertEquals(ActionView("agent_a", "command", "opcode 56 queued for the next tick"), view)
+    }
+
+    @Test
+    fun `a move onto a tile the player would stand wrong on is a 409 saying why`() {
+        agent()
+        TestWorld.place(booth, Position(3203, 3200))
+
+        val thrown = assertThrows<HarnessException> { api().act("agent_a", PlayerAction.Command("::move 3203 3200")) }
+
+        val reason = "not moving agent_a onto 3203, 3200, 0: a player cannot stand on it; an object stands on it: Bank booth"
+        assertEquals(listOf(409, reason), listOf(thrown.status, thrown.message))
+    }
+
+    @Test
+    fun `a move needs no trip to its tile`() {
+        agent()
+
+        val view = withWeb().act("agent_a", PlayerAction.Command("::move 3202 3200 1"))
+
+        assertEquals(ActionView("agent_a", "command", "opcode 56 queued for the next tick"), view)
+    }
 
     @Test
     fun `a headless player's messages are read from its log`() {

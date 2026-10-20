@@ -73,6 +73,27 @@ class HarnessRoutesTest {
     }
 
     @Test
+    fun `tile reads its x, y and floor from the query`() {
+        get("/player/agent_a/tile", mapOf("x" to "2948", "y" to "9516", "z" to "1"))
+
+        assertEquals(listOf("tile agent_a 2948 9516 1"), api.calls)
+    }
+
+    @Test
+    fun `tile leaves the floor to the player when none is given`() {
+        get("/player/agent_a/tile", mapOf("x" to "3200", "y" to "3201"))
+
+        assertEquals(listOf("tile agent_a 3200 3201 null"), api.calls)
+    }
+
+    @Test
+    fun `tile without its x is a 400`() {
+        val response = get("/player/agent_a/tile", mapOf("y" to "3201"))
+
+        assertEquals(HarnessResponse(400, ErrorView("query parameter 'x' is required and must be an integer")), response)
+    }
+
+    @Test
     fun `nearby defaults to radius 8 without inert objects`() {
         get("/player/agent_a/nearby")
 

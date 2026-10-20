@@ -51,8 +51,13 @@ class RouteCall(val request: HarnessRequest, private val pathParams: Map<String,
     fun path(name: String): String =
         checkNotNull(pathParams[name]) { "route has no path parameter '$name'" }
 
-    fun queryInt(name: String, default: Int): Int {
-        val value = request.query[name] ?: return default
+    fun queryInt(name: String, default: Int): Int = queryIntOrNull(name) ?: default
+
+    fun queryInt(name: String): Int =
+        queryIntOrNull(name) ?: throw HarnessException(400, "query parameter '$name' is required and must be an integer")
+
+    fun queryIntOrNull(name: String): Int? {
+        val value = request.query[name] ?: return null
         return value.toIntOrNull() ?: throw HarnessException(400, "query parameter '$name' must be an integer")
     }
 

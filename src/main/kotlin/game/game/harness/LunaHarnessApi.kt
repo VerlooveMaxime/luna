@@ -2,6 +2,8 @@ package game.harness
 
 import api.bot.zone.Zone
 import com.google.gson.JsonElement
+import game.idle.autopilot.travel.LunaTraveller
+import game.idle.autopilot.travel.PlannedTrip
 import game.idle.content.audit.ContentAudit
 import game.idle.content.audit.ContentAuditReport
 import game.idle.content.audit.ContentRegistries
@@ -18,8 +20,13 @@ import game.idle.flow.StepLines
 import game.idle.flow.StepSettings
 import game.idle.flow.StopSettings
 import game.idle.flow.option.LunaGameNames
+import game.idle.autopilot.LunaTeleports
 import game.idle.idleState
 import game.idle.movement.TravelAllowance
+import game.idle.movement.TravelWeb
+import game.idle.movement.TravelWebs
+import game.idle.movement.canStandOn
+import game.idle.movement.footprintOf
 import game.idle.movement.navigateToReach
 import game.idle.ui.ChatboxPrompt
 import game.idle.ui.NamePrompt
@@ -46,7 +53,8 @@ import java.util.concurrent.CompletableFuture
 
 /**
  * [HarnessApi] over the live world. Reads and actions run on the game thread; only login waits on the HTTP thread,
- * because loading a save must not block a tick.
+ * because loading a save must not block a tick. The tile check plans its trip on [web], the world's travel web, as the
+ * flow's trips do.
  */
 class LunaHarnessApi(
     private val world: World,
@@ -55,6 +63,7 @@ class LunaHarnessApi(
     private val flows: FlowCheck,
     private val contentRegistries: ContentRegistries = LunaRegistries,
     private val clock: Clock = Clock.systemDefaultZone(),
+    private val web: (World) -> TravelWeb? = TravelWebs.SERVER::of,
 ) : HarnessApi {
 
     private val lines = StepLines(flows.resolver, LunaGameNames)
@@ -91,6 +100,19 @@ class LunaHarnessApi(
             throw HarnessException(400, "radius must be between 1 and $MAX_RADIUS, got $radius")
         }
         return gameThread.run { nearbyView(online(name), radius, includeInert) }
+    }
+
+    override fun tile(name: String, x: Int, y: Int, z: Int?): TileView = gameThread.run {
+        val player = online(name)
+        val tile = Position(x, y, z ?: player.z)
+        val objects = objectsCovering(player, tile)
+        val standable = canStandOn(world.collisionManager, tile)
+        // The trip a walk step of the player's flow would plan, on this thread as theirs: 10 to 45 ms across the map.
+        val traveller = LunaTraveller(player, web(world), player.idleState.travel, LunaTeleports.reserve(player))
+        val reachable = traveller.plan(listOf(tile)).join() is PlannedTrip
+        val problems = TileProblems.standing(standable, objects.map(::tileObject)) +
+            listOfNotNull(TileProblems.unreachable(player.position).takeUnless { reachable })
+        TileView(position(tile), problems.isEmpty(), standable, objects.map { objectView(it, player.position) }, reachable, problems)
     }
 
     override fun messages(name: String, since: Long, type: String?): MessagesView = gameThread.run {
@@ -160,7 +182,10 @@ class LunaHarnessApi(
                 player.navigator.navigate(Position(action.x, action.y, player.z), true)
                 ActionView(player.username, "walk", "walking to ${action.x}, ${action.y}")
             }
-            is PlayerAction.Command -> send(player, "command", HarnessPackets.command(action.text))
+            is PlayerAction.Command -> {
+                moveTarget(action.text, player.z)?.let { refuseStandingWrong(player, it) }
+                send(player, "command", HarnessPackets.command(action.text))
+            }
             is PlayerAction.Chat -> send(player, "chat", HarnessPackets.chat(action.text))
             is PlayerAction.Button -> send(player, "button", HarnessPackets.button(action.id))
             is PlayerAction.PickTile -> send(player, "pick tile", HarnessPackets.mapPick(action.x, action.y))
@@ -188,6 +213,25 @@ class LunaHarnessApi(
             PlayerAction.ContinueDialogue -> send(player, "continue dialogue", HarnessPackets.continueDialogue())
             PlayerAction.CloseInterface -> send(player, "close interface", HarnessPackets.closeInterface())
         }
+
+    /** A move needs no way there, since the player jumps; only a tile they would stand wrong on is refused. */
+    private fun refuseStandingWrong(player: Player, tile: Position) {
+        val problems = TileProblems.standing(canStandOn(world.collisionManager, tile), objectsCovering(player, tile).map(::tileObject))
+        if (problems.isNotEmpty()) {
+            throw HarnessException(409, "not moving ${player.username} onto ${tile.x}, ${tile.y}, ${tile.z}: ${problems.joinToString("; ")}")
+        }
+    }
+
+    /**
+     * Every object shown to [player] whose footprint covers [tile], nearest south-west tile first. Not `isVisibleTo`,
+     * which also asks that the player stand within view of it: the tile may lie anywhere.
+     */
+    private fun objectsCovering(player: Player, tile: Position): List<GameObject> =
+        world.locator.findObjects(tile, WIDEST_OBJECT) { it.view.isViewableFor(player) && tile in footprintOf(it) }
+            .sortedWith(compareBy({ tile.computeLongestDistance(it.position) }, { it.id }))
+
+    /** Luna's decoder stores a missing name as the text "null", which the words leave out. */
+    private fun tileObject(obj: GameObject) = TileObject(obj.def().name.takeUnless { it == "null" }, obj.objectType)
 
     private fun clickObject(player: Player, action: PlayerAction.ClickObject): ActionView {
         val target = world.objects.findAll(Position(action.x, action.y, player.z))
@@ -363,5 +407,8 @@ class LunaHarnessApi(
 
     private companion object {
         const val MAX_RADIUS = 32
+
+        /** The widest object of the 377 cache, in tiles (LostCity's 377 configs): any object covering a tile lies this near. */
+        const val WIDEST_OBJECT = 16
     }
 }

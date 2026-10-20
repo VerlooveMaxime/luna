@@ -24,6 +24,9 @@ interface HarnessApi {
 
     fun messages(name: String, since: Long, type: String?): MessagesView
 
+    /** Whether the player could be put on tile [x], [y] of floor [z] (their own when null), and what fails it. */
+    fun tile(name: String, x: Int, y: Int, z: Int?): TileView
+
     fun act(name: String, action: PlayerAction): ActionView
 
     /** Audits the whole world's content: what its spawned npcs and placed objects lack. Holds the game for a moment. */
@@ -53,6 +56,7 @@ sealed interface PlayerAction {
 
     data class Walk(val x: Int, val y: Int) : PlayerAction
 
+    /** Refused when it is a `move` onto a tile the player would stand wrong on (the tile check without its reach). */
     data class Command(val text: String) : PlayerAction
 
     data class Chat(val text: String) : PlayerAction

@@ -137,6 +137,28 @@ class HarnessRouterTest {
     }
 
     @Test
+    fun `a required query int parses the value`() {
+        assertEquals(3200, call(query = mapOf("x" to "3200")).queryInt("x"))
+    }
+
+    @Test
+    fun `a required query int that is missing is a 400 saying so`() {
+        val thrown = assertThrows<HarnessException> { call().queryInt("x") }
+
+        assertEquals(listOf(400, "query parameter 'x' is required and must be an integer"), listOf(thrown.status, thrown.message))
+    }
+
+    @Test
+    fun `an optional query int is null when missing`() {
+        assertEquals(null, call().queryIntOrNull("z"))
+    }
+
+    @Test
+    fun `an optional query int parses the value`() {
+        assertEquals(1, call(query = mapOf("z" to "1")).queryIntOrNull("z"))
+    }
+
+    @Test
     fun `query long falls back to the default`() {
         assertEquals(0L, call().queryLong("since", default = 0))
     }

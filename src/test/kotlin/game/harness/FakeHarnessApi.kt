@@ -44,6 +44,11 @@ class FakeHarnessApi : HarnessApi {
         return NearbyView(PositionView(0, 0, 0), radius, emptyList(), emptyList(), emptyList(), emptyList())
     }
 
+    override fun tile(name: String, x: Int, y: Int, z: Int?): TileView {
+        calls += "tile $name $x $y $z"
+        return TileView(PositionView(x, y, z ?: 0), ok = true, standable = true, objects = emptyList(), reachable = true, problems = emptyList())
+    }
+
     override fun messages(name: String, since: Long, type: String?): MessagesView {
         calls += "messages $name since=$since type=$type"
         return MessagesView(next = 0, messages = emptyList())

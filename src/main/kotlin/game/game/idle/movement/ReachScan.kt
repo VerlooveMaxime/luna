@@ -3,7 +3,11 @@ package game.idle.movement
 import io.luna.game.model.Position
 
 /** Something to walk up to: its south-west tile and the tiles it covers east and north of it. */
-data class Footprint(val position: Position, val width: Int, val height: Int)
+data class Footprint(val position: Position, val width: Int, val height: Int) {
+
+    operator fun contains(tile: Position): Boolean =
+        tile.z == position.z && tile.x - position.x in 0 until width && tile.y - position.y in 0 until height
+}
 
 /**
  * How a player gets to use a target: [distance] walking steps to [approach], zero when [usableFromHere], through
